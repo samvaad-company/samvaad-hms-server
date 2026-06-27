@@ -1,0 +1,181 @@
+export type Gender = "Male" | "Female";
+export type BloodGroup = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+
+export type AppointmentStatus = "Completed" | "Today" | "Upcoming" | "Cancelled";
+export type OpdStatus = "Waiting" | "In Consultation" | "Completed";
+export type DoctorStatus = "Active" | "On Leave" | "In OPD";
+export type PrescriptionStatus = "Dispensed" | "Pending" | "Draft";
+export type PharmacyStatus = "In Stock" | "Low Stock" | "Out of Stock" | "Expired";
+export type LabStatus = "Pending" | "Sample Collected" | "Report Ready" | "Cancelled";
+export type BillingStatus = "Paid" | "Pending" | "Partial" | "Refunded";
+export type IpdStatus = "Admitted" | "ICU" | "Discharged";
+export type OtStatus = "Scheduled" | "In Progress" | "Completed" | "Cancelled";
+export type BedStatus = "Available" | "Occupied" | "Reserved" | "Maintenance";
+export type StaffStatus = "Active" | "On Leave" | "Inactive";
+
+export interface Patient {
+  id: number;
+  name: string;
+  age: number;
+  phone: string;
+  gender: Gender;
+  reason: string;
+  doctor: string;
+  status: AppointmentStatus;
+  date: string;
+  time: string;
+  patientId?: string;
+  bloodGroup?: BloodGroup;
+}
+
+export interface Appointment {
+  id: number;
+  patientName: string;
+  patientAge: number;
+  doctor: string;
+  date: string;
+  time: string;
+  type: "Walk-in" | "Booked";
+  reason: string;
+  status: AppointmentStatus;
+}
+
+export interface OpdRecord {
+  id: number;
+  tokenNumber: string;
+  patientName: string;
+  patientAge: number;
+  doctor: string;
+  vitalsRecorded: boolean;
+  waitTime: string;
+  checkInTime: string;
+  status: OpdStatus;
+}
+
+export interface Doctor {
+  id: number;
+  name: string;
+  specialty: string;
+  department: string;
+  phone: string;
+  experience: string;
+  patientsToday: number;
+  status: DoctorStatus;
+}
+
+export interface Medicine {
+  name: string;
+  dosage: string;
+  timing: string;
+  duration: string;
+}
+
+export interface Prescription {
+  id: number;
+  rxNumber: string;
+  patientName: string;
+  patientAge: number;
+  doctor: string;
+  diagnosis: string;
+  medicineCount: number;
+  date: string;
+  status: PrescriptionStatus;
+}
+
+export interface PharmacyItem {
+  id: number;
+  name: string;
+  category: string;
+  stock: number;
+  minStock: number;
+  expiryDate: string;
+  supplier: string;
+  status: PharmacyStatus;
+}
+
+export interface LabTest {
+  id: number;
+  patientName: string;
+  patientAge: number;
+  testName: string;
+  sampleStatus: "Pending" | "Collected";
+  reportStatus: "Pending" | "Ready";
+  date: string;
+  amount: number;
+  status: LabStatus;
+}
+
+export interface Bill {
+  id: number;
+  billNumber: string;
+  patientName: string;
+  type: "OPD" | "Pharmacy" | "Lab" | "IPD";
+  date: string;
+  amount: number;
+  discount: number;
+  gst: number;
+  total: number;
+  status: BillingStatus;
+}
+
+export interface IpdRecord {
+  id: number;
+  patientName: string;
+  patientAge: number;
+  patientId: string;
+  admissionDate: string;
+  ward: string;
+  bed: string;
+  doctor: string;
+  diagnosis: string;
+  status: IpdStatus;
+}
+
+export interface OtRecord {
+  id: number;
+  patientName: string;
+  procedure: string;
+  otRoom: string;
+  surgeon: string;
+  anesthetist: string;
+  scheduledTime: string;
+  scheduledDate: string;
+  status: OtStatus;
+}
+
+export interface Bed {
+  id: number;
+  bedNumber: string;
+  ward: string;
+  patientName?: string;
+  patientId?: string;
+  status: BedStatus;
+}
+
+export interface Staff {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+  phone: string;
+  email: string;
+  joinDate: string;
+  status: StaffStatus;
+}
+
+export interface KpiStat {
+  label: string;
+  value: string;
+  change: string;
+  positive: boolean;
+}
+
+export interface ReportRow {
+  id: number;
+  doctor: string;
+  specialty: string;
+  patientsCount: number;
+  revenue: number;
+  satisfaction: string;
+  avgConsultTime: string;
+}

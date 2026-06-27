@@ -1,0 +1,244 @@
+"use client";
+
+import { useState } from "react";
+import { tw } from "@/lib/design-system";
+import { Users2, Plus, MoreVertical, Phone, Mail } from "lucide-react";
+import { staffMembers } from "@/data/staff";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { DataTable } from "@/components/shared/DataTable";
+import { TabBar } from "@/components/shared/TabBar";
+import type { Staff } from "@/types";
+import Link from "next/link";
+
+// ─── All Staff ────────────────────────────────────────────────────────────────
+
+const COLUMNS = [
+  { label: "Staff Member", left: 20   }, { label: "Department",   left: 270  },
+  { label: "Phone",        left: 480  }, { label: "Email",        left: 670  },
+  { label: "Join Date",    left: 970  }, { label: "Status",       left: 1160 },
+  { label: "Action",       left: 1360 },
+];
+const FILTERS = [
+  { id: "All", label: "All" }, { id: "Active", label: "Active" },
+  { id: "OnLeave", label: "On Leave" }, { id: "Inactive", label: "Inactive" },
+];
+const MIN_WIDTH = 1452;
+
+function StaffRow({ row }: { row: Staff }) {
+  return (
+    <Link href={`/staff/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
+      <div className="absolute left-5 flex flex-col justify-center">
+        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.name}</span>
+        <span className="text-[12px] font-light text-[#57575f] leading-4 whitespace-nowrap">{row.role}</span>
+      </div>
+      <div className="absolute" style={{ left: 270 }}>
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.department}</span>
+      </div>
+      <div className="absolute flex items-center gap-[5px]" style={{ left: 480 }}>
+        <Phone size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.phone}</span>
+      </div>
+      <div className="absolute flex items-center gap-[5px]" style={{ left: 670 }}>
+        <Mail size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
+        <span className="text-[14px] font-normal text-[#57575f] leading-[19px] whitespace-nowrap">{row.email}</span>
+      </div>
+      <div className="absolute" style={{ left: 970 }}>
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.joinDate}</span>
+      </div>
+      <div className="absolute" style={{ left: 1160 }}><StatusBadge status={row.status} /></div>
+      <div className="absolute" style={{ left: 1360 }}>
+        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors"><MoreVertical size={24} strokeWidth={1.5} /></button>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Access Control ───────────────────────────────────────────────────────────
+
+const ROLES = ["Administrator", "Doctor", "Nurse", "Lab Technician", "Pharmacist", "Receptionist", "Accountant"];
+const MODULES = ["Patients", "Appointments", "OPD", "Prescriptions", "Pharmacy", "Lab", "IPD", "OT", "Beds", "Billing", "Staff", "Reports", "Admin"];
+
+const DEFAULT_PERMS: Record<string, Record<string, boolean>> = {
+  Administrator: Object.fromEntries(MODULES.map(m => [m, true])),
+  Doctor:        Object.fromEntries(MODULES.map(m => [m, ["Patients","Appointments","OPD","Prescriptions","IPD","Lab"].includes(m)])),
+  Nurse:         Object.fromEntries(MODULES.map(m => [m, ["Patients","IPD","OT","Beds","Lab"].includes(m)])),
+  "Lab Technician": Object.fromEntries(MODULES.map(m => [m, ["Patients","Lab"].includes(m)])),
+  Pharmacist:    Object.fromEntries(MODULES.map(m => [m, ["Patients","Pharmacy","Prescriptions"].includes(m)])),
+  Receptionist:  Object.fromEntries(MODULES.map(m => [m, ["Patients","Appointments","Billing"].includes(m)])),
+  Accountant:    Object.fromEntries(MODULES.map(m => [m, ["Billing","Reports"].includes(m)])),
+};
+
+function AccessControlView() {
+  const [perms, setPerms] = useState(DEFAULT_PERMS);
+  const [selectedRole, setSelectedRole] = useState("Administrator");
+
+  const toggle = (module: string) => setPerms(prev => ({
+    ...prev,
+    [selectedRole]: { ...prev[selectedRole], [module]: !prev[selectedRole][module] },
+  }));
+
+  return (
+    <div className="p-5 flex gap-5" style={{ height: 555 }}>
+      {/* Role list */}
+      <div className="w-48 flex flex-col gap-1 shrink-0">
+        <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Roles</p>
+        {ROLES.map(role => (
+          <button
+            key={role}
+            onClick={() => setSelectedRole(role)}
+            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors cursor-pointer ${selectedRole === role ? "bg-[#009598] text-white" : "text-[#57575f] hover:bg-[#f6f6f6] hover:text-[#11111c]"}`}
+          >
+            {role}
+          </button>
+        ))}
+      </div>
+      {/* Permissions matrix */}
+      <div className="flex-1 border border-[#dedee1] rounded-[10px] overflow-hidden">
+        <div className="px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1]">
+          <h3 className="text-[14px] font-medium text-[#11111c]">Module Permissions — {selectedRole}</h3>
+        </div>
+        <div className="grid gap-0 overflow-y-auto" style={{ maxHeight: 464 }}>
+          {MODULES.map((module, i) => {
+            const allowed = perms[selectedRole]?.[module] ?? false;
+            return (
+              <label key={module} className={`flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#fafafa] transition-colors ${i < MODULES.length - 1 ? "border-b border-[#f0f0f0]" : ""}`}>
+                <span className="text-[14px] font-normal text-[#11111c]">{module}</span>
+                <div className="flex items-center gap-3">
+                  <span className={`text-[12px] font-normal ${allowed ? "text-[#00955c]" : "text-[#57575f]"}`}>
+                    {allowed ? "Allowed" : "Restricted"}
+                  </span>
+                  <button
+                    onClick={() => toggle(module)}
+                    className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${allowed ? "bg-[#009598]" : "bg-[#dedee1]"}`}
+                  >
+                    <span className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all ${allowed ? "left-[21px]" : "left-[3px]"}`} />
+                  </button>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+
+const ATTENDANCE_DATA = [
+  { name: "Maya Sharma",      role: "Head Nurse",       date: "13 Nov",  in: "7:58 AM",  out: "4:05 PM", hours: "8:07", shift: "Morning", status: "Present" },
+  { name: "Arjun Mehta",      role: "Lab Technician",   date: "13 Nov",  in: "8:02 AM",  out: "4:00 PM", hours: "7:58", shift: "Morning", status: "Present" },
+  { name: "Priya Nair",       role: "Receptionist",     date: "13 Nov",  in: "9:05 AM",  out: "5:10 PM", hours: "8:05", shift: "Morning", status: "Present" },
+  { name: "Kavita Reddy",     role: "Pharmacist",       date: "13 Nov",  in: "—",        out: "—",       hours: "—",    shift: "Morning", status: "Absent"  },
+  { name: "Suresh Kumar",     role: "Ward Boy",         date: "13 Nov",  in: "7:45 AM",  out: "3:50 PM", hours: "8:05", shift: "Morning", status: "Present" },
+  { name: "Deepika Joshi",    role: "Staff Nurse",      date: "13 Nov",  in: "2:55 PM",  out: "10:58 PM",hours: "8:03", shift: "Evening", status: "Present" },
+  { name: "Rohit Sinha",      role: "Admin Staff",      date: "13 Nov",  in: "9:10 AM",  out: "—",       hours: "—",    shift: "Morning", status: "Leave"   },
+  { name: "Lakshmi Pillai",   role: "Dietitian",        date: "13 Nov",  in: "10:03 AM", out: "6:00 PM", hours: "7:57", shift: "General", status: "Present" },
+  { name: "Vinod Chandra",    role: "Security Guard",   date: "13 Nov",  in: "8:00 AM",  out: "8:00 PM", hours: "12:00",shift: "Day",    status: "Present" },
+  { name: "Asha Kumari",      role: "Cleaning Staff",   date: "13 Nov",  in: "6:00 AM",  out: "2:00 PM", hours: "8:00", shift: "Morning", status: "Present" },
+];
+
+const ATT_STATUS_CLR: Record<string, string> = {
+  Present: "bg-[#dffff3] text-[#00955c]",
+  Absent:  "bg-[#ffe9e9] text-[#ff0004]",
+  Leave:   "bg-[#fff2e0] text-[#ff9000]",
+  Late:    "bg-[#f0f0f0] text-[#57575f]",
+};
+
+function AttendanceView() {
+  return (
+    <div className="flex flex-col" style={{ height: 555 }}>
+      {/* Date bar */}
+      <div className="flex items-center gap-4 px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1]">
+        <input type="date" defaultValue="2025-11-13"
+          className="h-[34px] bg-white border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+        <div className="flex items-center gap-5 ml-4">
+          {[{ l: "Present", v: 8, c: "text-[#00955c]" }, { l: "Absent", v: 1, c: "text-[#ff0004]" }, { l: "On Leave", v: 1, c: "text-[#ff9000]" }].map(s => (
+            <div key={s.l} className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.l}</span>
+              <span className={`text-[18px] font-medium leading-none ${s.c}`}>{s.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Table */}
+      <div className="overflow-x-auto flex-1">
+        <div style={{ minWidth: 1100 }}>
+          <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 1100 }}>
+            {[{ l: "Staff Member", x: 20 }, { l: "Shift", x: 290 }, { l: "Check-in", x: 450 }, { l: "Check-out", x: 610 }, { l: "Hours", x: 780 }, { l: "Status", x: 930 }].map(c => (
+              <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
+            ))}
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: 464 }}>
+            {ATTENDANCE_DATA.map((row, i) => (
+              <div key={i} className="relative flex items-center h-[56px] border-b border-[#dedee1] last:border-0 bg-white hover:bg-[#fafafa] transition-colors" style={{ minWidth: 1100 }}>
+                <div className="absolute flex flex-col justify-center" style={{ left: 20 }}>
+                  <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{row.name}</span>
+                  <span className="text-[11px] font-light text-[#57575f]">{row.role}</span>
+                </div>
+                <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 290 }}>{row.shift}</span>
+                <span className="absolute text-[14px] font-normal text-[#11111c]" style={{ left: 450 }}>{row.in}</span>
+                <span className="absolute text-[14px] font-normal text-[#11111c]" style={{ left: 610 }}>{row.out}</span>
+                <span className={`absolute text-[14px] font-medium ${row.hours === "—" ? "text-[#57575f]" : "text-[#11111c]"}`} style={{ left: 780 }}>{row.hours}</span>
+                <span className={`absolute inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal ${ATT_STATUS_CLR[row.status]}`} style={{ left: 930 }}>{row.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: "all",        label: "All Staff",       count: staffMembers.length },
+  { id: "access",     label: "Access Control" },
+  { id: "attendance", label: "Attendance" },
+];
+
+const STAFF_FILTER_MAP: Record<string, string> = { "OnLeave": "On Leave" };
+
+export default function StaffPage() {
+  const [tab, setTab] = useState("all");
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+
+  const visible = staffMembers.filter(s => {
+    const matchF = filter === "All" || s.status === (STAFF_FILTER_MAP[filter] ?? filter);
+    const q = search.toLowerCase();
+    const matchS = !q || s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.department.toLowerCase().includes(q);
+    return matchF && matchS;
+  });
+
+  return (
+    <>
+      <PageHeader
+        title="Staff"
+        subtitle="Manage hospital staff — nurses, technicians, admin personnel, and support staff."
+        stats={[{ icon: Users2, value: `${visible.length}`, label: "Total Staff" }]}
+        action={{ label: "Add Staff", icon: Plus }}
+        dateRange={false}
+      />
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
+          <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          {tab === "all" && (
+            <>
+              <FilterBar filters={FILTERS} searchPlaceholder="Search by name, role, or department..."
+                activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
+              <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
+                {visible.map(r => <StaffRow key={r.id} row={r} />)}
+              </DataTable>
+            </>
+          )}
+          {tab === "access"     && <AccessControlView />}
+          {tab === "attendance" && <AttendanceView />}
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,278 @@
+"use client";
+
+import { useState } from "react";
+import { tw } from "@/lib/design-system";
+import { Calendar, Plus, MoreVertical } from "lucide-react";
+import { appointments } from "@/data/appointments";
+import { opdRecords } from "@/data/opd";
+import { doctors } from "@/data/doctors";
+import { patients } from "@/data/patients";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { DataTable } from "@/components/shared/DataTable";
+import { TabBar } from "@/components/shared/TabBar";
+import { Modal } from "@/components/shared/Modal";
+import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import Link from "next/link";
+import type { Appointment } from "@/types";
+
+// ─── All Appointments ─────────────────────────────────────────────────────────
+
+const COLUMNS = [
+  { label: "Patient Name", left: 20 },
+  { label: "Doctor",       left: 230 },
+  { label: "Date & Time",  left: 470 },
+  { label: "Type",         left: 670 },
+  { label: "Reason",       left: 820 },
+  { label: "Status",       left: 1060 },
+  { label: "Action",       left: 1270 },
+];
+const FILTERS = [
+  { id: "All", label: "All" }, { id: "Today", label: "Today" },
+  { id: "Upcoming", label: "Upcoming" }, { id: "Completed", label: "Completed" },
+  { id: "Cancelled", label: "Cancelled" },
+];
+const MIN_WIDTH = 1400;
+
+function AppointmentRow({ row }: { row: Appointment }) {
+  return (
+    <Link href={`/appointments/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
+      <div className="absolute left-5 flex flex-col justify-center">
+        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.patientName}</span>
+        <span className="text-[12px] font-light text-[#57575f] leading-4">{row.patientAge} years old</span>
+      </div>
+      <div className="absolute" style={{ left: 230 }}>
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.doctor}</span>
+      </div>
+      <div className="absolute flex flex-col gap-[3px]" style={{ left: 470 }}>
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.date}</span>
+        <span className="text-[12px] font-light text-[#57575f] leading-4">{row.time}</span>
+      </div>
+      <div className="absolute" style={{ left: 670 }}>
+        <span className={`inline-flex items-center px-[10px] py-[5px] rounded-full text-[12px] font-normal whitespace-nowrap ${row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
+          {row.type}
+        </span>
+      </div>
+      <div className="absolute" style={{ left: 820 }}>
+        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.reason}</span>
+      </div>
+      <div className="absolute" style={{ left: 1060 }}><StatusBadge status={row.status} /></div>
+      <div className="absolute" style={{ left: 1270 }}>
+        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors" onClick={e => e.preventDefault()}>
+          <MoreVertical size={24} strokeWidth={1.5} />
+        </button>
+      </div>
+    </Link>
+  );
+}
+
+const APPT_TYPE_OPTS = ["New Visit","Follow-up","Emergency","Walk-in"].map(t => ({ value: t, label: t }));
+
+// ─── Live Queue ───────────────────────────────────────────────────────────────
+
+function QueueView() {
+  const waiting = opdRecords.filter(r => r.status === "Waiting").length;
+  const inConsult = opdRecords.filter(r => r.status === "In Consultation").length;
+  const completed = opdRecords.filter(r => r.status === "Completed").length;
+
+  return (
+    <div className="flex flex-col overflow-auto" style={{ height: 555 }}>
+      {/* Stats bar */}
+      <div className="flex items-center gap-6 px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1] shrink-0">
+        {[
+          { label: "Waiting", value: waiting, color: "text-[#ff9000]" },
+          { label: "In Consultation", value: inConsult, color: "text-[#007cff]" },
+          { label: "Completed", value: completed, color: "text-[#00955c]" },
+        ].map((s, i) => (
+          <div key={i} className="flex items-center gap-3">
+            {i > 0 && <div className="w-px h-5 bg-[#dedee1]" />}
+            <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.label}</span>
+            <span className={`text-[22px] font-medium leading-none ${s.color}`}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+      {/* Queue rows */}
+      <div className="overflow-x-auto flex-1">
+        <div style={{ minWidth: 1200 }}>
+          {/* header */}
+          <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 1200 }}>
+            {[
+              { label: "Token #", left: 20 }, { label: "Patient", left: 110 },
+              { label: "Doctor", left: 360 }, { label: "Wait Time", left: 600 },
+              { label: "Vitals", left: 760 }, { label: "Check-in", left: 930 },
+              { label: "Status", left: 1060 },
+            ].map(c => (
+              <span key={c.label} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.left }}>{c.label}</span>
+            ))}
+          </div>
+          {opdRecords.map(row => (
+            <div key={row.id} className={tw.table.dataRow} style={{ minWidth: 1200 }}>
+              <div className="absolute left-5">
+                <span className="text-[16px] font-medium text-[#009598]">{row.tokenNumber}</span>
+              </div>
+              <div className="absolute flex flex-col justify-center" style={{ left: 110 }}>
+                <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{row.patientName}</span>
+                <span className="text-[12px] font-light text-[#57575f]">{row.patientAge} yrs</span>
+              </div>
+              <div className="absolute" style={{ left: 360 }}>
+                <span className="text-[14px] font-normal text-[#11111c] whitespace-nowrap">{row.doctor}</span>
+              </div>
+              <div className="absolute" style={{ left: 600 }}>
+                <span className={`text-[14px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[#57575f]"}`}>
+                  {row.waitTime !== "—" ? row.waitTime : "—"}
+                </span>
+              </div>
+              <div className="absolute" style={{ left: 760 }}>
+                <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${row.vitalsRecorded ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
+                  {row.vitalsRecorded ? "Recorded" : "Pending"}
+                </span>
+              </div>
+              <div className="absolute" style={{ left: 930 }}>
+                <span className="text-[14px] font-normal text-[#11111c]">{row.checkInTime}</span>
+              </div>
+              <div className="absolute flex items-center gap-2" style={{ left: 1060 }}>
+                <StatusBadge status={row.status} />
+                {row.status === "Waiting" && (
+                  <button className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors ml-2 whitespace-nowrap">
+                    Call Next
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Doctor Schedule ──────────────────────────────────────────────────────────
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function ScheduleView() {
+  const activeDoctors = doctors.filter(d => d.status !== "On Leave").slice(0, 8);
+
+  return (
+    <div className="p-5 overflow-auto" style={{ height: 555 }}>
+      <div style={{ minWidth: 900 }}>
+        {/* Header */}
+        <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
+          <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider py-2">Doctor</div>
+          {DAY_SHORT.map(d => (
+            <div key={d} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider text-center py-2">{d}</div>
+          ))}
+        </div>
+        {/* Doctor rows */}
+        {activeDoctors.map(doc => (
+          <div key={doc.id} className="grid gap-2 mb-2 border-b border-[#f0f0f0] pb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
+            <div className="flex flex-col gap-[2px] py-2">
+              <span className="text-[13px] font-medium text-[#11111c] leading-4 whitespace-nowrap">{doc.name.replace("Dr. ", "Dr.")}</span>
+              <span className="text-[11px] font-light text-[#57575f]">{doc.specialty}</span>
+            </div>
+            {DAYS.map((day, di) => {
+              const isOff = day === "Saturday" && doc.id % 4 === 0;
+              const isLeave = false;
+              return (
+                <div key={day} className={`rounded-[8px] p-2 text-center ${isOff ? "bg-[#f0f0f0]" : "bg-[#e8f7f7]"}`}>
+                  {isOff ? (
+                    <span className="text-[10px] font-normal text-[#57575f]">Off</span>
+                  ) : (
+                    <>
+                      <div className="text-[10px] font-medium text-[#009598]">9–1 PM</div>
+                      {di < 5 && <div className="text-[10px] font-medium text-[#009598] mt-[2px]">4–8 PM</div>}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        {/* On leave doctors */}
+        {doctors.filter(d => d.status === "On Leave").map(doc => (
+          <div key={doc.id} className="grid gap-2 mb-2 border-b border-[#f0f0f0] pb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
+            <div className="flex flex-col gap-[2px] py-2">
+              <span className="text-[13px] font-medium text-[#11111c] leading-4">{doc.name.replace("Dr. ", "Dr.")}</span>
+              <span className="text-[11px] font-light text-[#57575f]">{doc.specialty}</span>
+            </div>
+            {DAYS.map(day => (
+              <div key={day} className="rounded-[8px] p-2 text-center bg-[#ffe9e9]">
+                <span className="text-[10px] font-medium text-[#ff0004]">On Leave</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: "all",      label: "All Appointments", count: appointments.length },
+  { id: "queue",    label: "Live Queue",        count: opdRecords.filter(r => r.status === "Waiting").length },
+  { id: "schedule", label: "Doctor Schedule" },
+];
+
+export default function AppointmentsPage() {
+  const [tab, setTab] = useState("all");
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+
+  const visible = appointments.filter(r => {
+    const matchF = filter === "All" || r.status === filter;
+    const q = search.toLowerCase();
+    const matchS = !q || r.patientName.toLowerCase().includes(q) || r.doctor.toLowerCase().includes(q) || r.reason.toLowerCase().includes(q);
+    return matchF && matchS;
+  });
+
+  return (
+    <>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="Book Appointment"
+        footer={
+          <>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <Link href="/appointments/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
+            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Confirm Booking</button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Patient *"><FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
+          <FormRow label="Date *"><FormInput type="date" /></FormRow>
+          <FormRow label="Time Slot *"><FormSelect placeholder="Select slot" options={["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","4:00 PM","4:30 PM","5:00 PM"].map(t => ({ value: t, label: t }))} /></FormRow>
+          <FormRow label="Type"><FormSelect placeholder="Select type" options={APPT_TYPE_OPTS} /></FormRow>
+          <FormRow label="Reason"><FormInput placeholder="Brief reason for visit" /></FormRow>
+        </div>
+      </Modal>
+
+      <PageHeader
+        title="Appointments"
+        subtitle="Manage appointments, track the live OPD queue, and view doctor schedules."
+        stats={[{ icon: Calendar, value: `${visible.length}`, label: "Appointments" }]}
+        action={{ label: "New Appointment", icon: Plus, onClick: () => setShowModal(true) }}
+      />
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
+          <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          {tab === "all" && (
+            <>
+              <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or doctor..."
+                activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
+              <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
+                {visible.map(r => <AppointmentRow key={r.id} row={r} />)}
+              </DataTable>
+            </>
+          )}
+          {tab === "queue"    && <QueueView />}
+          {tab === "schedule" && <ScheduleView />}
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,133 @@
+"use client";
+
+import { tw } from "@/lib/design-system";
+import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
+import { patients } from "@/data/patients";
+import { doctors } from "@/data/doctors";
+import { ChevronLeft, Check } from "lucide-react";
+import Link from "next/link";
+
+const OT_ROOMS = ["OT-1 (General Surgery)","OT-2 (Cardiac)","OT-3 (Orthopaedics)","OT-4 (Neurosurgery)","OT-5 (Gynaecology)","OT-6 (Ophthalmology)"].map(r => ({ value: r, label: r }));
+const PRIORITY = ["Elective","Urgent","Emergency"].map(p => ({ value: p.toLowerCase(), label: p }));
+const ANAESTHESIA = ["General (GA)","Spinal","Epidural","Local","Sedation (MAC)"].map(a => ({ value: a.toLowerCase().replace(/[^a-z]/g,"-"), label: a }));
+
+export default function NewOTPage() {
+  return (
+    <>
+      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
+        <Link href="/ot" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
+          <ChevronLeft size={15} /> Back to OT
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/ot" className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</Link>
+          <Link href="/ot" className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+            <Check size={14} /> Schedule OT
+          </Link>
+        </div>
+      </div>
+
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} p-8`}>
+          <h2 className="text-[18px] font-medium text-[#11111c] mb-6">Schedule Operating Theatre</h2>
+
+          <div className="flex flex-col gap-7">
+            {/* Patient & Procedure */}
+            <section>
+              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Patient & Procedure</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <FormRow label="Patient *">
+                  <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+                </FormRow>
+                <FormRow label="Procedure / Surgery Name *">
+                  <FormInput placeholder="e.g. Appendectomy, CABG, TKR..." />
+                </FormRow>
+                <FormRow label="ICD-10 / ICD-9-CM Code">
+                  <FormInput placeholder="Procedure code" />
+                </FormRow>
+                <FormRow label="Priority *">
+                  <FormSelect placeholder="Select priority" options={PRIORITY} />
+                </FormRow>
+              </div>
+            </section>
+
+            <div className="border-t border-[#f0f0f0]" />
+
+            {/* Scheduling */}
+            <section>
+              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">OT Scheduling</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <FormRow label="OT Room *">
+                  <FormSelect placeholder="Select OT" options={OT_ROOMS} />
+                </FormRow>
+                <FormRow label="Scheduled Date *">
+                  <FormInput type="date" />
+                </FormRow>
+                <FormRow label="Start Time *">
+                  <FormInput type="time" />
+                </FormRow>
+                <FormRow label="Expected Duration">
+                  <FormSelect placeholder="Select duration" options={["30 min","1 hr","1.5 hr","2 hr","2.5 hr","3 hr","4 hr","5+ hr"].map(d => ({ value: d, label: d }))} />
+                </FormRow>
+                <FormRow label="Anaesthesia Type *">
+                  <FormSelect placeholder="Select type" options={ANAESTHESIA} />
+                </FormRow>
+              </div>
+            </section>
+
+            <div className="border-t border-[#f0f0f0]" />
+
+            {/* Surgical Team */}
+            <section>
+              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Surgical Team</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <FormRow label="Primary Surgeon *">
+                  <FormSelect placeholder="Select surgeon" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+                </FormRow>
+                <FormRow label="Assistant Surgeon">
+                  <FormSelect placeholder="Select assistant" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+                </FormRow>
+                <FormRow label="Anaesthetist *">
+                  <FormSelect placeholder="Select anaesthetist" options={doctors.filter(d => d.specialty === "Anaesthesiology" || true).map(d => ({ value: String(d.id), label: d.name }))} />
+                </FormRow>
+                <FormRow label="Scrub Nurse">
+                  <FormInput placeholder="Nurse name" />
+                </FormRow>
+                <FormRow label="Circulating Nurse">
+                  <FormInput placeholder="Nurse name" />
+                </FormRow>
+                <FormRow label="OT Technician">
+                  <FormInput placeholder="Technician name" />
+                </FormRow>
+              </div>
+            </section>
+
+            <div className="border-t border-[#f0f0f0]" />
+
+            {/* Notes */}
+            <section>
+              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Pre-Op Notes & Special Requirements</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <FormRow label="Pre-Op Instructions">
+                    <FormTextarea placeholder="NPO status, blood products needed, special equipment..." rows={3} />
+                  </FormRow>
+                </div>
+                <FormRow label="Blood Product Required">
+                  <FormSelect placeholder="Select" options={["None","Packed Red Cells (PRC)","Fresh Frozen Plasma (FFP)","Platelets","Whole Blood"].map(b => ({ value: b.toLowerCase().replace(/[^a-z]/g,"-"), label: b }))} />
+                </FormRow>
+                <FormRow label="Special Equipment">
+                  <FormInput placeholder="e.g. C-arm, microscope, robot-assisted..." />
+                </FormRow>
+                <div className="col-span-2">
+                  <FormRow label="Surgeon Notes">
+                    <FormTextarea placeholder="Any additional notes for the OT team..." rows={2} />
+                  </FormRow>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
