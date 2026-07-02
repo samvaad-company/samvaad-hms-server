@@ -3,56 +3,34 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { patients } from "@/data/patients";
-import { prescriptions } from "@/data/prescriptions";
-import { labTests } from "@/data/lab";
+import { useItem } from "@/lib/api/hooks";
+import type { PatientDTO, PrescriptionDTO, LabTestDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
-  Phone, Mail, MapPin, Droplets, Calendar, ChevronLeft,
-  FileText, FlaskConical, Upload, ShieldCheck, Clock, AlertCircle,
+  Phone, MapPin, Droplets, Calendar, ChevronLeft,
+  FileText, Upload, ShieldCheck, AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 
-// ─── Mock extended data ───────────────────────────────────────────────────────
-
-const ALLERGIES: Record<number, string[]> = {
-  1: ["Penicillin", "Sulfa drugs"],
-  2: [],
-  3: ["Aspirin"],
-  4: ["Latex"],
-  5: ["Peanuts", "Shellfish"],
-  6: ["Sulfa drugs"],
-  7: [],
-  8: ["Codeine"],
-  9: ["Penicillin"],
-  10: ["NSAIDs"],
+type PatientDetail = PatientDTO & {
+  prescriptions: PrescriptionDTO[];
+  labTests: LabTestDTO[];
 };
 
-const CHRONIC: Record<number, string[]> = {
-  1: ["Migraine"],
-  2: [],
-  3: [],
-  4: ["Asthma"],
-  5: ["Hypothyroidism", "Fibromyalgia"],
-  6: ["Type 2 Diabetes", "Hypertension"],
-  7: ["GERD"],
-  8: [],
-  9: ["Hypertension", "Hyperlipidaemia"],
-  10: ["Chronic Low Back Pain", "Hypertension"],
-};
+// ─── Illustrative timeline / vaccination history (not yet captured in DB) ──────
 
 const TIMELINE: Record<number, Array<{ date: string; type: string; description: string; doctor: string; status: string }>> = {
   1: [
-    { date: "8 Nov 2025",  type: "OPD Visit",       description: "Dizziness or weakness — possible inner ear issue",   doctor: "Dr. Olivia Turner", status: "Completed" },
-    { date: "22 Oct 2025", type: "Lab Test",         description: "CBC, Thyroid Panel",                                  doctor: "Dr. Olivia Turner", status: "Completed" },
-    { date: "1 Oct 2025",  type: "OPD Visit",        description: "Migraine follow-up",                                  doctor: "Dr. Olivia Turner", status: "Completed" },
+    { date: "8 Nov 2025",  type: "OPD Visit",  description: "Dizziness or weakness — possible inner ear issue", doctor: "Dr. Olivia Turner", status: "Completed" },
+    { date: "22 Oct 2025", type: "Lab Test",   description: "CBC, Thyroid Panel",                                doctor: "Dr. Olivia Turner", status: "Completed" },
+    { date: "1 Oct 2025",  type: "OPD Visit",  description: "Migraine follow-up",                                doctor: "Dr. Olivia Turner", status: "Completed" },
   ],
   6: [
-    { date: "13 Nov 2025", type: "OPD Visit",        description: "Diabetes management — HbA1c review",                  doctor: "Dr. Daniel Reed",   status: "Upcoming"  },
-    { date: "28 Oct 2025", type: "Lab Test",         description: "HbA1c, Fasting Blood Sugar, Lipid Profile",           doctor: "Dr. Daniel Reed",   status: "Completed" },
-    { date: "15 Oct 2025", type: "Prescription",     description: "Metformin 500mg, Losartan 50mg",                      doctor: "Dr. Daniel Reed",   status: "Completed" },
-    { date: "5 Sep 2025",  type: "IPD Admission",    description: "Hyperglycaemic episode — 3-day admission",            doctor: "Dr. Daniel Reed",   status: "Discharged"},
+    { date: "13 Nov 2025", type: "OPD Visit",     description: "Diabetes management — HbA1c review",        doctor: "Dr. Daniel Reed", status: "Upcoming"  },
+    { date: "28 Oct 2025", type: "Lab Test",      description: "HbA1c, Fasting Blood Sugar, Lipid Profile", doctor: "Dr. Daniel Reed", status: "Completed" },
+    { date: "15 Oct 2025", type: "Prescription",  description: "Metformin 500mg, Losartan 50mg",            doctor: "Dr. Daniel Reed", status: "Completed" },
+    { date: "5 Sep 2025",  type: "IPD Admission", description: "Hyperglycaemic episode — 3-day admission",   doctor: "Dr. Daniel Reed", status: "Discharged"},
   ],
 };
 
@@ -110,9 +88,7 @@ function OverviewTab({ patientId }: { patientId: number }) {
   );
 }
 
-function PrescriptionsTab({ patientId }: { patientId: number }) {
-  const ptName = patients.find(p => p.id === patientId)?.name ?? "";
-  const rxList = prescriptions.filter(p => p.patientName === ptName);
+function PrescriptionsTab({ rxList }: { rxList: PrescriptionDTO[] }) {
   return (
     <div className="p-5 flex flex-col gap-3">
       {rxList.length === 0 && (
@@ -133,14 +109,11 @@ function PrescriptionsTab({ patientId }: { patientId: number }) {
           </div>
         </div>
       ))}
-      {rxList.length === 0 && null}
     </div>
   );
 }
 
-function LabReportsTab({ patientId }: { patientId: number }) {
-  const ptName = patients.find(p => p.id === patientId)?.name ?? "";
-  const tests = labTests.filter(t => t.patientName === ptName);
+function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
   return (
     <div className="p-5 flex flex-col gap-3">
       {tests.length === 0 && <p className="text-[13px] font-light text-[#57575f]">No lab tests on record.</p>}
@@ -207,7 +180,7 @@ function VaccinationsTab({ patientId }: { patientId: number }) {
             <span className="absolute text-[14px] font-normal text-[#11111c] whitespace-nowrap" style={{ left: 20 }}>{v.name}</span>
             <span className="absolute text-[13px] font-normal text-[#57575f]" style={{ left: 300 }}>{v.dose}</span>
             <span className="absolute text-[14px] font-normal text-[#11111c]" style={{ left: 440 }}>{v.date}</span>
-            <span className="absolute text-[13px] font-normal text-[v.next ? '#11111c' : '#57575f']" style={{ left: 600 }}>{v.next ?? "—"}</span>
+            <span className="absolute text-[13px] font-normal text-[#57575f]" style={{ left: 600 }}>{v.next ?? "—"}</span>
           </div>
         ))}
       </div>
@@ -228,8 +201,15 @@ const TABS = [
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("overview");
+  const { item: patient, loading } = useItem<PatientDetail>(`/patients/${id}`);
 
-  const patient = patients.find(p => p.id === Number(id));
+  if (loading) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">Loading patient…</p>
+      </div>
+    );
+  }
   if (!patient) {
     return (
       <div className={`${tw.gutterX} pt-10`}>
@@ -238,12 +218,11 @@ export default function PatientDetailPage() {
     );
   }
 
-  const allergies  = ALLERGIES[patient.id] ?? [];
-  const chronic    = CHRONIC[patient.id] ?? [];
+  const allergies = patient.allergies ?? [];
+  const chronic = patient.chronicConditions ?? [];
 
   return (
     <>
-      {/* Back */}
       <div className={`${tw.gutterX} mb-4 pt-2`}>
         <Link href="/patients" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
           <ChevronLeft size={15} /> Back to Patients
@@ -254,7 +233,6 @@ export default function PatientDetailPage() {
         <div className="flex gap-5 items-start">
           {/* ── Left: Profile card ── */}
           <div className="flex flex-col gap-4 shrink-0" style={{ width: 280 }}>
-            {/* Avatar + name */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col items-center gap-3`}>
               <div className="w-16 h-16 rounded-full bg-[#e8f7f7] flex items-center justify-center text-[24px] font-medium text-[#009598]">
                 {patient.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
@@ -266,12 +244,12 @@ export default function PatientDetailPage() {
               <StatusBadge status={patient.status} />
             </div>
 
-            {/* Details */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>
               {[
                 { icon: Calendar,  label: "Age",         value: `${patient.age} years · ${patient.gender}` },
-                { icon: Droplets,  label: "Blood Group", value: patient.bloodGroup },
+                { icon: Droplets,  label: "Blood Group", value: patient.bloodGroup ?? "—" },
                 { icon: Phone,     label: "Phone",        value: patient.phone },
+                { icon: MapPin,    label: "City",         value: patient.city ?? "—" },
               ].map(row => (
                 <div key={row.label} className="flex items-start gap-3">
                   <row.icon size={14} className="text-[#57575f] mt-[3px] shrink-0" strokeWidth={1.5} />
@@ -283,7 +261,6 @@ export default function PatientDetailPage() {
               ))}
             </div>
 
-            {/* Allergies */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
               <div className="flex items-center gap-2 mb-3">
                 <AlertCircle size={14} className="text-[#ff0004]" strokeWidth={1.5} />
@@ -300,7 +277,6 @@ export default function PatientDetailPage() {
               )}
             </div>
 
-            {/* Chronic conditions */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
               <div className="flex items-center gap-2 mb-3">
                 <ShieldCheck size={14} className="text-[#009598]" strokeWidth={1.5} />
@@ -322,8 +298,8 @@ export default function PatientDetailPage() {
           <div className={`flex-1 ${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 580 }}>
             <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
             {tab === "overview"      && <OverviewTab patientId={patient.id} />}
-            {tab === "prescriptions" && <PrescriptionsTab patientId={patient.id} />}
-            {tab === "lab"           && <LabReportsTab patientId={patient.id} />}
+            {tab === "prescriptions" && <PrescriptionsTab rxList={patient.prescriptions} />}
+            {tab === "lab"           && <LabReportsTab tests={patient.labTests} />}
             {tab === "documents"     && <DocumentsTab />}
             {tab === "vaccinations"  && <VaccinationsTab patientId={patient.id} />}
           </div>

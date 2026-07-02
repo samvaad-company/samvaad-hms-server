@@ -1,28 +1,55 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { StepBar } from "@/components/shared/StepBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
-import { patients } from "@/data/patients";
-import { doctors } from "@/data/doctors";
-import { ChevronLeft, Check, Calendar, Clock } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { PatientDTO, DoctorDTO } from "@/types/api";
+import { ChevronLeft, Check, Clock, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 const STEPS = ["Select Patient", "Doctor & Slot", "Confirm"];
-const APPT_TYPES = ["New Visit","Follow-up","Emergency","Walk-in"].map(t => ({ value: t.toLowerCase().replace(" ", "-"), label: t }));
+const APPT_TYPES = [
+  { value: "Walk-in", label: "Walk-in" },
+  { value: "Booked", label: "Booked" },
+];
 
 export default function NewAppointmentPage() {
+  const router = useRouter();
+  const { run, loading, error } = useMutation();
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+
   const [step, setStep] = useState(1);
   const [patientId, setPatientId] = useState("");
   const [doctorId, setDoctorId] = useState("");
   const [date, setDate] = useState("");
   const [slot, setSlot] = useState("");
-  const [type, setType] = useState("");
+  const [type, setType] = useState("Booked");
   const [reason, setReason] = useState("");
 
   const patient = patients.find(p => String(p.id) === patientId);
   const doctor  = doctors.find(d => String(d.id) === doctorId);
+
+  async function submit() {
+    await run(() =>
+      api.post("/appointments", {
+        patientId: Number(patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        doctorId: Number(doctorId),
+        date,
+        time: slot,
+        type,
+        reason,
+        status: "Upcoming",
+      }),
+    );
+    router.push("/appointments");
+  }
 
   return (
     <>
@@ -152,6 +179,10 @@ export default function NewAppointmentPage() {
             )}
           </div>
 
+          {error && (
+            <div className="mx-8 mb-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>
+          )}
+
           <div className="px-8 pb-7 flex justify-between items-center border-t border-[#f0f0f0] pt-5">
             <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}
               className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[9px] rounded-full hover:bg-[#f6f6f6] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
@@ -163,9 +194,10 @@ export default function NewAppointmentPage() {
                 Continue →
               </button>
             ) : (
-              <Link href="/appointments" className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors">
-                <Check size={14} /> Confirm Appointment
-              </Link>
+              <button onClick={submit} disabled={loading || !patientId || !doctorId || !date || !slot}
+                className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confirm Appointment
+              </button>
             )}
           </div>
         </div>

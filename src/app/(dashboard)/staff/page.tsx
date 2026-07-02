@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { Users2, Plus, MoreVertical, Phone, Mail } from "lucide-react";
-import { staffMembers } from "@/data/staff";
+import { useRouter } from "next/navigation";
+import { Users2, Plus, Phone, Mail } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { StaffDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
+import { Modal } from "@/components/shared/Modal";
+import { FormRow, FormInput } from "@/components/shared/FormRow";
 import type { Staff } from "@/types";
 import Link from "next/link";
 
@@ -26,7 +33,7 @@ const FILTERS = [
 ];
 const MIN_WIDTH = 1452;
 
-function StaffRow({ row }: { row: Staff }) {
+function StaffRow({ row, actions }: { row: Staff; actions: RowAction[] }) {
   return (
     <Link href={`/staff/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -49,7 +56,7 @@ function StaffRow({ row }: { row: Staff }) {
       </div>
       <div className="absolute" style={{ left: 1160 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1360 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors"><MoreVertical size={24} strokeWidth={1.5} /></button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
@@ -194,18 +201,42 @@ function AttendanceView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "all",        label: "All Staff",       count: staffMembers.length },
-  { id: "access",     label: "Access Control" },
-  { id: "attendance", label: "Attendance" },
-];
-
 const STAFF_FILTER_MAP: Record<string, string> = { "OnLeave": "On Leave" };
 
 export default function StaffPage() {
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const router = useRouter();
+  const { items: staffMembers, reload } = useList<StaffDTO>("/staff", { all: true });
+  const { run, loading, error } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("staff", reload);
+
+  const [form, setForm] = useState({ name: "", role: "", department: "", phone: "", email: "", status: "Active" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function addStaff() {
+    await run(() =>
+      api.post("/staff", {
+        name: form.name,
+        role: form.role,
+        department: form.department,
+        phone: form.phone,
+        email: form.email,
+        status: form.status,
+      }),
+    );
+    setForm({ name: "", role: "", department: "", phone: "", email: "", status: "Active" });
+    setShowModal(false);
+    reload();
+  }
+
+  const TABS = [
+    { id: "all",        label: "All Staff",       count: staffMembers.length },
+    { id: "access",     label: "Access Control" },
+    { id: "attendance", label: "Attendance" },
+  ];
 
   const visible = staffMembers.filter(s => {
     const matchF = filter === "All" || s.status === (STAFF_FILTER_MAP[filter] ?? filter);
@@ -216,11 +247,33 @@ export default function StaffPage() {
 
   return (
     <>
+      {dialog}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Staff Member"
+        footer={
+          <>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={addStaff} disabled={loading || !form.name || !form.role}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Adding…" : "Add Staff"}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Full Name *"><FormInput placeholder="Name" value={form.name} onChange={v => set("name", v)} /></FormRow>
+          <FormRow label="Role *"><FormInput placeholder="e.g. Staff Nurse" value={form.role} onChange={v => set("role", v)} /></FormRow>
+          <FormRow label="Department"><FormInput placeholder="e.g. ICU" value={form.department} onChange={v => set("department", v)} /></FormRow>
+          <FormRow label="Phone"><FormInput placeholder="+91 XXXXX XXXXX" type="tel" value={form.phone} onChange={v => set("phone", v)} /></FormRow>
+          <div className="col-span-2"><FormRow label="Email"><FormInput placeholder="email@samvaad.in" type="email" value={form.email} onChange={v => set("email", v)} /></FormRow></div>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+        </div>
+      </Modal>
+
       <PageHeader
         title="Staff"
         subtitle="Manage hospital staff — nurses, technicians, admin personnel, and support staff."
         stats={[{ icon: Users2, value: `${visible.length}`, label: "Total Staff" }]}
-        action={{ label: "Add Staff", icon: Plus }}
+        action={{ label: "Add Staff", icon: Plus, onClick: () => setShowModal(true) }}
         dateRange={false}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -231,7 +284,15 @@ export default function StaffPage() {
               <FilterBar filters={FILTERS} searchPlaceholder="Search by name, role, or department..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-                {visible.map(r => <StaffRow key={r.id} row={r} />)}
+                {visible.length === 0 ? (
+                  <div className="py-16 text-center text-[14px] text-[#57575f]">No staff found.</div>
+                ) : visible.map(r => (
+                  <StaffRow key={r.id} row={r} actions={[
+                    { label: "View profile", onClick: () => router.push(`/staff/${r.id}`) },
+                    { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/staff/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
+                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                  ]} />
+                ))}
               </DataTable>
             </>
           )}

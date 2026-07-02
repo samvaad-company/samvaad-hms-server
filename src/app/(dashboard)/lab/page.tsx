@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { FlaskConical, Plus, MoreVertical, Upload, Eye } from "lucide-react";
-import { labTests } from "@/data/lab";
-import { patients } from "@/data/patients";
+import { useRouter } from "next/navigation";
+import { FlaskConical, Plus, Upload, Eye } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { LabTestDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -27,7 +31,7 @@ const FILTERS = [
 ];
 const MIN_WIDTH = 1452;
 
-function LabRow({ row }: { row: LabTest }) {
+function LabRow({ row, actions }: { row: LabTest; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -55,7 +59,7 @@ function LabRow({ row }: { row: LabTest }) {
       </div>
       <div className="absolute" style={{ left: 1170 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1380 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors"><MoreVertical size={24} strokeWidth={1.5} /></button>
+        <RowMenu actions={actions} />
       </div>
     </div>
   );
@@ -84,9 +88,11 @@ const COMMON_TESTS = [
   { name: "IgE Allergy Panel", category: "Immunology", price: 2500 },
 ];
 
-function BookingView() {
+function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked: () => void }) {
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const { run, loading, error } = useMutation();
 
   const filtered = COMMON_TESTS.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -94,13 +100,33 @@ function BookingView() {
   );
   const total = COMMON_TESTS.filter(t => selectedTests.includes(t.name)).reduce((s, t) => s + t.price, 0);
 
+  async function bookTests() {
+    if (!patientId || selectedTests.length === 0) return;
+    const patient = patients.find(p => String(p.id) === patientId);
+    await run(async () => {
+      for (const name of selectedTests) {
+        const test = COMMON_TESTS.find(t => t.name === name);
+        await api.post("/lab", {
+          patientId: Number(patientId),
+          patientName: patient?.name ?? "",
+          patientAge: patient?.age ?? 0,
+          testName: name,
+          amount: test?.price ?? 0,
+        });
+      }
+    });
+    setSelectedTests([]);
+    setPatientId("");
+    onBooked();
+  }
+
   return (
     <div className="p-5 grid grid-cols-3 gap-5" style={{ height: 580 }}>
       {/* Left: Form */}
       <div className="col-span-2 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Patient *">
-            <FormSelect placeholder="Search or select patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            <FormSelect placeholder="Search or select patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
           </FormRow>
           <FormRow label="Requesting Doctor">
             <FormInput placeholder="Doctor name or OPD reference" />
@@ -167,9 +193,11 @@ function BookingView() {
             </div>
           </div>
         )}
-        <button className={`w-full text-[14px] font-normal py-[10px] rounded-full transition-colors ${selectedTests.length > 0 ? "bg-[#009598] text-white hover:bg-[#007f82]" : "bg-[#f0f0f0] text-[#57575f] cursor-not-allowed"}`}>
-          Book Tests
+        <button onClick={bookTests} disabled={loading || selectedTests.length === 0 || !patientId}
+          className={`w-full text-[14px] font-normal py-[10px] rounded-full transition-colors ${selectedTests.length > 0 && patientId ? "bg-[#009598] text-white hover:bg-[#007f82]" : "bg-[#f0f0f0] text-[#57575f] cursor-not-allowed"}`}>
+          {loading ? "Booking…" : "Book Tests"}
         </button>
+        {error && <div className="text-[12px] text-[#ff0004]">{error.message}</div>}
       </div>
     </div>
   );
@@ -177,7 +205,7 @@ function BookingView() {
 
 // ─── Reports Tab ──────────────────────────────────────────────────────────────
 
-function ReportsView() {
+function ReportsView({ labTests }: { labTests: LabTestDTO[] }) {
   return (
     <div className="p-5 grid grid-cols-2 gap-4 overflow-y-auto" style={{ height: 555 }}>
       {labTests.map(test => (
@@ -211,18 +239,22 @@ function ReportsView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "tests",   label: "All Tests",    count: labTests.length },
-  { id: "booking", label: "New Booking" },
-  { id: "reports", label: "Reports",      count: labTests.filter(t => t.reportStatus === "Ready").length },
-];
-
 const LAB_FILTER_MAP: Record<string, string> = { "SampleCollected": "Sample Collected", "ReportReady": "Report Ready" };
 
 export default function LabPage() {
   const [tab, setTab] = useState("tests");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const router = useRouter();
+  const { items: labTests, reload } = useList<LabTestDTO>("/lab", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { dialog, remove, mutate } = useRowActions("lab", reload);
+
+  const TABS = [
+    { id: "tests",   label: "All Tests",    count: labTests.length },
+    { id: "booking", label: "New Booking" },
+    { id: "reports", label: "Reports",      count: labTests.filter(t => t.reportStatus === "Ready").length },
+  ];
 
   const visible = labTests.filter(t => {
     const matchF = filter === "All" || t.status === (LAB_FILTER_MAP[filter] ?? filter);
@@ -233,11 +265,12 @@ export default function LabPage() {
 
   return (
     <>
+      {dialog}
       <PageHeader
         title="Laboratory"
         subtitle="Manage lab tests, sample collection, report generation, and test bookings."
         stats={[{ icon: FlaskConical, value: `${visible.filter(t => t.status !== "Report Ready").length}`, label: "Active Tests" }]}
-        action={{ label: "Order Test", icon: Plus }}
+        action={{ label: "Order Test", icon: Plus, onClick: () => setTab("booking") }}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -247,12 +280,21 @@ export default function LabPage() {
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or test name..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-                {visible.map(r => <LabRow key={r.id} row={r} />)}
+                {visible.length === 0 ? (
+                  <div className="py-16 text-center text-[14px] text-[#57575f]">No tests found.</div>
+                ) : visible.map(r => (
+                  <LabRow key={r.id} row={r} actions={[
+                    { label: "Collect sample", disabled: r.sampleStatus === "Collected", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { sampleStatus: "Collected" })) },
+                    { label: "Mark report ready", disabled: r.reportStatus === "Ready", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { reportStatus: "Ready" })) },
+                    { label: "View report", disabled: r.reportStatus !== "Ready", onClick: () => router.push(`/lab/${r.id}`) },
+                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) },
+                  ]} />
+                ))}
               </DataTable>
             </>
           )}
-          {tab === "booking" && <BookingView />}
-          {tab === "reports" && <ReportsView />}
+          {tab === "booking" && <BookingView patients={patients} onBooked={() => { reload(); setTab("tests"); }} />}
+          {tab === "reports" && <ReportsView labTests={labTests} />}
         </div>
       </div>
     </>

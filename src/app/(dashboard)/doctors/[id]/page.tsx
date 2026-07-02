@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { ArrowLeft, Phone, Mail, Calendar, Clock, Star, Users, TrendingUp, Award } from "lucide-react";
-import { doctors } from "@/data/doctors";
-import { appointments } from "@/data/appointments";
-import { opdRecords } from "@/data/opd";
+import { useItem, useList } from "@/lib/api/hooks";
+import type { DoctorDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
 
@@ -56,8 +55,8 @@ function ScheduleTab({ doctorId }: { doctorId: number }) {
   );
 }
 
-function TodayPatientsTab({ doctorName }: { doctorName: string }) {
-  const todays = opdRecords.filter(r => r.doctor === doctorName);
+function TodayPatientsTab({ doctorName, queue }: { doctorName: string; queue: OpdRecordDTO[] }) {
+  const todays = queue.filter(r => r.doctor === doctorName);
   if (todays.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-[#57575f]">
@@ -82,7 +81,7 @@ function TodayPatientsTab({ doctorName }: { doctorName: string }) {
   );
 }
 
-function PerformanceTab({ doc }: { doc: (typeof doctors)[0] }) {
+function PerformanceTab({ doc, appointments }: { doc: DoctorDTO; appointments: AppointmentDTO[] }) {
   const completed = appointments.filter(a => a.doctor === doc.name && a.status === "Completed").length;
   const total = appointments.filter(a => a.doctor === doc.name).length;
   const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -119,9 +118,14 @@ const TABS = ["Schedule", "Today's Patients", "Performance"] as const;
 
 export default function DoctorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const doc = doctors.find(d => d.id === Number(id));
+  const { item: doc, loading } = useItem<DoctorDTO>(`/doctors/${id}`);
+  const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  const { items: queue } = useList<OpdRecordDTO>("/opd", { all: true });
   const [tab, setTab] = useState<typeof TABS[number]>("Schedule");
 
+  if (loading) {
+    return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
+  }
   if (!doc) {
     return (
       <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>
@@ -202,8 +206,8 @@ export default function DoctorDetailPage() {
             </div>
 
             {tab === "Schedule"         && <ScheduleTab doctorId={doc.id} />}
-            {tab === "Today's Patients" && <TodayPatientsTab doctorName={doc.name} />}
-            {tab === "Performance"      && <PerformanceTab doc={doc} />}
+            {tab === "Today's Patients" && <TodayPatientsTab doctorName={doc.name} queue={queue} />}
+            {tab === "Performance"      && <PerformanceTab doc={doc} appointments={appointments} />}
           </div>
         </div>
       </div>

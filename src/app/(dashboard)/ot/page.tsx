@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { Scissors, Plus, MoreVertical } from "lucide-react";
-import { otRecords } from "@/data/ot";
-import { patients } from "@/data/patients";
-import { doctors } from "@/data/doctors";
+import { Scissors, Plus } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { OtRecordDTO, PatientDTO, DoctorDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -36,7 +38,7 @@ const FILTERS = [
 
 const MIN_WIDTH = 1452;
 
-function OtRow({ row }: { row: OtRecord }) {
+function OtRow({ row, actions }: { row: OtRecord; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5">
@@ -83,9 +85,7 @@ function OtRow({ row }: { row: OtRecord }) {
       </div>
 
       <div className="absolute" style={{ left: 1380 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors">
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </div>
   );
@@ -98,6 +98,34 @@ export default function OtPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const { items: otRecords, reload } = useList<OtRecordDTO>("/ot", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { run, loading, error } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("ot", reload);
+
+  const [form, setForm] = useState({ patientId: "", procedure: "", otRoom: "", surgeonId: "", date: "", time: "" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function schedule() {
+    const patient = patients.find(p => String(p.id) === form.patientId);
+    const surgeon = doctors.find(d => String(d.id) === form.surgeonId);
+    await run(() =>
+      api.post("/ot", {
+        patientId: Number(form.patientId),
+        patientName: patient?.name ?? "",
+        procedure: form.procedure,
+        otRoom: form.otRoom,
+        surgeonId: form.surgeonId ? Number(form.surgeonId) : undefined,
+        surgeon: surgeon?.name ?? "",
+        scheduledDate: form.date,
+        scheduledTime: form.time,
+      }),
+    );
+    setForm({ patientId: "", procedure: "", otRoom: "", surgeonId: "", date: "", time: "" });
+    setShowModal(false);
+    reload();
+  }
 
   const visible = otRecords.filter(r => {
     const matchF = filter === "All" || r.status === (FILTER_MAP[filter] ?? filter);
@@ -108,22 +136,27 @@ export default function OtPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Schedule OT" width={640}
         footer={
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
             <Link href="/ot/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
-            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Schedule OT</button>
+            <button onClick={schedule} disabled={loading || !form.patientId || !form.procedure || !form.otRoom || !form.surgeonId || !form.date || !form.time}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Scheduling…" : "Schedule OT"}
+            </button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
-          <FormRow label="Procedure *"><FormInput placeholder="e.g. Appendectomy, CABG..." /></FormRow>
-          <FormRow label="OT Room *"><FormSelect placeholder="Select OT" options={OT_ROOMS} /></FormRow>
-          <FormRow label="Surgeon *"><FormSelect placeholder="Select surgeon" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
-          <FormRow label="Scheduled Date *"><FormInput type="date" /></FormRow>
-          <FormRow label="Start Time *"><FormInput type="time" /></FormRow>
+          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Procedure *"><FormInput placeholder="e.g. Appendectomy, CABG..." value={form.procedure} onChange={v => set("procedure", v)} /></FormRow>
+          <FormRow label="OT Room *"><FormSelect placeholder="Select OT" value={form.otRoom} onChange={v => set("otRoom", v)} options={OT_ROOMS} /></FormRow>
+          <FormRow label="Surgeon *"><FormSelect placeholder="Select surgeon" value={form.surgeonId} onChange={v => set("surgeonId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
+          <FormRow label="Scheduled Date *"><FormInput type="date" value={form.date} onChange={v => set("date", v)} /></FormRow>
+          <FormRow label="Start Time *"><FormInput type="time" value={form.time} onChange={v => set("time", v)} /></FormRow>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>
 
@@ -146,7 +179,12 @@ export default function OtPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
-              <OtRow key={r.id} row={r} />
+              <OtRow key={r.id} row={r} actions={[
+                { label: "Start procedure", disabled: r.status !== "Scheduled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "In Progress" })) },
+                { label: "Mark completed", disabled: r.status === "Completed" || r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Completed" })) },
+                { label: "Cancel", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Cancelled" })) },
+                { label: "Delete", danger: true, onClick: () => remove(r.id, r.procedure) },
+              ]} />
             ))}
           </DataTable>
         </div>

@@ -1,21 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import { patients } from "@/data/patients";
-import { doctors } from "@/data/doctors";
-import { beds } from "@/data/beds";
-import { ChevronLeft, Check } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
+import { ChevronLeft, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-const WARDS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
-
 export default function NewIpdAdmissionPage() {
+  const router = useRouter();
+  const { run, loading, error } = useMutation();
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: beds } = useList<BedDTO>("/beds", { all: true });
+
   const [ward, setWard] = useState("");
   const [patientId, setPatientId] = useState("");
+  const [doctorId, setDoctorId] = useState("");
+  const [bedId, setBedId] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
 
+  const WARDS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
   const availableBeds = beds.filter(b => b.ward === ward && b.status === "Available");
+  const valid = patientId && doctorId && bedId && diagnosis.trim();
+
+  async function submit() {
+    await run(() =>
+      api.post("/ipd", {
+        patientId: Number(patientId),
+        patientName: patients.find(p => String(p.id) === patientId)?.name ?? "",
+        doctorId: Number(doctorId),
+        bedId: Number(bedId),
+        ward,
+        diagnosis,
+      }),
+    );
+    router.push("/ipd");
+  }
 
   return (
     <>
@@ -25,15 +49,16 @@ export default function NewIpdAdmissionPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Link href="/ipd" className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</Link>
-          <Link href="/ipd" className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
-            <Check size={14} /> Admit Patient
-          </Link>
+          <button onClick={submit} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Admit Patient
+          </button>
         </div>
       </div>
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} p-8`}>
           <h2 className="text-[18px] font-medium text-[#11111c] mb-6">New IPD Admission</h2>
+          {error && <div className="mb-4 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
 
           <div className="flex flex-col gap-7">
             {/* Patient */}
@@ -62,14 +87,16 @@ export default function NewIpdAdmissionPage() {
               <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Doctor & Ward Assignment</h3>
               <div className="grid grid-cols-3 gap-4">
                 <FormRow label="Attending Doctor *">
-                  <FormSelect placeholder="Select doctor" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+                  <FormSelect placeholder="Select doctor" value={doctorId} onChange={setDoctorId} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
                 </FormRow>
                 <FormRow label="Ward *">
-                  <FormSelect placeholder="Select ward" options={WARDS} value={ward} onChange={setWard} />
+                  <FormSelect placeholder="Select ward" options={WARDS} value={ward} onChange={v => { setWard(v); setBedId(""); }} />
                 </FormRow>
                 <FormRow label="Bed *">
                   <FormSelect
                     placeholder={ward ? `${availableBeds.length} available` : "Select ward first"}
+                    value={bedId}
+                    onChange={setBedId}
                     options={availableBeds.map(b => ({ value: String(b.id), label: b.bedNumber }))}
                   />
                 </FormRow>
@@ -84,7 +111,7 @@ export default function NewIpdAdmissionPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <FormRow label="Chief Complaint / Reason for Admission *">
-                    <FormTextarea placeholder="Describe presenting complaint and reason for admission..." rows={3} />
+                    <FormTextarea placeholder="Describe presenting complaint and reason for admission..." rows={3} value={diagnosis} onChange={setDiagnosis} />
                   </FormRow>
                 </div>
                 <div className="col-span-2">

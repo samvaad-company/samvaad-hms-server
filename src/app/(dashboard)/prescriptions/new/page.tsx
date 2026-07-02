@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { medicines, prescriptionTemplates } from "@/data/medicines";
-import { patients } from "@/data/patients";
+import { prescriptionTemplates } from "@/data/medicines";
 import { icd10Codes } from "@/data/icd10";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { PatientDTO, DoctorDTO, MedicineDTO } from "@/types/api";
 import { FormRow, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import { ChevronLeft, Plus, Trash2, Search, Zap } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Search, Zap, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 type RxRow = { id: number; medicine: string; dosage: string; frequency: string; duration: string; instructions: string };
@@ -27,8 +30,16 @@ const mkRow = (override: Partial<RxRow> = {}): RxRow => ({
 });
 
 export default function NewPrescriptionPage() {
+  const router = useRouter();
+  const { run, loading, error } = useMutation();
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: medicines } = useList<MedicineDTO>("/medicines", { all: true });
+
   const [rows, setRows] = useState<RxRow[]>([mkRow()]);
   const [medSearch, setMedSearch] = useState<Record<number, string>>({});
+  const [patientId, setPatientId] = useState("");
+  const [doctorId, setDoctorId] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [icdSearch, setIcdSearch] = useState("");
   const [notes, setNotes] = useState("");
@@ -40,12 +51,41 @@ export default function NewPrescriptionPage() {
     setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
 
   const applyTemplate = (key: string) => {
-    const tmpl = (prescriptionTemplates as Record<string, any[]>)[key] ?? [];
-    setRows(tmpl.map((m, i) => mkRow({
-      medicine: m.name, dosage: m.defaultDosage,
-      frequency: m.defaultFrequency, duration: m.defaultDuration,
-    })));
+    const tmpl = (prescriptionTemplates as Record<string, { medicineId: number; dosage: string; frequency: string; duration: string; instructions: string }[]>)[key] ?? [];
+    setRows(tmpl.map(m => {
+      const med = medicines.find(x => x.id === m.medicineId);
+      return mkRow({
+        medicine: med?.name ?? "", dosage: m.dosage,
+        frequency: m.frequency, duration: m.duration, instructions: m.instructions,
+      });
+    }));
   };
+
+  const filledRows = rows.filter(r => r.medicine.trim());
+  const valid = patientId && doctorId && diagnosis.trim() && filledRows.length > 0;
+
+  async function save() {
+    const patient = patients.find(p => String(p.id) === patientId);
+    await run(() =>
+      api.post("/prescriptions", {
+        patientId: Number(patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        doctorId: Number(doctorId),
+        diagnosis,
+        status: "Pending",
+        items: filledRows.map(r => ({
+          medicineId: medicines.find(m => m.name === r.medicine)?.id,
+          medicineName: r.medicine,
+          dosage: r.dosage,
+          frequency: r.frequency,
+          duration: r.duration,
+          instructions: r.instructions || notes || undefined,
+        })),
+      }),
+    );
+    router.push("/prescriptions");
+  }
 
   const filteredIcd = icd10Codes.filter(c =>
     c.description.toLowerCase().includes(icdSearch.toLowerCase()) ||
@@ -66,9 +106,17 @@ export default function NewPrescriptionPage() {
         </Link>
         <div className="flex items-center gap-2">
           <button className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Preview</button>
-          <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">Save Prescription</button>
+          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : null} Save Prescription
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className={`${tw.gutterX} mb-3`}>
+          <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>
+        </div>
+      )}
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className="grid grid-cols-3 gap-5">
@@ -79,13 +127,10 @@ export default function NewPrescriptionPage() {
               <h3 className="text-[13px] font-medium text-[#11111c] mb-3">Patient & Doctor</h3>
               <div className="flex flex-col gap-3">
                 <FormRow label="Patient *">
-                  <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+                  <FormSelect placeholder="Search patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
                 </FormRow>
                 <FormRow label="Doctor *">
-                  <FormSelect placeholder="Select doctor" options={[
-                    { value: "1", label: "Dr. Ethan Miller" }, { value: "2", label: "Dr. Sophia Adams" },
-                    { value: "3", label: "Dr. Daniel Reed" },  { value: "4", label: "Dr. Emily Cooper" },
-                  ]} />
+                  <FormSelect placeholder="Select doctor" value={doctorId} onChange={setDoctorId} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
                 </FormRow>
               </div>
             </div>

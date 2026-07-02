@@ -1,11 +1,11 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, Tag } from "lucide-react";
-import { appointments } from "@/data/appointments";
-import { doctors } from "@/data/doctors";
-import { prescriptions } from "@/data/prescriptions";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { AppointmentDTO, DoctorDTO, PrescriptionDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
 
@@ -25,8 +25,18 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: s
 
 export default function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const appt = appointments.find(a => a.id === Number(id));
+  const router = useRouter();
+  const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
+  const { run, loading: acting } = useMutation();
 
+  const setStatus = (status: string) =>
+    run(() => api.patch(`/appointments/${id}`, { status })).then(reload);
+
+  if (loading) {
+    return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
+  }
   if (!appt) {
     return (
       <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>
@@ -39,11 +49,11 @@ export default function AppointmentDetailPage() {
   const doctor = doctors.find(d => d.name === appt.doctor);
   const relatedRx = prescriptions.find(p => p.patientName === appt.patientName);
 
-  const statusActions: Record<string, { label: string; color: string }[]> = {
-    "Today":     [{ label: "Mark Complete", color: "#009598" }, { label: "Cancel", color: "#ff0004" }],
-    "Upcoming":  [{ label: "Reschedule", color: "#007cff" }, { label: "Cancel", color: "#ff0004" }],
-    "Completed": [{ label: "Book Follow-up", color: "#009598" }],
-    "Cancelled": [{ label: "Rebook", color: "#009598" }],
+  const statusActions: Record<string, { label: string; color: string; onClick: () => void }[]> = {
+    "Today":     [{ label: "Mark Complete", color: "#009598", onClick: () => setStatus("Completed") }, { label: "Cancel", color: "#ff0004", onClick: () => setStatus("Cancelled") }],
+    "Upcoming":  [{ label: "Reschedule", color: "#007cff", onClick: () => router.push("/appointments/new") }, { label: "Cancel", color: "#ff0004", onClick: () => setStatus("Cancelled") }],
+    "Completed": [{ label: "Book Follow-up", color: "#009598", onClick: () => router.push("/appointments/new") }],
+    "Cancelled": [{ label: "Rebook", color: "#009598", onClick: () => setStatus("Upcoming") }],
   };
 
   return (
@@ -60,7 +70,8 @@ export default function AppointmentDetailPage() {
         <StatusBadge status={appt.status} />
         <div className="flex items-center gap-2">
           {(statusActions[appt.status] ?? []).map(a => (
-            <button key={a.label} className="text-[13px] font-normal text-white px-4 py-2 rounded-full transition-colors"
+            <button key={a.label} onClick={a.onClick} disabled={acting}
+              className="text-[13px] font-normal text-white px-4 py-2 rounded-full transition-colors disabled:opacity-50"
               style={{ background: a.color }}>
               {a.label}
             </button>

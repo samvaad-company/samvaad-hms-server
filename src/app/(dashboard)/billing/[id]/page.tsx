@@ -3,8 +3,9 @@
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { ArrowLeft, Printer, Download, Share2, Building2 } from "lucide-react";
-import { bills } from "@/data/billing";
-import { patients } from "@/data/patients";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { BillDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
 
@@ -29,8 +30,14 @@ const PAYMENT_MODE: Record<number, string> = {
 
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const bill = bills.find(b => b.id === Number(id));
+  const { item: bill, loading, reload } = useItem<BillDTO>(`/billing/${id}`);
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { run, loading: acting } = useMutation();
+  const recordPayment = () => run(() => api.patch(`/billing/${id}`, { status: "Paid" })).then(reload);
 
+  if (loading) {
+    return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
+  }
   if (!bill) {
     return (
       <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>
@@ -58,9 +65,9 @@ export default function BillingDetailPage() {
         </div>
         <StatusBadge status={bill.status} />
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
-          <button className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
-          <button className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors">
+          <button onClick={() => window.print()} className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
+          <button onClick={() => window.print()} className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} strokeWidth={1.5} />Print
           </button>
         </div>
@@ -163,8 +170,9 @@ export default function BillingDetailPage() {
                 <span className="text-[#009598]">₹{net.toLocaleString("en-IN")}</span>
               </div>
               {bill.status === "Pending" && (
-                <button className="mt-3 w-full text-[13px] font-normal text-white bg-[#009598] py-2 rounded-full hover:bg-[#007f82] transition-colors">
-                  Record Payment
+                <button onClick={recordPayment} disabled={acting}
+                  className="mt-3 w-full text-[13px] font-normal text-white bg-[#009598] py-2 rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                  {acting ? "Recording…" : "Record Payment"}
                 </button>
               )}
             </div>

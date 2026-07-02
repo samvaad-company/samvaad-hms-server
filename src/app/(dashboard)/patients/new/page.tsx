@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { StepBar } from "@/components/shared/StepBar";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import { ChevronLeft, User, Check } from "lucide-react";
+import { ChevronLeft, User, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { api, ApiClientError } from "@/lib/api/client";
+import { useMutation } from "@/lib/api/hooks";
 
 const STEPS = ["Quick Info", "Medical History", "Address & Contact", "Insurance"];
 
@@ -13,7 +16,11 @@ const BLOOD_GROUPS = ["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(g => ({ val
 const GENDER_OPTS  = [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }];
 const RELATION_OPTS = ["Spouse","Parent","Child","Sibling","Guardian","Other"].map(r => ({ value: r.toLowerCase(), label: r }));
 
+const GENDER_MAP: Record<string, string> = { male: "Male", female: "Female", other: "Other" };
+
 export default function NewPatientPage() {
+  const router = useRouter();
+  const { run, loading, error } = useMutation();
   const [step, setStep] = useState(1);
   const [hmsId] = useState(() => `HMS-${String(Math.floor(Math.random() * 9000) + 1000)}`);
   const [form, setForm] = useState({
@@ -27,6 +34,37 @@ export default function NewPatientPage() {
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   const isStep1Done = form.name && form.mobile && form.dob && form.gender;
+
+  async function submit() {
+    try {
+      await run(() =>
+        api.post("/patients", {
+          name: form.name,
+          phone: form.mobile,
+          dob: form.dob || undefined,
+          gender: GENDER_MAP[form.gender] ?? "Other",
+          email: form.email || undefined,
+          bloodGroup: form.bloodGroup || undefined,
+          allergies: form.allergies || undefined,
+          chronic: form.chronic || undefined,
+          abhaId: form.abhaId || undefined,
+          address: form.address || undefined,
+          city: form.city || undefined,
+          state: form.state || undefined,
+          pincode: form.pincode || undefined,
+          emergencyName: form.emergencyName || undefined,
+          emergencyRelation: form.emergencyRelation || undefined,
+          emergencyPhone: form.emergencyPhone || undefined,
+          insurer: form.insurer || undefined,
+          policyNumber: form.policyNumber || undefined,
+          corporate: form.corporate || undefined,
+        }),
+      );
+      router.push("/patients");
+    } catch {
+      // error surfaced via `error` below
+    }
+  }
 
   return (
     <>
@@ -178,6 +216,12 @@ export default function NewPatientPage() {
             )}
           </div>
 
+          {error && (
+            <div className="mx-8 mb-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">
+              {error instanceof ApiClientError ? error.message : "Failed to register patient"}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="px-8 pb-7 flex justify-between items-center border-t border-[#f0f0f0] pt-5">
             <button
@@ -195,9 +239,14 @@ export default function NewPatientPage() {
                 Continue →
               </button>
             ) : (
-              <Link href="/patients" className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors">
-                <Check size={14} /> Register Patient
-              </Link>
+              <button
+                onClick={submit}
+                disabled={loading || !isStep1Done}
+                className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {loading ? "Registering…" : "Register Patient"}
+              </button>
             )}
           </div>
         </div>

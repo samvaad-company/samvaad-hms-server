@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { BedDouble, Plus, MoreVertical } from "lucide-react";
-import { ipdRecords } from "@/data/ipd";
-import { patients } from "@/data/patients";
-import { doctors } from "@/data/doctors";
-import { beds } from "@/data/beds";
+import { useRouter } from "next/navigation";
+import { BedDouble, Plus } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { IpdRecordDTO, PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -36,7 +38,7 @@ const FILTERS = [
 
 const MIN_WIDTH = 1452;
 
-function IpdRow({ row }: { row: IpdRecord }) {
+function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
   return (
     <Link href={`/ipd/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -86,21 +88,50 @@ function IpdRow({ row }: { row: IpdRecord }) {
       </div>
 
       <div className="absolute" style={{ left: 1380 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors" onClick={e => e.preventDefault()}>
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
 }
-
-const WARD_OPTS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
 
 export default function IpdPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [ward, setWard] = useState("");
+
+  const { items: ipdRecords, reload } = useList<IpdRecordDTO>("/ipd", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: beds, reload: reloadBeds } = useList<BedDTO>("/beds", { all: true });
+  const { run, loading, error } = useMutation();
+  const router = useRouter();
+  const { dialog, remove, mutate, ask } = useRowActions("ipd", () => { reload(); reloadBeds(); });
+
+  const [form, setForm] = useState({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function admit() {
+    const patient = patients.find(p => String(p.id) === form.patientId);
+    await run(() =>
+      api.post("/ipd", {
+        patientId: Number(form.patientId),
+        patientName: patient?.name ?? "",
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        bedId: Number(form.bedId),
+        ward,
+        status: form.status,
+        diagnosis: form.diagnosis,
+      }),
+    );
+    setForm({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "" });
+    setWard("");
+    setShowModal(false);
+    reload();
+    reloadBeds();
+  }
+
+  const WARD_OPTS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
 
   const visible = ipdRecords.filter(r => {
     const matchF = filter === "All" || r.status === filter;
@@ -113,23 +144,28 @@ export default function IpdPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Admission" width={640}
         footer={
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
             <Link href="/ipd/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
-            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Admit Patient</button>
+            <button onClick={admit} disabled={loading || !form.patientId || !form.bedId || !form.diagnosis.trim()}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Admitting…" : "Admit Patient"}
+            </button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
           <FormRow label="Admission Date *"><FormInput type="date" /></FormRow>
-          <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
-          <FormRow label="Ward *"><FormSelect placeholder="Select ward" options={WARD_OPTS} value={ward} onChange={setWard} /></FormRow>
-          <FormRow label="Bed *"><FormSelect placeholder={ward ? `${availableBeds.length} available` : "Select ward first"} options={availableBeds.map(b => ({ value: String(b.id), label: b.bedNumber }))} /></FormRow>
-          <FormRow label="Status"><FormSelect placeholder="Status" options={["Admitted","ICU"].map(s => ({ value: s, label: s }))} /></FormRow>
-          <div className="col-span-2"><FormRow label="Diagnosis / Reason"><FormInput placeholder="Provisional diagnosis or reason for admission" /></FormRow></div>
+          <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
+          <FormRow label="Ward *"><FormSelect placeholder="Select ward" options={WARD_OPTS} value={ward} onChange={v => { setWard(v); set("bedId", ""); }} /></FormRow>
+          <FormRow label="Bed *"><FormSelect placeholder={ward ? `${availableBeds.length} available` : "Select ward first"} value={form.bedId} onChange={v => set("bedId", v)} options={availableBeds.map(b => ({ value: String(b.id), label: b.bedNumber }))} /></FormRow>
+          <FormRow label="Status"><FormSelect placeholder="Status" value={form.status} onChange={v => set("status", v)} options={["Admitted","ICU"].map(s => ({ value: s, label: s }))} /></FormRow>
+          <div className="col-span-2"><FormRow label="Diagnosis / Reason"><FormInput placeholder="Provisional diagnosis or reason for admission" value={form.diagnosis} onChange={v => set("diagnosis", v)} /></FormRow></div>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>
 
@@ -152,7 +188,12 @@ export default function IpdPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
-              <IpdRow key={r.id} row={r} />
+              <IpdRow key={r.id} row={r} actions={[
+                { label: "View admission", onClick: () => router.push(`/ipd/${r.id}`) },
+                { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName} and free bed ${r.bed}?`, confirmLabel: "Discharge", action: () => api.post(`/ipd/${r.id}/discharge`) }) },
+                { label: "Move to ICU", disabled: r.status === "ICU" || r.status === "Discharged", onClick: () => mutate(() => api.patch(`/ipd/${r.id}`, { status: "ICU" })) },
+                { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+              ]} />
             ))}
           </DataTable>
         </div>

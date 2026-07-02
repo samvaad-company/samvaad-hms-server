@@ -2,36 +2,24 @@
 
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { prescriptions } from "@/data/prescriptions";
+import { useItem } from "@/lib/api/hooks";
+import type { PrescriptionDTO } from "@/types/api";
 import { ChevronLeft, Printer, Share2, Download, QrCode } from "lucide-react";
 import Link from "next/link";
-
-// ─── Mock medicine data per prescription ─────────────────────────────────────
-
-const RX_MEDICINES: Record<number, Array<{ name: string; dosage: string; frequency: string; duration: string; instructions: string }>> = {
-  1: [
-    { name: "Metformin 500mg",     dosage: "500mg",  frequency: "Twice daily (BD)",    duration: "30 days",  instructions: "Take with meals" },
-    { name: "Losartan 50mg",       dosage: "50mg",   frequency: "Once daily (OD)",     duration: "30 days",  instructions: "Take in the morning" },
-    { name: "Aspirin 75mg",        dosage: "75mg",   frequency: "Once daily (OD)",     duration: "30 days",  instructions: "Take after breakfast" },
-  ],
-  2: [
-    { name: "Amoxicillin 500mg",   dosage: "500mg",  frequency: "Three times (TDS)",   duration: "7 days",   instructions: "Complete full course" },
-    { name: "Paracetamol 500mg",   dosage: "500mg",  frequency: "As needed (PRN)",     duration: "3 days",   instructions: "Take for fever > 38°C" },
-    { name: "Cetirizine 10mg",     dosage: "10mg",   frequency: "Once at night (OD)",  duration: "5 days",   instructions: "May cause drowsiness" },
-    { name: "Vitamin C 500mg",     dosage: "500mg",  frequency: "Once daily (OD)",     duration: "14 days",  instructions: "—" },
-  ],
-  3: [
-    { name: "Amlodipine 5mg",      dosage: "5mg",    frequency: "Once daily (OD)",     duration: "30 days",  instructions: "Take in the morning" },
-    { name: "Metoprolol 25mg",     dosage: "25mg",   frequency: "Twice daily (BD)",    duration: "30 days",  instructions: "Do not skip doses" },
-  ],
-};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PrescriptionDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const rx = prescriptions.find(p => p.id === Number(id));
+  const { item: rx, loading } = useItem<PrescriptionDTO>(`/prescriptions/${id}`);
 
+  if (loading) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">Loading…</p>
+      </div>
+    );
+  }
   if (!rx) {
     return (
       <div className={`${tw.gutterX} pt-10`}>
@@ -40,7 +28,13 @@ export default function PrescriptionDetailPage() {
     );
   }
 
-  const meds = RX_MEDICINES[rx.id] ?? RX_MEDICINES[1];
+  const meds = rx.items.map(it => ({
+    name: it.medicineName,
+    dosage: it.dosage,
+    frequency: it.frequency,
+    duration: it.duration,
+    instructions: it.instructions ?? "—",
+  }));
 
   return (
     <>
@@ -50,13 +44,13 @@ export default function PrescriptionDetailPage() {
           <ChevronLeft size={15} /> Back to Prescriptions
         </Link>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
             <Share2 size={14} /> Share
           </button>
-          <button className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
             <Download size={14} /> PDF
           </button>
-          <button className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} /> Print
           </button>
         </div>

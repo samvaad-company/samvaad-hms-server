@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { BarChart3, MoreVertical, TrendingUp, TrendingDown, Download } from "lucide-react";
-import { kpiStats, reportRows } from "@/data/reports";
+import { useItem } from "@/lib/api/hooks";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
@@ -322,14 +322,17 @@ const TABS = [
 
 export default function ReportsPage() {
   const [tab, setTab] = useState("financial");
+  const { item: report } = useItem<{ kpis: KpiStat[]; rows: ReportRow[] }>("/reports");
+  const reportRows = report?.rows ?? [];
+  const revenueKpi = report?.kpis?.find(k => k.label === "Total Revenue")?.value ?? "—";
 
   return (
     <>
       <PageHeader
         title="Reports"
         subtitle="Analyse hospital performance — revenue, patient volume, doctor productivity, and pharmacy."
-        stats={[{ icon: BarChart3, value: "₹4.8L", label: "Monthly Revenue" }]}
-        action={{ label: "Export Report", icon: Download }}
+        stats={[{ icon: BarChart3, value: revenueKpi, label: "Total Revenue" }]}
+        action={{ label: "Export Report", icon: Download, onClick: () => window.print() }}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>

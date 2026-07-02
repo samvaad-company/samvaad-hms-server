@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { Activity, Plus, MoreVertical, CheckCircle, XCircle } from "lucide-react";
-import { opdRecords } from "@/data/opd";
-import { patients } from "@/data/patients";
-import { doctors } from "@/data/doctors";
+import { Activity, Plus, CheckCircle, XCircle } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { OpdRecordDTO, PatientDTO, DoctorDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -34,7 +36,7 @@ const FILTERS = [
 
 const MIN_WIDTH = 1452;
 
-function OpdRow({ row }: { row: OpdRecord }) {
+function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5">
@@ -86,21 +88,45 @@ function OpdRow({ row }: { row: OpdRecord }) {
       </div>
 
       <div className="absolute" style={{ left: 1340 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors">
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </div>
   );
 }
 
 const STATUS_MAP: Record<string, string> = { "InConsultation": "In Consultation" };
-const NEXT_TOKEN = `T-${String(opdRecords.length + 1).padStart(3, "0")}`;
 
 export default function OpdPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const { items: opdRecords, reload } = useList<OpdRecordDTO>("/opd", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { run, loading, error } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("opd", reload);
+  const NEXT_TOKEN = `T-${String(opdRecords.length + 1).padStart(3, "0")}`;
+
+  const [form, setForm] = useState({ patientId: "", doctorId: "", reason: "", vitals: "no" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function checkIn() {
+    const patient = patients.find(p => String(p.id) === form.patientId);
+    const doctor = doctors.find(d => String(d.id) === form.doctorId);
+    await run(() =>
+      api.post("/opd", {
+        patientId: Number(form.patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        doctor: doctor?.name ?? "",
+        vitalsRecorded: form.vitals === "yes",
+      }),
+    );
+    setForm({ patientId: "", doctorId: "", reason: "", vitals: "no" });
+    setShowModal(false);
+    reload();
+  }
 
   const visible = opdRecords.filter(r => {
     const matchF = filter === "All" || r.status === (STATUS_MAP[filter] ?? filter);
@@ -111,11 +137,15 @@ export default function OpdPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="New OPD Check-in"
         footer={
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Issue Token</button>
+            <button onClick={checkIn} disabled={loading || !form.patientId}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Issuing…" : "Issue Token"}
+            </button>
           </>
         }
       >
@@ -127,18 +157,19 @@ export default function OpdPage() {
             </div>
           </div>
           <FormRow label="Patient *">
-            <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            <FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
           </FormRow>
           <FormRow label="Doctor *">
-            <FormSelect placeholder="Select doctor" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+            <FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
           </FormRow>
-          <div className="col-span-2"><FormRow label="Chief Complaint"><FormInput placeholder="Brief reason for visit" /></FormRow></div>
+          <div className="col-span-2"><FormRow label="Chief Complaint"><FormInput placeholder="Brief reason for visit" value={form.reason} onChange={v => set("reason", v)} /></FormRow></div>
           <FormRow label="Vitals Recorded">
-            <FormSelect placeholder="Status" options={[{ value: "yes", label: "Yes — Recorded" }, { value: "no", label: "No — Pending" }]} />
+            <FormSelect placeholder="Status" value={form.vitals} onChange={v => set("vitals", v)} options={[{ value: "yes", label: "Yes — Recorded" }, { value: "no", label: "No — Pending" }]} />
           </FormRow>
           <FormRow label="Priority">
             <FormSelect placeholder="Normal" options={[{ value: "normal", label: "Normal" }, { value: "urgent", label: "Urgent" }, { value: "emergency", label: "Emergency" }]} />
           </FormRow>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>
 
@@ -162,7 +193,12 @@ export default function OpdPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
-              <OpdRow key={r.id} row={r} />
+              <OpdRow key={r.id} row={r} actions={[
+                { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
+                { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
+                { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },
+                { label: "Delete", danger: true, onClick: () => remove(r.id, r.tokenNumber) },
+              ]} />
             ))}
           </DataTable>
         </div>

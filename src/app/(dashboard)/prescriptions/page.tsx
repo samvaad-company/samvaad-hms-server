@@ -1,8 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { FileText, Plus, MoreVertical } from "lucide-react";
-import { prescriptions } from "@/data/prescriptions";
+import { FileText, Plus } from "lucide-react";
+import { useList } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { PrescriptionDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -29,7 +34,7 @@ const FILTERS = [
 
 const MIN_WIDTH = 1452;
 
-function PrescriptionRow({ row }: { row: Prescription }) {
+function PrescriptionRow({ row, actions }: { row: Prescription; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5">
@@ -76,22 +81,24 @@ function PrescriptionRow({ row }: { row: Prescription }) {
       </div>
 
       <div className="absolute" style={{ left: 1340 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors">
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </div>
   );
 }
 
 export default function PrescriptionsPage() {
+  const router = useRouter();
+  const { items: prescriptions, reload } = useList<PrescriptionDTO>("/prescriptions", { all: true });
+  const { dialog, remove, mutate } = useRowActions("prescriptions", reload);
   return (
     <>
+      {dialog}
       <PageHeader
         title="Prescriptions"
         subtitle="Create, manage, and dispense digital prescriptions for patients."
-        stats={[{ icon: FileText, value: "10", label: "Total Prescriptions" }]}
-        action={{ label: "New Prescription", icon: Plus }}
+        stats={[{ icon: FileText, value: `${prescriptions.length}`, label: "Total Prescriptions" }]}
+        action={{ label: "New Prescription", icon: Plus, onClick: () => router.push("/prescriptions/new") }}
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -101,8 +108,14 @@ export default function PrescriptionsPage() {
             searchPlaceholder="Search by Rx number, patient, or diagnosis..."
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {prescriptions.map((r) => (
-              <PrescriptionRow key={r.id} row={r} />
+            {prescriptions.length === 0 ? (
+              <div className="py-16 text-center text-[14px] text-[#57575f]">No prescriptions found.</div>
+            ) : prescriptions.map((r) => (
+              <PrescriptionRow key={r.id} row={r} actions={[
+                { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
+                { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => mutate(() => api.post(`/prescriptions/${r.id}/dispense`)) },
+                { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
+              ]} />
             ))}
           </DataTable>
         </div>

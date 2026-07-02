@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { BarChart3, Plus, MoreVertical, Trash2 } from "lucide-react";
+import { BarChart3, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { bills } from "@/data/billing";
-import { patients } from "@/data/patients";
+import { useRouter } from "next/navigation";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { BillDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -34,7 +38,7 @@ const TYPE_COLORS: Record<string, string> = {
   Lab: "bg-[#dffff3] text-[#00955c]",  IPD: "bg-[#ffe9e9] text-[#ff0004]",
 };
 
-function BillRow({ row }: { row: Bill }) {
+function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
   return (
     <Link href={`/billing/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5">
@@ -63,7 +67,7 @@ function BillRow({ row }: { row: Bill }) {
       </div>
       <div className="absolute" style={{ left: 1240 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1420 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors" onClick={e => e.preventDefault()}><MoreVertical size={24} strokeWidth={1.5} /></button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
@@ -87,12 +91,15 @@ const PAYMENT_MODES = [
   { value: "split", label: "Split Payment" },
 ];
 
-function NewBillView() {
+function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreated: () => void }) {
   const [items, setItems] = useState<LineItem[]>([
     { id: 1, description: "", qty: 1, rate: 0, gstPct: 0 },
   ]);
   const [discount, setDiscount] = useState(0);
   const [payMode, setPayMode] = useState("");
+  const [patientId, setPatientId] = useState("");
+  const [billType, setBillType] = useState("OPD");
+  const { run, loading, error } = useMutation();
 
   const addRow = () => setItems(prev => [...prev, { id: Date.now(), description: "", qty: 1, rate: 0, gstPct: 0 }]);
   const removeRow = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
@@ -104,15 +111,30 @@ function NewBillView() {
   const discAmt = discount;
   const grandTotal = subtotal + gstTotal - discAmt;
 
+  async function generate() {
+    const patient = patients.find(p => String(p.id) === patientId);
+    await run(() =>
+      api.post("/billing", {
+        patientId: Number(patientId),
+        patientName: patient?.name ?? "",
+        type: billType,
+        amount: subtotal,
+        discount: discAmt,
+        status: payMode ? "Paid" : "Pending",
+      }),
+    );
+    onCreated();
+  }
+
   return (
     <div className="p-5 flex flex-col gap-5">
       {/* Patient & type */}
       <div className="grid grid-cols-4 gap-4">
         <FormRow label="Patient *">
-          <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+          <FormSelect placeholder="Search patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
         </FormRow>
         <FormRow label="Bill Type *">
-          <FormSelect placeholder="Select type" options={[{ value: "opd", label: "OPD" }, { value: "ipd", label: "IPD" }, { value: "lab", label: "Lab" }, { value: "pharmacy", label: "Pharmacy" }, { value: "other", label: "Other" }]} />
+          <FormSelect placeholder="Select type" value={billType} onChange={setBillType} options={[{ value: "OPD", label: "OPD" }, { value: "IPD", label: "IPD" }, { value: "Lab", label: "Lab" }, { value: "Pharmacy", label: "Pharmacy" }]} />
         </FormRow>
         <FormRow label="Bill Date *">
           <FormInput type="date" />
@@ -218,9 +240,11 @@ function NewBillView() {
             <span className="text-[16px] font-medium text-[#11111c]">Grand Total</span>
             <span className="text-[16px] font-medium text-[#009598]">₹{grandTotal.toLocaleString("en-IN")}</span>
           </div>
-          <button className="w-full mt-2 bg-[#009598] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[#007f82] transition-colors">
-            Generate Bill
+          <button onClick={generate} disabled={loading || !patientId || subtotal <= 0}
+            className="w-full mt-2 bg-[#009598] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? "Generating…" : "Generate Bill"}
           </button>
+          {error && <div className="text-[12px] text-[#ff0004]">{error.message}</div>}
         </div>
       </div>
     </div>
@@ -229,15 +253,23 @@ function NewBillView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "all",     label: "All Bills", count: bills.length },
-  { id: "new",     label: "New Bill" },
-];
-
 export default function BillingPage() {
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const router = useRouter();
+  const { items: bills, reload } = useList<BillDTO>("/billing", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { dialog, remove, mutate } = useRowActions("billing", reload);
+
+  const TABS = [
+    { id: "all",     label: "All Bills", count: bills.length },
+    { id: "new",     label: "New Bill" },
+  ];
+
+  const revenue = bills
+    .filter(b => b.status === "Paid" || b.status === "Partial")
+    .reduce((s, b) => s + b.total, 0);
 
   const visible = bills.filter(b => {
     const matchF = filter === "All" || b.status === filter;
@@ -248,11 +280,12 @@ export default function BillingPage() {
 
   return (
     <>
+      {dialog}
       <PageHeader
         title="Billing"
         subtitle="Manage patient invoices, payments, discounts, and financial records."
-        stats={[{ icon: BarChart3, value: "₹26,313", label: "Revenue (Nov)" }]}
-        action={{ label: "New Bill", icon: Plus }}
+        stats={[{ icon: BarChart3, value: `₹${revenue.toLocaleString("en-IN")}`, label: "Revenue (Nov)" }]}
+        action={{ label: "New Bill", icon: Plus, onClick: () => setTab("new") }}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -262,11 +295,20 @@ export default function BillingPage() {
               <FilterBar filters={FILTERS} searchPlaceholder="Search by bill number or patient name..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-                {visible.map(r => <BillRow key={r.id} row={r} />)}
+                {visible.length === 0 ? (
+                  <div className="py-16 text-center text-[14px] text-[#57575f]">No bills found.</div>
+                ) : visible.map(r => (
+                  <BillRow key={r.id} row={r} actions={[
+                    { label: "View invoice", onClick: () => router.push(`/billing/${r.id}`) },
+                    { label: "Mark Paid", disabled: r.status === "Paid", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Paid" })) },
+                    { label: "Mark Pending", disabled: r.status === "Pending", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Pending" })) },
+                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.billNumber) },
+                  ]} />
+                ))}
               </DataTable>
             </>
           )}
-          {tab === "new" && <NewBillView />}
+          {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}
         </div>
       </div>
     </>

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { Calendar, Plus, MoreVertical } from "lucide-react";
-import { appointments } from "@/data/appointments";
-import { opdRecords } from "@/data/opd";
-import { doctors } from "@/data/doctors";
-import { patients } from "@/data/patients";
+import { useRouter } from "next/navigation";
+import { Calendar, Plus } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { AppointmentDTO, OpdRecordDTO, DoctorDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -35,7 +37,7 @@ const FILTERS = [
 ];
 const MIN_WIDTH = 1400;
 
-function AppointmentRow({ row }: { row: Appointment }) {
+function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction[] }) {
   return (
     <Link href={`/appointments/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -59,9 +61,7 @@ function AppointmentRow({ row }: { row: Appointment }) {
       </div>
       <div className="absolute" style={{ left: 1060 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1270 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors" onClick={e => e.preventDefault()}>
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
@@ -71,7 +71,7 @@ const APPT_TYPE_OPTS = ["New Visit","Follow-up","Emergency","Walk-in"].map(t => 
 
 // ─── Live Queue ───────────────────────────────────────────────────────────────
 
-function QueueView() {
+function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onCallNext: (id: number) => void }) {
   const waiting = opdRecords.filter(r => r.status === "Waiting").length;
   const inConsult = opdRecords.filter(r => r.status === "In Consultation").length;
   const completed = opdRecords.filter(r => r.status === "Completed").length;
@@ -134,7 +134,7 @@ function QueueView() {
               <div className="absolute flex items-center gap-2" style={{ left: 1060 }}>
                 <StatusBadge status={row.status} />
                 {row.status === "Waiting" && (
-                  <button className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors ml-2 whitespace-nowrap">
+                  <button onClick={() => onCallNext(row.id)} className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors ml-2 whitespace-nowrap">
                     Call Next
                   </button>
                 )}
@@ -152,7 +152,7 @@ function QueueView() {
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function ScheduleView() {
+function ScheduleView({ doctors }: { doctors: DoctorDTO[] }) {
   const activeDoctors = doctors.filter(d => d.status !== "On Leave").slice(0, 8);
 
   return (
@@ -211,17 +211,51 @@ function ScheduleView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "all",      label: "All Appointments", count: appointments.length },
-  { id: "queue",    label: "Live Queue",        count: opdRecords.filter(r => r.status === "Waiting").length },
-  { id: "schedule", label: "Doctor Schedule" },
-];
-
 export default function AppointmentsPage() {
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+
+  const router = useRouter();
+  const { items: appointments, reload } = useList<AppointmentDTO>("/appointments", { all: true });
+  const { items: opdRecords, reload: reloadOpd } = useList<OpdRecordDTO>("/opd", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
+  const { run: runBook, loading: booking, error: bookError } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("appointments", reload);
+  const { run: runQueue } = useMutation();
+  const callNext = (opdId: number) =>
+    runQueue(() => api.patch(`/opd/${opdId}`, { status: "In Consultation" })).then(reloadOpd);
+
+  const [book, setBook] = useState({ patientId: "", doctorId: "", date: "", slot: "", type: "Booked", reason: "" });
+  const setB = (k: keyof typeof book, v: string) => setBook(prev => ({ ...prev, [k]: v }));
+
+  async function confirmBooking() {
+    const patient = patients.find(p => String(p.id) === book.patientId);
+    await runBook(() =>
+      api.post("/appointments", {
+        patientId: Number(book.patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        doctorId: book.doctorId ? Number(book.doctorId) : undefined,
+        date: book.date,
+        time: book.slot,
+        type: book.type,
+        reason: book.reason,
+        status: "Upcoming",
+      }),
+    );
+    setBook({ patientId: "", doctorId: "", date: "", slot: "", type: "Booked", reason: "" });
+    setShowModal(false);
+    reload();
+  }
+
+  const TABS = [
+    { id: "all",      label: "All Appointments", count: appointments.length },
+    { id: "queue",    label: "Live Queue",        count: opdRecords.filter(r => r.status === "Waiting").length },
+    { id: "schedule", label: "Doctor Schedule" },
+  ];
 
   const visible = appointments.filter(r => {
     const matchF = filter === "All" || r.status === filter;
@@ -232,22 +266,27 @@ export default function AppointmentsPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Book Appointment"
         footer={
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
             <Link href="/appointments/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
-            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Confirm Booking</button>
+            <button onClick={confirmBooking} disabled={booking || !book.patientId || !book.date || !book.slot}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {booking ? "Booking…" : "Confirm Booking"}
+            </button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
-          <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
-          <FormRow label="Date *"><FormInput type="date" /></FormRow>
-          <FormRow label="Time Slot *"><FormSelect placeholder="Select slot" options={["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","4:00 PM","4:30 PM","5:00 PM"].map(t => ({ value: t, label: t }))} /></FormRow>
-          <FormRow label="Type"><FormSelect placeholder="Select type" options={APPT_TYPE_OPTS} /></FormRow>
-          <FormRow label="Reason"><FormInput placeholder="Brief reason for visit" /></FormRow>
+          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={book.patientId} onChange={v => setB("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" value={book.doctorId} onChange={v => setB("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
+          <FormRow label="Date *"><FormInput type="date" value={book.date} onChange={v => setB("date", v)} /></FormRow>
+          <FormRow label="Time Slot *"><FormSelect placeholder="Select slot" value={book.slot} onChange={v => setB("slot", v)} options={["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","4:00 PM","4:30 PM","5:00 PM"].map(t => ({ value: t, label: t }))} /></FormRow>
+          <FormRow label="Type"><FormSelect placeholder="Select type" value={book.type} onChange={v => setB("type", v)} options={[{ value: "Booked", label: "Booked" }, { value: "Walk-in", label: "Walk-in" }]} /></FormRow>
+          <FormRow label="Reason"><FormInput placeholder="Brief reason for visit" value={book.reason} onChange={v => setB("reason", v)} /></FormRow>
+          {bookError && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{bookError.message}</div>}
         </div>
       </Modal>
 
@@ -265,12 +304,21 @@ export default function AppointmentsPage() {
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or doctor..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-                {visible.map(r => <AppointmentRow key={r.id} row={r} />)}
+                {visible.length === 0 ? (
+                  <div className="py-16 text-center text-[14px] text-[#57575f]">No appointments found.</div>
+                ) : visible.map(r => (
+                  <AppointmentRow key={r.id} row={r} actions={[
+                    { label: "View details", onClick: () => router.push(`/appointments/${r.id}`) },
+                    { label: "Mark Completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Completed" })) },
+                    { label: "Cancel appointment", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Cancelled" })) },
+                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+                  ]} />
+                ))}
               </DataTable>
             </>
           )}
-          {tab === "queue"    && <QueueView />}
-          {tab === "schedule" && <ScheduleView />}
+          {tab === "queue"    && <QueueView opdRecords={opdRecords} onCallNext={callNext} />}
+          {tab === "schedule" && <ScheduleView doctors={doctors} />}
         </div>
       </div>
     </>

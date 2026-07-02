@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { Stethoscope, Plus, MoreVertical, Phone } from "lucide-react";
-import { doctors } from "@/data/doctors";
+import { useRouter } from "next/navigation";
+import { Stethoscope, Plus, Phone } from "lucide-react";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { DoctorDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -33,7 +38,7 @@ const FILTERS = [
 const FILTER_MAP: Record<string, string> = { "InOPD": "In OPD", "OnLeave": "On Leave" };
 const MIN_WIDTH = 1400;
 
-function DoctorRow({ row }: { row: Doctor }) {
+function DoctorRow({ row, actions }: { row: Doctor; actions: RowAction[] }) {
   return (
     <Link href={`/doctors/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -55,22 +60,43 @@ function DoctorRow({ row }: { row: Doctor }) {
       </div>
       <div className="absolute" style={{ left: 1060 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1280 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors" onClick={e => e.preventDefault()}>
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
 }
 
-const SPECIALTY_OPTS = ["General Physician","Paediatrician","Cardiologist","Neurologist","Orthopaedic Surgeon","Dermatologist","Gastroenterologist","Endocrinologist","Pulmonologist","Physiotherapist"].map(s => ({ value: s.toLowerCase(), label: s }));
-const DEPT_OPTS = ["OPD","Paediatrics","Cardiology","Neurology","Ortho","Skin","Surgery","Internal Med","Respiratory","Rehab"].map(d => ({ value: d.toLowerCase(), label: d }));
+const SPECIALTY_OPTS = ["General Physician","Paediatrician","Cardiologist","Neurologist","Orthopaedic Surgeon","Dermatologist","Gastroenterologist","Endocrinologist","Pulmonologist","Physiotherapist"].map(s => ({ value: s, label: s }));
+const DEPT_OPTS = ["OPD","Paediatrics","Cardiology","Neurology","Ortho","Skin","Surgery","Internal Med","Respiratory","Rehab"].map(d => ({ value: d, label: d }));
 const STATUS_OPTS = [{ value: "Active", label: "Active" }, { value: "In OPD", label: "In OPD" }, { value: "On Leave", label: "On Leave" }];
 
 export default function DoctorsPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const router = useRouter();
+  const { items: doctors, reload } = useList<DoctorDTO>("/doctors", { all: true });
+  const { run, loading, error } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("doctors", reload);
+
+  const [form, setForm] = useState({ name: "", specialty: "", department: "", phone: "", experience: "", status: "Active" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function addDoctor() {
+    await run(() =>
+      api.post("/doctors", {
+        name: form.name,
+        specialty: form.specialty,
+        department: form.department,
+        phone: form.phone,
+        experience: form.experience,
+        status: form.status,
+      }),
+    );
+    setForm({ name: "", specialty: "", department: "", phone: "", experience: "", status: "Active" });
+    setShowModal(false);
+    reload();
+  }
 
   const visible = doctors.filter(d => {
     const matchF = filter === "All" || d.status === (FILTER_MAP[filter] ?? filter);
@@ -81,21 +107,26 @@ export default function DoctorsPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Doctor"
         footer={
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <button className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Add Doctor</button>
+            <button onClick={addDoctor} disabled={loading || !form.name}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Adding…" : "Add Doctor"}
+            </button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2"><FormRow label="Full Name *"><FormInput placeholder="Dr. First Last" /></FormRow></div>
-          <FormRow label="Specialty *"><FormSelect placeholder="Select specialty" options={SPECIALTY_OPTS} /></FormRow>
-          <FormRow label="Department *"><FormSelect placeholder="Select dept" options={DEPT_OPTS} /></FormRow>
-          <FormRow label="Phone *"><FormInput placeholder="+91 XXXXX XXXXX" type="tel" /></FormRow>
-          <FormRow label="Experience"><FormInput placeholder="e.g. 10 yrs" /></FormRow>
-          <FormRow label="Status"><FormSelect placeholder="Select status" options={STATUS_OPTS} /></FormRow>
+          <div className="col-span-2"><FormRow label="Full Name *"><FormInput placeholder="Dr. First Last" value={form.name} onChange={v => set("name", v)} /></FormRow></div>
+          <FormRow label="Specialty *"><FormSelect placeholder="Select specialty" value={form.specialty} onChange={v => set("specialty", v)} options={SPECIALTY_OPTS} /></FormRow>
+          <FormRow label="Department *"><FormSelect placeholder="Select dept" value={form.department} onChange={v => set("department", v)} options={DEPT_OPTS} /></FormRow>
+          <FormRow label="Phone *"><FormInput placeholder="+91 XXXXX XXXXX" type="tel" value={form.phone} onChange={v => set("phone", v)} /></FormRow>
+          <FormRow label="Experience"><FormInput placeholder="e.g. 10 yrs" value={form.experience} onChange={v => set("experience", v)} /></FormRow>
+          <FormRow label="Status"><FormSelect placeholder="Select status" value={form.status} onChange={v => set("status", v)} options={STATUS_OPTS} /></FormRow>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>
 
@@ -118,7 +149,16 @@ export default function DoctorsPage() {
             onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {visible.map((r) => <DoctorRow key={r.id} row={r} />)}
+            {visible.length === 0 ? (
+              <div className="py-16 text-center text-[14px] text-[#57575f]">No doctors found.</div>
+            ) : visible.map((r) => (
+              <DoctorRow key={r.id} row={r} actions={[
+                { label: "View details", onClick: () => router.push(`/doctors/${r.id}`) },
+                { label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) },
+                { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
+                { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+              ]} />
+            ))}
           </DataTable>
         </div>
       </div>

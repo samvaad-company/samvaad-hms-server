@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { ipdRecords } from "@/data/ipd";
+import { useItem, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { IpdRecordDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ChevronLeft, Bed, User, Phone, Stethoscope, MapPin, Calendar, ClipboardList } from "lucide-react";
 import Link from "next/link";
@@ -60,8 +63,20 @@ const STATUS_CLR: Record<string, string> = {
 export default function IpdDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("notes");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const record = ipdRecords.find(r => r.id === Number(id));
+  const { item: record, loading, reload } = useItem<IpdRecordDTO>(`/ipd/${id}`);
+  const { run, loading: acting } = useMutation();
+
+  async function discharge() {
+    await run(() => api.post(`/ipd/${id}/discharge`));
+    setConfirmOpen(false);
+    reload();
+  }
+
+  if (loading) {
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+  }
   if (!record) {
     return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">IPD record not found.</p></div>;
   }
@@ -70,6 +85,16 @@ export default function IpdDetailPage() {
 
   return (
     <>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Discharge patient"
+        message={`Discharge ${record.patientName} and free bed ${record.bed}?`}
+        confirmLabel="Discharge"
+        danger={false}
+        loading={acting}
+        onConfirm={discharge}
+        onCancel={() => setConfirmOpen(false)}
+      />
       <div className={`${tw.gutterX} mb-4 pt-2`}>
         <Link href="/ipd" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
           <ChevronLeft size={15} /> Back to IPD
@@ -108,8 +133,11 @@ export default function IpdDetailPage() {
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               <span className="text-[12px] font-normal text-[#57575f]">Day {days} of admission</span>
-              <button className="text-[12px] font-normal text-[#ff9000] border border-[#ff9000] px-4 py-[6px] rounded-full hover:bg-[#fff2e0] transition-colors">
-                Initiate Discharge
+              <button
+                onClick={() => setConfirmOpen(true)}
+                disabled={record.status === "Discharged"}
+                className="text-[12px] font-normal text-[#ff9000] border border-[#ff9000] px-4 py-[6px] rounded-full hover:bg-[#fff2e0] transition-colors disabled:opacity-40">
+                {record.status === "Discharged" ? "Discharged" : "Initiate Discharge"}
               </button>
             </div>
           </div>
@@ -210,8 +238,11 @@ export default function IpdDetailPage() {
                   className="bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 py-2 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors resize-none" />
               </div>
               <div className="flex gap-2 mt-2">
-                <button className="bg-[#009598] text-white text-[13px] font-normal px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors">Confirm Discharge</button>
-                <button className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[9px] rounded-full hover:bg-[#f6f6f6] transition-colors">Save Draft</button>
+                <button onClick={discharge} disabled={acting || record.status === "Discharged"}
+                  className="bg-[#009598] text-white text-[13px] font-normal px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                  {record.status === "Discharged" ? "Discharged" : acting ? "Discharging…" : "Confirm Discharge"}
+                </button>
+                <button onClick={() => setTab("notes")} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[9px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
               </div>
             </div>
           )}

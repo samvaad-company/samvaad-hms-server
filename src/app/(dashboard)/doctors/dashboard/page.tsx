@@ -1,34 +1,43 @@
 "use client";
 
 import { tw } from "@/lib/design-system";
-import { opdRecords } from "@/data/opd";
-import { doctors } from "@/data/doctors";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { OpdRecordDTO, DoctorDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Users, CheckCircle, XCircle, Clock, DollarSign, Stethoscope } from "lucide-react";
-
-// ─── Mock stats ───────────────────────────────────────────────────────────────
-
-const TODAY_DOCTOR = doctors.find(d => d.status === "In OPD") ?? doctors[0];
-
-const TODAY_STATS = [
-  { icon: Users,       label: "Total Today",      value: "18", color: "text-[#11111c]",  bg: "bg-[#f0f0f0]" },
-  { icon: Clock,       label: "Waiting",           value: "6",  color: "text-[#ff9000]",  bg: "bg-[#fff2e0]" },
-  { icon: CheckCircle, label: "Completed",         value: "9",  color: "text-[#00955c]",  bg: "bg-[#dffff3]" },
-  { icon: XCircle,     label: "Cancelled",         value: "3",  color: "text-[#ff0004]",  bg: "bg-[#ffe9e9]" },
-  { icon: DollarSign,  label: "Revenue (Today)",   value: "₹12,400", color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
-];
-
-const QUICK_STATS = [
-  { label: "Avg Consult Time", value: "13 min" },
-  { label: "Next Patient",     value: opdRecords.find(r => r.status === "Waiting")?.patientName ?? "—" },
-  { label: "Top Diagnosis",    value: "Hypertension" },
-  { label: "Satisfaction",     value: "4.8 ★" },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DoctorDashboardPage() {
-  const queue = opdRecords;
+  const { items: queue, reload } = useList<OpdRecordDTO>("/opd", { all: true });
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { run } = useMutation();
+  const advance = (opdId: number, status: string) =>
+    run(() => api.patch(`/opd/${opdId}`, { status })).then(reload);
+
+  const TODAY_DOCTOR = doctors.find(d => d.status === "In OPD") ?? doctors[0] ?? {
+    name: "Doctor", specialty: "—", department: "—",
+  };
+
+  const waiting = queue.filter(r => r.status === "Waiting").length;
+  const completed = queue.filter(r => r.status === "Completed").length;
+  const inConsult = queue.filter(r => r.status === "In Consultation").length;
+
+  const TODAY_STATS = [
+    { icon: Users,       label: "Total Today",    value: String(queue.length), color: "text-[#11111c]",  bg: "bg-[#f0f0f0]" },
+    { icon: Clock,       label: "Waiting",        value: String(waiting),      color: "text-[#ff9000]",  bg: "bg-[#fff2e0]" },
+    { icon: CheckCircle, label: "Completed",      value: String(completed),    color: "text-[#00955c]",  bg: "bg-[#dffff3]" },
+    { icon: XCircle,     label: "In Consultation",value: String(inConsult),    color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
+    { icon: DollarSign,  label: "Revenue (Today)",value: "₹12,400",            color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
+  ];
+
+  const QUICK_STATS = [
+    { label: "Avg Consult Time", value: "13 min" },
+    { label: "Next Patient",     value: queue.find(r => r.status === "Waiting")?.patientName ?? "—" },
+    { label: "Top Diagnosis",    value: "Hypertension" },
+    { label: "Satisfaction",     value: "4.8 ★" },
+  ];
 
   return (
     <>
@@ -91,12 +100,12 @@ export default function DoctorDashboardPage() {
                   <div className="absolute" style={{ left: 590 }}><StatusBadge status={row.status} /></div>
                   <div className="absolute" style={{ left: 760 }}>
                     {row.status === "Waiting" ? (
-                      <button className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+                      <button onClick={() => advance(row.id, "In Consultation")} className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
                         Begin Consultation
                       </button>
                     ) : row.status === "In Consultation" ? (
-                      <button className="text-[12px] font-medium text-[#007cff] bg-[#d6eaff] px-4 py-[6px] rounded-full whitespace-nowrap">
-                        In Progress
+                      <button onClick={() => advance(row.id, "Completed")} className="text-[12px] font-medium text-[#007cff] bg-[#d6eaff] px-4 py-[6px] rounded-full hover:bg-[#b8dcff] transition-colors whitespace-nowrap">
+                        Complete →
                       </button>
                     ) : (
                       <span className="text-[12px] font-light text-[#57575f]">Done</span>

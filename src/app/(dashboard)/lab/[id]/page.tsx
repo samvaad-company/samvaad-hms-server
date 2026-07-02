@@ -2,7 +2,9 @@
 
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { labTests } from "@/data/lab";
+import { useItem, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { LabTestDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ChevronLeft, Printer, Share2, Download, Upload, Flag } from "lucide-react";
 import Link from "next/link";
@@ -54,8 +56,17 @@ const FLAG_CLR: Record<string, string> = {
 
 export default function LabReportDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const test = labTests.find(t => t.id === Number(id));
+  const { item: test, loading, reload } = useItem<LabTestDTO>(`/lab/${id}`);
+  const { run, loading: acting } = useMutation();
 
+  async function markReady() {
+    await run(() => api.patch(`/lab/${id}`, { sampleStatus: "Collected", reportStatus: "Ready" }));
+    reload();
+  }
+
+  if (loading) {
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+  }
   if (!test) {
     return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Lab test not found.</p></div>;
   }
@@ -73,19 +84,19 @@ export default function LabReportDetailPage() {
         <div className="flex items-center gap-2">
           {isReady ? (
             <>
-              <button className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
                 <Share2 size={14} /> Share
               </button>
-              <button className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
                 <Download size={14} /> PDF
               </button>
-              <button className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
                 <Printer size={14} /> Print
               </button>
             </>
           ) : (
-            <button className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
-              <Upload size={14} /> Upload Report
+            <button onClick={markReady} disabled={acting} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              <Upload size={14} /> {acting ? "Saving…" : "Mark Report Ready"}
             </button>
           )}
         </div>

@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { Pill, Plus, MoreVertical, AlertTriangle, Clock, XCircle, TrendingDown } from "lucide-react";
-import { pharmacyItems } from "@/data/pharmacy";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { PharmacyItemDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
+import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { PharmacyItem } from "@/types";
 
@@ -27,7 +32,7 @@ const INV_FILTERS = [
 ];
 const MIN_WIDTH = 1452;
 
-function InventoryRow({ row }: { row: PharmacyItem }) {
+function InventoryRow({ row, actions }: { row: PharmacyItem; actions: RowAction[] }) {
   const isLow = row.stock < row.minStock && row.stock > 0;
   const isOut = row.stock === 0;
   return (
@@ -54,9 +59,7 @@ function InventoryRow({ row }: { row: PharmacyItem }) {
       </div>
       <div className="absolute" style={{ left: 1100 }}><StatusBadge status={row.status} /></div>
       <div className="absolute" style={{ left: 1330 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors">
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </div>
   );
@@ -192,7 +195,7 @@ function SalesView() {
 
 // ─── Alerts ───────────────────────────────────────────────────────────────────
 
-function AlertsView() {
+function AlertsView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (id: number) => void; onRemove: (id: number, name: string) => void }) {
   const lowStock  = pharmacyItems.filter(i => i.status === "Low Stock");
   const outStock  = pharmacyItems.filter(i => i.status === "Out of Stock");
   const expired   = pharmacyItems.filter(i => i.status === "Expired");
@@ -207,7 +210,9 @@ function AlertsView() {
         {type === "low"    && <span className="text-[13px] font-normal text-[#ff9000]">Stock: {item.stock} / Min: {item.minStock}</span>}
         {type === "out"    && <span className="text-[13px] font-normal text-[#ff0004]">Out of stock</span>}
         {type === "expiry" && <span className="text-[13px] font-normal text-[#ff0004]">Expired: {item.expiryDate}</span>}
-        <button className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+        <button
+          onClick={() => (type === "expiry" ? onRemove(item.id, item.name) : onReorder(item.id))}
+          className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
           {type === "expiry" ? "Remove" : "Reorder"}
         </button>
       </div>
@@ -246,19 +251,43 @@ function AlertsView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "inventory", label: "Inventory",   count: pharmacyItems.length },
-  { id: "purchase",  label: "Purchase" },
-  { id: "sales",     label: "Sales" },
-  { id: "alerts",    label: "Alerts", count: pharmacyItems.filter(i => ["Low Stock","Out of Stock","Expired"].includes(i.status)).length },
-];
-
 const PHARMA_FILTER_MAP: Record<string, string> = { "InStock": "In Stock", "LowStock": "Low Stock", "OutOfStock": "Out of Stock" };
 
 export default function PharmacyPage() {
   const [tab, setTab] = useState("inventory");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const { items: pharmacyItems, reload } = useList<PharmacyItemDTO>("/pharmacy", { all: true });
+  const { run, loading, error } = useMutation();
+  const { dialog, remove, mutate } = useRowActions("pharmacy", reload);
+  const reorder = (id: number) => mutate(() => api.post(`/pharmacy/${id}/restock`, { quantity: 100 }));
+
+  const [form, setForm] = useState({ name: "", category: "", stock: "", minStock: "", expiryDate: "", supplier: "" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function addItem() {
+    await run(() =>
+      api.post("/pharmacy", {
+        name: form.name,
+        category: form.category,
+        stock: Number(form.stock) || 0,
+        minStock: Number(form.minStock) || 0,
+        expiryDate: form.expiryDate,
+        supplier: form.supplier,
+      }),
+    );
+    setForm({ name: "", category: "", stock: "", minStock: "", expiryDate: "", supplier: "" });
+    setShowModal(false);
+    reload();
+  }
+
+  const TABS = [
+    { id: "inventory", label: "Inventory",   count: pharmacyItems.length },
+    { id: "purchase",  label: "Purchase" },
+    { id: "sales",     label: "Sales" },
+    { id: "alerts",    label: "Alerts", count: pharmacyItems.filter(i => ["Low Stock","Out of Stock","Expired"].includes(i.status)).length },
+  ];
 
   const visible = pharmacyItems.filter(i => {
     const matchF = filter === "All" || i.status === (PHARMA_FILTER_MAP[filter] ?? filter);
@@ -269,11 +298,34 @@ export default function PharmacyPage() {
 
   return (
     <>
+      {dialog}
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Pharmacy Item"
+        footer={
+          <>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={addItem} disabled={loading || !form.name || form.stock === ""}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Adding…" : "Add Item"}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2"><FormRow label="Medicine Name *"><FormInput placeholder="e.g. Paracetamol 500mg" value={form.name} onChange={v => set("name", v)} /></FormRow></div>
+          <FormRow label="Category"><FormInput placeholder="e.g. Analgesic" value={form.category} onChange={v => set("category", v)} /></FormRow>
+          <FormRow label="Supplier"><FormInput placeholder="Supplier name" value={form.supplier} onChange={v => set("supplier", v)} /></FormRow>
+          <FormRow label="Stock *"><FormInput type="number" placeholder="0" value={form.stock} onChange={v => set("stock", v)} /></FormRow>
+          <FormRow label="Min Stock"><FormInput type="number" placeholder="0" value={form.minStock} onChange={v => set("minStock", v)} /></FormRow>
+          <div className="col-span-2"><FormRow label="Expiry Date"><FormInput placeholder="e.g. Mar 2027" value={form.expiryDate} onChange={v => set("expiryDate", v)} /></FormRow></div>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+        </div>
+      </Modal>
+
       <PageHeader
         title="Pharmacy"
         subtitle="Manage drug inventory, purchase orders, billing, and stock alerts."
         stats={[{ icon: Pill, value: `${visible.length}`, label: "Total Items" }]}
-        action={{ label: "Add Item", icon: Plus }}
+        action={{ label: "Add Item", icon: Plus, onClick: () => setShowModal(true) }}
         dateRange={false}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -284,13 +336,20 @@ export default function PharmacyPage() {
               <FilterBar filters={INV_FILTERS} searchPlaceholder="Search by medicine name, category, or supplier..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={INV_COLUMNS} minWidth={MIN_WIDTH}>
-                {visible.map(r => <InventoryRow key={r.id} row={r} />)}
+                {visible.length === 0 ? (
+                  <div className="py-16 text-center text-[14px] text-[#57575f]">No items found.</div>
+                ) : visible.map(r => (
+                  <InventoryRow key={r.id} row={r} actions={[
+                    { label: "Reorder +100", onClick: () => reorder(r.id) },
+                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                  ]} />
+                ))}
               </DataTable>
             </>
           )}
           {tab === "purchase" && <PurchaseView />}
           {tab === "sales"    && <SalesView />}
-          {tab === "alerts"   && <AlertsView />}
+          {tab === "alerts"   && <AlertsView pharmacyItems={pharmacyItems} onReorder={reorder} onRemove={remove} />}
         </div>
       </div>
     </>

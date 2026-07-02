@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw, iconSize } from "@/lib/design-system";
-import { User, Phone, MoreVertical, Plus } from "lucide-react";
-import { patients } from "@/data/patients";
+import { User, Phone, Plus } from "lucide-react";
+import { useList } from "@/lib/api/hooks";
+import { useRowActions } from "@/lib/api/useRowActions";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import type { PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -57,7 +61,7 @@ const FILTERS = [
 
 // ─── Row Component ────────────────────────────────────────────────────────────
 
-function PatientRow({ patient }: { patient: Patient }) {
+function PatientRow({ patient, actions }: { patient: Patient; actions: RowAction[] }) {
   return (
     <Link href={`/patients/${patient.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: tw.table.minWidth }}>
       <div className="absolute left-5 flex flex-col justify-center">
@@ -109,9 +113,7 @@ function PatientRow({ patient }: { patient: Patient }) {
       </div>
 
       <div className="absolute" style={{ left: tw.columns.action }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors">
-          <MoreVertical size={24} strokeWidth={1.5} />
-        </button>
+        <RowMenu actions={actions} />
       </div>
     </Link>
   );
@@ -122,9 +124,12 @@ function PatientRow({ patient }: { patient: Patient }) {
 const GENDER_OPTS = [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }];
 
 export default function PatientsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const { items: patients, loading, reload } = useList<PatientDTO>("/patients", { all: true });
+  const { dialog, remove } = useRowActions("patients", reload);
 
   const visible = patients.filter(p => {
     const matchF = filter === "All" || p.status === filter;
@@ -135,6 +140,7 @@ export default function PatientsPage() {
 
   return (
     <>
+      {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Register Patient"
         footer={
           <>
@@ -173,9 +179,22 @@ export default function PatientsPage() {
             onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS}>
-            {visible.map((p) => (
-              <PatientRow key={p.id} patient={p} />
-            ))}
+            {loading && patients.length === 0 ? (
+              <div className="py-16 text-center text-[14px] text-[#57575f]">Loading patients…</div>
+            ) : visible.length === 0 ? (
+              <div className="py-16 text-center text-[14px] text-[#57575f]">No patients found.</div>
+            ) : (
+              visible.map((p) => (
+                <PatientRow
+                  key={p.id}
+                  patient={p}
+                  actions={[
+                    { label: "View details", onClick: () => router.push(`/patients/${p.id}`) },
+                    { label: "Delete", danger: true, onClick: () => remove(p.id, p.name) },
+                  ]}
+                />
+              ))
+            )}
           </DataTable>
         </div>
       </div>

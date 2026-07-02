@@ -1,73 +1,79 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { tw } from "@/lib/design-system";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
-import { hospitalSettings, departments, adminUsers } from "@/data/admin";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { DepartmentDTO, AdminUserDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Plus, Trash2, Edit2, Settings2, Save } from "lucide-react";
+import { Plus, Trash2, Edit2, Settings2, Save, Loader2 } from "lucide-react";
+
+interface HospitalSettings {
+  name: string; address: string; city: string; state: string; pincode: string;
+  phone: string; mobile: string; email: string; website: string;
+  gstNumber: string; panNumber: string; regNumber: string;
+}
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 
 function SettingsView() {
+  const { item: settings } = useItem<HospitalSettings>("/admin/settings");
+  const { run, loading } = useMutation();
+  const [form, setForm] = useState<HospitalSettings | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (settings) setForm(settings);
+  }, [settings]);
+
+  const set = (k: keyof HospitalSettings, v: string) =>
+    setForm(prev => (prev ? { ...prev, [k]: v } : prev));
+
+  async function save() {
+    if (!form) return;
+    setSaved(false);
+    await run(() => api.put("/admin/settings", form));
+    setSaved(true);
+  }
+
+  if (!form) {
+    return <div className="p-8 text-[14px] text-[#57575f]">Loading settings…</div>;
+  }
+
+  const FIELDS: { label: string; key: keyof HospitalSettings; ph: string }[] = [
+    { label: "Hospital Name *", key: "name", ph: "Name" },
+    { label: "GST Number", key: "gstNumber", ph: "GSTIN" },
+    { label: "Registration Number", key: "regNumber", ph: "Reg. No." },
+    { label: "Phone", key: "phone", ph: "+91 XXXXX XXXXX" },
+    { label: "Email", key: "email", ph: "hospital@email.com" },
+    { label: "Website", key: "website", ph: "https://" },
+  ];
+
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 580 }}>
-      {/* Hospital info */}
       <section>
         <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Hospital Information</h3>
         <div className="grid grid-cols-2 gap-4">
-          {[
-            { label: "Hospital Name *",      val: hospitalSettings.name,      ph: "Name" },
-            { label: "GST Number",           val: hospitalSettings.gstNumber,  ph: "GSTIN" },
-            { label: "Registration Number",  val: hospitalSettings.regNumber,  ph: "MCI / State Reg. No." },
-            { label: "Phone",                val: hospitalSettings.phone,      ph: "+91 XXXXX XXXXX" },
-            { label: "Email",                val: hospitalSettings.email,      ph: "hospital@email.com" },
-            { label: "Website",              val: hospitalSettings.website,    ph: "https://" },
-          ].map(f => (
-            <FormRow key={f.label} label={f.label}>
-              <input defaultValue={f.val} placeholder={f.ph}
-                className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+          {FIELDS.map(f => (
+            <FormRow key={f.key} label={f.label}>
+              <FormInput value={form[f.key]} placeholder={f.ph} onChange={v => set(f.key, v)} />
             </FormRow>
           ))}
           <div className="col-span-2">
             <FormRow label="Address">
-              <input defaultValue={hospitalSettings.address} placeholder="Full address"
-                className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+              <FormInput value={form.address} placeholder="Full address" onChange={v => set("address", v)} />
             </FormRow>
           </div>
         </div>
       </section>
 
-      {/* Working hours */}
-      <section className="border-t border-[#f0f0f0] pt-5">
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Working Hours</h3>
-        <div className="grid gap-2" style={{ gridTemplateColumns: "120px 1fr 1fr 1fr" }}>
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider pt-2">Day</span>
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider pt-2">Morning Start</span>
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider pt-2">Morning End</span>
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider pt-2">Status</span>
-          {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map(day => (
-            <>
-              <span key={day+"-l"} className="text-[13px] font-normal text-[#11111c] flex items-center">{day}</span>
-              <input key={day+"-ms"} defaultValue="9:00 AM"
-                className="h-[42px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
-              <input key={day+"-me"} defaultValue={day === "Sunday" ? "—" : "8:00 PM"}
-                className="h-[42px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
-              <select key={day+"-st"} defaultValue={day === "Sunday" ? "closed" : "open"}
-                className="h-[42px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-                <option value="half">Half Day</option>
-              </select>
-            </>
-          ))}
-        </div>
-      </section>
-
-      <div className="flex justify-end">
-        <button className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors">
-          <Save size={14} /> Save Settings
+      <div className="flex justify-end items-center gap-3">
+        {saved && <span className="text-[13px] text-[#00955c]">Saved ✓</span>}
+        <button onClick={save} disabled={loading}
+          className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-60">
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Settings
         </button>
       </div>
     </div>
@@ -77,7 +83,7 @@ function SettingsView() {
 // ─── Master Data Tab ──────────────────────────────────────────────────────────
 
 const MASTER_SECTIONS = [
-  { key: "departments", label: "Departments", items: departments.map(d => d.name) },
+  { key: "departments", label: "Departments", items: [] as string[] },
   { key: "testTypes",   label: "Lab Test Types", items: ["CBC","Lipid Profile","LFT","KFT","Thyroid Panel","HbA1c","Urine Routine","X-Ray","ECG","Ultrasound"] },
   { key: "services",    label: "Services / Procedures", items: ["Consultation","OPD Visit","ECG","Physiotherapy","Minor Surgery","IV Therapy","Dressing"] },
   { key: "wards",       label: "Wards & Rooms", items: ["General Ward","ICU","Cardiology","Surgery Ward","Maternity"] },
@@ -85,21 +91,34 @@ const MASTER_SECTIONS = [
 ];
 
 function MasterDataView() {
+  const { items: departments, reload } = useList<DepartmentDTO>("/departments");
   const [activeSection, setActiveSection] = useState("departments");
   const [items, setItems] = useState<Record<string, string[]>>(
     Object.fromEntries(MASTER_SECTIONS.map(s => [s.key, s.items]))
   );
   const [newItem, setNewItem] = useState("");
   const section = MASTER_SECTIONS.find(s => s.key === activeSection)!;
-  const currentItems = items[activeSection] ?? [];
+  const currentItems =
+    activeSection === "departments" ? departments.map(d => d.name) : (items[activeSection] ?? []);
 
-  const addItem = () => {
+  const addItem = async () => {
     if (!newItem.trim()) return;
-    setItems(prev => ({ ...prev, [activeSection]: [...(prev[activeSection] ?? []), newItem.trim()] }));
+    if (activeSection === "departments") {
+      await api.post("/departments", { name: newItem.trim() });
+      reload();
+    } else {
+      setItems(prev => ({ ...prev, [activeSection]: [...(prev[activeSection] ?? []), newItem.trim()] }));
+    }
     setNewItem("");
   };
-  const removeItem = (item: string) =>
-    setItems(prev => ({ ...prev, [activeSection]: prev[activeSection].filter(i => i !== item) }));
+  const removeItem = async (item: string) => {
+    if (activeSection === "departments") {
+      const dept = departments.find(d => d.name === item);
+      if (dept) { await api.del(`/departments/${dept.id}`); reload(); }
+    } else {
+      setItems(prev => ({ ...prev, [activeSection]: prev[activeSection].filter(i => i !== item) }));
+    }
+  };
 
   return (
     <div className="flex overflow-hidden" style={{ height: 580 }}>
@@ -156,8 +175,31 @@ const ROLE_CLR: Record<string, string> = {
   Accountant:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
+const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin"];
+
 function UsersView() {
+  const { items: adminUsers, reload } = useList<AdminUserDTO>("/admin/users");
+  const { items: departments } = useList<DepartmentDTO>("/departments");
+  const { run, loading, error } = useMutation();
   const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
+
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function createUser() {
+    await run(() =>
+      api.post("/admin/users", {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+      }),
+    );
+    setForm({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
+    setShowForm(false);
+    reload();
+  }
 
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: 580 }}>
@@ -174,17 +216,21 @@ function UsersView() {
       {showForm && (
         <div className="px-5 py-4 border-b border-[#dedee1] bg-[#f6f6f6]">
           <div className="grid grid-cols-4 gap-3">
-            <FormRow label="Full Name *"><FormInput placeholder="Name" /></FormRow>
-            <FormRow label="Email *"><FormInput placeholder="email@hospital.com" type="email" /></FormRow>
+            <FormRow label="Full Name *"><FormInput placeholder="Name" value={form.name} onChange={v => set("name", v)} /></FormRow>
+            <FormRow label="Email *"><FormInput placeholder="email@hospital.com" type="email" value={form.email} onChange={v => set("email", v)} /></FormRow>
             <FormRow label="Role *">
-              <FormSelect placeholder="Select role" options={["Administrator","Doctor","Nurse","Receptionist","Accountant","Lab Technician","Pharmacist"].map(r => ({ value: r.toLowerCase(), label: r }))} />
+              <FormSelect placeholder="Select role" value={form.role} onChange={v => set("role", v)} options={ROLE_OPTIONS.map(r => ({ value: r, label: r }))} />
             </FormRow>
             <FormRow label="Department">
-              <FormSelect placeholder="Select dept" options={departments.map(d => ({ value: String(d.id), label: d.name }))} />
+              <FormSelect placeholder="Select dept" value={form.departmentId} onChange={v => set("departmentId", v)} options={departments.map(d => ({ value: String(d.id), label: d.name }))} />
             </FormRow>
           </div>
+          {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
           <div className="flex gap-2 mt-3">
-            <button className="text-[12px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">Create User</button>
+            <button onClick={createUser} disabled={loading || !form.name || !form.email || !form.role}
+              className="text-[12px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Creating…" : "Create User"}
+            </button>
             <button onClick={() => setShowForm(false)} className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-white transition-colors">Cancel</button>
           </div>
         </div>

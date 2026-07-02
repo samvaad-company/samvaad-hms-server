@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, ChevronDown, SlidersHorizontal, LayoutList, LayoutGrid } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, ChevronDown } from "lucide-react";
 
 interface FilterTab {
   id: string;
@@ -28,6 +29,19 @@ export function FilterBar({
   onSearchChange,
 }: FilterBarProps) {
   const activeFilter = controlledFilter ?? filters[0]?.id ?? "All";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+
+  const activeLabel = filters.find((f) => f.id === activeFilter)?.label ?? statusLabel;
 
   return (
     <div className="flex items-center justify-between px-5 py-[25px]">
@@ -48,7 +62,7 @@ export function FilterBar({
         ))}
       </div>
 
-      {/* Search + Controls */}
+      {/* Search + Status dropdown */}
       <div className="flex items-center gap-[15px]">
         <div className="bg-[#f6f6f6] flex items-center gap-[10px] px-3 py-[6px] rounded-full" style={{ width: 372 }}>
           <Search size={20} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
@@ -64,23 +78,39 @@ export function FilterBar({
           )}
         </div>
 
-        <div className="bg-[#f6f6f6] flex items-center justify-between px-[15px] py-2 rounded-full cursor-pointer" style={{ width: 107 }}>
-          <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">{statusLabel}</span>
-          <ChevronDown size={15} strokeWidth={2} className="text-[#11111c]" />
-        </div>
-
-        <div className="bg-[#f6f6f6] flex items-center gap-[5px] px-[10px] py-[6px] rounded-full cursor-pointer hover:bg-[#ebebeb] transition-colors">
-          <SlidersHorizontal size={22} strokeWidth={1.5} className="text-[#11111c]" />
-          <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">Filter</span>
-        </div>
-
-        <div className="bg-[#f6f6f6] flex items-center p-[2px] rounded-full">
-          <button className="flex items-center justify-center p-[5px] rounded-full bg-[#009598] text-white">
-            <LayoutList size={22} strokeWidth={1.5} />
+        {/* Status filter dropdown — mirrors the filter tabs */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="bg-[#f6f6f6] flex items-center justify-between gap-2 px-[15px] py-2 rounded-full cursor-pointer hover:bg-[#ebebeb] transition-colors"
+            style={{ minWidth: 120 }}
+          >
+            <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
+              {activeFilter === (filters[0]?.id ?? "All") ? statusLabel : activeLabel}
+            </span>
+            <ChevronDown size={15} strokeWidth={2} className="text-[#11111c]" />
           </button>
-          <button className="flex items-center justify-center p-[5px] rounded-full text-[#57575f] hover:text-[#11111c]">
-            <LayoutGrid size={22} strokeWidth={1.5} />
-          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-[44px] z-50 w-[180px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1">
+              {filters.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    onFilterChange?.(f.id);
+                    setMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors ${
+                    activeFilter === f.id
+                      ? "bg-[#e8f7f7] text-[#009598] font-medium"
+                      : "text-[#11111c] hover:bg-[#f6f6f6]"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

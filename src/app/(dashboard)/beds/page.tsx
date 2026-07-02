@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { LayoutGrid, Plus, ArrowRight } from "lucide-react";
-import { beds } from "@/data/beds";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import type { BedDTO } from "@/types/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TabBar } from "@/components/shared/TabBar";
+import { Modal } from "@/components/shared/Modal";
+import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { Bed, BedStatus } from "@/types";
 
 // ─── Bed Status ───────────────────────────────────────────────────────────────
@@ -54,7 +58,7 @@ function BedCard({ bed }: { bed: Bed }) {
   );
 }
 
-function BedStatusView() {
+function BedStatusView({ beds }: { beds: BedDTO[] }) {
   const [activeWard, setActiveWard] = useState("All");
 
   const wards = Array.from(new Set(beds.map(b => b.ward)));
@@ -151,19 +155,58 @@ function TransfersView() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "status",    label: "Bed Status",  count: beds.length },
-  { id: "transfers", label: "Transfers",   count: TRANSFERS.length },
-];
-
 export default function BedsPage() {
   const [tab, setTab] = useState("status");
+  const [showModal, setShowModal] = useState(false);
+  const { items: beds, reload } = useList<BedDTO>("/beds", { all: true });
+  const { run, loading, error } = useMutation();
+
+  const wardNames = Array.from(new Set(beds.map(b => b.ward)));
+  const [form, setForm] = useState({ bedNumber: "", ward: "", status: "Available" });
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function addBed() {
+    await run(() =>
+      api.post("/beds", {
+        bedNumber: form.bedNumber,
+        ward: form.ward,
+        status: form.status,
+      }),
+    );
+    setForm({ bedNumber: "", ward: "", status: "Available" });
+    setShowModal(false);
+    reload();
+  }
+
+  const TABS = [
+    { id: "status",    label: "Bed Status",  count: beds.length },
+    { id: "transfers", label: "Transfers",   count: TRANSFERS.length },
+  ];
 
   const totalOccupied  = beds.filter(b => b.status === "Occupied").length;
   const totalAvailable = beds.filter(b => b.status === "Available").length;
 
   return (
     <>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Bed"
+        footer={
+          <>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={addBed} disabled={loading || !form.bedNumber || !form.ward}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Adding…" : "Add Bed"}
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Bed Number *"><FormInput placeholder="e.g. G-11" value={form.bedNumber} onChange={v => set("bedNumber", v)} /></FormRow>
+          <FormRow label="Ward *"><FormSelect placeholder="Select ward" value={form.ward} onChange={v => set("ward", v)} options={wardNames.map(w => ({ value: w, label: w }))} /></FormRow>
+          <FormRow label="Status"><FormSelect placeholder="Status" value={form.status} onChange={v => set("status", v)} options={["Available","Reserved","Maintenance"].map(s => ({ value: s, label: s }))} /></FormRow>
+          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+        </div>
+      </Modal>
+
       <PageHeader
         title="Beds & Wards"
         subtitle="Monitor bed availability, patient assignments, and maintenance status across all wards."
@@ -171,13 +214,13 @@ export default function BedsPage() {
           { icon: LayoutGrid, value: String(totalOccupied),  label: "Occupied" },
           { icon: LayoutGrid, value: String(totalAvailable), label: "Available" },
         ]}
-        action={{ label: "Add Bed", icon: Plus }}
+        action={{ label: "Add Bed", icon: Plus, onClick: () => setShowModal(true) }}
         dateRange={false}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-          {tab === "status"    && <BedStatusView />}
+          {tab === "status"    && <BedStatusView beds={beds} />}
           {tab === "transfers" && <TransfersView />}
         </div>
       </div>

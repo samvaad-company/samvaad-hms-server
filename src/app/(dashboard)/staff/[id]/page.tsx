@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { staffMembers } from "@/data/staff";
+import { useItem } from "@/lib/api/hooks";
+import type { StaffDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ChevronLeft, Phone, Mail, MapPin, Calendar, GraduationCap, Clock } from "lucide-react";
@@ -50,8 +51,11 @@ const TABS = [
 export default function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("details");
+  const { item: staff, loading } = useItem<StaffDTO>(`/staff/${id}`);
 
-  const staff = staffMembers.find(s => s.id === Number(id));
+  if (loading) {
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+  }
   if (!staff) {
     return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Staff member not found.</p></div>;
   }
