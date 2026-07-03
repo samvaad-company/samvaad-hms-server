@@ -22,52 +22,42 @@ import type { Appointment } from "@/types";
 // ─── All Appointments ─────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { label: "Patient Name", left: 20 },
-  { label: "Doctor",       left: 230 },
-  { label: "Date & Time",  left: 470 },
-  { label: "Type",         left: 670 },
-  { label: "Reason",       left: 820 },
-  { label: "Status",       left: 1060 },
-  { label: "Action",       left: 1270 },
+  { label: "Patient",  width: "minmax(140px,1.3fr)" },
+  { label: "Age",      width: "60px" },
+  { label: "Doctor",   width: "minmax(140px,1.3fr)" },
+  { label: "Date",     width: "110px" },
+  { label: "Time",     width: "90px" },
+  { label: "Type",     width: "100px" },
+  { label: "Reason",   width: "minmax(150px,1.6fr)" },
+  { label: "Status",   width: "120px" },
+  { label: "Action",   width: "52px", align: "right" as const },
 ];
 const FILTERS = [
   { id: "All", label: "All" }, { id: "Today", label: "Today" },
   { id: "Upcoming", label: "Upcoming" }, { id: "Completed", label: "Completed" },
   { id: "Cancelled", label: "Cancelled" },
 ];
-const MIN_WIDTH = 1400;
+const MIN_WIDTH = 1180;
 
 function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction[] }) {
   return (
-    <Link href={`/appointments/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.patientName}</span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">{row.patientAge} years old</span>
-      </div>
-      <div className="absolute" style={{ left: 230 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.doctor}</span>
-      </div>
-      <div className="absolute flex flex-col gap-[3px]" style={{ left: 470 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.date}</span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">{row.time}</span>
-      </div>
-      <div className="absolute" style={{ left: 670 }}>
-        <span className={`inline-flex items-center px-[10px] py-[5px] rounded-full text-[12px] font-normal whitespace-nowrap ${row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
+    <Link href={`/appointments/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.time}</span>
+      <div>
+        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
           {row.type}
         </span>
       </div>
-      <div className="absolute" style={{ left: 820 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.reason}</span>
-      </div>
-      <div className="absolute" style={{ left: 1060 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1270 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.reason}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }
-
-const APPT_TYPE_OPTS = ["New Visit","Follow-up","Emergency","Walk-in"].map(t => ({ value: t, label: t }));
 
 // ─── Live Queue ───────────────────────────────────────────────────────────────
 

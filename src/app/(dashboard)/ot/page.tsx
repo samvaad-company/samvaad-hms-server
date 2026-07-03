@@ -18,14 +18,15 @@ import Link from "next/link";
 import type { OtRecord } from "@/types";
 
 const COLUMNS = [
-  { label: "Patient",       left: 20  },
-  { label: "Procedure",     left: 200 },
-  { label: "OT Room",       left: 470 },
-  { label: "Surgeon",       left: 610 },
-  { label: "Anesthetist",   left: 820 },
-  { label: "Date & Time",   left: 1020 },
-  { label: "Status",        left: 1210 },
-  { label: "Action",        left: 1380 },
+  { label: "Patient",     width: "minmax(140px,1.3fr)" },
+  { label: "Procedure",   width: "minmax(160px,1.6fr)" },
+  { label: "OT Room",     width: "90px" },
+  { label: "Surgeon",     width: "minmax(140px,1.2fr)" },
+  { label: "Anesthetist", width: "minmax(130px,1.1fr)" },
+  { label: "Date",        width: "110px" },
+  { label: "Time",        width: "90px" },
+  { label: "Status",      width: "120px" },
+  { label: "Action",      width: "52px", align: "right" as const },
 ];
 
 const FILTERS = [
@@ -36,57 +37,24 @@ const FILTERS = [
   { id: "Cancelled",  label: "Cancelled" },
 ];
 
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1200;
 
 function OtRow({ row, actions }: { row: OtRecord; actions: RowAction[] }) {
   return (
-    <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.patientName}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 200 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.procedure}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 470 }}>
-        <span className="inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-medium bg-[#f2f3f3] text-[#11111c] whitespace-nowrap">
+    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.procedure}</span>
+      <div>
+        <span className="inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-medium bg-[#f2f3f3] text-[#11111c] whitespace-nowrap">
           {row.otRoom}
         </span>
       </div>
-
-      <div className="absolute" style={{ left: 610 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.surgeon}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 820 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.anesthetist}
-        </span>
-      </div>
-
-      <div className="absolute flex flex-col gap-[3px]" style={{ left: 1020 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.scheduledDate}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">
-          {row.scheduledTime}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 1210 }}>
-        <StatusBadge status={row.status} />
-      </div>
-
-      <div className="absolute" style={{ left: 1380 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.surgeon}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.anesthetist}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.scheduledDate}</span>
+      <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.scheduledTime}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
 }
@@ -168,7 +136,7 @@ export default function OtPage() {
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 655 }}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by patient name, procedure, or surgeon..."

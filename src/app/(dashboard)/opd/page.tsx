@@ -17,14 +17,15 @@ import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { OpdRecord } from "@/types";
 
 const COLUMNS = [
-  { label: "Token #",         left: 20  },
-  { label: "Patient",         left: 110 },
-  { label: "Doctor",          left: 330 },
-  { label: "Vitals Recorded", left: 560 },
-  { label: "Wait Time",       left: 760 },
-  { label: "Check-in",        left: 930 },
-  { label: "Status",          left: 1100 },
-  { label: "Action",          left: 1340 },
+  { label: "Token",  width: "80px" },
+  { label: "Patient", width: "minmax(150px,1.4fr)" },
+  { label: "Age",    width: "60px" },
+  { label: "Doctor", width: "minmax(150px,1.3fr)" },
+  { label: "Vitals", width: "110px" },
+  { label: "Wait",   width: "90px" },
+  { label: "Check-in", width: "100px" },
+  { label: "Status", width: "130px" },
+  { label: "Action", width: "52px", align: "right" as const },
 ];
 
 const FILTERS = [
@@ -34,62 +35,29 @@ const FILTERS = [
   { id: "Completed",       label: "Completed" },
 ];
 
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1140;
 
 function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
   return (
-    <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5">
-        <span className="text-[14px] font-medium text-[#009598] leading-[19px]">
-          {row.tokenNumber}
-        </span>
-      </div>
-
-      <div className="absolute flex flex-col justify-center" style={{ left: 110 }}>
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.patientName}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">
-          {row.patientAge} years old
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 330 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.doctor}
-        </span>
-      </div>
-
-      <div className="absolute flex items-center gap-[6px]" style={{ left: 560 }}>
+    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#009598]">{row.tokenNumber}</span>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
+      <div className="flex items-center gap-[6px] min-w-0">
         {row.vitalsRecorded ? (
-          <CheckCircle size={16} className="text-[#00955c]" />
+          <CheckCircle size={15} className="text-[#00955c] shrink-0" />
         ) : (
-          <XCircle size={16} className="text-[#ff0004]" />
+          <XCircle size={15} className="text-[#ff0004] shrink-0" />
         )}
-        <span className={`text-[14px] font-normal leading-[19px] ${row.vitalsRecorded ? "text-[#00955c]" : "text-[#ff0004]"}`}>
+        <span className={`text-[13px] font-normal truncate ${row.vitalsRecorded ? "text-[#00955c]" : "text-[#ff0004]"}`}>
           {row.vitalsRecorded ? "Recorded" : "Pending"}
         </span>
       </div>
-
-      <div className="absolute" style={{ left: 760 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">
-          {row.waitTime}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 930 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">
-          {row.checkInTime}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 1100 }}>
-        <StatusBadge status={row.status} />
-      </div>
-
-      <div className="absolute" style={{ left: 1340 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.waitTime}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.checkInTime}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
 }
@@ -182,7 +150,7 @@ export default function OpdPage() {
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 655 }}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by token, patient name, or doctor..."

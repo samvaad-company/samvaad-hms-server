@@ -20,47 +20,37 @@ import type { PharmacyItem } from "@/types";
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 const INV_COLUMNS = [
-  { label: "Medicine",  left: 20   }, { label: "Category",  left: 230  },
-  { label: "Stock",     left: 420  }, { label: "Min Stock", left: 570  },
-  { label: "Expiry",    left: 720  }, { label: "Supplier",  left: 890  },
-  { label: "Status",    left: 1100 }, { label: "Action",    left: 1330 },
+  { label: "Medicine",  width: "minmax(160px,1.5fr)" },
+  { label: "Category",  width: "minmax(120px,1fr)" },
+  { label: "Stock",     width: "100px" },
+  { label: "Min Stock", width: "90px" },
+  { label: "Expiry",    width: "110px" },
+  { label: "Supplier",  width: "minmax(140px,1.2fr)" },
+  { label: "Status",    width: "120px" },
+  { label: "Action",    width: "52px", align: "right" as const },
 ];
 const INV_FILTERS = [
   { id: "All", label: "All" }, { id: "InStock", label: "In Stock" },
   { id: "LowStock", label: "Low Stock" }, { id: "OutOfStock", label: "Out of Stock" },
   { id: "Expired", label: "Expired" },
 ];
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1120;
 
 function InventoryRow({ row, actions }: { row: PharmacyItem; actions: RowAction[] }) {
   const isLow = row.stock < row.minStock && row.stock > 0;
   const isOut = row.stock === 0;
   return (
-    <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.name}</span>
-      </div>
-      <div className="absolute" style={{ left: 230 }}>
-        <span className="text-[14px] font-normal text-[#57575f] leading-[19px] whitespace-nowrap">{row.category}</span>
-      </div>
-      <div className="absolute" style={{ left: 420 }}>
-        <span className={`text-[14px] font-medium leading-[19px] ${isOut ? "text-[#ff0004]" : isLow ? "text-[#ff9000]" : "text-[#11111c]"}`}>
-          {row.stock} units
-        </span>
-      </div>
-      <div className="absolute" style={{ left: 570 }}>
-        <span className="text-[14px] font-normal text-[#57575f] leading-[19px]">{row.minStock}</span>
-      </div>
-      <div className="absolute" style={{ left: 720 }}>
-        <span className={`text-[14px] font-normal leading-[19px] ${row.status === "Expired" ? "text-[#ff0004]" : "text-[#11111c]"}`}>{row.expiryDate}</span>
-      </div>
-      <div className="absolute" style={{ left: 890 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.supplier}</span>
-      </div>
-      <div className="absolute" style={{ left: 1100 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1330 }}>
-        <RowMenu actions={actions} />
-      </div>
+    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.category}</span>
+      <span className={`text-[13px] font-medium ${isOut ? "text-[#ff0004]" : isLow ? "text-[#ff9000]" : "text-[#11111c]"}`}>
+        {row.stock} units
+      </span>
+      <span className="text-[13px] font-normal text-[#57575f]">{row.minStock}</span>
+      <span className={`text-[13px] font-normal whitespace-nowrap ${row.status === "Expired" ? "text-[#ff0004]" : "text-[#11111c]"}`}>{row.expiryDate}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.supplier}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
 }

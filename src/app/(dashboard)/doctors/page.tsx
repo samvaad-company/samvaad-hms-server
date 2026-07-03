@@ -19,13 +19,14 @@ import Link from "next/link";
 import type { Doctor } from "@/types";
 
 const COLUMNS = [
-  { label: "Doctor",         left: 20   },
-  { label: "Contact",        left: 280  },
-  { label: "Department",     left: 490  },
-  { label: "Experience",     left: 680  },
-  { label: "Patients Today", left: 850  },
-  { label: "Status",         left: 1060 },
-  { label: "Action",         left: 1280 },
+  { label: "Doctor",         width: "minmax(150px,1.4fr)" },
+  { label: "Specialty",      width: "minmax(150px,1.3fr)" },
+  { label: "Phone",          width: "150px" },
+  { label: "Department",     width: "minmax(120px,1fr)" },
+  { label: "Experience",     width: "100px" },
+  { label: "Patients Today", width: "120px", align: "center" as const },
+  { label: "Status",         width: "110px" },
+  { label: "Action",         width: "52px", align: "right" as const },
 ];
 
 const FILTERS = [
@@ -36,32 +37,22 @@ const FILTERS = [
 ];
 
 const FILTER_MAP: Record<string, string> = { "InOPD": "In OPD", "OnLeave": "On Leave" };
-const MIN_WIDTH = 1400;
+const MIN_WIDTH = 1120;
 
 function DoctorRow({ row, actions }: { row: Doctor; actions: RowAction[] }) {
   return (
-    <Link href={`/doctors/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.name}</span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4 whitespace-nowrap">{row.specialty}</span>
+    <Link href={`/doctors/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.specialty}</span>
+      <div className="flex items-center gap-[5px] min-w-0">
+        <Phone size={14} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
+        <span className="text-[13px] font-normal text-[#11111c] truncate">{row.phone}</span>
       </div>
-      <div className="absolute flex items-center gap-[5px]" style={{ left: 280 }}>
-        <Phone size={14} strokeWidth={1.5} className="text-[#11111c] shrink-0" />
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.phone}</span>
-      </div>
-      <div className="absolute" style={{ left: 490 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.department}</span>
-      </div>
-      <div className="absolute" style={{ left: 680 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">{row.experience}</span>
-      </div>
-      <div className="absolute" style={{ left: 850 }}>
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px]">{row.patientsToday}</span>
-      </div>
-      <div className="absolute" style={{ left: 1060 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1280 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.experience}</span>
+      <span className="text-[13px] font-medium text-[#11111c] text-center">{row.patientsToday}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }
@@ -139,7 +130,7 @@ export default function DoctorsPage() {
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 655 }}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by doctor name or specialty..."

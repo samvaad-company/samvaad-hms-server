@@ -19,14 +19,16 @@ import Link from "next/link";
 import type { IpdRecord } from "@/types";
 
 const COLUMNS = [
-  { label: "Patient",          left: 20  },
-  { label: "Patient ID",       left: 230 },
-  { label: "Admission Date",   left: 390 },
-  { label: "Ward / Bed",       left: 600 },
-  { label: "Doctor",           left: 760 },
-  { label: "Diagnosis",        left: 990 },
-  { label: "Status",           left: 1210 },
-  { label: "Action",           left: 1380 },
+  { label: "Patient",   width: "minmax(140px,1.3fr)" },
+  { label: "Age",       width: "60px" },
+  { label: "Patient ID", width: "100px" },
+  { label: "Admitted",  width: "110px" },
+  { label: "Ward",      width: "minmax(110px,1fr)" },
+  { label: "Bed",       width: "80px" },
+  { label: "Doctor",    width: "minmax(130px,1.2fr)" },
+  { label: "Diagnosis", width: "minmax(150px,1.5fr)" },
+  { label: "Status",    width: "110px" },
+  { label: "Action",    width: "52px", align: "right" as const },
 ];
 
 const FILTERS = [
@@ -36,60 +38,21 @@ const FILTERS = [
   { id: "Discharged", label: "Discharged" },
 ];
 
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1220;
 
 function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
   return (
-    <Link href={`/ipd/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.patientName}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">
-          {row.patientAge} years old
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 230 }}>
-        <span className="text-[12px] font-medium text-[#009598] leading-4">
-          {row.patientId}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 390 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.admissionDate}
-        </span>
-      </div>
-
-      <div className="absolute flex flex-col gap-[2px]" style={{ left: 600 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.ward}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">
-          Bed {row.bed}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 760 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.doctor}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 990 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {row.diagnosis}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: 1210 }}>
-        <StatusBadge status={row.status} />
-      </div>
-
-      <div className="absolute" style={{ left: 1380 }}>
-        <RowMenu actions={actions} />
-      </div>
+    <Link href={`/ipd/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
+      <span className="text-[12px] font-medium text-[#009598] truncate">{row.patientId}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.admissionDate}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.ward}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.bed}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.diagnosis}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }
@@ -177,7 +140,7 @@ export default function IpdPage() {
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 655 }}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by patient name, ID, or ward..."

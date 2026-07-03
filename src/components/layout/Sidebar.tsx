@@ -89,7 +89,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Logo + toggle */}
       <div
-        className="h-[78px] flex items-center shrink-0 px-[18px]"
+        className="h-[52px] flex items-center shrink-0 px-[18px]"
         style={{ borderBottom: "1px solid #dedee1" }}
       >
         {collapsed ? (

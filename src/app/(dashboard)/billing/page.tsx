@@ -21,18 +21,23 @@ import type { Bill } from "@/types";
 // ─── All Bills ────────────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { label: "Bill #",    left: 20   }, { label: "Patient",   left: 170  },
-  { label: "Type",      left: 370  }, { label: "Date",      left: 530  },
-  { label: "Amount",    left: 690  }, { label: "Discount",  left: 830  },
-  { label: "GST",       left: 970  }, { label: "Total",     left: 1100 },
-  { label: "Status",    left: 1240 }, { label: "Action",    left: 1420 },
+  { label: "Bill #",   width: "150px" },
+  { label: "Patient",  width: "minmax(140px,1.4fr)" },
+  { label: "Type",     width: "100px" },
+  { label: "Date",     width: "110px" },
+  { label: "Amount",   width: "100px", align: "right" as const },
+  { label: "Discount", width: "90px", align: "right" as const },
+  { label: "GST",      width: "80px", align: "right" as const },
+  { label: "Total",    width: "110px", align: "right" as const },
+  { label: "Status",   width: "110px" },
+  { label: "Action",   width: "52px", align: "right" as const },
 ];
 const FILTERS = [
   { id: "All", label: "All" }, { id: "Paid", label: "Paid" },
   { id: "Pending", label: "Pending" }, { id: "Partial", label: "Partial" },
   { id: "Refunded", label: "Refunded" },
 ];
-const MIN_WIDTH = 1500;
+const MIN_WIDTH = 1180;
 const TYPE_COLORS: Record<string, string> = {
   OPD: "bg-[#d6eaff] text-[#007cff]", Pharmacy: "bg-[#fff2e0] text-[#ff9000]",
   Lab: "bg-[#dffff3] text-[#00955c]",  IPD: "bg-[#ffe9e9] text-[#ff0004]",
@@ -40,35 +45,19 @@ const TYPE_COLORS: Record<string, string> = {
 
 function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
   return (
-    <Link href={`/billing/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5">
-        <span className="text-[14px] font-medium text-[#009598] leading-[19px]">{row.billNumber}</span>
+    <Link href={`/billing/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#009598] truncate">{row.billNumber}</span>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <div>
+        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[#f0f0f0] text-[#57575f]"}`}>{row.type}</span>
       </div>
-      <div className="absolute" style={{ left: 170 }}>
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.patientName}</span>
-      </div>
-      <div className="absolute" style={{ left: 370 }}>
-        <span className={`inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[#f0f0f0] text-[#57575f]"}`}>{row.type}</span>
-      </div>
-      <div className="absolute" style={{ left: 530 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.date}</span>
-      </div>
-      <div className="absolute" style={{ left: 690 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">₹{row.amount.toLocaleString("en-IN")}</span>
-      </div>
-      <div className="absolute" style={{ left: 830 }}>
-        <span className="text-[14px] font-normal text-[#57575f] leading-[19px]">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
-      </div>
-      <div className="absolute" style={{ left: 970 }}>
-        <span className="text-[14px] font-normal text-[#57575f] leading-[19px]">₹{row.gst.toFixed(0)}</span>
-      </div>
-      <div className="absolute" style={{ left: 1100 }}>
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px]">₹{row.total.toLocaleString("en-IN")}</span>
-      </div>
-      <div className="absolute" style={{ left: 1240 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1420 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-normal text-[#57575f] text-right">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
+      <span className="text-[13px] font-normal text-[#57575f] text-right">₹{row.gst.toFixed(0)}</span>
+      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.total.toLocaleString("en-IN")}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }

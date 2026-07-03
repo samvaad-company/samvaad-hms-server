@@ -12,7 +12,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#f7f7f7]">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <TopBar sidebarLeft={sidebarWidth} />
-      <div style={{ marginLeft: sidebarWidth, paddingTop: 78, transition: "margin-left 220ms ease" }}>
+      <div style={{ marginLeft: sidebarWidth, paddingTop: 52, transition: "margin-left 220ms ease" }}>
         {children}
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { BarChart3, MoreVertical, TrendingUp, TrendingDown, Download } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { useItem } from "@/lib/api/hooks";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -284,29 +284,28 @@ function PharmacyReportView() {
 // ─── Doctor Performance (existing logic, now under Operational sub-section) ───
 
 const PERF_COLUMNS = [
-  { label: "Doctor",           left: 20  }, { label: "Specialty",        left: 220 },
-  { label: "Patients",         left: 450 }, { label: "Revenue",          left: 610 },
-  { label: "Satisfaction",     left: 780 }, { label: "Avg Consult Time", left: 970 },
-  { label: "Action",           left: 1180 },
+  { label: "Doctor",           width: "minmax(150px,1.4fr)" },
+  { label: "Specialty",        width: "minmax(150px,1.3fr)" },
+  { label: "Patients",         width: "100px", align: "center" as const },
+  { label: "Revenue",          width: "130px", align: "right" as const },
+  { label: "Satisfaction",     width: "110px" },
+  { label: "Avg Consult Time", width: "150px" },
 ];
 const PERF_FILTERS = [
   { id: "All", label: "All Doctors" }, { id: "OPD", label: "OPD" },
   { id: "Surgery", label: "Surgery" }, { id: "ICU", label: "ICU" },
 ];
-const PERF_MIN_WIDTH = 1300;
+const PERF_MIN_WIDTH = 1000;
 
 function ReportTableRow({ row }: { row: ReportRow }) {
   return (
-    <div className={tw.table.dataRow} style={{ minWidth: PERF_MIN_WIDTH }}>
-      <div className="absolute left-5"><span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.doctor}</span></div>
-      <div className="absolute" style={{ left: 220 }}><span className="text-[14px] font-normal text-[#57575f] leading-[19px] whitespace-nowrap">{row.specialty}</span></div>
-      <div className="absolute" style={{ left: 450 }}><span className="text-[14px] font-medium text-[#11111c] leading-[19px]">{row.patientsCount || "—"}</span></div>
-      <div className="absolute" style={{ left: 610 }}><span className="text-[14px] font-medium text-[#11111c] leading-[19px]">{row.revenue > 0 ? `₹${row.revenue.toLocaleString("en-IN")}` : "—"}</span></div>
-      <div className="absolute" style={{ left: 780 }}><span className="text-[14px] font-normal text-[#11111c] leading-[19px]">{row.satisfaction}</span></div>
-      <div className="absolute" style={{ left: 970 }}><span className="text-[14px] font-normal text-[#11111c] leading-[19px]">{row.avgConsultTime}</span></div>
-      <div className="absolute" style={{ left: 1180 }}>
-        <button className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors"><MoreVertical size={24} strokeWidth={1.5} /></button>
-      </div>
+    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.specialty}</span>
+      <span className="text-[13px] font-medium text-[#11111c] text-center">{row.patientsCount || "—"}</span>
+      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.revenue > 0 ? `₹${row.revenue.toLocaleString("en-IN")}` : "—"}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.satisfaction}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{row.avgConsultTime}</span>
     </div>
   );
 }

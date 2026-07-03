@@ -22,42 +22,38 @@ import Link from "next/link";
 // ─── All Staff ────────────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { label: "Staff Member", left: 20   }, { label: "Department",   left: 270  },
-  { label: "Phone",        left: 480  }, { label: "Email",        left: 670  },
-  { label: "Join Date",    left: 970  }, { label: "Status",       left: 1160 },
-  { label: "Action",       left: 1360 },
+  { label: "Staff Member", width: "minmax(150px,1.4fr)" },
+  { label: "Role",         width: "minmax(120px,1.1fr)" },
+  { label: "Department",   width: "minmax(120px,1fr)" },
+  { label: "Phone",        width: "150px" },
+  { label: "Email",        width: "minmax(160px,1.5fr)" },
+  { label: "Join Date",    width: "110px" },
+  { label: "Status",       width: "110px" },
+  { label: "Action",       width: "52px", align: "right" as const },
 ];
 const FILTERS = [
   { id: "All", label: "All" }, { id: "Active", label: "Active" },
   { id: "OnLeave", label: "On Leave" }, { id: "Inactive", label: "Inactive" },
 ];
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1180;
 
 function StaffRow({ row, actions }: { row: Staff; actions: RowAction[] }) {
   return (
-    <Link href={`/staff/${row.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.name}</span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4 whitespace-nowrap">{row.role}</span>
-      </div>
-      <div className="absolute" style={{ left: 270 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.department}</span>
-      </div>
-      <div className="absolute flex items-center gap-[5px]" style={{ left: 480 }}>
+    <Link href={`/staff/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.role}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
+      <div className="flex items-center gap-[5px] min-w-0">
         <Phone size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.phone}</span>
+        <span className="text-[13px] font-normal text-[#11111c] truncate">{row.phone}</span>
       </div>
-      <div className="absolute flex items-center gap-[5px]" style={{ left: 670 }}>
+      <div className="flex items-center gap-[5px] min-w-0">
         <Mail size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[14px] font-normal text-[#57575f] leading-[19px] whitespace-nowrap">{row.email}</span>
+        <span className="text-[13px] font-normal text-[#57575f] truncate">{row.email}</span>
       </div>
-      <div className="absolute" style={{ left: 970 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.joinDate}</span>
-      </div>
-      <div className="absolute" style={{ left: 1160 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1360 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.joinDate}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }

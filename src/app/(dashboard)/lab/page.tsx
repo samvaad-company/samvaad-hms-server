@@ -20,47 +20,42 @@ import type { LabTest } from "@/types";
 // ─── Tests Tab ────────────────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { label: "Patient",       left: 20   }, { label: "Test Name",     left: 220  },
-  { label: "Sample Status", left: 460  }, { label: "Report",        left: 660  },
-  { label: "Date",          left: 840  }, { label: "Amount (₹)",    left: 1010 },
-  { label: "Status",        left: 1170 }, { label: "Action",        left: 1380 },
+  { label: "Patient",   width: "minmax(150px,1.4fr)" },
+  { label: "Age",       width: "60px" },
+  { label: "Test Name", width: "minmax(160px,1.6fr)" },
+  { label: "Sample",    width: "110px" },
+  { label: "Report",    width: "100px" },
+  { label: "Date",      width: "110px" },
+  { label: "Amount",    width: "100px", align: "right" as const },
+  { label: "Status",    width: "130px" },
+  { label: "Action",    width: "52px", align: "right" as const },
 ];
 const FILTERS = [
   { id: "All", label: "All" }, { id: "Pending", label: "Pending" },
   { id: "SampleCollected", label: "Sample Collected" }, { id: "ReportReady", label: "Report Ready" },
 ];
-const MIN_WIDTH = 1452;
+const MIN_WIDTH = 1180;
 
 function LabRow({ row, actions }: { row: LabTest; actions: RowAction[] }) {
   return (
-    <div className={tw.table.dataRow} style={{ minWidth: MIN_WIDTH }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">{row.patientName}</span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">{row.patientAge} years old</span>
-      </div>
-      <div className="absolute" style={{ left: 220 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.testName}</span>
-      </div>
-      <div className="absolute" style={{ left: 460 }}>
-        <span className={`inline-flex items-center px-[8px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${row.sampleStatus === "Collected" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
+    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.testName}</span>
+      <div>
+        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.sampleStatus === "Collected" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
           {row.sampleStatus}
         </span>
       </div>
-      <div className="absolute" style={{ left: 660 }}>
-        <span className={`inline-flex items-center px-[8px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${row.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
+      <div>
+        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
           {row.reportStatus}
         </span>
       </div>
-      <div className="absolute" style={{ left: 840 }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">{row.date}</span>
-      </div>
-      <div className="absolute" style={{ left: 1010 }}>
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px]">₹{row.amount.toLocaleString("en-IN")}</span>
-      </div>
-      <div className="absolute" style={{ left: 1170 }}><StatusBadge status={row.status} /></div>
-      <div className="absolute" style={{ left: 1380 }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
+      <div><StatusBadge status={row.status} /></div>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
 }

@@ -29,17 +29,17 @@ export function PageHeader({
   const ActionIcon = action.icon ?? Plus;
 
   return (
-    <div className="flex items-start justify-between px-[30px] pt-[25px] pb-[20px]">
-      <div className="flex flex-col gap-[5px]">
-        <h1 className="text-[40px] font-medium text-[#11111c] leading-[44px] capitalize">
+    <div className="flex items-start justify-between px-[30px] pt-[16px] pb-[12px]">
+      <div className="flex flex-col gap-[2px]">
+        <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px] capitalize">
           {title}
         </h1>
-        <p className="text-[16px] font-light text-[#11111c] opacity-90 leading-5 whitespace-nowrap">
+        <p className="text-[13px] font-light text-[#57575f] leading-[17px] whitespace-nowrap">
           {subtitle}
         </p>
       </div>
 
-      <div className="flex items-center gap-[15px] mt-1 shrink-0">
+      <div className="flex items-center gap-[10px] mt-[2px] shrink-0">
         {stats.map((s, i) => (
           <StatPill key={i} {...s} />
         ))}

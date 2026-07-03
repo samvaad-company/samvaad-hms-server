@@ -42,15 +42,18 @@ function FemaleIcon() {
 // ─── Column Definitions ───────────────────────────────────────────────────────
 
 const COLUMNS = [
-  { label: "Patient Name",              left: tw.columns.patientName },
-  { label: "Phone Number",              left: tw.columns.phoneNumber },
-  { label: "Gender",                    left: tw.columns.gender },
-  { label: "Reason",                    left: tw.columns.reason },
-  { label: "Doctor Assigned",           left: tw.columns.doctorAssigned },
-  { label: "Status",                    left: tw.columns.status },
-  { label: "Appointment Date and Time", left: tw.columns.appointmentDate },
-  { label: "Action",                    left: tw.columns.action },
+  { label: "Patient Name", width: "minmax(150px,1.4fr)" },
+  { label: "Age",          width: "64px" },
+  { label: "Phone Number", width: "150px" },
+  { label: "Gender",       width: "100px" },
+  { label: "Reason",       width: "minmax(150px,1.6fr)" },
+  { label: "Doctor",       width: "minmax(140px,1.3fr)" },
+  { label: "Status",       width: "120px" },
+  { label: "Date",         width: "110px" },
+  { label: "Time",         width: "90px" },
+  { label: "Action",       width: "52px", align: "right" as const },
 ];
+const MIN_WIDTH = 1180;
 
 const FILTERS = [
   { id: "All",       label: "All" },
@@ -63,58 +66,23 @@ const FILTERS = [
 
 function PatientRow({ patient, actions }: { patient: Patient; actions: RowAction[] }) {
   return (
-    <Link href={`/patients/${patient.id}`} className={`${tw.table.dataRow} block`} style={{ minWidth: tw.table.minWidth }}>
-      <div className="absolute left-5 flex flex-col justify-center">
-        <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.name}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4 whitespace-nowrap">
-          {patient.age} years old
-        </span>
+    <Link href={`/patients/${patient.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{patient.name}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{patient.age}</span>
+      <div className="flex items-center gap-[5px] min-w-0">
+        <Phone size={iconSize.sm} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
+        <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.phone}</span>
       </div>
-
-      <div className="absolute flex items-center gap-[5px]" style={{ left: tw.columns.phoneNumber }}>
-        <Phone size={iconSize.md} strokeWidth={1.5} className="text-[#11111c] shrink-0" />
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.phone}
-        </span>
-      </div>
-
-      <div className="absolute flex items-center gap-[10px]" style={{ left: tw.columns.gender }}>
+      <div className="flex items-center gap-[6px] min-w-0">
         {patient.gender === "Male" ? <MaleIcon /> : <FemaleIcon />}
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.gender}
-        </span>
+        <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.gender}</span>
       </div>
-
-      <div className="absolute" style={{ left: tw.columns.reason }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.reason}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: tw.columns.doctorAssigned }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.doctor}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: tw.columns.status }}>
-        <StatusBadge status={patient.status} />
-      </div>
-
-      <div className="absolute flex flex-col gap-[3px]" style={{ left: tw.columns.appointmentDate }}>
-        <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
-          {patient.date}
-        </span>
-        <span className="text-[12px] font-light text-[#57575f] leading-4">
-          {patient.time}
-        </span>
-      </div>
-
-      <div className="absolute" style={{ left: tw.columns.action }}>
-        <RowMenu actions={actions} />
-      </div>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.reason}</span>
+      <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.doctor}</span>
+      <div><StatusBadge status={patient.status} /></div>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{patient.date}</span>
+      <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{patient.time}</span>
+      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
   );
 }
@@ -169,7 +137,7 @@ export default function PatientsPage() {
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 655 }}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by patient name, ID, or visit reason..."
@@ -178,7 +146,7 @@ export default function PatientsPage() {
             searchQuery={search}
             onSearchChange={setSearch}
           />
-          <DataTable columns={COLUMNS}>
+          <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {loading && patients.length === 0 ? (
               <div className="py-16 text-center text-[14px] text-[#57575f]">Loading patients…</div>
             ) : visible.length === 0 ? (

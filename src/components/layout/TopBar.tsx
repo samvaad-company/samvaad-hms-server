@@ -24,20 +24,20 @@ export function TopBar({ sidebarLeft }: TopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div
-      className="fixed top-0 z-40 h-[78px] bg-[#f7f7f7] flex items-center justify-end px-8"
+      className="fixed top-0 z-40 h-[52px] bg-[#f7f7f7] flex items-center justify-end px-6"
       style={{ left: sidebarLeft, right: 0, borderBottom: "1px solid #dedee1", transition: "left 220ms ease" }}
     >
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-3">
         {/* Search */}
-        <button className="bg-white rounded-full p-2 flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.08)] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
-          <Search size={24} strokeWidth={1.5} className="text-[#11111c]" />
+        <button className="bg-white rounded-full p-[6px] flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.08)] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
+          <Search size={18} strokeWidth={1.5} className="text-[#11111c]" />
         </button>
 
         {/* Settings + Bell */}
-        <div className="bg-white rounded-full flex items-center gap-3 px-[10px] py-2 shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <Settings size={24} strokeWidth={1.5} className="text-[#11111c] cursor-pointer" />
-          <div className="w-px h-4 bg-[#dedee1]" />
-          <Bell size={24} strokeWidth={1.5} className="text-[#11111c] cursor-pointer" />
+        <div className="bg-white rounded-full flex items-center gap-[10px] px-[10px] py-[6px] shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <Settings size={18} strokeWidth={1.5} className="text-[#11111c] cursor-pointer" />
+          <div className="w-px h-[14px] bg-[#dedee1]" />
+          <Bell size={18} strokeWidth={1.5} className="text-[#11111c] cursor-pointer" />
         </div>
 
         {/* User */}
@@ -46,16 +46,16 @@ export function TopBar({ sidebarLeft }: TopBarProps) {
             onClick={() => setMenuOpen((o) => !o)}
             className="flex items-center gap-[8px] cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-full bg-[#b8d9d9] flex items-center justify-center shrink-0">
-              <span className="text-[13px] font-medium text-[#009598]">
+            <div className="w-8 h-8 rounded-full bg-[#b8d9d9] flex items-center justify-center shrink-0">
+              <span className="text-[12px] font-medium text-[#009598]">
                 {user ? initials(user.name) : "—"}
               </span>
             </div>
-            <div className="flex flex-col gap-[2px] items-start">
-              <span className="text-[14px] font-medium text-[#11111c] leading-[19px] whitespace-nowrap">
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[13px] font-medium text-[#11111c] leading-[15px] whitespace-nowrap">
                 {user?.name ?? "Loading…"}
               </span>
-              <span className="text-[12px] font-light text-[#57575f] leading-4">
+              <span className="text-[11px] font-light text-[#57575f] leading-[13px]">
                 {user?.role ?? ""}
               </span>
             </div>
@@ -64,7 +64,7 @@ export function TopBar({ sidebarLeft }: TopBarProps) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-[48px] z-50 w-[200px] bg-white rounded-[12px] border border-[#dedee1] shadow-lg py-2">
+              <div className="absolute right-0 top-[40px] z-50 w-[200px] bg-white rounded-[12px] border border-[#dedee1] shadow-lg py-2">
                 <div className="px-4 py-2 border-b border-[#f0f0f0]">
                   <p className="text-[13px] font-medium text-[#11111c] truncate">{user?.name}</p>
                   <p className="text-[11px] font-light text-[#57575f] truncate">{user?.email}</p>

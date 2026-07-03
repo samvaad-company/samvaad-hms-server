@@ -61,7 +61,7 @@ export const colors = {
 export const typography = {
   fontFamily: "var(--font-archivo), sans-serif",
   scale: {
-    h1:      { fontSize: "40px", fontWeight: "500", lineHeight: "44px" },
+    h1:      { fontSize: "24px", fontWeight: "500", lineHeight: "28px" },
     title3M: { fontSize: "16px", fontWeight: "500", lineHeight: "20px" },
     title3L: { fontSize: "16px", fontWeight: "300", lineHeight: "20px" },
     title4M: { fontSize: "14px", fontWeight: "500", lineHeight: "19px" },
@@ -74,7 +74,7 @@ export const typography = {
 
 export const tw = {
   text: {
-    h1:          "text-[40px] font-medium leading-[44px] text-[#11111c]",
+    h1:          "text-[24px] font-medium leading-[28px] text-[#11111c]",
     title3M:     "text-[16px] font-medium leading-5 text-[#11111c]",
     title3L:     "text-[16px] font-light leading-5 text-[#11111c]",
     title4M:     "text-[14px] font-medium leading-[19px] text-[#11111c]",
@@ -161,25 +161,18 @@ export const tw = {
   } as Record<string, string>,
 
   nav: {
-    height: "h-[78px]",
-    offset: "pt-[78px]",
+    height:      52,
+    heightClass: "h-[52px]",
+    offset:      "pt-[52px]",
   },
 
   table: {
-    headerRow: "relative h-[40px] bg-[#f2f3f3]",
-    dataRow:   "relative flex items-center h-[66px] border-b border-[#dedee1] bg-white hover:bg-[#fafafa] transition-colors",
-    minWidth:  1452,
-  },
-
-  columns: {
-    patientName:     20,
-    phoneNumber:     216,
-    gender:          429,
-    reason:          582,
-    doctorAssigned:  831,
-    status:          1017,
-    appointmentDate: 1184,
-    action:          1396,
+    // Grid-based: cells are laid out via `grid-template-columns: var(--cols)`,
+    // which the DataTable sets from each page's column widths. This keeps every
+    // field in its own column (no stacking) and rows compact.
+    headerRow: "grid items-center gap-3 px-5 h-[34px] bg-[#f2f3f3]",
+    dataRow:   "grid items-center gap-3 px-5 h-[42px] border-b border-[#dedee1] bg-white hover:bg-[#fafafa] transition-colors",
+    minWidth:  1240,
   },
 
   sidebar: {
