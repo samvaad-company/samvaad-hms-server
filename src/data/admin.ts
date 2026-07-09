@@ -41,7 +41,19 @@ export const departments = [
   { id: 15, name: "Billing",         head: "Kavitha Krishnan",    ext: "302" },
 ];
 
-export const adminUsers = [
+export interface AdminUserSeed {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  lastLogin: string;
+  status: string;
+  /** Links a Doctor-role login to its doctor record (see src/data/doctors.ts). */
+  doctorId?: number;
+}
+
+export const adminUsers: AdminUserSeed[] = [
   { id: 1,  name: "Dr. Kevin Carter",   email: "kevin.carter@samvaadhospital.in",   role: "Super Admin",    department: "Administration", lastLogin: "Today, 9:05 AM",  status: "Active"   },
   { id: 2,  name: "Deepak Nair",        email: "deepak.nair@samvaadhospital.in",    role: "Receptionist",   department: "Administration", lastLogin: "Today, 8:50 AM",  status: "Active"   },
   { id: 3,  name: "Kavitha Krishnan",   email: "kavitha.krishnan@samvaadhospital.in",role: "Billing Exec",  department: "Billing",        lastLogin: "Today, 9:30 AM",  status: "Active"   },
@@ -49,7 +61,9 @@ export const adminUsers = [
   { id: 5,  name: "Sunita Rao",         email: "sunita.rao@samvaadhospital.in",     role: "Lab Technician", department: "Laboratory",     lastLogin: "Today, 8:45 AM",  status: "Active"   },
   { id: 6,  name: "Rekha Menon",        email: "rekha.menon@samvaadhospital.in",    role: "Head Nurse",     department: "ICU",            lastLogin: "Today, 8:00 AM",  status: "Active"   },
   { id: 7,  name: "Rahul Saxena",       email: "rahul.saxena@samvaadhospital.in",   role: "IT Admin",       department: "IT",             lastLogin: "Yesterday, 6 PM", status: "Active"   },
-  { id: 8,  name: "Vijay Kumar",        email: "vijay.kumar@samvaadhospital.in",    role: "Driver",         department: "Emergency",      lastLogin: "3 days ago",       status: "Inactive" },
+  { id: 8,  name: "Vijay Kumar",        email: "vijay.kumar@samvaadhospital.in",    role: "Driver",         department: "Emergency",      lastLogin: "3 days ago",       status: "Active"   },
+  { id: 9,  name: "Dr. Sophia Adams",   email: "sophia.adams@samvaadhospital.in",   role: "Doctor",         department: "Paediatrics",    lastLogin: "Today, 9:15 AM",  status: "Active", doctorId: 2 },
+  { id: 10, name: "Dr. Daniel Reed",    email: "daniel.reed@samvaadhospital.in",    role: "Doctor",         department: "Internal Medicine", lastLogin: "Today, 8:40 AM", status: "Active", doctorId: 5 },
 ];
 
 export const rolePermissions = {

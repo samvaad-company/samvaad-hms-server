@@ -40,6 +40,7 @@ export async function login(
     name: matched.name,
     email: matched.email,
     role: matched.role,
+    doctorId: matched.doctor_id ?? null,
   };
 }
 
@@ -49,6 +50,7 @@ export function sessionUser(session: Session): SessionUserDTO {
     name: session.name,
     email: session.email,
     role: session.role,
+    doctorId: session.doctorId,
     permissions: permissionsFor(session.role),
   };
 }

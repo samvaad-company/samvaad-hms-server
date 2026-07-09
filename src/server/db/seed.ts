@@ -27,6 +27,22 @@ import {
   adminUsers,
   hospitalSettings,
 } from "@/data/admin";
+import {
+  bloodDonors as bloodDonorsData,
+  bloodStock as bloodStockData,
+  bloodIssues as bloodIssuesData,
+  radiologyTests as radiologyData,
+  ambulances as ambulancesData,
+  ambulanceCalls as ambulanceCallsData,
+  birthRecords as birthRecordsData,
+  deathRecords as deathRecordsData,
+  tpas as tpasData,
+  tpaClaims as tpaClaimsData,
+  financeIncomes as financeIncomesData,
+  financeExpenses as financeExpensesData,
+  inventoryItems as inventoryItemsData,
+  inventoryIssues as inventoryIssuesData,
+} from "@/data/modules";
 
 const now = () => new Date().toISOString();
 
@@ -122,6 +138,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     password_hash: defaultHash,
     role: u.role,
     department_id: findDeptId(u.department),
+    doctor_id: u.doctorId ?? null,
     status: u.status,
     last_login_at: null,
     created_at: ts,
@@ -334,6 +351,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     doctor_id: findDoctorId(r.doctor),
     doctor: r.doctor,
     diagnosis: r.diagnosis,
+    credit_limit: r.creditLimit,
     status: r.status,
     created_at: ts,
     updated_at: ts,
@@ -377,6 +395,185 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     },
   ];
 
+  // ── Service modules ──────────────────────────────────────────────────────
+  const bloodDonors: Row[] = bloodDonorsData.map((d) => ({
+    id: d.id,
+    name: d.name,
+    age: d.age,
+    gender: d.gender,
+    blood_group: d.bloodGroup,
+    phone: d.phone,
+    last_donation_date: d.lastDonationDate,
+    total_donations: d.totalDonations,
+    status: d.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const bloodStock: Row[] = bloodStockData.map((s) => ({
+    id: s.id,
+    blood_group: s.bloodGroup,
+    component: s.component,
+    units: s.units,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const bloodIssues: Row[] = bloodIssuesData.map((i) => ({
+    id: i.id,
+    patient_id: findPatientByName(i.patientName)?.id ?? null,
+    patient_name: i.patientName,
+    blood_group: i.bloodGroup,
+    component: i.component,
+    units: i.units,
+    doctor: i.doctor,
+    issue_date: i.date,
+    amount: i.amount,
+    status: i.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const radiologyTests: Row[] = radiologyData.map((r) => ({
+    id: r.id,
+    patient_id: findPatientByName(r.patientName)?.id ?? null,
+    patient_name: r.patientName,
+    patient_age: r.patientAge,
+    test_name: r.testName,
+    scan_status: r.scanStatus,
+    report_status: r.reportStatus,
+    test_date: r.date,
+    amount: r.amount,
+    status: r.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const ambulances: Row[] = ambulancesData.map((a) => ({
+    id: a.id,
+    vehicle_number: a.vehicleNumber,
+    model: a.model,
+    driver_name: a.driverName,
+    driver_phone: a.driverPhone,
+    status: a.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const ambulanceCalls: Row[] = ambulanceCallsData.map((c) => ({
+    id: c.id,
+    patient_name: c.patientName,
+    phone: c.phone,
+    pickup_location: c.pickupLocation,
+    drop_location: c.dropLocation,
+    ambulance_id: c.ambulanceId,
+    vehicle_number: c.vehicleNumber,
+    driver_name: c.driverName,
+    call_date: c.date,
+    call_time: c.time,
+    amount: c.amount,
+    status: c.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const birthRecords: Row[] = birthRecordsData.map((b) => ({
+    id: b.id,
+    child_name: b.childName,
+    gender: b.gender,
+    birth_date: b.date,
+    birth_time: b.time,
+    weight_kg: b.weightKg,
+    mother_name: b.motherName,
+    father_name: b.fatherName,
+    phone: b.phone,
+    address: b.address,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const deathRecords: Row[] = deathRecordsData.map((d) => ({
+    id: d.id,
+    deceased_name: d.deceasedName,
+    gender: d.gender,
+    age: d.age,
+    death_date: d.date,
+    death_time: d.time,
+    guardian_name: d.guardianName,
+    cause: d.cause,
+    phone: d.phone,
+    address: d.address,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const tpas: Row[] = tpasData.map((t) => ({
+    id: t.id,
+    name: t.name,
+    code: t.code,
+    contact_person: t.contactPerson,
+    phone: t.phone,
+    email: t.email,
+    address: t.address,
+    status: t.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const tpaClaims: Row[] = tpaClaimsData.map((c) => ({
+    id: c.id,
+    tpa_id: c.tpaId,
+    tpa_name: c.tpaName,
+    patient_id: findPatientByName(c.patientName)?.id ?? null,
+    patient_name: c.patientName,
+    bill_number: c.billNumber,
+    claim_amount: c.claimAmount,
+    approved_amount: c.approvedAmount,
+    claim_date: c.date,
+    status: c.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const financeEntry = (e: (typeof financeIncomesData)[number]): Row => ({
+    id: e.id,
+    category: e.category,
+    description: e.description,
+    invoice_number: e.invoiceNumber,
+    amount: e.amount,
+    entry_date: e.date,
+    created_at: ts,
+    updated_at: ts,
+  });
+  const financeIncomes: Row[] = financeIncomesData.map(financeEntry);
+  const financeExpenses: Row[] = financeExpensesData.map(financeEntry);
+
+  const inventoryItems: Row[] = inventoryItemsData.map((i) => ({
+    id: i.id,
+    name: i.name,
+    category: i.category,
+    unit: i.unit,
+    stock: i.stock,
+    min_stock: i.minStock,
+    supplier: i.supplier,
+    status: i.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const inventoryIssues: Row[] = inventoryIssuesData.map((i) => ({
+    id: i.id,
+    item_id: i.itemId,
+    item_name: i.itemName,
+    department: i.department,
+    quantity: i.quantity,
+    issued_to: i.issuedTo,
+    issue_date: i.date,
+    note: i.note,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
   return {
     [TABLES.departments]: departments,
     [TABLES.doctors]: doctors,
@@ -397,5 +594,19 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.otSchedules]: otSchedules,
     [TABLES.hospitalSettings]: settings,
     [TABLES.auditLogs]: [],
+    [TABLES.bloodDonors]: bloodDonors,
+    [TABLES.bloodStock]: bloodStock,
+    [TABLES.bloodIssues]: bloodIssues,
+    [TABLES.radiologyTests]: radiologyTests,
+    [TABLES.ambulances]: ambulances,
+    [TABLES.ambulanceCalls]: ambulanceCalls,
+    [TABLES.birthRecords]: birthRecords,
+    [TABLES.deathRecords]: deathRecords,
+    [TABLES.tpas]: tpas,
+    [TABLES.tpaClaims]: tpaClaims,
+    [TABLES.financeIncomes]: financeIncomes,
+    [TABLES.financeExpenses]: financeExpenses,
+    [TABLES.inventoryItems]: inventoryItems,
+    [TABLES.inventoryIssues]: inventoryIssues,
   };
 }

@@ -41,6 +41,8 @@ const MIN_WIDTH = 1180;
 const TYPE_COLORS: Record<string, string> = {
   OPD: "bg-[#d6eaff] text-[#007cff]", Pharmacy: "bg-[#fff2e0] text-[#ff9000]",
   Lab: "bg-[#dffff3] text-[#00955c]",  IPD: "bg-[#ffe9e9] text-[#ff0004]",
+  Blood: "bg-[#ffe9e9] text-[#ff0004]", Ambulance: "bg-[#fff2e0] text-[#ff9000]",
+  Radiology: "bg-[#e8f7f7] text-[#009598]",
 };
 
 function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
@@ -123,7 +125,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           <FormSelect placeholder="Search patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
         </FormRow>
         <FormRow label="Bill Type *">
-          <FormSelect placeholder="Select type" value={billType} onChange={setBillType} options={[{ value: "OPD", label: "OPD" }, { value: "IPD", label: "IPD" }, { value: "Lab", label: "Lab" }, { value: "Pharmacy", label: "Pharmacy" }]} />
+          <FormSelect placeholder="Select type" value={billType} onChange={setBillType} options={["OPD", "IPD", "Lab", "Pharmacy", "Radiology", "Blood", "Ambulance"].map(t => ({ value: t, label: t === "Blood" ? "Blood Issue" : t }))} />
         </FormRow>
         <FormRow label="Bill Date *">
           <FormInput type="date" />
@@ -240,6 +242,74 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   );
 }
 
+// ─── Bill Lookup ──────────────────────────────────────────────────────────────
+
+function LookupView({ bills }: { bills: BillDTO[] }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? bills.filter(b =>
+        b.billNumber.toLowerCase().includes(q) ||
+        b.patientName.toLowerCase().includes(q) ||
+        String(b.id) === q)
+    : [];
+  const outstanding = matches
+    .filter(b => b.status === "Pending" || b.status === "Partial")
+    .reduce((s, b) => s + b.total, 0);
+
+  return (
+    <div className="p-5 flex flex-col gap-5" style={{ minHeight: 560 }}>
+      <div className="max-w-[560px]">
+        <FormRow label="Bill Number / Patient Name" hint="Find every bill for a patient or a specific invoice across all departments">
+          <FormInput placeholder="e.g. INV-00000004 or Rajan Mehta" value={query} onChange={setQuery} />
+        </FormRow>
+      </div>
+
+      {q && matches.length === 0 && (
+        <div className="py-12 text-center text-[14px] text-[#57575f]">No bills match “{query}”.</div>
+      )}
+
+      {matches.length > 0 && (
+        <>
+          <div className="flex items-center gap-6 px-4 py-3 bg-[#f6f6f6] rounded-[10px]">
+            <div>
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Bills Found</span>
+              <p className="text-[20px] font-medium text-[#11111c] leading-tight">{matches.length}</p>
+            </div>
+            <div className="w-px h-8 bg-[#dedee1]" />
+            <div>
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Total Billed</span>
+              <p className="text-[20px] font-medium text-[#11111c] leading-tight">₹{matches.reduce((s, b) => s + b.total, 0).toLocaleString("en-IN")}</p>
+            </div>
+            <div className="w-px h-8 bg-[#dedee1]" />
+            <div>
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Outstanding</span>
+              <p className={`text-[20px] font-medium leading-tight ${outstanding > 0 ? "text-[#ff9000]" : "text-[#00955c]"}`}>₹{outstanding.toLocaleString("en-IN")}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {matches.map(b => (
+              <Link key={b.id} href={`/billing/${b.id}`}
+                className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
+                <div className="flex flex-col gap-[6px]">
+                  <span className="text-[14px] font-medium text-[#009598]">{b.billNumber}</span>
+                  <span className="text-[13px] font-normal text-[#11111c]">{b.patientName}</span>
+                  <span className="text-[12px] font-light text-[#57575f]">{b.type} · {b.date}</span>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <span className="text-[15px] font-medium text-[#11111c]">₹{b.total.toLocaleString("en-IN")}</span>
+                  <StatusBadge status={b.status} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
@@ -254,6 +324,7 @@ export default function BillingPage() {
   const TABS = [
     { id: "all",     label: "All Bills", count: bills.length },
     { id: "new",     label: "New Bill" },
+    { id: "lookup",  label: "Bill Lookup" },
   ];
 
   const revenue = bills
@@ -298,6 +369,7 @@ export default function BillingPage() {
             </>
           )}
           {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}
+          {tab === "lookup" && <LookupView bills={bills} />}
         </div>
       </div>
     </>

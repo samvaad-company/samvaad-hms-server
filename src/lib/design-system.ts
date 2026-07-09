@@ -158,6 +158,21 @@ export const tw = {
     // Prescription
     "Dispensed":       "bg-[#dffff3] text-[#00955c]",
     "Draft":           "bg-[#f0f0f0] text-[#57575f]",
+    // Radiology
+    "Scan Done":       "bg-[#d6eaff] text-[#007cff]",
+    // Blood bank
+    "Eligible":        "bg-[#dffff3] text-[#00955c]",
+    "Deferred":        "bg-[#fff2e0] text-[#ff9000]",
+    "Issued":          "bg-[#dffff3] text-[#00955c]",
+    // Ambulance
+    "On Call":         "bg-[#d6eaff] text-[#007cff]",
+    "Dispatched":      "bg-[#fff2e0] text-[#ff9000]",
+    // TPA claims
+    "Submitted":       "bg-[#f0f0f0] text-[#57575f]",
+    "In Review":       "bg-[#fff2e0] text-[#ff9000]",
+    "Approved":        "bg-[#dffff3] text-[#00955c]",
+    "Rejected":        "bg-[#ffe9e9] text-[#ff0004]",
+    "Settled":         "bg-[#d6eaff] text-[#007cff]",
   } as Record<string, string>,
 
   nav: {

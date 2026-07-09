@@ -16,16 +16,28 @@ import {
   Users2,
   BarChart3,
   Settings2,
-  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
+  ScanLine,
+  Droplets,
+  Ambulance,
+  Boxes,
+  Baby,
+  Receipt,
+  Wallet,
+  ShieldCheck,
+  House,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
+import { type Resource } from "@/server/auth/rbac";
+import { useAuth } from "@/lib/auth-context";
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** RBAC resource gating this item; omit for always-visible items. */
+  resource?: Resource;
 }
 
 interface NavGroup {
@@ -35,37 +47,60 @@ interface NavGroup {
 
 const groups: NavGroup[] = [
   {
+    label: "Overview",
+    items: [
+      { href: "/home",               label: "Home",              icon: House },
+    ],
+  },
+  {
     label: "Clinical",
     items: [
-      { href: "/opd",                label: "OPD",               icon: Activity },
-      { href: "/patients",           label: "Patients",          icon: Users },
-      { href: "/doctors",            label: "Doctors",           icon: Stethoscope },
-      { href: "/doctors/dashboard",  label: "Doctor Dashboard",  icon: LayoutDashboard },
-      { href: "/prescriptions",      label: "Prescriptions",     icon: FileText },
+      { href: "/opd",                label: "OPD",               icon: Activity,        resource: "opd" },
+      { href: "/patients",           label: "Patients",          icon: Users,           resource: "patients" },
+      { href: "/doctors",            label: "Doctors",           icon: Stethoscope,     resource: "doctors" },
+      { href: "/prescriptions",      label: "Prescriptions",     icon: FileText,        resource: "prescriptions" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { href: "/appointments",  label: "Appointments",  icon: Calendar },
-      { href: "/pharmacy",      label: "Pharmacy",      icon: Pill },
-      { href: "/lab",           label: "Lab",           icon: FlaskConical },
+      { href: "/appointments",  label: "Appointments",  icon: Calendar,     resource: "appointments" },
+      { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy" },
+      { href: "/lab",           label: "Lab",           icon: FlaskConical, resource: "lab" },
+      { href: "/radiology",     label: "Radiology",     icon: ScanLine,     resource: "radiology" },
     ],
   },
   {
     label: "Inpatient",
     items: [
-      { href: "/ipd",           label: "IPD",           icon: BedDouble },
-      { href: "/ot",            label: "OT",            icon: Scissors },
-      { href: "/beds",          label: "Beds & Wards",  icon: LayoutGrid },
+      { href: "/ipd",           label: "IPD",           icon: BedDouble,  resource: "ipd" },
+      { href: "/ot",            label: "OT",            icon: Scissors,   resource: "ot" },
+      { href: "/beds",          label: "Beds & Wards",  icon: LayoutGrid, resource: "beds" },
+    ],
+  },
+  {
+    label: "Services",
+    items: [
+      { href: "/blood-bank",    label: "Blood Bank",    icon: Droplets,  resource: "bloodbank" },
+      { href: "/ambulance",     label: "Ambulance",     icon: Ambulance, resource: "ambulance" },
+      { href: "/inventory",     label: "Inventory",     icon: Boxes,     resource: "inventory" },
+      { href: "/records",       label: "Birth & Death", icon: Baby,      resource: "records" },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { href: "/billing",       label: "Billing",          icon: Receipt,     resource: "billing" },
+      { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance" },
+      { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa" },
     ],
   },
   {
     label: "Admin",
     items: [
-      { href: "/staff",         label: "Staff",         icon: Users2 },
-      { href: "/reports",       label: "Reports",       icon: BarChart3 },
-      { href: "/admin",         label: "Admin Panel",   icon: Settings2 },
+      { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff" },
+      { href: "/reports",       label: "Reports",       icon: BarChart3, resource: "reports" },
+      { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin" },
     ],
   },
 ];
@@ -77,6 +112,18 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { user, can } = useAuth();
+
+  // Until the session loads, show only the always-visible items to avoid a
+  // full-navigation flash for restricted roles.
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.resource || (user ? can(item.resource) : false),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside
@@ -93,26 +140,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         style={{ borderBottom: "1px solid #dedee1" }}
       >
         {collapsed ? (
-          <div className="w-full flex items-center justify-center">
+          <Link href="/home" className="w-full flex items-center justify-center">
             <div className="w-[28px] h-[28px] rounded-[8px] bg-[#009598] flex items-center justify-center shrink-0">
               <span className="text-white text-[13px] font-medium">S</span>
             </div>
-          </div>
+          </Link>
         ) : (
-          <div className="flex items-center gap-[8px] flex-1 min-w-0">
+          <Link href="/home" className="flex items-center gap-[8px] flex-1 min-w-0">
             <div className="w-[28px] h-[28px] rounded-[8px] bg-[#009598] flex items-center justify-center shrink-0">
               <span className="text-white text-[13px] font-medium">S</span>
             </div>
             <span className="text-[17px] font-medium text-[#11111c] leading-tight whitespace-nowrap">
               Samvaad <span className="text-[#009598]">HMS</span>
             </span>
-          </div>
+          </Link>
         )}
       </div>
 
       {/* Nav Groups */}
       <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-[6px]" style={{ padding: collapsed ? "16px 8px" : "16px 12px" }}>
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="flex flex-col gap-[2px]">
             {!collapsed && (
               <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider px-[14px] py-[6px] whitespace-nowrap">

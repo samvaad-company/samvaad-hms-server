@@ -14,7 +14,7 @@ import { type Session } from "@/server/auth/session";
 const createSchema = {
   patientId: { type: "number", required: false },
   patientName: { type: "string", required: true, min: 2, max: 120 },
-  type: { type: "enum", required: false, values: ["OPD", "Pharmacy", "Lab", "IPD"], default: "OPD" },
+  type: { type: "enum", required: false, values: ["OPD", "Pharmacy", "Lab", "IPD", "Blood", "Ambulance", "Radiology"], default: "OPD" },
   amount: { type: "number", required: true, min: 0 },
   discount: { type: "number", required: false, min: 0, default: 0 },
   status: { type: "enum", required: false, values: ["Paid", "Pending", "Partial", "Refunded"], default: "Pending" },

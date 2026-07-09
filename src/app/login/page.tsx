@@ -6,13 +6,26 @@ import { useAuth } from "@/lib/auth-context";
 import { ApiClientError } from "@/lib/api/client";
 import { Lock, Mail, Loader2 } from "lucide-react";
 
+const DEMO_PASSWORD = "Samvaad@123";
+const DEMO_ACCOUNTS = [
+  { role: "Super Admin",    name: "Dr. Kevin Carter", email: "kevin.carter@samvaadhospital.in" },
+  { role: "Doctor",         name: "Dr. Sophia Adams", email: "sophia.adams@samvaadhospital.in" },
+  { role: "Receptionist",   name: "Deepak Nair",      email: "deepak.nair@samvaadhospital.in" },
+  { role: "Head Nurse",     name: "Rekha Menon",      email: "rekha.menon@samvaadhospital.in" },
+  { role: "Pharmacist",     name: "Arun Tiwari",      email: "arun.tiwari@samvaadhospital.in" },
+  { role: "Lab Technician", name: "Sunita Rao",       email: "sunita.rao@samvaadhospital.in" },
+  { role: "Billing Exec",   name: "Kavitha Krishnan", email: "kavitha.krishnan@samvaadhospital.in" },
+  { role: "IT Admin",       name: "Rahul Saxena",     email: "rahul.saxena@samvaadhospital.in" },
+  { role: "Driver",         name: "Vijay Kumar",      email: "vijay.kumar@samvaadhospital.in" },
+];
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const { login } = useAuth();
 
   const [email, setEmail] = useState("kevin.carter@samvaadhospital.in");
-  const [password, setPassword] = useState("Samvaad@123");
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +35,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await login(email, password);
-      const next = params.get("next") || "/patients";
+      const next = params.get("next") || "/home";
       router.replace(next);
     } catch (err) {
       setError(
@@ -31,6 +44,15 @@ function LoginForm() {
       setLoading(false);
     }
   }
+
+  /** Fill the form with a demo account; the user then hits Sign in. */
+  function selectDemo(account: (typeof DEMO_ACCOUNTS)[number]) {
+    setEmail(account.email);
+    setPassword(DEMO_PASSWORD);
+    setError(null);
+  }
+
+  const selectedRole = DEMO_ACCOUNTS.find(a => a.email === email)?.role ?? null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f7f7f7] px-4">
@@ -103,9 +125,37 @@ function LoginForm() {
           </form>
 
           <div className="mt-5 pt-4 border-t border-[#f0f0f0]">
-            <p className="text-[11px] font-light text-[#57575f] leading-5">
-              Demo account is pre-filled. All seeded users share the password{" "}
-              <span className="font-medium text-[#11111c]">Samvaad@123</span>.
+            <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+              Demo roles — pick one, then sign in
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DEMO_ACCOUNTS.map((a) => {
+                const selected = selectedRole === a.role;
+                return (
+                  <button
+                    key={a.email}
+                    type="button"
+                    onClick={() => selectDemo(a)}
+                    disabled={loading}
+                    title={`${a.name} · ${a.email}`}
+                    className={`px-3 py-[7px] rounded-full border text-[12px] font-normal transition-colors disabled:opacity-50 whitespace-nowrap ${
+                      selected
+                        ? "border-[#009598] bg-[#009598] text-white"
+                        : "border-[#dedee1] text-[#11111c] hover:border-[#009598] hover:bg-[#e8f7f7] hover:text-[#009598]"
+                    }`}
+                  >
+                    {a.role}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] font-light text-[#57575f] leading-5 mt-3">
+              {selectedRole ? (
+                <>Credentials filled for <span className="font-medium text-[#11111c]">{selectedRole}</span> — press Sign in.</>
+              ) : (
+                <>Selecting a role fills its credentials (shared password{" "}
+                <span className="font-medium text-[#11111c]">{DEMO_PASSWORD}</span>).</>
+              )}
             </p>
           </div>
         </div>

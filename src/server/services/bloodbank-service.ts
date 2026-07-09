@@ -1,0 +1,259 @@
+/**
+ * Blood bank service — donor registry, group-wise stock, and issue workflow.
+ * Issuing blood decrements matching stock and raises a "Blood" bill.
+ */
+import {
+  bloodDonorsRepo,
+  bloodStockRepo,
+  bloodIssuesRepo,
+  patientsRepo,
+} from "@/server/repositories";
+import { createBill } from "@/server/services/billing-service";
+import {
+  toBloodDonorDTO,
+  toBloodIssueDTO,
+  toBloodStockDTO,
+} from "@/server/repositories/mappers";
+import { type QueryOptions } from "@/server/db/adapter";
+import {
+  type BloodDonorRow,
+  type BloodIssueRow,
+  type BloodStockRow,
+} from "@/server/db/tables";
+import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { validate, validatePartial } from "@/server/lib/validation";
+import { displayDate } from "@/server/services/helpers";
+import { audit } from "@/server/services/audit";
+import { type Session } from "@/server/auth/session";
+
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
+const COMPONENTS = ["Whole Blood", "Plasma", "Platelets", "RBC"] as const;
+
+// ── Donors ──────────────────────────────────────────────────────────────────
+
+const donorSchema = {
+  name: { type: "string", required: true, min: 2, max: 120 },
+  age: { type: "number", required: true, min: 18, max: 65 },
+  gender: { type: "enum", required: true, values: ["Male", "Female"] },
+  bloodGroup: { type: "enum", required: true, values: BLOOD_GROUPS },
+  phone: { type: "string", required: true, min: 7, max: 20 },
+  lastDonationDate: { type: "string", required: false, max: 40, default: "" },
+  totalDonations: { type: "number", required: false, min: 0, default: 0 },
+  status: { type: "enum", required: false, values: ["Eligible", "Deferred"], default: "Eligible" },
+} as const;
+
+export const DONORS_LIST_CONFIG = {
+  searchColumns: ["name", "phone", "blood_group"],
+  filterable: ["status", "blood_group"],
+  sortable: ["name", "last_donation_date", "created_at"],
+  defaultSort: [{ column: "id" as const, direction: "asc" as const }],
+};
+
+export async function listDonors(options: QueryOptions) {
+  return bloodDonorsRepo.list(options);
+}
+
+export async function getDonor(id: number) {
+  const d = await bloodDonorsRepo.get(id);
+  if (!d) throw new NotFoundError("Donor");
+  return d;
+}
+
+export async function createDonor(input: unknown, actor: Session) {
+  const data = validate(donorSchema, input);
+  const row = await bloodDonorsRepo.create({
+    name: data.name,
+    age: data.age,
+    gender: data.gender,
+    blood_group: data.bloodGroup,
+    phone: data.phone,
+    last_donation_date: data.lastDonationDate,
+    total_donations: data.totalDonations,
+    status: data.status,
+  });
+  await audit(actor, "create", "blood-donor", row.id);
+  return toBloodDonorDTO(row as BloodDonorRow);
+}
+
+export async function updateDonor(id: number, input: unknown, actor: Session) {
+  const existing = await bloodDonorsRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Donor");
+  const data = validatePartial(donorSchema, input);
+  const patch: Record<string, unknown> = {};
+  if ("name" in data) patch.name = data.name;
+  if ("age" in data) patch.age = data.age;
+  if ("gender" in data) patch.gender = data.gender;
+  if ("bloodGroup" in data) patch.blood_group = data.bloodGroup;
+  if ("phone" in data) patch.phone = data.phone;
+  if ("lastDonationDate" in data) patch.last_donation_date = data.lastDonationDate;
+  if ("totalDonations" in data) patch.total_donations = data.totalDonations;
+  if ("status" in data) patch.status = data.status;
+  const row = await bloodDonorsRepo.update(id, patch);
+  await audit(actor, "update", "blood-donor", id, patch);
+  return toBloodDonorDTO(row as BloodDonorRow);
+}
+
+export async function deleteDonor(id: number, actor: Session) {
+  const ok = await bloodDonorsRepo.remove(id);
+  if (!ok) throw new NotFoundError("Donor");
+  await audit(actor, "delete", "blood-donor", id);
+}
+
+/** Record a donation: bumps stock and the donor's history. */
+export async function recordDonation(donorId: number, actor: Session) {
+  const donor = await bloodDonorsRepo.getRow(donorId);
+  if (!donor) throw new NotFoundError("Donor");
+  await adjustStock(donor.blood_group, "Whole Blood", 1);
+  const row = await bloodDonorsRepo.update(donorId, {
+    last_donation_date: displayDate(),
+    total_donations: donor.total_donations + 1,
+  });
+  await audit(actor, "donate", "blood-donor", donorId);
+  return toBloodDonorDTO(row as BloodDonorRow);
+}
+
+// ── Stock ───────────────────────────────────────────────────────────────────
+
+export const STOCK_LIST_CONFIG = {
+  searchColumns: ["blood_group", "component"],
+  filterable: ["blood_group", "component"],
+  sortable: ["blood_group", "units"],
+  defaultSort: [{ column: "id" as const, direction: "asc" as const }],
+};
+
+export async function listStock(options: QueryOptions) {
+  return bloodStockRepo.list(options);
+}
+
+async function findStockRow(bloodGroup: string, component: string) {
+  return bloodStockRepo.findRow([
+    { column: "blood_group", op: "eq", value: bloodGroup },
+    { column: "component", op: "eq", value: component },
+  ]);
+}
+
+/** Add (or subtract, with a negative delta) units for a group + component. */
+async function adjustStock(bloodGroup: string, component: string, delta: number) {
+  const existing = await findStockRow(bloodGroup, component);
+  if (existing) {
+    const units = existing.units + delta;
+    if (units < 0) {
+      throw new ConflictError(
+        `Insufficient ${component} stock for ${bloodGroup} (${existing.units} unit(s) left)`,
+      );
+    }
+    return bloodStockRepo.update(existing.id, { units });
+  }
+  if (delta < 0) {
+    throw new ConflictError(`No ${component} stock for ${bloodGroup}`);
+  }
+  return bloodStockRepo.create({
+    blood_group: bloodGroup,
+    component,
+    units: delta,
+  });
+}
+
+const stockSchema = {
+  bloodGroup: { type: "enum", required: true, values: BLOOD_GROUPS },
+  component: { type: "enum", required: true, values: COMPONENTS },
+  units: { type: "number", required: true, min: 1, max: 500 },
+} as const;
+
+/** Direct stock top-up (e.g. from an external blood bank). */
+export async function addStock(input: unknown, actor: Session) {
+  const data = validate(stockSchema, input);
+  const row = await adjustStock(data.bloodGroup, data.component, data.units);
+  await audit(actor, "restock", "blood-stock", row?.id ?? 0, data);
+  return toBloodStockDTO(row as BloodStockRow);
+}
+
+// ── Issues ──────────────────────────────────────────────────────────────────
+
+const issueSchema = {
+  patientId: { type: "number", required: false },
+  patientName: { type: "string", required: true, min: 2, max: 120 },
+  bloodGroup: { type: "enum", required: true, values: BLOOD_GROUPS },
+  component: { type: "enum", required: true, values: COMPONENTS },
+  units: { type: "number", required: true, min: 1, max: 20 },
+  doctor: { type: "string", required: false, max: 120, default: "" },
+  amount: { type: "number", required: false, min: 0, default: 0 },
+} as const;
+
+export const ISSUES_LIST_CONFIG = {
+  searchColumns: ["patient_name", "blood_group", "component"],
+  filterable: ["status", "blood_group", "component"],
+  sortable: ["issue_date", "patient_name", "created_at"],
+  defaultSort: [{ column: "id" as const, direction: "asc" as const }],
+};
+
+export async function listIssues(options: QueryOptions) {
+  return bloodIssuesRepo.list(options);
+}
+
+export async function createIssue(input: unknown, actor: Session) {
+  const data = validate(issueSchema, input);
+  let patientName = data.patientName;
+  if (data.patientId) {
+    const p = await patientsRepo.getRow(data.patientId);
+    if (p) patientName = p.name;
+  }
+
+  await adjustStock(data.bloodGroup, data.component, -data.units);
+
+  const row = await bloodIssuesRepo.create({
+    patient_id: data.patientId ?? null,
+    patient_name: patientName,
+    blood_group: data.bloodGroup,
+    component: data.component,
+    units: data.units,
+    doctor: data.doctor,
+    issue_date: displayDate(),
+    amount: data.amount,
+    status: "Issued",
+  });
+
+  if ((data.amount ?? 0) > 0) {
+    await createBill(
+      {
+        patientId: data.patientId,
+        patientName,
+        type: "Blood",
+        amount: data.amount,
+        status: "Pending",
+      },
+      actor,
+    );
+  }
+
+  await audit(actor, "issue", "blood-issue", row.id, {
+    bloodGroup: data.bloodGroup,
+    component: data.component,
+    units: data.units,
+  });
+  return toBloodIssueDTO(row as BloodIssueRow);
+}
+
+export async function updateIssue(id: number, input: unknown, actor: Session) {
+  const existing = await bloodIssuesRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Blood issue");
+  const schema = {
+    status: { type: "enum", required: false, values: ["Issued", "Pending", "Cancelled"] },
+  } as const;
+  const data = validatePartial(schema, input);
+  const patch: Record<string, unknown> = {};
+  // Cancelling an issue returns the units to stock.
+  if (data.status === "Cancelled" && existing.status !== "Cancelled") {
+    await adjustStock(existing.blood_group, existing.component, existing.units);
+  }
+  if ("status" in data) patch.status = data.status;
+  const row = await bloodIssuesRepo.update(id, patch);
+  await audit(actor, "update", "blood-issue", id, patch);
+  return toBloodIssueDTO(row as BloodIssueRow);
+}
+
+export async function deleteIssue(id: number, actor: Session) {
+  const ok = await bloodIssuesRepo.remove(id);
+  if (!ok) throw new NotFoundError("Blood issue");
+  await audit(actor, "delete", "blood-issue", id);
+}

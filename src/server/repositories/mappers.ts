@@ -19,6 +19,19 @@ import type {
   DepartmentDTO,
   MedicineDTO,
   AdminUserDTO,
+  BloodDonorDTO,
+  BloodStockDTO,
+  BloodIssueDTO,
+  RadiologyTestDTO,
+  AmbulanceDTO,
+  AmbulanceCallDTO,
+  BirthRecordDTO,
+  DeathRecordDTO,
+  TpaDTO,
+  TpaClaimDTO,
+  FinanceEntryDTO,
+  InventoryItemDTO,
+  InventoryIssueDTO,
 } from "@/types/api";
 import type {
   PatientRow,
@@ -37,6 +50,20 @@ import type {
   DepartmentRow,
   MedicineRow,
   UserRow,
+  BloodDonorRow,
+  BloodStockRow,
+  BloodIssueRow,
+  RadiologyTestRow,
+  AmbulanceRow,
+  AmbulanceCallRow,
+  BirthRecordRow,
+  DeathRecordRow,
+  TpaRow,
+  TpaClaimRow,
+  FinanceIncomeRow,
+  FinanceExpenseRow,
+  InventoryItemRow,
+  InventoryIssueRow,
 } from "@/server/db/tables";
 import type {
   Gender,
@@ -52,6 +79,15 @@ import type {
   OtStatus,
   BedStatus,
   StaffStatus,
+  DonorStatus,
+  BloodIssueStatus,
+  BloodComponent,
+  RadiologyStatus,
+  AmbulanceStatus,
+  AmbulanceCallStatus,
+  TpaStatus,
+  ClaimStatus,
+  InventoryStatus,
 } from "@/types";
 
 function splitList(value: string | null): string[] {
@@ -231,6 +267,7 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     bed: r.bed,
     doctor: r.doctor,
     diagnosis: r.diagnosis,
+    creditLimit: Number(r.credit_limit ?? 0),
     status: r.status as IpdStatus,
     patientRefId: r.patient_id,
     bedId: r.bed_id,
@@ -300,6 +337,184 @@ export function toMedicineDTO(r: MedicineRow): MedicineDTO {
     defaultFrequency: r.default_frequency,
     defaultDuration: r.default_duration,
     unit: r.unit,
+  };
+}
+
+export function toBloodDonorDTO(r: BloodDonorRow): BloodDonorDTO {
+  return {
+    id: r.id,
+    name: r.name,
+    age: r.age,
+    gender: r.gender as Gender,
+    bloodGroup: r.blood_group as BloodGroup,
+    phone: r.phone,
+    lastDonationDate: r.last_donation_date,
+    totalDonations: r.total_donations,
+    status: r.status as DonorStatus,
+  };
+}
+
+export function toBloodStockDTO(r: BloodStockRow): BloodStockDTO {
+  return {
+    id: r.id,
+    bloodGroup: r.blood_group as BloodGroup,
+    component: r.component as BloodComponent,
+    units: r.units,
+  };
+}
+
+export function toBloodIssueDTO(r: BloodIssueRow): BloodIssueDTO {
+  return {
+    id: r.id,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    bloodGroup: r.blood_group as BloodGroup,
+    component: r.component as BloodComponent,
+    units: r.units,
+    doctor: r.doctor,
+    date: r.issue_date,
+    amount: Number(r.amount),
+    status: r.status as BloodIssueStatus,
+  };
+}
+
+export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
+  return {
+    id: r.id,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    patientAge: r.patient_age,
+    testName: r.test_name,
+    scanStatus: r.scan_status as "Pending" | "Done",
+    reportStatus: r.report_status as "Pending" | "Ready",
+    date: r.test_date,
+    amount: Number(r.amount),
+    status: r.status as RadiologyStatus,
+  };
+}
+
+export function toAmbulanceDTO(r: AmbulanceRow): AmbulanceDTO {
+  return {
+    id: r.id,
+    vehicleNumber: r.vehicle_number,
+    model: r.model,
+    driverName: r.driver_name,
+    driverPhone: r.driver_phone,
+    status: r.status as AmbulanceStatus,
+  };
+}
+
+export function toAmbulanceCallDTO(r: AmbulanceCallRow): AmbulanceCallDTO {
+  return {
+    id: r.id,
+    patientName: r.patient_name,
+    phone: r.phone,
+    pickupLocation: r.pickup_location,
+    dropLocation: r.drop_location,
+    ambulanceId: r.ambulance_id,
+    vehicleNumber: r.vehicle_number,
+    driverName: r.driver_name,
+    date: r.call_date,
+    time: r.call_time,
+    amount: Number(r.amount),
+    status: r.status as AmbulanceCallStatus,
+  };
+}
+
+export function toBirthRecordDTO(r: BirthRecordRow): BirthRecordDTO {
+  return {
+    id: r.id,
+    childName: r.child_name,
+    gender: r.gender as Gender,
+    date: r.birth_date,
+    time: r.birth_time,
+    weightKg: Number(r.weight_kg),
+    motherName: r.mother_name,
+    fatherName: r.father_name,
+    phone: r.phone,
+    address: r.address,
+  };
+}
+
+export function toDeathRecordDTO(r: DeathRecordRow): DeathRecordDTO {
+  return {
+    id: r.id,
+    deceasedName: r.deceased_name,
+    gender: r.gender as Gender,
+    age: r.age,
+    date: r.death_date,
+    time: r.death_time,
+    guardianName: r.guardian_name,
+    cause: r.cause,
+    phone: r.phone,
+    address: r.address,
+  };
+}
+
+export function toTpaDTO(r: TpaRow): TpaDTO {
+  return {
+    id: r.id,
+    name: r.name,
+    code: r.code,
+    contactPerson: r.contact_person,
+    phone: r.phone,
+    email: r.email,
+    address: r.address,
+    status: r.status as TpaStatus,
+  };
+}
+
+export function toTpaClaimDTO(r: TpaClaimRow): TpaClaimDTO {
+  return {
+    id: r.id,
+    tpaId: r.tpa_id,
+    tpaName: r.tpa_name,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    billNumber: r.bill_number,
+    claimAmount: Number(r.claim_amount),
+    approvedAmount: Number(r.approved_amount),
+    date: r.claim_date,
+    status: r.status as ClaimStatus,
+  };
+}
+
+export function toFinanceEntryDTO(
+  r: FinanceIncomeRow | FinanceExpenseRow,
+): FinanceEntryDTO {
+  return {
+    id: r.id,
+    category: r.category,
+    description: r.description,
+    invoiceNumber: r.invoice_number,
+    amount: Number(r.amount),
+    date: r.entry_date,
+  };
+}
+
+export function toInventoryItemDTO(r: InventoryItemRow): InventoryItemDTO {
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.category,
+    unit: r.unit,
+    stock: r.stock,
+    minStock: r.min_stock,
+    supplier: r.supplier,
+    status: r.status as InventoryStatus,
+  };
+}
+
+export function toInventoryIssueDTO(r: InventoryIssueRow): InventoryIssueDTO {
+  return {
+    id: r.id,
+    itemId: r.item_id,
+    itemName: r.item_name,
+    department: r.department,
+    quantity: r.quantity,
+    issuedTo: r.issued_to,
+    date: r.issue_date,
+    note: r.note,
   };
 }
 

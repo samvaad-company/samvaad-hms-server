@@ -27,6 +27,7 @@ const COLUMNS = [
   { label: "Bed",       width: "80px" },
   { label: "Doctor",    width: "minmax(130px,1.2fr)" },
   { label: "Diagnosis", width: "minmax(150px,1.5fr)" },
+  { label: "Credit Limit", width: "110px", align: "right" as const },
   { label: "Status",    width: "110px" },
   { label: "Action",    width: "52px", align: "right" as const },
 ];
@@ -38,7 +39,7 @@ const FILTERS = [
   { id: "Discharged", label: "Discharged" },
 ];
 
-const MIN_WIDTH = 1220;
+const MIN_WIDTH = 1330;
 
 function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
   return (
@@ -51,6 +52,7 @@ function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
       <span className="text-[13px] font-normal text-[#11111c]">{row.bed}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.diagnosis}</span>
+      <span className="text-[13px] font-normal text-[#11111c] text-right whitespace-nowrap">{row.creditLimit > 0 ? `₹${row.creditLimit.toLocaleString("en-IN")}` : "—"}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
@@ -71,7 +73,7 @@ export default function IpdPage() {
   const router = useRouter();
   const { dialog, remove, mutate, ask } = useRowActions("ipd", () => { reload(); reloadBeds(); });
 
-  const [form, setForm] = useState({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "" });
+  const [form, setForm] = useState({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "", creditLimit: "" });
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   async function admit() {
@@ -85,9 +87,10 @@ export default function IpdPage() {
         ward,
         status: form.status,
         diagnosis: form.diagnosis,
+        creditLimit: form.creditLimit ? Number(form.creditLimit) : 0,
       }),
     );
-    setForm({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "" });
+    setForm({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "", creditLimit: "" });
     setWard("");
     setShowModal(false);
     reload();
@@ -127,6 +130,7 @@ export default function IpdPage() {
           <FormRow label="Ward *"><FormSelect placeholder="Select ward" options={WARD_OPTS} value={ward} onChange={v => { setWard(v); set("bedId", ""); }} /></FormRow>
           <FormRow label="Bed *"><FormSelect placeholder={ward ? `${availableBeds.length} available` : "Select ward first"} value={form.bedId} onChange={v => set("bedId", v)} options={availableBeds.map(b => ({ value: String(b.id), label: b.bedNumber }))} /></FormRow>
           <FormRow label="Status"><FormSelect placeholder="Status" value={form.status} onChange={v => set("status", v)} options={["Admitted","ICU"].map(s => ({ value: s, label: s }))} /></FormRow>
+          <FormRow label="Credit Limit (₹)" hint="Maximum credit allowed for this admission"><FormInput type="number" placeholder="e.g. 50000" value={form.creditLimit} onChange={v => set("creditLimit", v)} /></FormRow>
           <div className="col-span-2"><FormRow label="Diagnosis / Reason"><FormInput placeholder="Provisional diagnosis or reason for admission" value={form.diagnosis} onChange={v => set("diagnosis", v)} /></FormRow></div>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>

@@ -28,6 +28,20 @@ export const TABLES = {
   otSchedules: "ot_schedules",
   hospitalSettings: "hospital_settings",
   auditLogs: "audit_logs",
+  bloodDonors: "blood_donors",
+  bloodStock: "blood_stock",
+  bloodIssues: "blood_issues",
+  radiologyTests: "radiology_tests",
+  ambulances: "ambulances",
+  ambulanceCalls: "ambulance_calls",
+  birthRecords: "birth_records",
+  deathRecords: "death_records",
+  tpas: "tpas",
+  tpaClaims: "tpa_claims",
+  financeIncomes: "finance_incomes",
+  financeExpenses: "finance_expenses",
+  inventoryItems: "inventory_items",
+  inventoryIssues: "inventory_issues",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -41,6 +55,7 @@ export interface UserRow extends Row {
   password_hash: string;
   role: string;
   department_id: number | null;
+  doctor_id: number | null;
   status: string;
   last_login_at: string | null;
   created_at: string;
@@ -269,6 +284,7 @@ export interface IpdAdmissionRow extends Row {
   doctor_id: number | null;
   doctor: string;
   diagnosis: string;
+  credit_limit: number;
   status: string;
   created_at: string;
   updated_at: string;
@@ -317,4 +333,191 @@ export interface AuditLogRow extends Row {
   entity_id: string;
   meta: unknown;
   created_at: string;
+}
+
+export interface BloodDonorRow extends Row {
+  id: number;
+  name: string;
+  age: number;
+  gender: string;
+  blood_group: string;
+  phone: string;
+  last_donation_date: string;
+  total_donations: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BloodStockRow extends Row {
+  id: number;
+  blood_group: string;
+  component: string;
+  units: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BloodIssueRow extends Row {
+  id: number;
+  patient_id: number | null;
+  patient_name: string;
+  blood_group: string;
+  component: string;
+  units: number;
+  doctor: string;
+  issue_date: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RadiologyTestRow extends Row {
+  id: number;
+  patient_id: number | null;
+  patient_name: string;
+  patient_age: number;
+  test_name: string;
+  scan_status: string;
+  report_status: string;
+  test_date: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AmbulanceRow extends Row {
+  id: number;
+  vehicle_number: string;
+  model: string;
+  driver_name: string;
+  driver_phone: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AmbulanceCallRow extends Row {
+  id: number;
+  patient_name: string;
+  phone: string;
+  pickup_location: string;
+  drop_location: string;
+  ambulance_id: number | null;
+  vehicle_number: string;
+  driver_name: string;
+  call_date: string;
+  call_time: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BirthRecordRow extends Row {
+  id: number;
+  child_name: string;
+  gender: string;
+  birth_date: string;
+  birth_time: string;
+  weight_kg: number;
+  mother_name: string;
+  father_name: string;
+  phone: string;
+  address: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeathRecordRow extends Row {
+  id: number;
+  deceased_name: string;
+  gender: string;
+  age: number;
+  death_date: string;
+  death_time: string;
+  guardian_name: string;
+  cause: string;
+  phone: string;
+  address: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TpaRow extends Row {
+  id: number;
+  name: string;
+  code: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  address: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TpaClaimRow extends Row {
+  id: number;
+  tpa_id: number | null;
+  tpa_name: string;
+  patient_id: number | null;
+  patient_name: string;
+  bill_number: string;
+  claim_amount: number;
+  approved_amount: number;
+  claim_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceIncomeRow extends Row {
+  id: number;
+  category: string;
+  description: string;
+  invoice_number: string;
+  amount: number;
+  entry_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinanceExpenseRow extends Row {
+  id: number;
+  category: string;
+  description: string;
+  invoice_number: string;
+  amount: number;
+  entry_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryItemRow extends Row {
+  id: number;
+  name: string;
+  category: string;
+  unit: string;
+  stock: number;
+  min_stock: number;
+  supplier: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryIssueRow extends Row {
+  id: number;
+  item_id: number | null;
+  item_name: string;
+  department: string;
+  quantity: number;
+  issued_to: string;
+  issue_date: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
 }

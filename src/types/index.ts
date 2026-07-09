@@ -12,6 +12,15 @@ export type IpdStatus = "Admitted" | "ICU" | "Discharged";
 export type OtStatus = "Scheduled" | "In Progress" | "Completed" | "Cancelled";
 export type BedStatus = "Available" | "Occupied" | "Reserved" | "Maintenance";
 export type StaffStatus = "Active" | "On Leave" | "Inactive";
+export type DonorStatus = "Eligible" | "Deferred";
+export type BloodIssueStatus = "Issued" | "Pending" | "Cancelled";
+export type RadiologyStatus = "Pending" | "Scan Done" | "Report Ready" | "Cancelled";
+export type AmbulanceStatus = "Available" | "On Call" | "Maintenance";
+export type AmbulanceCallStatus = "Dispatched" | "Completed" | "Cancelled";
+export type TpaStatus = "Active" | "Inactive";
+export type ClaimStatus = "Submitted" | "In Review" | "Approved" | "Rejected" | "Settled";
+export type InventoryStatus = "In Stock" | "Low Stock" | "Out of Stock";
+export type BloodComponent = "Whole Blood" | "Plasma" | "Platelets" | "RBC";
 
 export interface Patient {
   id: number;
@@ -109,7 +118,7 @@ export interface Bill {
   id: number;
   billNumber: string;
   patientName: string;
-  type: "OPD" | "Pharmacy" | "Lab" | "IPD";
+  type: "OPD" | "Pharmacy" | "Lab" | "IPD" | "Blood" | "Ambulance" | "Radiology";
   date: string;
   amount: number;
   discount: number;
@@ -128,6 +137,7 @@ export interface IpdRecord {
   bed: string;
   doctor: string;
   diagnosis: string;
+  creditLimit: number;
   status: IpdStatus;
 }
 

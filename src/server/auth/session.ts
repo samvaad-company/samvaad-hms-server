@@ -13,6 +13,8 @@ export interface SessionPayload {
   name: string;
   email: string;
   role: string;
+  /** linked doctor id, present only for doctor accounts */
+  did?: number;
   /** issued-at (epoch seconds) */
   iat: number;
   /** expiry (epoch seconds) */
@@ -24,6 +26,7 @@ export interface Session {
   name: string;
   email: string;
   role: string;
+  doctorId: number | null;
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -73,6 +76,7 @@ export async function createToken(
     name: session.name,
     email: session.email,
     role: session.role,
+    ...(session.doctorId != null ? { did: session.doctorId } : {}),
     iat,
     exp: iat + (maxAgeSeconds ?? cfg.sessionMaxAge),
   };
@@ -102,6 +106,7 @@ export async function verifyToken(
       name: payload.name,
       email: payload.email,
       role: payload.role,
+      doctorId: payload.did ?? null,
     };
   } catch {
     return null;

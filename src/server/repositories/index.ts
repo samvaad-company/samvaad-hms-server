@@ -23,6 +23,20 @@ import type {
   UserRow,
   HospitalSettingsRow,
   AuditLogRow,
+  BloodDonorRow,
+  BloodStockRow,
+  BloodIssueRow,
+  RadiologyTestRow,
+  AmbulanceRow,
+  AmbulanceCallRow,
+  BirthRecordRow,
+  DeathRecordRow,
+  TpaRow,
+  TpaClaimRow,
+  FinanceIncomeRow,
+  FinanceExpenseRow,
+  InventoryItemRow,
+  InventoryIssueRow,
 } from "@/server/db/tables";
 import {
   toPatientDTO,
@@ -40,6 +54,19 @@ import {
   toStaffDTO,
   toDepartmentDTO,
   toMedicineDTO,
+  toBloodDonorDTO,
+  toBloodStockDTO,
+  toBloodIssueDTO,
+  toRadiologyDTO,
+  toAmbulanceDTO,
+  toAmbulanceCallDTO,
+  toBirthRecordDTO,
+  toDeathRecordDTO,
+  toTpaDTO,
+  toTpaClaimDTO,
+  toFinanceEntryDTO,
+  toInventoryItemDTO,
+  toInventoryIssueDTO,
 } from "@/server/repositories/mappers";
 
 export const patientsRepo = createRepository<PatientRow, ReturnType<typeof toPatientDTO>>(
@@ -101,6 +128,63 @@ export const departmentsRepo = createRepository<DepartmentRow, ReturnType<typeof
 export const medicinesRepo = createRepository<MedicineRow, ReturnType<typeof toMedicineDTO>>(
   TABLES.medicines,
   toMedicineDTO,
+);
+
+export const bloodDonorsRepo = createRepository<BloodDonorRow, ReturnType<typeof toBloodDonorDTO>>(
+  TABLES.bloodDonors,
+  toBloodDonorDTO,
+);
+export const bloodStockRepo = createRepository<BloodStockRow, ReturnType<typeof toBloodStockDTO>>(
+  TABLES.bloodStock,
+  toBloodStockDTO,
+);
+export const bloodIssuesRepo = createRepository<BloodIssueRow, ReturnType<typeof toBloodIssueDTO>>(
+  TABLES.bloodIssues,
+  toBloodIssueDTO,
+);
+export const radiologyRepo = createRepository<RadiologyTestRow, ReturnType<typeof toRadiologyDTO>>(
+  TABLES.radiologyTests,
+  toRadiologyDTO,
+);
+export const ambulancesRepo = createRepository<AmbulanceRow, ReturnType<typeof toAmbulanceDTO>>(
+  TABLES.ambulances,
+  toAmbulanceDTO,
+);
+export const ambulanceCallsRepo = createRepository<AmbulanceCallRow, ReturnType<typeof toAmbulanceCallDTO>>(
+  TABLES.ambulanceCalls,
+  toAmbulanceCallDTO,
+);
+export const birthRecordsRepo = createRepository<BirthRecordRow, ReturnType<typeof toBirthRecordDTO>>(
+  TABLES.birthRecords,
+  toBirthRecordDTO,
+);
+export const deathRecordsRepo = createRepository<DeathRecordRow, ReturnType<typeof toDeathRecordDTO>>(
+  TABLES.deathRecords,
+  toDeathRecordDTO,
+);
+export const tpasRepo = createRepository<TpaRow, ReturnType<typeof toTpaDTO>>(
+  TABLES.tpas,
+  toTpaDTO,
+);
+export const tpaClaimsRepo = createRepository<TpaClaimRow, ReturnType<typeof toTpaClaimDTO>>(
+  TABLES.tpaClaims,
+  toTpaClaimDTO,
+);
+export const financeIncomesRepo = createRepository<FinanceIncomeRow, ReturnType<typeof toFinanceEntryDTO>>(
+  TABLES.financeIncomes,
+  toFinanceEntryDTO,
+);
+export const financeExpensesRepo = createRepository<FinanceExpenseRow, ReturnType<typeof toFinanceEntryDTO>>(
+  TABLES.financeExpenses,
+  toFinanceEntryDTO,
+);
+export const inventoryItemsRepo = createRepository<InventoryItemRow, ReturnType<typeof toInventoryItemDTO>>(
+  TABLES.inventoryItems,
+  toInventoryItemDTO,
+);
+export const inventoryIssuesRepo = createRepository<InventoryIssueRow, ReturnType<typeof toInventoryIssueDTO>>(
+  TABLES.inventoryIssues,
+  toInventoryIssueDTO,
 );
 
 // Raw-only repositories (no public DTO mapping needed).

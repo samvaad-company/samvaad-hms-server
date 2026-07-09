@@ -18,6 +18,17 @@ import type {
   OtRecord,
   Bed,
   Staff,
+  Gender,
+  BloodGroup,
+  DonorStatus,
+  BloodIssueStatus,
+  BloodComponent,
+  RadiologyStatus,
+  AmbulanceStatus,
+  AmbulanceCallStatus,
+  TpaStatus,
+  ClaimStatus,
+  InventoryStatus,
 } from "@/types";
 
 export interface PaginationMeta {
@@ -157,7 +168,158 @@ export interface SessionUserDTO {
   name: string;
   email: string;
   role: string;
+  doctorId: number | null;
   permissions: Record<string, "none" | "read" | "write">;
+}
+
+export interface BloodDonorDTO {
+  id: number;
+  name: string;
+  age: number;
+  gender: Gender;
+  bloodGroup: BloodGroup;
+  phone: string;
+  lastDonationDate: string;
+  totalDonations: number;
+  status: DonorStatus;
+}
+
+export interface BloodStockDTO {
+  id: number;
+  bloodGroup: BloodGroup;
+  component: BloodComponent;
+  units: number;
+}
+
+export interface BloodIssueDTO {
+  id: number;
+  patientId: number | null;
+  patientName: string;
+  bloodGroup: BloodGroup;
+  component: BloodComponent;
+  units: number;
+  doctor: string;
+  date: string;
+  amount: number;
+  status: BloodIssueStatus;
+}
+
+export interface RadiologyTestDTO {
+  id: number;
+  patientId: number | null;
+  patientName: string;
+  patientAge: number;
+  testName: string;
+  scanStatus: "Pending" | "Done";
+  reportStatus: "Pending" | "Ready";
+  date: string;
+  amount: number;
+  status: RadiologyStatus;
+}
+
+export interface AmbulanceDTO {
+  id: number;
+  vehicleNumber: string;
+  model: string;
+  driverName: string;
+  driverPhone: string;
+  status: AmbulanceStatus;
+}
+
+export interface AmbulanceCallDTO {
+  id: number;
+  patientName: string;
+  phone: string;
+  pickupLocation: string;
+  dropLocation: string;
+  ambulanceId: number | null;
+  vehicleNumber: string;
+  driverName: string;
+  date: string;
+  time: string;
+  amount: number;
+  status: AmbulanceCallStatus;
+}
+
+export interface BirthRecordDTO {
+  id: number;
+  childName: string;
+  gender: Gender;
+  date: string;
+  time: string;
+  weightKg: number;
+  motherName: string;
+  fatherName: string;
+  phone: string;
+  address: string;
+}
+
+export interface DeathRecordDTO {
+  id: number;
+  deceasedName: string;
+  gender: Gender;
+  age: number;
+  date: string;
+  time: string;
+  guardianName: string;
+  cause: string;
+  phone: string;
+  address: string;
+}
+
+export interface TpaDTO {
+  id: number;
+  name: string;
+  code: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  status: TpaStatus;
+}
+
+export interface TpaClaimDTO {
+  id: number;
+  tpaId: number | null;
+  tpaName: string;
+  patientId: number | null;
+  patientName: string;
+  billNumber: string;
+  claimAmount: number;
+  approvedAmount: number;
+  date: string;
+  status: ClaimStatus;
+}
+
+export interface FinanceEntryDTO {
+  id: number;
+  category: string;
+  description: string;
+  invoiceNumber: string;
+  amount: number;
+  date: string;
+}
+
+export interface InventoryItemDTO {
+  id: number;
+  name: string;
+  category: string;
+  unit: string;
+  stock: number;
+  minStock: number;
+  supplier: string;
+  status: InventoryStatus;
+}
+
+export interface InventoryIssueDTO {
+  id: number;
+  itemId: number | null;
+  itemName: string;
+  department: string;
+  quantity: number;
+  issuedTo: string;
+  date: string;
+  note: string;
 }
 
 export interface DashboardStatsDTO {

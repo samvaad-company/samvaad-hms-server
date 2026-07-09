@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, type LucideIcon } from "lucide-react";
 
 interface FilterTab {
   id: string;
@@ -17,6 +17,8 @@ interface FilterBarProps {
   onFilterChange?: (id: string) => void;
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
+  /** Optional trailing action button (e.g. Add, Export). */
+  action?: { label: string; icon?: LucideIcon; onClick: () => void };
 }
 
 export function FilterBar({
@@ -27,6 +29,7 @@ export function FilterBar({
   onFilterChange,
   searchQuery: controlledSearch,
   onSearchChange,
+  action,
 }: FilterBarProps) {
   const activeFilter = controlledFilter ?? filters[0]?.id ?? "All";
   const [menuOpen, setMenuOpen] = useState(false);
@@ -112,6 +115,16 @@ export function FilterBar({
             </div>
           )}
         </div>
+
+        {action && (
+          <button
+            onClick={action.onClick}
+            className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+          >
+            {action.icon && <action.icon size={14} />}
+            {action.label}
+          </button>
+        )}
       </div>
     </div>
   );

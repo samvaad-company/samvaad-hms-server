@@ -28,6 +28,7 @@ const admitSchema = {
   doctorId: { type: "number", required: false },
   doctor: { type: "string", required: false, max: 120, default: "" },
   diagnosis: { type: "string", required: true, min: 2, max: 240 },
+  creditLimit: { type: "number", required: false, min: 0, default: 0 },
   status: { type: "enum", required: false, values: ["Admitted", "ICU", "Discharged"], default: "Admitted" },
 } as const;
 
@@ -106,6 +107,7 @@ export async function admitPatient(input: unknown, actor: Session) {
     doctor_id: data.doctorId ?? null,
     doctor: doctorName,
     diagnosis: data.diagnosis,
+    credit_limit: data.creditLimit ?? 0,
     status: data.status,
   });
   await audit(actor, "admit", "ipd", row.id, { bedId, ward });
@@ -118,6 +120,7 @@ export async function updateIpd(id: number, input: unknown, actor: Session) {
   const data = validatePartial(admitSchema, input);
   const patch: Record<string, unknown> = {};
   if ("diagnosis" in data) patch.diagnosis = data.diagnosis;
+  if ("creditLimit" in data) patch.credit_limit = data.creditLimit;
   if ("status" in data) patch.status = data.status;
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;

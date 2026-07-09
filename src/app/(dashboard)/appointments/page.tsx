@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, Download, MonitorPlay } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
@@ -69,18 +69,24 @@ function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onC
   return (
     <div className="flex flex-col overflow-auto" style={{ height: 555 }}>
       {/* Stats bar */}
-      <div className="flex items-center gap-6 px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1] shrink-0">
-        {[
-          { label: "Waiting", value: waiting, color: "text-[#ff9000]" },
-          { label: "In Consultation", value: inConsult, color: "text-[#007cff]" },
-          { label: "Completed", value: completed, color: "text-[#00955c]" },
-        ].map((s, i) => (
-          <div key={i} className="flex items-center gap-3">
-            {i > 0 && <div className="w-px h-5 bg-[#dedee1]" />}
-            <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.label}</span>
-            <span className={`text-[22px] font-medium leading-none ${s.color}`}>{s.value}</span>
-          </div>
-        ))}
+      <div className="flex items-center justify-between px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1] shrink-0">
+        <div className="flex items-center gap-6">
+          {[
+            { label: "Waiting", value: waiting, color: "text-[#ff9000]" },
+            { label: "In Consultation", value: inConsult, color: "text-[#007cff]" },
+            { label: "Completed", value: completed, color: "text-[#00955c]" },
+          ].map((s, i) => (
+            <div key={i} className="flex items-center gap-3">
+              {i > 0 && <div className="w-px h-5 bg-[#dedee1]" />}
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.label}</span>
+              <span className={`text-[22px] font-medium leading-none ${s.color}`}>{s.value}</span>
+            </div>
+          ))}
+        </div>
+        <Link href="/queue-board" target="_blank"
+          className="flex items-center gap-[6px] text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+          <MonitorPlay size={14} /> Token Display Board
+        </Link>
       </div>
       {/* Queue rows */}
       <div className="overflow-x-auto flex-1">
@@ -137,61 +143,76 @@ function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onC
   );
 }
 
-// ─── Doctor Schedule ──────────────────────────────────────────────────────────
+// ─── Doctor-wise Schedule ─────────────────────────────────────────────────────
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** Distinct appointment dates in chronological order, capped for the grid. */
+function scheduleDates(appointments: AppointmentDTO[], max = 6): string[] {
+  const seen = new Map<string, number>();
+  for (const a of appointments) {
+    if (a.status === "Cancelled") continue;
+    const t = new Date(a.date).getTime();
+    if (!seen.has(a.date)) seen.set(a.date, Number.isNaN(t) ? Infinity : t);
+  }
+  return [...seen.entries()]
+    .sort((x, y) => x[1] - y[1])
+    .slice(0, max)
+    .map(([date]) => date);
+}
 
-function ScheduleView({ doctors }: { doctors: DoctorDTO[] }) {
-  const activeDoctors = doctors.filter(d => d.status !== "On Leave").slice(0, 8);
+function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appointments: AppointmentDTO[] }) {
+  const dates = scheduleDates(appointments);
+  const withAppointments = new Set(appointments.map(a => a.doctor));
+  const rows = doctors.filter(d => withAppointments.has(d.name) || d.status !== "On Leave");
+
+  const cellAppointments = (doctor: string, date: string) =>
+    appointments
+      .filter(a => a.doctor === doctor && a.date === date && a.status !== "Cancelled")
+      .sort((a, b) => a.time.localeCompare(b.time));
+
+  if (dates.length === 0) {
+    return <div className="py-16 text-center text-[14px] text-[#57575f]">No appointments scheduled.</div>;
+  }
 
   return (
     <div className="p-5 overflow-auto" style={{ height: 555 }}>
       <div style={{ minWidth: 900 }}>
         {/* Header */}
-        <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
+        <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${dates.length}, 1fr)` }}>
           <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider py-2">Doctor</div>
-          {DAY_SHORT.map(d => (
-            <div key={d} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider text-center py-2">{d}</div>
+          {dates.map(d => (
+            <div key={d} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider text-center py-2 whitespace-nowrap">{d}</div>
           ))}
         </div>
         {/* Doctor rows */}
-        {activeDoctors.map(doc => (
-          <div key={doc.id} className="grid gap-2 mb-2 border-b border-[#f0f0f0] pb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
+        {rows.map(doc => (
+          <div key={doc.id} className="grid gap-2 mb-2 border-b border-[#f0f0f0] pb-2" style={{ gridTemplateColumns: `200px repeat(${dates.length}, 1fr)` }}>
             <div className="flex flex-col gap-[2px] py-2">
-              <span className="text-[13px] font-medium text-[#11111c] leading-4 whitespace-nowrap">{doc.name.replace("Dr. ", "Dr.")}</span>
+              <span className="text-[13px] font-medium text-[#11111c] leading-4 whitespace-nowrap">{doc.name}</span>
               <span className="text-[11px] font-light text-[#57575f]">{doc.specialty}</span>
+              {doc.status === "On Leave" && (
+                <span className="text-[10px] font-medium text-[#ff0004]">On Leave</span>
+              )}
             </div>
-            {DAYS.map((day, di) => {
-              const isOff = day === "Saturday" && doc.id % 4 === 0;
-              const isLeave = false;
+            {dates.map(date => {
+              const slots = cellAppointments(doc.name, date);
+              const onLeave = doc.status === "On Leave";
               return (
-                <div key={day} className={`rounded-[8px] p-2 text-center ${isOff ? "bg-[#f0f0f0]" : "bg-[#e8f7f7]"}`}>
-                  {isOff ? (
-                    <span className="text-[10px] font-normal text-[#57575f]">Off</span>
+                <div key={date} className={`rounded-[8px] p-2 text-center ${onLeave ? "bg-[#ffe9e9]" : slots.length > 0 ? "bg-[#e8f7f7]" : "bg-[#f6f6f6]"}`}>
+                  {onLeave ? (
+                    <span className="text-[10px] font-medium text-[#ff0004]">On Leave</span>
+                  ) : slots.length === 0 ? (
+                    <span className="text-[10px] font-normal text-[#57575f]">Free</span>
                   ) : (
                     <>
-                      <div className="text-[10px] font-medium text-[#009598]">9–1 PM</div>
-                      {di < 5 && <div className="text-[10px] font-medium text-[#009598] mt-[2px]">4–8 PM</div>}
+                      <div className="text-[11px] font-medium text-[#009598]">{slots.length} appt{slots.length > 1 ? "s" : ""}</div>
+                      <div className="text-[10px] font-normal text-[#009598] mt-[2px] truncate">
+                        {slots.slice(0, 3).map(s => s.time).join(" · ")}{slots.length > 3 ? " …" : ""}
+                      </div>
                     </>
                   )}
                 </div>
               );
             })}
-          </div>
-        ))}
-        {/* On leave doctors */}
-        {doctors.filter(d => d.status === "On Leave").map(doc => (
-          <div key={doc.id} className="grid gap-2 mb-2 border-b border-[#f0f0f0] pb-2" style={{ gridTemplateColumns: "200px repeat(6, 1fr)" }}>
-            <div className="flex flex-col gap-[2px] py-2">
-              <span className="text-[13px] font-medium text-[#11111c] leading-4">{doc.name.replace("Dr. ", "Dr.")}</span>
-              <span className="text-[11px] font-light text-[#57575f]">{doc.specialty}</span>
-            </div>
-            {DAYS.map(day => (
-              <div key={day} className="rounded-[8px] p-2 text-center bg-[#ffe9e9]">
-                <span className="text-[10px] font-medium text-[#ff0004]">On Leave</span>
-              </div>
-            ))}
           </div>
         ))}
       </div>
@@ -244,8 +265,27 @@ export default function AppointmentsPage() {
   const TABS = [
     { id: "all",      label: "All Appointments", count: appointments.length },
     { id: "queue",    label: "Live Queue",        count: opdRecords.filter(r => r.status === "Waiting").length },
-    { id: "schedule", label: "Doctor Schedule" },
+    { id: "schedule", label: "Doctor Wise" },
   ];
+
+  /** Download the (filtered) appointment list as CSV. */
+  function exportCsv() {
+    const header = ["Patient", "Age", "Doctor", "Date", "Time", "Type", "Reason", "Status"];
+    const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [
+      header.join(","),
+      ...visible.map(r =>
+        [r.patientName, r.patientAge, r.doctor, r.date, r.time, r.type, r.reason, r.status]
+          .map(escape).join(",")),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `appointments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const visible = appointments.filter(r => {
     const matchF = filter === "All" || r.status === filter;
@@ -292,7 +332,8 @@ export default function AppointmentsPage() {
           {tab === "all" && (
             <>
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or doctor..."
-                activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
+                activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch}
+                action={{ label: "Export CSV", icon: Download, onClick: exportCsv }} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No appointments found.</div>
@@ -308,7 +349,7 @@ export default function AppointmentsPage() {
             </>
           )}
           {tab === "queue"    && <QueueView opdRecords={opdRecords} onCallNext={callNext} />}
-          {tab === "schedule" && <ScheduleView doctors={doctors} />}
+          {tab === "schedule" && <ScheduleView doctors={doctors} appointments={appointments} />}
         </div>
       </div>
     </>

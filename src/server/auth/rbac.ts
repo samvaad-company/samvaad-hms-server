@@ -21,7 +21,14 @@ export type Resource =
   | "billing"
   | "staff"
   | "reports"
-  | "admin";
+  | "admin"
+  | "radiology"
+  | "bloodbank"
+  | "ambulance"
+  | "records"
+  | "tpa"
+  | "finance"
+  | "inventory";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -41,6 +48,13 @@ export const RESOURCES: Resource[] = [
   "staff",
   "reports",
   "admin",
+  "radiology",
+  "bloodbank",
+  "ambulance",
+  "records",
+  "tpa",
+  "finance",
+  "inventory",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -90,6 +104,8 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     ipd: "write",
     beds: "write",
     doctors: "read",
+    bloodbank: "read",
+    inventory: "read",
   }),
   Receptionist: withOverrides(NONE, {
     patients: "write",
@@ -103,6 +119,8 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     appointments: "read",
     billing: "write",
     reports: "read",
+    tpa: "write",
+    finance: "write",
   }),
   Pharmacist: withOverrides(NONE, {
     pharmacy: "write",
@@ -110,9 +128,10 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   }),
   "Lab Technician": withOverrides(NONE, {
     lab: "write",
+    radiology: "write",
     patients: "read",
   }),
-  Driver: NONE,
+  Driver: withOverrides(NONE, { ambulance: "read" }),
 };
 
 function levelSatisfies(level: Access, action: Action): boolean {
