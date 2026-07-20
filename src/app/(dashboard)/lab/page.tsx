@@ -5,6 +5,7 @@ import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
 import { FlaskConical, Plus, Upload, Eye } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
+import { inDateRange, type DateRangeId } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -240,6 +241,7 @@ export default function LabPage() {
   const [tab, setTab] = useState("tests");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [range, setRange] = useState<DateRangeId>("all");
   const router = useRouter();
   const { items: labTests, reload } = useList<LabTestDTO>("/lab", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -255,7 +257,7 @@ export default function LabPage() {
     const matchF = filter === "All" || t.status === (LAB_FILTER_MAP[filter] ?? filter);
     const q = search.toLowerCase();
     const matchS = !q || t.patientName.toLowerCase().includes(q) || t.testName.toLowerCase().includes(q);
-    return matchF && matchS;
+    return matchF && matchS && inDateRange(t.date, range);
   });
 
   return (
@@ -266,6 +268,8 @@ export default function LabPage() {
         subtitle="Manage lab tests, sample collection, report generation, and test bookings."
         stats={[{ icon: FlaskConical, value: `${visible.filter(t => t.status !== "Report Ready").length}`, label: "Active Tests" }]}
         action={{ label: "Order Test", icon: Plus, onClick: () => setTab("booking") }}
+        range={range}
+        onRangeChange={setRange}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>

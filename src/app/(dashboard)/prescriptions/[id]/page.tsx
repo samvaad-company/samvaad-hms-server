@@ -1,17 +1,22 @@
 "use client";
 
+import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem } from "@/lib/api/hooks";
+import { printElement } from "@/lib/print";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PrescriptionDTO } from "@/types/api";
-import { ChevronLeft, Printer, Share2, Download, QrCode } from "lucide-react";
-import Link from "next/link";
+import { Printer, Share2, Download, QrCode } from "lucide-react";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PrescriptionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { item: rx, loading } = useItem<PrescriptionDTO>(`/prescriptions/${id}`);
+  useBreadcrumb("/prescriptions", "Prescriptions", rx?.rxNumber ?? "Prescription");
+  const docRef = useRef<HTMLDivElement>(null);
+  const printRx = () => printElement(docRef.current, rx ? `Prescription ${rx.rxNumber}` : "Prescription");
 
   if (loading) {
     return (
@@ -38,26 +43,23 @@ export default function PrescriptionDetailPage() {
 
   return (
     <>
-      {/* Back + actions */}
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
-        <Link href="/prescriptions" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Prescriptions
-        </Link>
+      {/* Actions */}
+      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-end`}>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
             <Share2 size={14} /> Share
           </button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
             <Download size={14} /> PDF
           </button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+          <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} /> Print
           </button>
         </div>
       </div>
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
+        <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
           {/* Hospital header */}
           <div className="px-8 py-6 border-b border-[#dedee1] flex items-start justify-between">
             <div className="flex flex-col gap-1">

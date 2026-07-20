@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem } from "@/lib/api/hooks";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, PrescriptionDTO, LabTestDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import {
-  Phone, MapPin, Droplets, Calendar, ChevronLeft,
+  Phone, MapPin, Droplets, Calendar,
   FileText, Upload, ShieldCheck, AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -202,6 +204,7 @@ export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("overview");
   const { item: patient, loading } = useItem<PatientDetail>(`/patients/${id}`);
+  useBreadcrumb("/patients", "Patients", patient?.name ?? "Patient Details");
 
   if (loading) {
     return (
@@ -223,13 +226,7 @@ export default function PatientDetailPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-4 pt-2`}>
-        <Link href="/patients" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Patients
-        </Link>
-      </div>
-
-      <div className={`${tw.gutterX} mb-[30px]`}>
+      <div className={`${tw.gutterX} mb-[30px] pt-4`}>
         <div className="flex gap-5 items-start">
           {/* ── Left: Profile card ── */}
           <div className="flex flex-col gap-4 shrink-0" style={{ width: 280 }}>
@@ -259,6 +256,9 @@ export default function PatientDetailPage() {
                   </div>
                 </div>
               ))}
+              <div className="border-t border-[#f0f0f0] pt-3">
+                <AbhaBadge abhaId={patient.abhaId} variant="card" />
+              </div>
             </div>
 
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>

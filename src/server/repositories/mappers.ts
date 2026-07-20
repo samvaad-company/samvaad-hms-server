@@ -32,6 +32,8 @@ import type {
   FinanceEntryDTO,
   InventoryItemDTO,
   InventoryIssueDTO,
+  TaskDTO,
+  ScribeNoteDTO,
 } from "@/types/api";
 import type {
   PatientRow,
@@ -64,6 +66,8 @@ import type {
   FinanceExpenseRow,
   InventoryItemRow,
   InventoryIssueRow,
+  TaskRow,
+  ScribeNoteRow,
 } from "@/server/db/tables";
 import type {
   Gender,
@@ -88,6 +92,9 @@ import type {
   TpaStatus,
   ClaimStatus,
   InventoryStatus,
+  TaskStatus,
+  TaskPriority,
+  ScribeStatus,
 } from "@/types";
 
 function splitList(value: string | null): string[] {
@@ -515,6 +522,41 @@ export function toInventoryIssueDTO(r: InventoryIssueRow): InventoryIssueDTO {
     issuedTo: r.issued_to,
     date: r.issue_date,
     note: r.note,
+  };
+}
+
+export function toTaskDTO(r: TaskRow): TaskDTO {
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    goal: r.goal,
+    assigneeId: r.assignee_id,
+    assigneeName: r.assignee_name,
+    assignedBy: r.assigned_by,
+    priority: r.priority as TaskPriority,
+    status: r.status as TaskStatus,
+    dueDate: r.due_date,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function toScribeNoteDTO(r: ScribeNoteRow): ScribeNoteDTO {
+  return {
+    id: r.id,
+    appointmentId: r.appointment_id,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    doctorId: r.doctor_id,
+    doctorName: r.doctor_name,
+    transcript: r.transcript,
+    brief: r.brief,
+    language: r.language,
+    durationSec: r.duration_sec,
+    status: r.status as ScribeStatus,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 

@@ -16,6 +16,7 @@ import type {
   IpdAdmissionRow,
   OtScheduleRow,
   BedRow,
+  BedTransferRow,
   WardRow,
   StaffRow,
   DepartmentRow,
@@ -37,6 +38,8 @@ import type {
   FinanceExpenseRow,
   InventoryItemRow,
   InventoryIssueRow,
+  TaskRow,
+  ScribeNoteRow,
 } from "@/server/db/tables";
 import {
   toPatientDTO,
@@ -67,6 +70,8 @@ import {
   toFinanceEntryDTO,
   toInventoryItemDTO,
   toInventoryIssueDTO,
+  toTaskDTO,
+  toScribeNoteDTO,
 } from "@/server/repositories/mappers";
 
 export const patientsRepo = createRepository<PatientRow, ReturnType<typeof toPatientDTO>>(
@@ -186,6 +191,14 @@ export const inventoryIssuesRepo = createRepository<InventoryIssueRow, ReturnTyp
   TABLES.inventoryIssues,
   toInventoryIssueDTO,
 );
+export const tasksRepo = createRepository<TaskRow, ReturnType<typeof toTaskDTO>>(
+  TABLES.tasks,
+  toTaskDTO,
+);
+export const scribeNotesRepo = createRepository<ScribeNoteRow, ReturnType<typeof toScribeNoteDTO>>(
+  TABLES.scribeNotes,
+  toScribeNoteDTO,
+);
 
 // Raw-only repositories (no public DTO mapping needed).
 export const usersRepo = createRepository<UserRow, UserRow>(
@@ -194,6 +207,10 @@ export const usersRepo = createRepository<UserRow, UserRow>(
 );
 export const wardsRepo = createRepository<WardRow, WardRow>(
   TABLES.wards,
+  (row) => row,
+);
+export const bedTransfersRepo = createRepository<BedTransferRow, BedTransferRow>(
+  TABLES.bedTransfers,
   (row) => row,
 );
 export const settingsRepo = createRepository<HospitalSettingsRow, HospitalSettingsRow>(

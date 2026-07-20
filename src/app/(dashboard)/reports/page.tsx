@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { tw } from "@/lib/design-system";
 import { BarChart3, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { useItem } from "@/lib/api/hooks";
+import { printElement } from "@/lib/print";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
@@ -324,6 +325,7 @@ export default function ReportsPage() {
   const { item: report } = useItem<{ kpis: KpiStat[]; rows: ReportRow[] }>("/reports");
   const reportRows = report?.rows ?? [];
   const revenueKpi = report?.kpis?.find(k => k.label === "Total Revenue")?.value ?? "—";
+  const docRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
@@ -331,8 +333,9 @@ export default function ReportsPage() {
         title="Reports"
         subtitle="Analyse hospital performance — revenue, patient volume, doctor productivity, and pharmacy."
         stats={[{ icon: BarChart3, value: revenueKpi, label: "Total Revenue" }]}
-        action={{ label: "Export Report", icon: Download, onClick: () => window.print() }}
+        action={{ label: "Export Report", icon: Download, onClick: () => printElement(docRef.current, "Hospital Report — November 2025") }}
       />
+      <div ref={docRef}>
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
@@ -354,6 +357,7 @@ export default function ReportsPage() {
             {reportRows.map(r => <ReportTableRow key={r.id} row={r} />)}
           </DataTable>
         </div>
+      </div>
       </div>
     </>
   );

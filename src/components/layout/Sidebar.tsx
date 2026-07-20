@@ -27,6 +27,7 @@ import {
   Wallet,
   ShieldCheck,
   House,
+  ClipboardList,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { type Resource } from "@/server/auth/rbac";
@@ -98,6 +99,7 @@ const groups: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { href: "/tasks",         label: "Task Board",    icon: ClipboardList, resource: "tasks" },
       { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff" },
       { href: "/reports",       label: "Reports",       icon: BarChart3, resource: "reports" },
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin" },
@@ -158,7 +160,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Nav Groups */}
-      <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-[6px]" style={{ padding: collapsed ? "16px 8px" : "16px 12px" }}>
+      <nav className="flex-1 overflow-y-auto no-scrollbar py-4 flex flex-col gap-[6px]" style={{ padding: collapsed ? "16px 8px" : "16px 12px" }}>
         {visibleGroups.map((group) => (
           <div key={group.label} className="flex flex-col gap-[2px]">
             {!collapsed && (

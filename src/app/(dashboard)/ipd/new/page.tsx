@@ -6,12 +6,14 @@ import { tw } from "@/lib/design-system";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
-import { ChevronLeft, Check, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function NewIpdAdmissionPage() {
   const router = useRouter();
+  useBreadcrumb("/ipd", "IPD", "New Admission");
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -43,10 +45,11 @@ export default function NewIpdAdmissionPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
-        <Link href="/ipd" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to IPD
-        </Link>
+      <div className={`${tw.gutterX} mb-4 pt-3 flex items-center justify-between`}>
+        <div className="flex flex-col gap-[2px]">
+          <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New IPD Admission</h1>
+          <p className="text-[13px] font-light text-[#57575f] leading-[17px]">Admit a patient and assign a ward & bed.</p>
+        </div>
         <div className="flex items-center gap-2">
           <Link href="/ipd" className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</Link>
           <button onClick={submit} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
@@ -57,7 +60,6 @@ export default function NewIpdAdmissionPage() {
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} p-8`}>
-          <h2 className="text-[18px] font-medium text-[#11111c] mb-6">New IPD Admission</h2>
           {error && <div className="mb-4 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
 
           <div className="flex flex-col gap-7">

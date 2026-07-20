@@ -43,6 +43,10 @@ import {
   inventoryItems as inventoryItemsData,
   inventoryIssues as inventoryIssuesData,
 } from "@/data/modules";
+import {
+  tasks as tasksData,
+  scribeNotes as scribeNotesData,
+} from "@/data/workflow";
 
 const now = () => new Date().toISOString();
 
@@ -65,6 +69,14 @@ const CHRONIC: Record<number, string[]> = {
   7: ["GERD"],
   9: ["Hypertension", "Hyperlipidaemia"],
   10: ["Chronic Low Back Pain", "Hypertension"],
+};
+/** Government ABHA (Ayushman Bharat Health Account) numbers on file. */
+const ABHA: Record<number, string> = {
+  1: "12-3456-7890-1234",
+  2: "45-6789-0123-4567",
+  5: "98-7654-3210-9876",
+  6: "23-4567-8901-2345",
+  9: "34-5678-9012-3456",
 };
 
 function findDeptId(name: string): number | null {
@@ -168,7 +180,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     pincode: null,
     allergies: (ALLERGIES[p.id] ?? []).join(", ") || null,
     chronic_conditions: (CHRONIC[p.id] ?? []).join(", ") || null,
-    abha_id: null,
+    abha_id: ABHA[p.id] ?? null,
     emergency_name: null,
     emergency_relation: null,
     emergency_phone: null,
@@ -332,6 +344,27 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     patient_name: b.patientName ?? null,
     patient_code: b.patientId ?? null,
     status: b.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  // ── Bed transfer history ─────────────────────────────────────────────────
+  // Oldest first so descending-id listing shows newest transfers on top.
+  const bedTransfers: Row[] = [
+    { patient: "Olivia Davis",  from: "General Ward · A-11", to: "Surgery Ward · D-01", date: "7 Nov 2025",  reason: "Surgery scheduled",    status: "Pending" },
+    { patient: "James Brown",   from: "General Ward · A-03", to: "Cardiology · C-07",   date: "8 Nov 2025",  reason: "Cardiac monitoring",   status: "Completed" },
+    { patient: "Emma Williams", from: "Maternity · E-01",    to: "ICU · B-03",          date: "9 Nov 2025",  reason: "Emergency escalation", status: "Completed" },
+    { patient: "Liam Johnson",  from: "Surgery Ward · D-03", to: "General Ward · A-08", date: "10 Nov 2025", reason: "Post-op recovery",     status: "Completed" },
+    { patient: "Sophia Adams",  from: "General Ward · A-05", to: "Surgery Ward · D-02", date: "11 Nov 2025", reason: "Pre-op preparation",   status: "Completed" },
+    { patient: "Noah Carter",   from: "ICU · B-01",          to: "Cardiology · C-04",   date: "12 Nov 2025", reason: "Stable condition",     status: "Completed" },
+  ].map((t, i) => ({
+    id: i + 1,
+    patient_name: t.patient,
+    from_label: t.from,
+    to_label: t.to,
+    transfer_date: t.date,
+    reason: t.reason,
+    status: t.status,
     created_at: ts,
     updated_at: ts,
   }));
@@ -574,6 +607,37 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     updated_at: ts,
   }));
 
+  const tasks: Row[] = tasksData.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    goal: t.goal,
+    assignee_id: t.assigneeId,
+    assignee_name: t.assigneeName,
+    assigned_by: t.assignedBy,
+    priority: t.priority,
+    status: t.status,
+    due_date: t.dueDate,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  const scribeNotes: Row[] = scribeNotesData.map((s) => ({
+    id: s.id,
+    appointment_id: s.appointmentId,
+    patient_id: s.patientId,
+    patient_name: s.patientName,
+    doctor_id: s.doctorId,
+    doctor_name: s.doctorName,
+    transcript: s.transcript,
+    brief: s.brief,
+    language: s.language,
+    duration_sec: s.durationSec,
+    status: s.status,
+    created_at: ts,
+    updated_at: ts,
+  }));
+
   return {
     [TABLES.departments]: departments,
     [TABLES.doctors]: doctors,
@@ -608,5 +672,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.financeExpenses]: financeExpenses,
     [TABLES.inventoryItems]: inventoryItems,
     [TABLES.inventoryIssues]: inventoryIssues,
+    [TABLES.tasks]: tasks,
+    [TABLES.scribeNotes]: scribeNotes,
+    [TABLES.bedTransfers]: bedTransfers,
   };
 }

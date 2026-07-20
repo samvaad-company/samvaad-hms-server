@@ -1,13 +1,15 @@
 "use client";
 
+import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { printElement } from "@/lib/print";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { LabTestDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ChevronLeft, Printer, Share2, Download, Upload, Flag } from "lucide-react";
-import Link from "next/link";
+import { Printer, Share2, Download, Upload, Flag } from "lucide-react";
 
 // ─── Mock parameter data per test ────────────────────────────────────────────
 
@@ -57,7 +59,10 @@ const FLAG_CLR: Record<string, string> = {
 export default function LabReportDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { item: test, loading, reload } = useItem<LabTestDTO>(`/lab/${id}`);
+  useBreadcrumb("/lab", "Laboratory", test?.testName ?? "Lab Report");
   const { run, loading: acting } = useMutation();
+  const docRef = useRef<HTMLDivElement>(null);
+  const printReport = () => printElement(docRef.current, test ? `Lab Report — ${test.testName}` : "Lab Report");
 
   async function markReady() {
     await run(() => api.patch(`/lab/${id}`, { sampleStatus: "Collected", reportStatus: "Ready" }));
@@ -76,21 +81,18 @@ export default function LabReportDetailPage() {
 
   return (
     <>
-      {/* Back + actions */}
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
-        <Link href="/lab" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Laboratory
-        </Link>
+      {/* Actions */}
+      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-end`}>
         <div className="flex items-center gap-2">
           {isReady ? (
             <>
-              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
                 <Share2 size={14} /> Share
               </button>
-              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
                 <Download size={14} /> PDF
               </button>
-              <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
                 <Printer size={14} /> Print
               </button>
             </>
@@ -103,7 +105,7 @@ export default function LabReportDetailPage() {
       </div>
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
+        <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
           {/* Header */}
           <div className="px-8 py-5 border-b border-[#dedee1] flex items-start justify-between">
             <div>

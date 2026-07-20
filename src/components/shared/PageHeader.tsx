@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { type LucideIcon, Calendar, ChevronDown, Plus } from "lucide-react";
 import { StatPill } from "./StatPill";
+import { DATE_RANGES, type DateRangeId } from "@/lib/dates";
 
 interface StatItem {
   icon: LucideIcon;
@@ -16,7 +20,10 @@ interface PageHeaderProps {
     icon?: LucideIcon;
     onClick?: () => void;
   };
+  /** Show the date-range filter (requires range + onRangeChange to be functional). */
   dateRange?: boolean;
+  range?: DateRangeId;
+  onRangeChange?: (range: DateRangeId) => void;
 }
 
 export function PageHeader({
@@ -25,8 +32,23 @@ export function PageHeader({
   stats,
   action,
   dateRange = true,
+  range = "all",
+  onRangeChange,
 }: PageHeaderProps) {
   const ActionIcon = action.icon ?? Plus;
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const rangeLabel = DATE_RANGES.find((r) => r.id === range)?.label ?? "All time";
 
   return (
     <div className="flex items-start justify-between px-[30px] pt-[16px] pb-[12px]">
@@ -44,21 +66,39 @@ export function PageHeader({
           <StatPill key={i} {...s} />
         ))}
 
-        {dateRange && (
-          <div className="bg-white flex items-center gap-[10px] px-[15px] py-[6px] rounded-full cursor-pointer">
-            <div className="flex items-center gap-[5px]">
-              <Calendar size={24} strokeWidth={1.5} className="text-[#11111c]" />
-              <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">
-                1 Nov -30 Nov
+        {dateRange && onRangeChange && (
+          <div className="relative" ref={ref}>
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="bg-white flex items-center gap-[8px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#f6f6f6] transition-colors"
+            >
+              <Calendar size={18} strokeWidth={1.5} className="text-[#11111c]" />
+              <span className="text-[13px] font-normal text-[#11111c] leading-[18px] whitespace-nowrap">
+                {rangeLabel}
               </span>
-            </div>
-            <div className="w-px h-4 bg-[#dedee1]" />
-            <div className="flex items-center gap-[5px]">
-              <span className="text-[14px] font-normal text-[#11111c] leading-[19px]">
-                Last 30 days
-              </span>
-              <ChevronDown size={15} strokeWidth={2} className="text-[#11111c]" />
-            </div>
+              <ChevronDown size={14} strokeWidth={2} className="text-[#11111c]" />
+            </button>
+
+            {open && (
+              <div className="absolute right-0 top-[38px] z-50 w-[160px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1">
+                {DATE_RANGES.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      onRangeChange(r.id);
+                      setOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors ${
+                      range === r.id
+                        ? "bg-[#e8f7f7] text-[#009598] font-medium"
+                        : "text-[#11111c] hover:bg-[#f6f6f6]"
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -66,8 +106,8 @@ export function PageHeader({
           onClick={action.onClick}
           className="bg-[#009598] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#007f82] transition-colors"
         >
-          <ActionIcon size={24} strokeWidth={1.5} className="text-white" />
-          <span className="text-[14px] font-normal text-white leading-[19px] whitespace-nowrap">
+          <ActionIcon size={18} strokeWidth={1.5} className="text-white" />
+          <span className="text-[13px] font-normal text-white leading-[18px] whitespace-nowrap">
             {action.label}
           </span>
         </button>

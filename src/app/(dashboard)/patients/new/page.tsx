@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { StepBar } from "@/components/shared/StepBar";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import { ChevronLeft, User, Check, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { User, Check, Loader2 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api/client";
 import { useMutation } from "@/lib/api/hooks";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 
 const STEPS = ["Quick Info", "Medical History", "Address & Contact", "Insurance"];
 
@@ -20,6 +20,7 @@ const GENDER_MAP: Record<string, string> = { male: "Male", female: "Female", oth
 
 export default function NewPatientPage() {
   const router = useRouter();
+  useBreadcrumb("/patients", "Patients", "New Patient Registration");
   const { run, loading, error } = useMutation();
   const [step, setStep] = useState(1);
   const [hmsId] = useState(() => `HMS-${String(Math.floor(Math.random() * 9000) + 1000)}`);
@@ -33,7 +34,17 @@ export default function NewPatientPage() {
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const isStep1Done = form.name && form.mobile && form.dob && form.gender;
+  const isStep1Done = Boolean(form.name.trim() && form.mobile.trim() && form.dob && form.gender);
+  const isStep3Done = Boolean(form.emergencyName.trim() && form.emergencyPhone.trim());
+
+  /** Whether the current step's required fields are complete. */
+  const stepValid = step === 1 ? isStep1Done : step === 3 ? isStep3Done : true;
+  const stepHint =
+    step === 1 && !isStep1Done
+      ? "Fill name, mobile, date of birth and gender to continue."
+      : step === 3 && !isStep3Done
+        ? "Emergency contact name and phone are required to continue."
+        : null;
 
   async function submit() {
     try {
@@ -68,17 +79,20 @@ export default function NewPatientPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
-        <Link href="/patients" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Patients
-        </Link>
-        <span className="text-[13px] font-normal text-[#57575f]">New Patient Registration</span>
+      <div className={`${tw.gutterX} pt-4 pb-3 flex items-end justify-between`}>
+        <div className="flex flex-col gap-[2px]">
+          <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New Patient Registration</h1>
+          <p className="text-[13px] font-light text-[#57575f] leading-[17px]">
+            Register a patient in four quick steps — only step 1 is mandatory.
+          </p>
+        </div>
+        <span className="text-[12px] font-medium text-[#009598]">{hmsId}</span>
       </div>
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
           {/* Step bar */}
-          <div className="px-8 pt-7 pb-5 border-b border-[#dedee1]">
+          <div className="px-6 py-3 border-b border-[#dedee1]">
             <StepBar steps={STEPS} currentStep={step} />
           </div>
 
@@ -223,7 +237,7 @@ export default function NewPatientPage() {
           )}
 
           {/* Actions */}
-          <div className="px-8 pb-7 flex justify-between items-center border-t border-[#f0f0f0] pt-5">
+          <div className="px-8 pb-6 flex justify-between items-center border-t border-[#f0f0f0] pt-4 gap-4">
             <button
               onClick={() => setStep(s => Math.max(1, s - 1))}
               disabled={step === 1}
@@ -231,10 +245,14 @@ export default function NewPatientPage() {
             >
               Previous
             </button>
+            {stepHint && (
+              <span className="text-[12px] font-normal text-[#ff9000] text-right flex-1">{stepHint}</span>
+            )}
             {step < 4 ? (
               <button
                 onClick={() => setStep(s => Math.min(4, s + 1))}
-                className="text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors"
+                disabled={!stepValid}
+                className="text-[13px] font-normal text-white bg-[#009598] px-6 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue →
               </button>

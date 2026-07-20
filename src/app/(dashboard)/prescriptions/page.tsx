@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FileText, Plus } from "lucide-react";
 import { useList } from "@/lib/api/hooks";
+import { inDateRange, type DateRangeId } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -57,16 +59,29 @@ function PrescriptionRow({ row, actions }: { row: Prescription; actions: RowActi
 
 export default function PrescriptionsPage() {
   const router = useRouter();
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [range, setRange] = useState<DateRangeId>("all");
   const { items: prescriptions, reload } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { dialog, remove, mutate } = useRowActions("prescriptions", reload);
+
+  const visible = prescriptions.filter(r => {
+    const matchF = filter === "All" || r.status === filter;
+    const q = search.toLowerCase();
+    const matchS = !q || r.rxNumber.toLowerCase().includes(q) || r.patientName.toLowerCase().includes(q) || r.doctor.toLowerCase().includes(q) || r.diagnosis.toLowerCase().includes(q);
+    return matchF && matchS && inDateRange(r.date, range);
+  });
+
   return (
     <>
       {dialog}
       <PageHeader
         title="Prescriptions"
         subtitle="Create, manage, and dispense digital prescriptions for patients."
-        stats={[{ icon: FileText, value: `${prescriptions.length}`, label: "Total Prescriptions" }]}
+        stats={[{ icon: FileText, value: `${visible.length}`, label: "Prescriptions" }]}
         action={{ label: "New Prescription", icon: Plus, onClick: () => router.push("/prescriptions/new") }}
+        range={range}
+        onRangeChange={setRange}
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -74,11 +89,15 @@ export default function PrescriptionsPage() {
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by Rx number, patient, or diagnosis..."
+            activeFilter={filter}
+            onFilterChange={setFilter}
+            searchQuery={search}
+            onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {prescriptions.length === 0 ? (
+            {visible.length === 0 ? (
               <div className="py-16 text-center text-[14px] text-[#57575f]">No prescriptions found.</div>
-            ) : prescriptions.map((r) => (
+            ) : visible.map((r) => (
               <PrescriptionRow key={r.id} row={r} actions={[
                 { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
                 { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => mutate(() => api.post(`/prescriptions/${r.id}/dispense`)) },

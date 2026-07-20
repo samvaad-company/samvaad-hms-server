@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem } from "@/lib/api/hooks";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { StaffDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ChevronLeft, Phone, Mail, MapPin, Calendar, GraduationCap, Clock } from "lucide-react";
-import Link from "next/link";
+import { Phone, Mail, MapPin, Calendar, GraduationCap, Clock } from "lucide-react";
 
 // ─── Mock extended data ───────────────────────────────────────────────────────
 
@@ -52,6 +52,7 @@ export default function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("details");
   const { item: staff, loading } = useItem<StaffDTO>(`/staff/${id}`);
+  useBreadcrumb("/staff", "Staff", staff?.name ?? "Staff Profile");
 
   if (loading) {
     return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
@@ -67,11 +68,6 @@ export default function StaffDetailPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-4 pt-2`}>
-        <Link href="/staff" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Staff
-        </Link>
-      </div>
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className="flex gap-5 items-start">

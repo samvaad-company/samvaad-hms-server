@@ -7,10 +7,11 @@ import { prescriptionTemplates } from "@/data/medicines";
 import { icd10Codes } from "@/data/icd10";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO, MedicineDTO } from "@/types/api";
-import { FormRow, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import { ChevronLeft, Plus, Trash2, Search, Zap, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { FormRow, FormTextarea } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
+import { Plus, Trash2, Search, Zap, Loader2 } from "lucide-react";
 
 type RxRow = { id: number; medicine: string; dosage: string; frequency: string; duration: string; instructions: string };
 
@@ -31,6 +32,7 @@ const mkRow = (override: Partial<RxRow> = {}): RxRow => ({
 
 export default function NewPrescriptionPage() {
   const router = useRouter();
+  useBreadcrumb("/prescriptions", "Prescriptions", "New Prescription");
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -40,10 +42,19 @@ export default function NewPrescriptionPage() {
   const [medSearch, setMedSearch] = useState<Record<number, string>>({});
   const [patientId, setPatientId] = useState("");
   const [doctorId, setDoctorId] = useState("");
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnoses, setDiagnoses] = useState<string[]>([]);
   const [icdSearch, setIcdSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [foodInstr, setFoodInstr] = useState("");
+
+  const addDiagnosis = (d: string) => {
+    const clean = d.trim();
+    if (!clean) return;
+    setDiagnoses(prev => (prev.includes(clean) ? prev : [...prev, clean]));
+    setIcdSearch("");
+  };
+  const removeDiagnosis = (d: string) =>
+    setDiagnoses(prev => prev.filter(x => x !== d));
 
   const addRow = () => setRows(prev => [...prev, mkRow()]);
   const removeRow = (id: number) => setRows(prev => prev.filter(r => r.id !== id));
@@ -62,7 +73,12 @@ export default function NewPrescriptionPage() {
   };
 
   const filledRows = rows.filter(r => r.medicine.trim());
-  const valid = patientId && doctorId && diagnosis.trim() && filledRows.length > 0;
+  const missing: string[] = [];
+  if (!patientId) missing.push("patient");
+  if (!doctorId) missing.push("doctor");
+  if (diagnoses.length === 0) missing.push("at least one diagnosis");
+  if (filledRows.length === 0) missing.push("at least one medicine");
+  const valid = missing.length === 0;
 
   async function save() {
     const patient = patients.find(p => String(p.id) === patientId);
@@ -72,7 +88,7 @@ export default function NewPrescriptionPage() {
         patientName: patient?.name ?? "",
         patientAge: patient?.age ?? 0,
         doctorId: Number(doctorId),
-        diagnosis,
+        diagnosis: diagnoses.join("; "),
         status: "Pending",
         items: filledRows.map(r => ({
           medicineId: medicines.find(m => m.name === r.medicine)?.id,
@@ -100,14 +116,22 @@ export default function NewPrescriptionPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-between`}>
-        <Link href="/prescriptions" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to Prescriptions
-        </Link>
-        <div className="flex items-center gap-2">
-          <button className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Preview</button>
-          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : null} Save Prescription
+      <div className={`${tw.gutterX} pt-4 pb-3 flex items-end justify-between gap-4`}>
+        <div className="flex flex-col gap-[2px]">
+          <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New Prescription</h1>
+          <p className="text-[13px] font-light text-[#57575f] leading-[17px]">
+            Select patient and doctor, add diagnoses and medicines, then save.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {!valid && (
+            <span className="text-[12px] font-normal text-[#ff9000] whitespace-nowrap">
+              Add {missing.join(", ")} to save.
+            </span>
+          )}
+          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+            {loading ? "Saving…" : "Save Prescription"}
           </button>
         </div>
       </div>
@@ -127,41 +151,70 @@ export default function NewPrescriptionPage() {
               <h3 className="text-[13px] font-medium text-[#11111c] mb-3">Patient & Doctor</h3>
               <div className="flex flex-col gap-3">
                 <FormRow label="Patient *">
-                  <FormSelect placeholder="Search patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+                  <SearchSelect
+                    placeholder="Search patient…"
+                    value={patientId}
+                    onChange={setPatientId}
+                    options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+                  />
                 </FormRow>
                 <FormRow label="Doctor *">
-                  <FormSelect placeholder="Select doctor" value={doctorId} onChange={setDoctorId} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+                  <SearchSelect
+                    placeholder="Search doctor…"
+                    value={doctorId}
+                    onChange={setDoctorId}
+                    options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
+                  />
                 </FormRow>
               </div>
             </div>
 
-            {/* ICD-10 Diagnosis */}
+            {/* ICD-10 Diagnoses (multiple) */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[#11111c] mb-3">Diagnosis (ICD-10)</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-medium text-[#11111c]">Diagnoses (ICD-10)</h3>
+                {diagnoses.length > 0 && (
+                  <span className="text-[11px] font-normal text-[#57575f]">{diagnoses.length} added</span>
+                )}
+              </div>
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57575f]" />
                 <input
-                  placeholder="Search diagnosis..."
+                  placeholder="Search ICD-10 or type & press Enter…"
                   value={icdSearch}
                   onChange={e => setIcdSearch(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addDiagnosis(icdSearch);
+                    }
+                  }}
                   className="h-[38px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[34px] pr-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
                 />
               </div>
               {icdSearch && (
                 <div className="mt-2 border border-[#dedee1] rounded-[8px] overflow-hidden">
                   {filteredIcd.map(c => (
-                    <button key={c.code} onClick={() => { setDiagnosis(`${c.description} (${c.code})`); setIcdSearch(""); }}
+                    <button key={c.code} onClick={() => addDiagnosis(`${c.description} (${c.code})`)}
                       className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#f6f6f6] border-b border-[#f0f0f0] last:border-0 transition-colors">
                       <span className="font-medium text-[#009598]">{c.code}</span>
                       <span className="text-[#57575f] ml-2">{c.description}</span>
                     </button>
                   ))}
+                  <button onClick={() => addDiagnosis(icdSearch)}
+                    className="w-full text-left px-3 py-2 text-[12px] text-[#009598] hover:bg-[#e8f7f7] transition-colors">
+                    + Add “{icdSearch.trim()}” as free-text diagnosis
+                  </button>
                 </div>
               )}
-              {diagnosis && (
-                <div className="mt-2 p-2 bg-[#e8f7f7] rounded-[6px] flex items-center justify-between">
-                  <span className="text-[12px] font-normal text-[#009598]">{diagnosis}</span>
-                  <button onClick={() => setDiagnosis("")} className="text-[#57575f] hover:text-[#ff0004] ml-2"><Trash2 size={12} /></button>
+              {diagnoses.length > 0 && (
+                <div className="mt-3 flex flex-col gap-[6px]">
+                  {diagnoses.map(d => (
+                    <div key={d} className="p-2 bg-[#e8f7f7] rounded-[6px] flex items-center justify-between gap-2">
+                      <span className="text-[12px] font-normal text-[#009598] min-w-0 truncate">{d}</span>
+                      <button onClick={() => removeDiagnosis(d)} className="text-[#57575f] hover:text-[#ff0004] shrink-0"><Trash2 size={12} /></button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

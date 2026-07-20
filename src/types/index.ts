@@ -21,6 +21,9 @@ export type TpaStatus = "Active" | "Inactive";
 export type ClaimStatus = "Submitted" | "In Review" | "Approved" | "Rejected" | "Settled";
 export type InventoryStatus = "In Stock" | "Low Stock" | "Out of Stock";
 export type BloodComponent = "Whole Blood" | "Plasma" | "Platelets" | "RBC";
+export type TaskStatus = "To Do" | "In Progress" | "Blocked" | "Done";
+export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
+export type ScribeStatus = "Draft" | "Saved" | "Signed";
 
 export interface Patient {
   id: number;

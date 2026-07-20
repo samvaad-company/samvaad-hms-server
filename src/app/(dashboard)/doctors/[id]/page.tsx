@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { ArrowLeft, Phone, Mail, Calendar, Clock, Star, Users, TrendingUp, Award } from "lucide-react";
 import { useItem, useList } from "@/lib/api/hooks";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { DoctorDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
@@ -119,6 +120,7 @@ const TABS = ["Schedule", "Today's Patients", "Performance"] as const;
 export default function DoctorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { item: doc, loading } = useItem<DoctorDTO>(`/doctors/${id}`);
+  useBreadcrumb("/doctors", "Doctors", doc?.name ?? "Doctor Profile");
   const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true });
   const { items: queue } = useList<OpdRecordDTO>("/opd", { all: true });
   const [tab, setTab] = useState<typeof TABS[number]>("Schedule");

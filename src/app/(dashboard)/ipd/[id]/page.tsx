@@ -5,12 +5,12 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { IpdRecordDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ChevronLeft, Bed, User, Phone, Stethoscope, MapPin, Calendar, ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { Bed, Stethoscope, Calendar, ClipboardList } from "lucide-react";
 
 // ─── Mock sub-data ────────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ export default function IpdDetailPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { item: record, loading, reload } = useItem<IpdRecordDTO>(`/ipd/${id}`);
+  useBreadcrumb("/ipd", "IPD", record?.patientName ?? "Admission");
   const { run, loading: acting } = useMutation();
 
   async function discharge() {
@@ -95,11 +96,6 @@ export default function IpdDetailPage() {
         onConfirm={discharge}
         onCancel={() => setConfirmOpen(false)}
       />
-      <div className={`${tw.gutterX} mb-4 pt-2`}>
-        <Link href="/ipd" className="inline-flex items-center gap-1 text-[13px] font-normal text-[#57575f] hover:text-[#11111c] transition-colors">
-          <ChevronLeft size={15} /> Back to IPD
-        </Link>
-      </div>
 
       {/* Admission banner */}
       <div className={`${tw.gutterX} mb-5`}>

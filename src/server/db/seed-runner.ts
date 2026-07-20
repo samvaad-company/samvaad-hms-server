@@ -30,6 +30,7 @@ const SEED_ORDER: string[] = [
   TABLES.beds,
   TABLES.ipdAdmissions,
   TABLES.otSchedules,
+  TABLES.bedTransfers,
   TABLES.hospitalSettings,
 ];
 

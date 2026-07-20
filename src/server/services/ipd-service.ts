@@ -8,6 +8,7 @@ import {
   patientsRepo,
   doctorsRepo,
   wardsRepo,
+  bedTransfersRepo,
 } from "@/server/repositories";
 import { toIpdDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
@@ -73,7 +74,7 @@ export async function admitPatient(input: unknown, actor: Session) {
   // Resolve and occupy the bed.
   let ward = data.ward ?? "";
   let bedLabel = "";
-  let bedId = data.bedId ?? null;
+  const bedId = data.bedId ?? null;
   if (bedId) {
     const bed = await bedsRepo.getRow(bedId);
     if (!bed) throw new NotFoundError("Bed");
@@ -184,6 +185,14 @@ export async function transferBed(id: number, newBedId: number, actor: Session) 
     bed: target.bed_number,
     ward: target.ward,
     ward_id: target.ward_id,
+  });
+  await bedTransfersRepo.create({
+    patient_name: admission.patient_name,
+    from_label: admission.bed ? `${admission.ward} · ${admission.bed}` : admission.ward || "—",
+    to_label: `${target.ward} · ${target.bed_number}`,
+    transfer_date: displayDate(),
+    reason: "IPD transfer",
+    status: "Completed",
   });
   await audit(actor, "transfer", "ipd", id, { from: admission.bed_id, to: newBedId });
   return toIpdDTO(row as IpdAdmissionRow);

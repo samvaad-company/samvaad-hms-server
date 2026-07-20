@@ -28,7 +28,9 @@ export type Resource =
   | "records"
   | "tpa"
   | "finance"
-  | "inventory";
+  | "inventory"
+  | "tasks"
+  | "scribe";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -55,6 +57,8 @@ export const RESOURCES: Resource[] = [
   "tpa",
   "finance",
   "inventory",
+  "tasks",
+  "scribe",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -85,13 +89,15 @@ const NONE: Record<Resource, Access> = RESOURCES.reduce(
  */
 export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Super Admin": ALL_WRITE,
-  "IT Admin": withOverrides(NONE, { admin: "write", reports: "read" }),
+  "IT Admin": withOverrides(NONE, { admin: "write", reports: "read", tasks: "write" }),
   Doctor: withOverrides(ALL_READ, {
     opd: "write",
     prescriptions: "write",
     patients: "write",
     lab: "write",
     ipd: "write",
+    scribe: "write",
+    tasks: "read",
     admin: "none",
     staff: "none",
   }),
@@ -106,6 +112,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     doctors: "read",
     bloodbank: "read",
     inventory: "read",
+    tasks: "write",
   }),
   Receptionist: withOverrides(NONE, {
     patients: "write",
@@ -113,6 +120,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     doctors: "read",
     opd: "write",
     beds: "read",
+    tasks: "read",
   }),
   "Billing Exec": withOverrides(NONE, {
     patients: "read",
@@ -121,17 +129,20 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     reports: "read",
     tpa: "write",
     finance: "write",
+    tasks: "read",
   }),
   Pharmacist: withOverrides(NONE, {
     pharmacy: "write",
     prescriptions: "read",
+    tasks: "read",
   }),
   "Lab Technician": withOverrides(NONE, {
     lab: "write",
     radiology: "write",
     patients: "read",
+    tasks: "read",
   }),
-  Driver: withOverrides(NONE, { ambulance: "read" }),
+  Driver: withOverrides(NONE, { ambulance: "read", tasks: "read" }),
 };
 
 function levelSatisfies(level: Access, action: Action): boolean {

@@ -1,12 +1,16 @@
 "use client";
 
+import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { ArrowLeft, Printer, Download, Share2, Building2 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
+import { printElement } from "@/lib/print";
 import type { BillDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import Link from "next/link";
 
 const LINE_ITEMS: Record<string, { description: string; qty: number; rate: number }[]> = {
@@ -31,9 +35,12 @@ const PAYMENT_MODE: Record<number, string> = {
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { item: bill, loading, reload } = useItem<BillDTO>(`/billing/${id}`);
+  useBreadcrumb("/billing", "Billing", bill?.billNumber ?? "Invoice");
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { run, loading: acting } = useMutation();
+  const docRef = useRef<HTMLDivElement>(null);
   const recordPayment = () => run(() => api.patch(`/billing/${id}`, { status: "Paid" })).then(reload);
+  const printInvoice = () => printElement(docRef.current, bill ? `Invoice ${bill.billNumber}` : "Invoice");
 
   if (loading) {
     return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
@@ -65,16 +72,16 @@ export default function BillingDetailPage() {
         </div>
         <StatusBadge status={bill.status} />
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
-          <button onClick={() => window.print()} className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors">
+          <button onClick={printInvoice} title="Share (print / save as PDF)" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
+          <button onClick={printInvoice} title="Download PDF" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
+          <button onClick={printInvoice} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} strokeWidth={1.5} />Print
           </button>
         </div>
       </div>
 
       <div className={`${tw.gutterX} py-6`} style={{ maxWidth: 900 }}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
+        <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
           {/* Invoice header */}
           <div className="flex items-start justify-between p-8 pb-6" style={{ borderBottom: "1px solid #dedee1" }}>
             <div className="flex items-center gap-3">
@@ -103,6 +110,7 @@ export default function BillingDetailPage() {
                 <>
                   <div className="text-[13px] font-normal text-[#57575f] mt-1">{patient.patientId ?? "—"}</div>
                   <div className="text-[13px] font-normal text-[#57575f]">{patient.phone}</div>
+                  <div className="mt-2"><AbhaBadge abhaId={patient.abhaId} /></div>
                 </>
               )}
             </div>

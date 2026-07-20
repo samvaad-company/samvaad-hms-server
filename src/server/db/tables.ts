@@ -42,6 +42,9 @@ export const TABLES = {
   financeExpenses: "finance_expenses",
   inventoryItems: "inventory_items",
   inventoryIssues: "inventory_issues",
+  tasks: "tasks",
+  scribeNotes: "scribe_notes",
+  bedTransfers: "bed_transfers",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -253,6 +256,18 @@ export interface WardRow extends Row {
   id: number;
   name: string;
   capacity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BedTransferRow extends Row {
+  id: number;
+  patient_name: string;
+  from_label: string;
+  to_label: string;
+  transfer_date: string;
+  reason: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -518,6 +533,37 @@ export interface InventoryIssueRow extends Row {
   issued_to: string;
   issue_date: string;
   note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskRow extends Row {
+  id: number;
+  title: string;
+  description: string;
+  goal: string;
+  assignee_id: number | null;
+  assignee_name: string;
+  assigned_by: string;
+  priority: string;
+  status: string;
+  due_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScribeNoteRow extends Row {
+  id: number;
+  appointment_id: number | null;
+  patient_id: number | null;
+  patient_name: string;
+  doctor_id: number | null;
+  doctor_name: string;
+  transcript: string;
+  brief: string;
+  language: string;
+  duration_sec: number;
+  status: string;
   created_at: string;
   updated_at: string;
 }

@@ -5,6 +5,7 @@ import { tw } from "@/lib/design-system";
 import { Pill, Plus, MoreVertical, AlertTriangle, Clock, XCircle, TrendingDown } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { parseMonthYear } from "@/lib/dates";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { PharmacyItemDTO } from "@/types/api";
@@ -185,6 +186,80 @@ function SalesView() {
 
 // ─── Alerts ───────────────────────────────────────────────────────────────────
 
+// ─── Expiring Soon ────────────────────────────────────────────────────────────
+
+const EXPIRY_WINDOWS = [
+  { id: "1w", label: "Within 1 week",   days: 7 },
+  { id: "1m", label: "Within 1 month",  days: 30 },
+  { id: "3m", label: "Within 3 months", days: 92 },
+  { id: "6m", label: "Within 6 months", days: 183 },
+] as const;
+
+function ExpiringView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (id: number) => void; onRemove: (id: number, name: string) => void }) {
+  const [windowId, setWindowId] = useState<(typeof EXPIRY_WINDOWS)[number]["id"]>("3m");
+  const win = EXPIRY_WINDOWS.find(w => w.id === windowId)!;
+  const cutoff = new Date(Date.now() + win.days * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  const rows = pharmacyItems
+    .map(i => ({ item: i, expiry: parseMonthYear(i.expiryDate) }))
+    .filter((r): r is { item: PharmacyItemDTO; expiry: Date } => r.expiry !== null && r.expiry <= cutoff)
+    .sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
+
+  return (
+    <div className="p-5 flex flex-col gap-4" style={{ minHeight: 300 }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Clock size={16} className="text-[#ff9000]" />
+          <span className="text-[14px] font-medium text-[#11111c]">About to Expire</span>
+          <span className="text-[11px] px-[8px] py-[2px] rounded-full font-medium bg-[#fff2e0] text-[#ff9000]">{rows.length}</span>
+        </div>
+        <select
+          value={windowId}
+          onChange={e => setWindowId(e.target.value as (typeof EXPIRY_WINDOWS)[number]["id"])}
+          className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+        >
+          {EXPIRY_WINDOWS.map(w => (
+            <option key={w.id} value={w.id}>{w.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="flex items-center justify-center h-32">
+          <span className="text-[14px] font-normal text-[#57575f]">Nothing expiring {win.label.toLowerCase()}.</span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rows.map(({ item, expiry }) => {
+            const expired = expiry < now;
+            const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+            return (
+              <div key={item.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px] bg-white">
+                <div className="flex flex-col gap-[3px] min-w-0">
+                  <span className="text-[14px] font-medium text-[#11111c] truncate">{item.name}</span>
+                  <span className="text-[12px] font-light text-[#57575f] truncate">{item.category} · {item.supplier} · {item.stock} units in stock</span>
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className={`text-[13px] font-normal ${expired ? "text-[#ff0004]" : daysLeft <= 30 ? "text-[#ff9000]" : "text-[#57575f]"}`}>
+                    {expired ? `Expired ${item.expiryDate}` : `Expires ${item.expiryDate} · ${daysLeft} days`}
+                  </span>
+                  <button
+                    onClick={() => (expired ? onRemove(item.id, item.name) : onReorder(item.id))}
+                    className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+                  >
+                    {expired ? "Remove" : "Reorder"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AlertsView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (id: number) => void; onRemove: (id: number, name: string) => void }) {
   const lowStock  = pharmacyItems.filter(i => i.status === "Low Stock");
   const outStock  = pharmacyItems.filter(i => i.status === "Out of Stock");
@@ -276,6 +351,7 @@ export default function PharmacyPage() {
     { id: "inventory", label: "Inventory",   count: pharmacyItems.length },
     { id: "purchase",  label: "Purchase" },
     { id: "sales",     label: "Sales" },
+    { id: "expiring",  label: "About to Expire" },
     { id: "alerts",    label: "Alerts", count: pharmacyItems.filter(i => ["Low Stock","Out of Stock","Expired"].includes(i.status)).length },
   ];
 
@@ -339,6 +415,7 @@ export default function PharmacyPage() {
           )}
           {tab === "purchase" && <PurchaseView />}
           {tab === "sales"    && <SalesView />}
+          {tab === "expiring" && <ExpiringView pharmacyItems={pharmacyItems} onReorder={reorder} onRemove={remove} />}
           {tab === "alerts"   && <AlertsView pharmacyItems={pharmacyItems} onReorder={reorder} onRemove={remove} />}
         </div>
       </div>

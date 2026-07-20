@@ -1,13 +1,44 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, Tag } from "lucide-react";
+import {
+  ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, Tag,
+  CheckCircle2, CalendarClock, XCircle, RotateCcw, CalendarPlus,
+} from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import type { AppointmentDTO, DoctorDTO, PrescriptionDTO } from "@/types/api";
+import { useBreadcrumb } from "@/lib/breadcrumb-context";
+import type { AppointmentDTO, DoctorDTO, PrescriptionDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { AbhaBadge } from "@/components/shared/AbhaBadge";
+import { ScribePanel } from "@/components/scribe/ScribePanel";
+import { Modal } from "@/components/shared/Modal";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import Link from "next/link";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const SLOTS = [
+  "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM",
+  "12:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
+  "5:00 PM", "5:30 PM", "6:00 PM",
+];
+
+/** Display string ("8 Nov 2025") → <input type=date> value (yyyy-mm-dd). */
+function toInputDate(display: string): string {
+  const d = new Date(display);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+/** <input type=date> value → display string matching the rest of the app. */
+function toDisplayDate(input: string): string {
+  if (!input) return "";
+  const [y, m, d] = input.split("-").map(Number);
+  if (!y || !m || !d) return input;
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+}
 
 function InfoRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: string; value: string }) {
   return (
@@ -27,9 +58,16 @@ export default function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
+  useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${appt.date}` : "Appointment");
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { run, loading: acting } = useMutation();
+
+  const [modal, setModal] = useState<null | "reschedule" | "followup">(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [form, setForm] = useState({ date: "", time: "", doctorId: "", reason: "" });
+  const setF = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   const setStatus = (status: string) =>
     run(() => api.patch(`/appointments/${id}`, { status })).then(reload);
@@ -48,13 +86,73 @@ export default function AppointmentDetailPage() {
 
   const doctor = doctors.find(d => d.name === appt.doctor);
   const relatedRx = prescriptions.find(p => p.patientName === appt.patientName);
+  const patientRec = patients.find(p => p.name === appt.patientName);
 
-  const statusActions: Record<string, { label: string; color: string; onClick: () => void }[]> = {
-    "Today":     [{ label: "Mark Complete", color: "#009598", onClick: () => setStatus("Completed") }, { label: "Cancel", color: "#ff0004", onClick: () => setStatus("Cancelled") }],
-    "Upcoming":  [{ label: "Reschedule", color: "#007cff", onClick: () => router.push("/appointments/new") }, { label: "Cancel", color: "#ff0004", onClick: () => setStatus("Cancelled") }],
-    "Completed": [{ label: "Book Follow-up", color: "#009598", onClick: () => router.push("/appointments/new") }],
-    "Cancelled": [{ label: "Rebook", color: "#009598", onClick: () => setStatus("Upcoming") }],
-  };
+  const isActive = appt.status === "Upcoming" || appt.status === "Today";
+  const doctorOptions = doctors.map(d => ({ value: String(d.id), label: d.name }));
+  const timeOptions = (SLOTS.includes(form.time) || !form.time ? SLOTS : [form.time, ...SLOTS])
+    .map(t => ({ value: t, label: t }));
+
+  function openReschedule() {
+    setForm({
+      date: toInputDate(appt!.date),
+      time: appt!.time,
+      doctorId: String(appt!.doctorId ?? doctor?.id ?? ""),
+      reason: appt!.reason,
+    });
+    setModal("reschedule");
+  }
+  function openFollowup() {
+    setForm({
+      date: "",
+      time: "",
+      doctorId: String(appt!.doctorId ?? doctor?.id ?? ""),
+      reason: `Follow-up: ${appt!.reason}`,
+    });
+    setModal("followup");
+  }
+
+  async function saveReschedule() {
+    await run(() =>
+      api.patch(`/appointments/${id}`, {
+        date: toDisplayDate(form.date) || appt!.date,
+        time: form.time || appt!.time,
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        // Bringing a closed appointment back onto the calendar re-opens it.
+        status: appt!.status === "Completed" || appt!.status === "Cancelled" ? "Upcoming" : appt!.status,
+      }),
+    );
+    setModal(null);
+    reload();
+  }
+
+  async function createFollowup() {
+    const created = await run(() =>
+      api.post<AppointmentDTO>("/appointments", {
+        patientId: appt!.patientId ?? patientRec?.id ?? undefined,
+        patientName: appt!.patientName,
+        patientAge: appt!.patientAge,
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        date: toDisplayDate(form.date),
+        time: form.time,
+        type: "Booked",
+        reason: form.reason,
+        status: "Upcoming",
+      }),
+    );
+    setModal(null);
+    if (created?.id) router.push(`/appointments/${created.id}`);
+  }
+
+  async function doCancel() {
+    await run(() => api.patch(`/appointments/${id}`, { status: "Cancelled" }));
+    setConfirmCancel(false);
+    reload();
+  }
+
+  const btnPrimary = "text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
+  const btnOutline = "text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-2 rounded-full hover:bg-[#f6f6f6] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
+  const btnDanger = "text-[13px] font-normal text-[#ff0004] border border-[#ffd6d7] px-4 py-2 rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
 
   return (
     <>
@@ -69,13 +167,39 @@ export default function AppointmentDetailPage() {
         </div>
         <StatusBadge status={appt.status} />
         <div className="flex items-center gap-2">
-          {(statusActions[appt.status] ?? []).map(a => (
-            <button key={a.label} onClick={a.onClick} disabled={acting}
-              className="text-[13px] font-normal text-white px-4 py-2 rounded-full transition-colors disabled:opacity-50"
-              style={{ background: a.color }}>
-              {a.label}
-            </button>
-          ))}
+          {isActive && (
+            <>
+              <button onClick={() => setStatus("Completed")} disabled={acting} className={btnPrimary}>
+                <CheckCircle2 size={15} /> Mark Completed
+              </button>
+              <button onClick={openReschedule} disabled={acting} className={btnOutline}>
+                <CalendarClock size={15} /> Reschedule
+              </button>
+              <button onClick={() => setConfirmCancel(true)} disabled={acting} className={btnDanger}>
+                <XCircle size={15} /> Cancel
+              </button>
+            </>
+          )}
+          {appt.status === "Completed" && (
+            <>
+              <button onClick={openFollowup} disabled={acting} className={btnPrimary}>
+                <CalendarPlus size={15} /> Book Follow-up
+              </button>
+              <button onClick={() => setStatus("Upcoming")} disabled={acting} className={btnOutline}>
+                <RotateCcw size={15} /> Reopen
+              </button>
+            </>
+          )}
+          {appt.status === "Cancelled" && (
+            <>
+              <button onClick={openReschedule} disabled={acting} className={btnPrimary}>
+                <CalendarClock size={15} /> Reschedule
+              </button>
+              <button onClick={() => setStatus("Upcoming")} disabled={acting} className={btnOutline}>
+                <RotateCcw size={15} /> Restore
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -86,6 +210,10 @@ export default function AppointmentDetailPage() {
           <div className={`${tw.surface.card} ${tw.radius.card} p-6`}>
             <div className="text-[14px] font-medium text-[#11111c] mb-4">Appointment Information</div>
             <InfoRow icon={User}        label="Patient"      value={`${appt.patientName} · ${appt.patientAge} years old`} />
+            <div className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+              <div className="w-8 h-8 shrink-0" />
+              <AbhaBadge abhaId={patientRec?.abhaId} />
+            </div>
             <InfoRow icon={Stethoscope} label="Doctor"       value={appt.doctor} />
             <InfoRow icon={Calendar}    label="Date"         value={appt.date} />
             <InfoRow icon={Clock}       label="Time"         value={appt.time} />
@@ -124,6 +252,15 @@ export default function AppointmentDetailPage() {
               </div>
             </div>
           )}
+
+          {/* AI consultation scribe */}
+          <ScribePanel
+            appointmentId={appt.id}
+            patientName={appt.patientName}
+            doctorName={appt.doctor}
+            doctorId={doctor?.id ?? null}
+            patientId={patientRec?.id ?? null}
+          />
         </div>
 
         {/* Right — doctor info */}
@@ -167,6 +304,55 @@ export default function AppointmentDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Reschedule / Follow-up modal */}
+      <Modal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        title={modal === "followup" ? "Book Follow-up Appointment" : "Reschedule Appointment"}
+        width={520}
+        footer={
+          <>
+            <button onClick={() => setModal(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              Cancel
+            </button>
+            <button
+              onClick={modal === "followup" ? createFollowup : saveReschedule}
+              disabled={acting || !form.date || !form.time}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
+            >
+              {acting ? "Saving…" : modal === "followup" ? "Book Appointment" : "Save New Time"}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-3 text-[12px] text-[#57575f]">
+          {appt.patientName} · {appt.patientAge} yrs
+          {modal === "reschedule" && (
+            <span className="text-[#57575f]"> — currently {appt.date} at {appt.time}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormRow label="Date *"><FormInput type="date" value={form.date} onChange={v => setF("date", v)} /></FormRow>
+          <FormRow label="Time Slot *"><FormSelect placeholder="Select slot" value={form.time} onChange={v => setF("time", v)} options={timeOptions} /></FormRow>
+          <FormRow label="Doctor"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => setF("doctorId", v)} options={doctorOptions} /></FormRow>
+          {modal === "followup" && (
+            <FormRow label="Reason"><FormInput placeholder="Reason for follow-up" value={form.reason} onChange={v => setF("reason", v)} /></FormRow>
+          )}
+        </div>
+      </Modal>
+
+      {/* Cancel confirmation */}
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Cancel this appointment?"
+        message={`This will mark ${appt.patientName}'s appointment on ${appt.date} at ${appt.time} as Cancelled. You can reschedule or restore it afterwards.`}
+        confirmLabel="Cancel Appointment"
+        cancelLabel="Keep it"
+        loading={acting}
+        onConfirm={doCancel}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </>
   );
 }

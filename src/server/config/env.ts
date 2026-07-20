@@ -27,6 +27,8 @@ export interface AppConfig {
   isProduction: boolean;
   /** Minimum log level to emit. */
   logLevel: "debug" | "info" | "warn" | "error";
+  /** Sarvam AI API key for speech-to-text scribing (null → mock mode). */
+  sarvamApiKey: string | null;
 }
 
 function pickDriver(): DatabaseDriver {
@@ -65,6 +67,7 @@ export function getConfig(): AppConfig {
     logLevel:
       (process.env.LOG_LEVEL as AppConfig["logLevel"]) ??
       (isProduction ? "info" : "debug"),
+    sarvamApiKey: process.env.SARVAM_API_KEY ?? null,
   };
 
   return cached;

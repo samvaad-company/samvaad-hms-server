@@ -12,8 +12,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
-import { Modal } from "@/components/shared/Modal";
-import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { inDateRange, type DateRangeId } from "@/lib/dates";
 import type { Patient } from "@/types";
 import Link from "next/link";
 
@@ -89,13 +88,11 @@ function PatientRow({ patient, actions }: { patient: Patient; actions: RowAction
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const GENDER_OPTS = [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }];
-
 export default function PatientsPage() {
   const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [range, setRange] = useState<DateRangeId>("all");
   const { items: patients, loading, reload } = useList<PatientDTO>("/patients", { all: true });
   const { dialog, remove } = useRowActions("patients", reload);
 
@@ -103,37 +100,19 @@ export default function PatientsPage() {
     const matchF = filter === "All" || p.status === filter;
     const q = search.toLowerCase();
     const matchS = !q || p.name.toLowerCase().includes(q) || (p.patientId ?? "").toLowerCase().includes(q) || p.doctor.toLowerCase().includes(q) || p.reason.toLowerCase().includes(q);
-    return matchF && matchS;
+    return matchF && matchS && inDateRange(p.date, range);
   });
 
   return (
     <>
       {dialog}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Register Patient"
-        footer={
-          <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <Link href="/patients/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">Full Registration Form →</Link>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Full Name *"><FormInput placeholder="Patient's full name" /></FormRow>
-          <FormRow label="Mobile *"><FormInput placeholder="+91 XXXXX XXXXX" type="tel" /></FormRow>
-          <FormRow label="Date of Birth *"><FormInput type="date" /></FormRow>
-          <FormRow label="Gender *"><FormSelect placeholder="Select gender" options={GENDER_OPTS} /></FormRow>
-          <div className="col-span-2"><FormRow label="Reason for Visit"><FormInput placeholder="Brief reason" /></FormRow></div>
-          <div className="col-span-2 border-t border-[#f0f0f0] pt-3">
-            <p className="text-[12px] font-light text-[#57575f]">For medical history, address & insurance — use the full registration form.</p>
-          </div>
-        </div>
-      </Modal>
-
       <PageHeader
         title="Patients"
         subtitle="Manage your patient records, review visit history, and track ongoing treatments — all in one place."
         stats={[{ icon: User, value: `${visible.length}`, label: "Matching Patients" }]}
-        action={{ label: "Add Patient", icon: Plus, onClick: () => setShowModal(true) }}
+        action={{ label: "Add Patient", icon: Plus, onClick: () => router.push("/patients/new") }}
+        range={range}
+        onRangeChange={setRange}
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>

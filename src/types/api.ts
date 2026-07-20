@@ -29,6 +29,9 @@ import type {
   TpaStatus,
   ClaimStatus,
   InventoryStatus,
+  TaskStatus,
+  TaskPriority,
+  ScribeStatus,
 } from "@/types";
 
 export interface PaginationMeta {
@@ -126,6 +129,22 @@ export interface OtRecordDTO extends OtRecord {
 
 export interface BedDTO extends Bed {
   wardId: number | null;
+}
+
+export interface WardDTO {
+  id: number;
+  name: string;
+  capacity: number;
+}
+
+export interface BedTransferDTO {
+  id: number;
+  patientName: string;
+  from: string;
+  to: string;
+  date: string;
+  reason: string;
+  status: string;
 }
 
 export interface StaffDTO extends Staff {
@@ -320,6 +339,37 @@ export interface InventoryIssueDTO {
   issuedTo: string;
   date: string;
   note: string;
+}
+
+export interface TaskDTO {
+  id: number;
+  title: string;
+  description: string;
+  goal: string;
+  assigneeId: number | null;
+  assigneeName: string;
+  assignedBy: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScribeNoteDTO {
+  id: number;
+  appointmentId: number | null;
+  patientId: number | null;
+  patientName: string;
+  doctorId: number | null;
+  doctorName: string;
+  transcript: string;
+  brief: string;
+  language: string;
+  durationSec: number;
+  status: ScribeStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DashboardStatsDTO {

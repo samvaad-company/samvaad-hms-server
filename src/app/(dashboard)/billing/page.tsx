@@ -6,6 +6,7 @@ import { BarChart3, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useList, useMutation } from "@/lib/api/hooks";
+import { inDateRange, type DateRangeId } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -316,6 +317,7 @@ export default function BillingPage() {
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
+  const [range, setRange] = useState<DateRangeId>("all");
   const router = useRouter();
   const { items: bills, reload } = useList<BillDTO>("/billing", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -335,7 +337,7 @@ export default function BillingPage() {
     const matchF = filter === "All" || b.status === filter;
     const q = search.toLowerCase();
     const matchS = !q || b.billNumber.toLowerCase().includes(q) || b.patientName.toLowerCase().includes(q) || b.type.toLowerCase().includes(q);
-    return matchF && matchS;
+    return matchF && matchS && inDateRange(b.date, range);
   });
 
   return (
@@ -346,6 +348,8 @@ export default function BillingPage() {
         subtitle="Manage patient invoices, payments, discounts, and financial records."
         stats={[{ icon: BarChart3, value: `₹${revenue.toLocaleString("en-IN")}`, label: "Revenue (Nov)" }]}
         action={{ label: "New Bill", icon: Plus, onClick: () => setTab("new") }}
+        range={range}
+        onRangeChange={setRange}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
