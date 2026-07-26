@@ -11,7 +11,8 @@ import {
   Mic, Square, Loader2, Sparkles, Save, Trash2, FileText, Radio,
 } from "lucide-react";
 import { api } from "@/lib/api/client";
-import { useList, useMutation } from "@/lib/api/hooks";
+import { useList, useItem, useMutation } from "@/lib/api/hooks";
+import { toWavChunks } from "@/lib/audio";
 import type { ScribeNoteDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
@@ -35,6 +36,8 @@ export function ScribePanel({
   const { items: allNotes, reload } = useList<ScribeNoteDTO>("/scribe", { all: true });
   const notes = allNotes.filter((n) => n.appointmentId === appointmentId);
   const { run, loading: saving } = useMutation();
+  const { item: status } = useItem<{ live: boolean }>("/scribe/status");
+  const sarvamLive = status?.live ?? false;
 
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -45,6 +48,7 @@ export function ScribePanel({
   const [briefing, setBriefing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mock, setMock] = useState(false);
+  const [chunkCount, setChunkCount] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -98,9 +102,16 @@ export function ScribePanel({
     setTranscribing(true);
     setError(null);
     try {
+      // Sarvam needs WAV and caps each clip at ~30s, so convert and split first.
+      const { chunks, durationSec, raw } = await toWavChunks(blob);
+      setChunkCount(chunks.length);
+
       const form = new FormData();
-      form.append("audio", blob, "consultation.webm");
+      chunks.forEach((c, i) =>
+        form.append("audio", c, raw ? "consultation.webm" : `part-${i + 1}.wav`),
+      );
       form.append("language", "unknown");
+
       const res = await fetch("/api/scribe/transcribe", {
         method: "POST",
         body: form,
@@ -108,13 +119,24 @@ export function ScribePanel({
       });
       if (!res.ok) throw new Error("Transcription failed");
       const json = (await res.json()) as {
-        data: { transcript: string; language: string; mock: boolean };
+        data: {
+          transcript: string;
+          language: string;
+          mock: boolean;
+          reason?: string;
+          detail?: string;
+        };
       };
       const text = json.data.transcript;
       setTranscript((prev) => (prev ? `${prev} ${text}` : text));
       setLanguage(json.data.language || "en-IN");
       setMock(json.data.mock);
-      durationRef.current = duration;
+      if (json.data.reason === "api-error") {
+        setError(
+          `${json.data.detail ?? "Sarvam could not process this recording."} Nothing was added — please re-record or type the notes below.`,
+        );
+      }
+      durationRef.current = durationSec || duration;
     } catch {
       setError("Could not transcribe the recording. Please try again or type notes.");
     } finally {
@@ -127,11 +149,15 @@ export function ScribePanel({
     setBriefing(true);
     setError(null);
     try {
-      const data = await api.post<{ brief: string; mock: boolean }>("/scribe/brief", {
-        transcript,
-      });
+      const data = await api.post<{
+        brief: string; mock: boolean; reason?: string; detail?: string;
+      }>("/scribe/brief", { transcript });
       setBrief(data.brief);
-      setMock(data.mock);
+      if (data.reason === "api-error") {
+        setError(
+          `Sarvam could not generate the brief, so a basic summary was used. ${data.detail ?? ""}`.trim(),
+        );
+      }
     } catch {
       setError("Could not generate a brief.");
     } finally {
@@ -178,8 +204,21 @@ export function ScribePanel({
           </div>
           <div>
             <div className="text-[14px] font-medium text-[#11111c]">AI Consultation Scribe</div>
-            <div className="text-[11px] font-light text-[#57575f]">
-              Powered by Sarvam AI{mock ? " · demo mode (mock transcript)" : ""}
+            <div className="text-[11px] font-light text-[#57575f] flex items-center gap-[6px]">
+              Powered by Sarvam AI
+              {sarvamLive ? (
+                <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#dffff3] text-[#00955c] font-medium">
+                  Live
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#f2f3f3] text-[#57575f] font-medium">
+                  Demo mode
+                </span>
+              )}
+              {mock && sarvamLive && (
+                <span className="text-[#ff9000]">· sample text inserted</span>
+              )}
+              <span className="text-[#57575f]">· speak any Indian language</span>
             </div>
           </div>
         </div>
@@ -201,7 +240,9 @@ export function ScribePanel({
       )}
       {transcribing && (
         <div className="flex items-center gap-2 mb-3 text-[12px] text-[#57575f]">
-          <Loader2 size={13} className="animate-spin" /> Transcribing with Sarvam…
+          <Loader2 size={13} className="animate-spin" />
+          Transcribing with Sarvam…
+          {chunkCount > 1 && <span>({chunkCount} segments)</span>}
         </div>
       )}
       {error && (

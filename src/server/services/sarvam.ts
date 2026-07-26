@@ -3,13 +3,17 @@
  *
  * Two capabilities are exposed:
  *   - transcribe(): speech-to-text over a recorded audio clip (Saarika ASR).
- *   - summarizeBrief(): turns a raw transcript into a structured SOAP brief
- *     using Sarvam's chat model.
+ *     Language is auto-detected, so Hindi, Gujarati, Marathi, Tamil, Bengali,
+ *     English and the other supported Indic languages all work without the
+ *     doctor selecting anything. The transcript comes back in the spoken
+ *     language's native script.
+ *   - summarizeBrief(): turns a raw transcript (in any of those languages) into
+ *     a structured SOAP brief, always written in English.
  *
  * When SARVAM_API_KEY is not configured the module runs in MOCK mode and
- * returns deterministic sample output, so the feature is fully usable in the
- * default in-memory demo. Setting the key automatically switches to the live
- * Sarvam API — no code changes required.
+ * returns deterministic sample output, so the feature is usable in the default
+ * demo. Every result reports `mock` plus a `reason`, so the UI can tell the
+ * difference between "no key configured" and "the live call failed".
  */
 import { getConfig } from "@/server/config/env";
 import { logger } from "@/server/lib/logger";
@@ -17,33 +21,48 @@ import { logger } from "@/server/lib/logger";
 const STT_URL = "https://api.sarvam.ai/speech-to-text";
 const CHAT_URL = "https://api.sarvam.ai/v1/chat/completions";
 const STT_MODEL = "saarika:v2.5";
-const CHAT_MODEL = "sarvam-m";
+// `sarvam-m` was deprecated by Sarvam; the current chat models are
+// sarvam-30b (fast) and sarvam-105b (most capable).
+const CHAT_MODEL = process.env.SARVAM_CHAT_MODEL ?? "sarvam-105b";
+
+/** Why a result came back from the mock path instead of the live API. */
+export type FallbackReason = "live" | "no-key" | "api-error";
 
 export interface TranscriptionResult {
   transcript: string;
   language: string;
   mock: boolean;
+  reason: FallbackReason;
+  /** Human-readable detail when reason === "api-error". */
+  detail?: string;
 }
 
 export interface BriefResult {
   brief: string;
   mock: boolean;
+  reason: FallbackReason;
+  detail?: string;
 }
 
 export function isSarvamLive(): boolean {
   return Boolean(getConfig().sarvamApiKey);
 }
 
-/** Speech-to-text over an audio clip. Falls back to a mock transcript. */
+/**
+ * Speech-to-text over one audio clip (≤30s — the caller chunks longer
+ * recordings). `languageCode` defaults to "unknown" for auto-detection.
+ */
 export async function transcribe(
   audio: Blob,
   languageCode = "unknown",
 ): Promise<TranscriptionResult> {
   const key = getConfig().sarvamApiKey;
-  if (!key) return mockTranscription();
+  if (!key) return { ...mockTranscription(), reason: "no-key" as const };
 
+  // Sarvam expects WAV/MP3; the client converts webm → wav before upload.
+  const isWav = audio.type.includes("wav");
   const form = new FormData();
-  form.append("file", audio, "consultation.webm");
+  form.append("file", audio, isWav ? "consultation.wav" : "consultation.webm");
   form.append("model", STT_MODEL);
   form.append("language_code", languageCode);
 
@@ -56,32 +75,69 @@ export async function transcribe(
     if (!res.ok) {
       const detail = await safeText(res);
       logger.warn("sarvam.stt.error", { status: res.status, detail });
-      throw new Error(`Sarvam STT failed (${res.status})`);
+      // Never fabricate clinical content when the doctor expects a real
+      // transcription — return empty and let the UI surface the failure.
+      return {
+        transcript: "",
+        language: languageCode,
+        mock: true,
+        reason: "api-error",
+        detail: humanizeSttError(res.status, detail),
+      };
     }
     const json = (await res.json()) as {
       transcript?: string;
       text?: string;
       language_code?: string;
     };
+    logger.info("sarvam.stt.ok", { language: json.language_code });
     return {
       transcript: (json.transcript ?? json.text ?? "").trim(),
       language: json.language_code ?? languageCode,
       mock: false,
+      reason: "live",
     };
   } catch (err) {
     logger.warn("sarvam.stt.fallback", { error: String(err) });
-    return mockTranscription();
+    return {
+      transcript: "",
+      language: languageCode,
+      mock: true,
+      reason: "api-error",
+      detail: `Could not reach Sarvam: ${String(err)}`,
+    };
   }
 }
 
-/** Summarize a transcript into a structured SOAP brief. Falls back to a local
- * heuristic summary. */
+/** Turn a raw Sarvam STT error into something a clinician can act on. */
+function humanizeSttError(status: number, detail: string): string {
+  if (detail.includes("exceeds the maximum limit")) {
+    return "Recording segment was too long for Sarvam (30s limit).";
+  }
+  if (status === 401 || status === 403) {
+    return "Sarvam rejected the API key. Check SARVAM_API_KEY.";
+  }
+  if (status === 429) {
+    return "Sarvam rate limit reached. Please retry in a moment.";
+  }
+  if (status === 400 && /format|codec|decode|audio/i.test(detail)) {
+    return "Sarvam could not decode the audio format.";
+  }
+  return `Sarvam error ${status}.`;
+}
+
+/**
+ * Summarize a transcript into a structured SOAP brief. The transcript may be in
+ * any supported language; the brief is always returned in English.
+ */
 export async function summarizeBrief(transcript: string): Promise<BriefResult> {
   const clean = transcript.trim();
-  if (!clean) return { brief: "", mock: !isSarvamLive() };
+  if (!clean) {
+    return { brief: "", mock: !isSarvamLive(), reason: isSarvamLive() ? "live" : "no-key" };
+  }
 
   const key = getConfig().sarvamApiKey;
-  if (!key) return { brief: heuristicBrief(clean), mock: true };
+  if (!key) return { brief: heuristicBrief(clean), mock: true, reason: "no-key" };
 
   try {
     const res = await fetch(CHAT_URL, {
@@ -96,9 +152,21 @@ export async function summarizeBrief(transcript: string): Promise<BriefResult> {
           {
             role: "system",
             content:
-              "You are a clinical scribe. Convert the doctor's dictation into a concise SOAP note with sections S (Subjective), O (Objective), A (Assessment), and P (Plan). Use short clinical phrasing. Return only the note.",
+              "You are a medical scribe that writes SOAP notes in ENGLISH ONLY. " +
+              "The dictation you receive may be in Hindi, Gujarati, Marathi, Tamil, Bengali, English or a mix — " +
+              "you must TRANSLATE it and output English. Never reply in Hindi, Gujarati or any non-English language, " +
+              "and never use Devanagari or any non-Latin script. " +
+              "Output exactly four lines in this plain-text format, with no markdown, bold, or extra commentary:\n" +
+              "S: <subjective>\nO: <objective>\nA: <assessment>\nP: <plan>\n" +
+              "Preserve drug names, dosages and numbers exactly. Use short clinical phrasing.",
           },
-          { role: "user", content: clean },
+          {
+            role: "user",
+            content:
+              `Dictation:\n${clean}\n\n` +
+              "Write the SOAP note now. Remember: the output must be entirely in English (Latin script), " +
+              "translated from the dictation, in the four-line S/O/A/P plain-text format.",
+          },
         ],
         temperature: 0.2,
       }),
@@ -106,16 +174,30 @@ export async function summarizeBrief(transcript: string): Promise<BriefResult> {
     if (!res.ok) {
       const detail = await safeText(res);
       logger.warn("sarvam.chat.error", { status: res.status, detail });
-      throw new Error(`Sarvam chat failed (${res.status})`);
+      return {
+        brief: heuristicBrief(clean),
+        mock: true,
+        reason: "api-error",
+        detail: `Sarvam chat ${res.status}: ${detail}`,
+      };
     }
     const json = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
     const brief = json.choices?.[0]?.message?.content?.trim() ?? "";
-    return { brief: brief || heuristicBrief(clean), mock: false };
+    if (!brief) {
+      return { brief: heuristicBrief(clean), mock: true, reason: "api-error", detail: "Empty response" };
+    }
+    logger.info("sarvam.chat.ok", {});
+    return { brief, mock: false, reason: "live" };
   } catch (err) {
     logger.warn("sarvam.chat.fallback", { error: String(err) });
-    return { brief: heuristicBrief(clean), mock: true };
+    return {
+      brief: heuristicBrief(clean),
+      mock: true,
+      reason: "api-error",
+      detail: String(err),
+    };
   }
 }
 
@@ -127,7 +209,7 @@ const MOCK_TRANSCRIPTS = [
   "Follow-up for hypertension. Home readings averaging 140 over 90. Currently on amlodipine 5 milligrams. Advised to increase to 10 milligrams once daily, reduce salt intake, and continue daily walking. Recheck blood pressure in two weeks.",
 ];
 
-function mockTranscription(): TranscriptionResult {
+function mockTranscription(): Omit<TranscriptionResult, "reason"> {
   const transcript =
     MOCK_TRANSCRIPTS[Math.floor(Math.random() * MOCK_TRANSCRIPTS.length)];
   return { transcript, language: "en-IN", mock: true };
