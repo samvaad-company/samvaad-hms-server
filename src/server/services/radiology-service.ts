@@ -5,12 +5,13 @@ import { radiologyRepo, patientsRepo } from "@/server/repositories";
 import { toRadiologyDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type RadiologyTestRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
+import { NotFoundError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
-import { displayDate } from "@/server/services/helpers";
+import { displayDate, displayTime } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { type RadiologyStatus } from "@/types";
+import { type RadiologyReportFileDTO } from "@/types/api";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -105,4 +106,67 @@ export async function deleteRadiology(id: number, actor: Session) {
   const ok = await radiologyRepo.remove(id);
   if (!ok) throw new NotFoundError("Radiology test");
   await audit(actor, "delete", "radiology", id);
+}
+
+// ── Report documents ─────────────────────────────────────────────────────────
+
+/** ~7 MB of base64 ≈ 5 MB file — a sane cap for PDFs / scan images. */
+const MAX_REPORT_DATAURL_CHARS = 7_000_000;
+const ALLOWED_MIME = /^data:(application\/pdf|image\/(png|jpe?g|webp));base64,/;
+
+/**
+ * Attach an uploaded report document (PDF or image, sent as a data URL) to a
+ * study. Marks the scan done and the report ready, and records who uploaded it
+ * — for partner centres that is the centre's own login, so the main hospital
+ * sees the source at a glance.
+ */
+export async function uploadRadiologyReport(
+  id: number,
+  input: unknown,
+  actor: Session,
+) {
+  const existing = await radiologyRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Radiology test");
+
+  const body = (input ?? {}) as { fileName?: string; dataUrl?: string; note?: string };
+  const fileName = String(body.fileName ?? "").trim();
+  const dataUrl = String(body.dataUrl ?? "");
+  const note = String(body.note ?? "").trim();
+
+  if (!fileName) throw new BadRequestError("fileName is required");
+  if (!ALLOWED_MIME.test(dataUrl)) {
+    throw new BadRequestError("Report must be a PDF, PNG, JPEG, or WebP file");
+  }
+  if (dataUrl.length > MAX_REPORT_DATAURL_CHARS) {
+    throw new BadRequestError("Report file is too large (max ~5 MB)");
+  }
+
+  const row = await radiologyRepo.update(id, {
+    report_file: dataUrl,
+    report_file_name: fileName,
+    report_note: note || null,
+    report_uploaded_by: actor.name,
+    report_uploaded_at: `${displayDate()}, ${displayTime()}`,
+    scan_status: "Done",
+    report_status: "Ready",
+    status: "Report Ready",
+  });
+  await audit(actor, "upload-report", "radiology", id, { fileName });
+  return toRadiologyDTO(row as RadiologyTestRow);
+}
+
+/** Fetch the uploaded report document for viewing/downloading. */
+export async function getRadiologyReportFile(
+  id: number,
+): Promise<RadiologyReportFileDTO> {
+  const row = await radiologyRepo.getRow(id);
+  if (!row) throw new NotFoundError("Radiology test");
+  if (!row.report_file) throw new NotFoundError("Report document");
+  return {
+    fileName: row.report_file_name ?? "report",
+    dataUrl: row.report_file,
+    note: row.report_note ?? null,
+    uploadedBy: row.report_uploaded_by ?? null,
+    uploadedAt: row.report_uploaded_at ?? null,
+  };
 }

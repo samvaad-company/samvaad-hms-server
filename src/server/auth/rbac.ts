@@ -143,6 +143,8 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     tasks: "read",
   }),
   Driver: withOverrides(NONE, { ambulance: "read", tasks: "read" }),
+  /** External imaging centre: sees only the radiology worklist and uploads reports. */
+  "Radiology Partner": withOverrides(NONE, { radiology: "write" }),
 };
 
 function levelSatisfies(level: Access, action: Action): boolean {

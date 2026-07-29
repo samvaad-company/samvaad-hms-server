@@ -399,6 +399,12 @@ export interface RadiologyTestRow extends Row {
   test_date: string;
   amount: number;
   status: string;
+  /** Uploaded report document as a data URL (PDF/image), when present. */
+  report_file: string | null;
+  report_file_name: string | null;
+  report_note: string | null;
+  report_uploaded_by: string | null;
+  report_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }

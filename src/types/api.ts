@@ -234,6 +234,21 @@ export interface RadiologyTestDTO {
   date: string;
   amount: number;
   status: RadiologyStatus;
+  /** True when a report document has been uploaded (fetch it via /radiology/[id]/report). */
+  hasReport: boolean;
+  reportFileName: string | null;
+  reportNote: string | null;
+  reportUploadedBy: string | null;
+  reportUploadedAt: string | null;
+}
+
+export interface RadiologyReportFileDTO {
+  fileName: string;
+  /** data: URL containing the report document (PDF or image). */
+  dataUrl: string;
+  note: string | null;
+  uploadedBy: string | null;
+  uploadedAt: string | null;
 }
 
 export interface AmbulanceDTO {

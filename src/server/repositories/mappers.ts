@@ -397,6 +397,12 @@ export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
     date: r.test_date,
     amount: Number(r.amount),
     status: r.status as RadiologyStatus,
+    // The file body itself is only served via GET /radiology/[id]/report.
+    hasReport: Boolean(r.report_file),
+    reportFileName: r.report_file_name ?? null,
+    reportNote: r.report_note ?? null,
+    reportUploadedBy: r.report_uploaded_by ?? null,
+    reportUploadedAt: r.report_uploaded_at ?? null,
   };
 }
 

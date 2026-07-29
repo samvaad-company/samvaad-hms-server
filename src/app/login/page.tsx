@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   { role: "Billing Exec",   name: "Kavitha Krishnan", email: "kavitha.krishnan@samvaadhospital.in" },
   { role: "IT Admin",       name: "Rahul Saxena",     email: "rahul.saxena@samvaadhospital.in" },
   { role: "Driver",         name: "Vijay Kumar",      email: "vijay.kumar@samvaadhospital.in" },
+  { role: "Radiology Partner", name: "Scanwell Diagnostics", email: "reports@scanwell.in" },
 ];
 
 function LoginForm() {
@@ -34,9 +35,10 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
-      const next = params.get("next") || "/home";
-      router.replace(next);
+      const me = await login(email, password);
+      // Partner centres have radiology-only access — land them on their worklist.
+      const fallback = me.role === "Radiology Partner" ? "/radiology" : "/home";
+      router.replace(params.get("next") || fallback);
     } catch (err) {
       setError(
         err instanceof ApiClientError ? err.message : "Unable to sign in",

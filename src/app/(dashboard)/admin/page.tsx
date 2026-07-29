@@ -175,7 +175,7 @@ const ROLE_CLR: Record<string, string> = {
   Accountant:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
-const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin"];
+const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner"];
 
 function UsersView() {
   const { items: adminUsers, reload } = useList<AdminUserDTO>("/admin/users");
@@ -216,7 +216,9 @@ function UsersView() {
       {showForm && (
         <div className="px-5 py-4 border-b border-[#dedee1] bg-[#f6f6f6]">
           <div className="grid grid-cols-4 gap-3">
-            <FormRow label="Full Name *"><FormInput placeholder="Name" value={form.name} onChange={v => set("name", v)} /></FormRow>
+            <FormRow label={form.role === "Radiology Partner" ? "Radiology Centre Name *" : "Full Name *"}>
+              <FormInput placeholder={form.role === "Radiology Partner" ? "e.g. Scanwell Diagnostics" : "Name"} value={form.name} onChange={v => set("name", v)} />
+            </FormRow>
             <FormRow label="Email *"><FormInput placeholder="email@hospital.com" type="email" value={form.email} onChange={v => set("email", v)} /></FormRow>
             <FormRow label="Role *">
               <FormSelect placeholder="Select role" value={form.role} onChange={v => set("role", v)} options={ROLE_OPTIONS.map(r => ({ value: r, label: r }))} />
@@ -225,6 +227,12 @@ function UsersView() {
               <FormSelect placeholder="Select dept" value={form.departmentId} onChange={v => set("departmentId", v)} options={departments.map(d => ({ value: String(d.id), label: d.name }))} />
             </FormRow>
           </div>
+          {form.role === "Radiology Partner" && (
+            <p className="text-[12px] font-light text-[#57575f] mt-2">
+              Partner centres get their own login and see only the Radiology worklist — reports they upload
+              appear instantly in this hospital&apos;s Radiology panel.
+            </p>
+          )}
           {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
           <div className="flex gap-2 mt-3">
             <button onClick={createUser} disabled={loading || !form.name || !form.email || !form.role}

@@ -64,6 +64,7 @@ export const adminUsers: AdminUserSeed[] = [
   { id: 8,  name: "Vijay Kumar",        email: "vijay.kumar@samvaadhospital.in",    role: "Driver",         department: "Emergency",      lastLogin: "3 days ago",       status: "Active"   },
   { id: 9,  name: "Dr. Sophia Adams",   email: "sophia.adams@samvaadhospital.in",   role: "Doctor",         department: "Paediatrics",    lastLogin: "Today, 9:15 AM",  status: "Active", doctorId: 2 },
   { id: 10, name: "Dr. Daniel Reed",    email: "daniel.reed@samvaadhospital.in",    role: "Doctor",         department: "Internal Medicine", lastLogin: "Today, 8:40 AM", status: "Active", doctorId: 5 },
+  { id: 11, name: "Scanwell Diagnostics", email: "reports@scanwell.in",             role: "Radiology Partner", department: "Radiology",    lastLogin: "Today, 9:40 AM",  status: "Active"   },
 ];
 
 export const rolePermissions = {
