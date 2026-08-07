@@ -44,7 +44,10 @@ export async function seedIfEmpty(adapter: DatabaseAdapter): Promise<void> {
   logger.info("seed.start", { driver: adapter.driver });
   const data = await buildSeed();
 
-  for (const table of SEED_ORDER) {
+  // Dependency-ordered tables first, then everything else the seed provides
+  // (service modules, task board, scribe notes) so no table is left unseeded.
+  const remaining = Object.keys(data).filter((t) => !SEED_ORDER.includes(t));
+  for (const table of [...SEED_ORDER, ...remaining]) {
     const rows = data[table] ?? [];
     for (const row of rows) {
       await adapter.insert(table, row);

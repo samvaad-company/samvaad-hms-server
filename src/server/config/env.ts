@@ -6,7 +6,7 @@
  * changing environment variables — no code changes required.
  */
 
-export type DatabaseDriver = "memory" | "supabase";
+export type DatabaseDriver = "memory" | "supabase" | "mongo";
 
 export interface AppConfig {
   /** Which data-access driver to use. */
@@ -17,6 +17,10 @@ export interface AppConfig {
   supabaseServiceKey: string | null;
   /** Postgres schema Supabase exposes through PostgREST. */
   supabaseSchema: string;
+  /** MongoDB connection string (only required when databaseDriver === "mongo"). */
+  mongodbUri: string | null;
+  /** Database name used inside the MongoDB cluster. */
+  mongodbDb: string;
   /** Secret used to sign session tokens (HMAC-SHA256). */
   sessionSecret: string;
   /** Session lifetime in seconds. */
@@ -33,8 +37,11 @@ export interface AppConfig {
 
 function pickDriver(): DatabaseDriver {
   const explicit = (process.env.DATABASE_DRIVER ?? "").toLowerCase();
-  if (explicit === "supabase" || explicit === "memory") return explicit;
-  // Auto-detect: if Supabase creds are present, prefer Supabase.
+  if (explicit === "supabase" || explicit === "memory" || explicit === "mongo") {
+    return explicit;
+  }
+  // Auto-detect: if Mongo or Supabase creds are present, prefer that backend.
+  if (process.env.MONGODB_URI) return "mongo";
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return "supabase";
   }
@@ -60,6 +67,8 @@ export function getConfig(): AppConfig {
     supabaseUrl: process.env.SUPABASE_URL ?? null,
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
     supabaseSchema: process.env.SUPABASE_SCHEMA ?? "public",
+    mongodbUri: process.env.MONGODB_URI ?? null,
+    mongodbDb: process.env.MONGODB_DB ?? "samvaad_hms",
     sessionSecret: process.env.SESSION_SECRET ?? DEV_SESSION_SECRET,
     sessionMaxAge: Number(process.env.SESSION_MAX_AGE ?? 60 * 60 * 8), // 8h
     sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "samvaad_session",

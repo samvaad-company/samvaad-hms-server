@@ -9,6 +9,8 @@
 import { type DatabaseAdapter } from "@/server/db/adapter";
 import { MemoryAdapter } from "@/server/db/memory-adapter";
 import { SupabaseAdapter } from "@/server/db/supabase-adapter";
+import { MongoAdapter } from "@/server/db/mongo-adapter";
+import { ensureIndexes } from "@/server/db/mongo-indexes";
 import { buildSeed } from "@/server/db/seed";
 import { seedIfEmpty } from "@/server/db/seed-runner";
 import { getConfig } from "@/server/config/env";
@@ -36,6 +38,25 @@ async function initialize(): Promise<DatabaseAdapter> {
     }
     adapter = supabase;
     return supabase;
+  }
+
+  if (cfg.databaseDriver === "mongo") {
+    const mongo = new MongoAdapter();
+    await mongo.ready();
+    // Indexes are Mongo's equivalent of the SQL migrations; idempotent.
+    await ensureIndexes(await mongo.database());
+    // Populate sample data the first time only (empty database).
+    if (process.env.MONGODB_AUTO_SEED !== "false") {
+      try {
+        await seedIfEmpty(mongo);
+      } catch (err) {
+        logger.error("mongo.seed_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    adapter = mongo;
+    return mongo;
   }
 
   const memory = new MemoryAdapter();
