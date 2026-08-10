@@ -155,6 +155,8 @@ export interface AppointmentRow extends Row {
 export interface OpdVisitRow extends Row {
   id: number;
   token_number: string;
+  /** Set when the visit was created by checking in a booked appointment. */
+  appointment_id: number | null;
   patient_id: number | null;
   patient_name: string;
   patient_age: number;

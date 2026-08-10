@@ -24,6 +24,7 @@ const vitalsSchema = {
 } as const;
 
 const createSchema = {
+  appointmentId: { type: "number", required: false },
   patientId: { type: "number", required: false },
   patientName: { type: "string", required: true, min: 2, max: 120 },
   patientAge: { type: "number", required: false, min: 0, max: 200, default: 0 },
@@ -54,7 +55,7 @@ function hasAnyVital(d: Record<string, unknown>): boolean {
 
 export const OPD_LIST_CONFIG = {
   searchColumns: ["patient_name", "doctor", "token_number", "reason"],
-  filterable: ["status", "doctor", "priority", "patient_id", "doctor_id"],
+  filterable: ["status", "doctor", "priority", "patient_id", "doctor_id", "appointment_id"],
   sortable: ["check_in_time", "token_number", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
@@ -96,6 +97,7 @@ export async function checkInOpd(input: unknown, actor: Session) {
 
   const row = await opdRepo.create({
     token_number: token,
+    appointment_id: data.appointmentId ?? null,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
     patient_age: patientAge,

@@ -202,12 +202,16 @@ function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appoint
                   ) : slots.length === 0 ? (
                     <span className="text-[10px] font-normal text-[#57575f]">Free</span>
                   ) : (
-                    <>
+                    <div className="flex flex-col gap-[3px]">
                       <div className="text-[11px] font-medium text-[#009598]">{slots.length} appt{slots.length > 1 ? "s" : ""}</div>
-                      <div className="text-[10px] font-normal text-[#009598] mt-[2px] truncate">
-                        {slots.slice(0, 3).map(s => s.time).join(" · ")}{slots.length > 3 ? " …" : ""}
-                      </div>
-                    </>
+                      {slots.map(s => (
+                        <div key={s.id} title={`${s.time} — ${s.patientName}${s.reason ? ` (${s.reason})` : ""}`}
+                          className="text-[10px] font-normal text-[#11111c] bg-white/70 rounded-[4px] px-[4px] py-[2px] leading-tight">
+                          <span className="font-medium">{s.time}</span>
+                          <span className="block truncate text-[#57575f]">{s.patientName}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -233,6 +237,21 @@ export default function AppointmentsPage() {
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { dialog, remove, mutate } = useRowActions("appointments", reload);
   const { run: runQueue } = useMutation();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  /** Issue an OPD token for a booked appointment. */
+  async function checkIn(appt: AppointmentDTO) {
+    setNotice(null);
+    try {
+      const visit = await api.post<OpdRecordDTO>(`/appointments/${appt.id}/check-in`);
+      setNotice(`${appt.patientName} checked in to OPD as ${visit.tokenNumber}.`);
+      reload();
+      reloadOpd();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not check in this appointment.");
+    }
+  }
+
   const callNext = (opdId: number) =>
     runQueue(() => api.patch(`/opd/${opdId}`, { status: "In Consultation" })).then(reloadOpd);
 
@@ -279,6 +298,15 @@ export default function AppointmentsPage() {
         range={range}
         onRangeChange={setRange}
       />
+      {notice && (
+        <div className={`${tw.gutterX} mb-3`}>
+          <div className="flex items-start justify-between gap-3 text-[13px] text-[#11111c] bg-[#e8f7f7] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
+            <span>{notice}</span>
+            <button onClick={() => setNotice(null)} className="text-[#57575f] hover:text-[#11111c] shrink-0">✕</button>
+          </div>
+        </div>
+      )}
+
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
@@ -293,6 +321,7 @@ export default function AppointmentsPage() {
                 ) : visible.map(r => (
                   <AppointmentRow key={r.id} row={r} actions={[
                     { label: "View details", onClick: () => router.push(`/appointments/${r.id}`) },
+                    { label: "Check in to OPD", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => void checkIn(r) },
                     { label: "Mark Completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Completed" })) },
                     { label: "Cancel appointment", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Cancelled" })) },
                     { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },

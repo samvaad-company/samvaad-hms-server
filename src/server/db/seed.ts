@@ -212,6 +212,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   const opdVisits: Row[] = opdData.map((o) => ({
     id: o.id,
     token_number: o.tokenNumber,
+    appointment_id: null,
     patient_id: findPatientByName(o.patientName)?.id ?? null,
     patient_name: o.patientName,
     patient_age: o.patientAge,

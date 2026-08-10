@@ -7,13 +7,15 @@ import {
   appointmentsRepo,
   patientsRepo,
   doctorsRepo,
+  opdRepo,
 } from "@/server/repositories";
 import { toAppointmentDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type AppointmentRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
+import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
+import { checkInOpd } from "@/server/services/opd-service";
 import { type Session } from "@/server/auth/session";
 
 const createSchema = {
@@ -112,4 +114,47 @@ export async function deleteAppointment(id: number, actor: Session) {
   const ok = await appointmentsRepo.remove(id);
   if (!ok) throw new NotFoundError("Appointment");
   await audit(actor, "delete", "appointment", id);
+}
+
+/**
+ * Check a booked appointment into the OPD queue.
+ *
+ * Appointments and OPD visits were previously unconnected, so a booking never
+ * appeared in OPD and the front desk had to re-enter the patient by hand. This
+ * issues a token carrying the appointment's patient, doctor and reason, and
+ * marks the appointment as Today so both views agree.
+ */
+export async function checkInAppointment(id: number, actor: Session) {
+  const appt = await appointmentsRepo.getRow(id);
+  if (!appt) throw new NotFoundError("Appointment");
+  if (appt.status === "Cancelled") {
+    throw new ConflictError("A cancelled appointment cannot be checked in");
+  }
+
+  // Don't issue a second token for the same appointment.
+  const existing = await opdRepo.findRow([
+    { column: "appointment_id", op: "eq", value: id },
+  ]);
+  if (existing) {
+    throw new ConflictError(
+      `${appt.patient_name} is already in the OPD queue as ${existing.token_number}`,
+    );
+  }
+
+  const visit = await checkInOpd(
+    {
+      appointmentId: id,
+      patientId: appt.patient_id ?? undefined,
+      patientName: appt.patient_name,
+      patientAge: appt.patient_age,
+      doctorId: appt.doctor_id ?? undefined,
+      doctor: appt.doctor,
+      reason: appt.reason,
+    },
+    actor,
+  );
+
+  await appointmentsRepo.update(id, { status: "Today" });
+  await audit(actor, "checkin", "appointment", id, { token: visit.tokenNumber });
+  return visit;
 }
