@@ -264,6 +264,11 @@ export function toLabDTO(r: LabTestRow): LabTestDTO {
     amount: Number(r.amount),
     status: r.status as LabStatus,
     patientId: r.patient_id,
+    orderNumber: r.order_number ?? "",
+    requestedBy: r.requested_by ?? "",
+    priority: r.priority ?? "Routine",
+    collectionDate: r.collection_date ?? "",
+    discount: Number(r.discount ?? 0),
   };
 }
 

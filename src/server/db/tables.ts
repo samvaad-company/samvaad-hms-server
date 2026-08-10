@@ -238,14 +238,20 @@ export interface PharmacyItemRow extends Row {
 
 export interface LabTestRow extends Row {
   id: number;
+  /** Tests booked together share one order number (LAB-0001). */
+  order_number: string;
   patient_id: number | null;
   patient_name: string;
   patient_age: number;
   test_name: string;
+  requested_by: string;
+  priority: string;
   sample_status: string;
   report_status: string;
   test_date: string;
+  collection_date: string;
   amount: number;
+  discount: number;
   status: string;
   created_at: string;
   updated_at: string;

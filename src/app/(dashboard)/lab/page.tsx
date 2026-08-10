@@ -5,17 +5,19 @@ import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
 import { FlaskConical, Plus, Upload, Eye } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
-import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
+import { inDateRange, type DateRangeId, formatDate, todayIso } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { LabTestDTO, PatientDTO } from "@/types/api";
+import type { LabTestDTO, PatientDTO, DocumentDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { Modal } from "@/components/shared/Modal";
+import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import type { LabTest } from "@/types";
 
 // ─── Tests Tab ────────────────────────────────────────────────────────────────
@@ -67,6 +69,18 @@ const TEST_CATEGORIES = [
   "Haematology", "Biochemistry", "Microbiology", "Radiology", "Cardiology",
   "Urology", "Pathology", "Immunology",
 ];
+const LAB_PRIORITY_OPTS = [
+  { value: "Routine", label: "Routine" },
+  { value: "Urgent",  label: "Urgent" },
+  { value: "STAT",    label: "STAT (Emergency)" },
+];
+
+const PRIORITY_CLR: Record<string, string> = {
+  STAT:    "bg-[#ffe9e9] text-[#ff0004]",
+  Urgent:  "bg-[#fff2e0] text-[#ff9000]",
+  Routine: "bg-[#f0f0f0] text-[#57575f]",
+};
+
 const COMMON_TESTS = [
   { name: "Complete Blood Count (CBC)", category: "Haematology", price: 350 },
   { name: "Lipid Profile", category: "Biochemistry", price: 600 },
@@ -88,6 +102,10 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [patientId, setPatientId] = useState("");
+  const [requestedBy, setRequestedBy] = useState("");
+  const [priority, setPriority] = useState("Routine");
+  const [collectionDate, setCollectionDate] = useState("");
+  const [discount, setDiscount] = useState("");
   const { run, loading, error } = useMutation();
 
   const filtered = COMMON_TESTS.filter(t =>
@@ -99,20 +117,25 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
   async function bookTests() {
     if (!patientId || selectedTests.length === 0) return;
     const patient = patients.find(p => String(p.id) === patientId);
-    await run(async () => {
-      for (const name of selectedTests) {
-        const test = COMMON_TESTS.find(t => t.name === name);
-        await api.post("/lab", {
-          patientId: Number(patientId),
-          patientName: patient?.name ?? "",
-          patientAge: patient?.age ?? 0,
+    // One order for the whole booking, so several tests don't read as
+    // several separate patient entries.
+    await run(() =>
+      api.post("/lab/orders", {
+        patientId: Number(patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        requestedBy,
+        priority,
+        collectionDate,
+        discount: Number(discount) || 0,
+        tests: selectedTests.map(name => ({
           testName: name,
-          amount: test?.price ?? 0,
-        });
-      }
-    });
-    setSelectedTests([]);
-    setPatientId("");
+          amount: COMMON_TESTS.find(t => t.name === name)?.price ?? 0,
+        })),
+      }),
+    );
+    setSelectedTests([]); setPatientId(""); setRequestedBy("");
+    setPriority("Routine"); setCollectionDate(""); setDiscount("");
     onBooked();
   }
 
@@ -125,13 +148,23 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
             <FormSelect placeholder="Search or select patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
           </FormRow>
           <FormRow label="Requesting Doctor">
-            <FormInput placeholder="Doctor name or OPD reference" />
+            <FormInput placeholder="Doctor name or OPD reference" value={requestedBy} onChange={setRequestedBy} />
           </FormRow>
-          <FormRow label="Sample Collection Date *">
-            <FormInput type="date" />
+          <FormRow label="Sample Collection Date">
+            <input
+              type="date"
+              value={collectionDate}
+              min={todayIso()}
+              onChange={(e) => setCollectionDate(e.target.value)}
+              className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+            />
           </FormRow>
           <FormRow label="Priority">
-            <FormSelect placeholder="Select priority" options={[{ value: "routine", label: "Routine" }, { value: "urgent", label: "Urgent" }, { value: "stat", label: "STAT (Emergency)" }]} />
+            <FormSelect placeholder="Select priority" value={priority} onChange={setPriority}
+              options={LAB_PRIORITY_OPTS} />
+          </FormRow>
+          <FormRow label="Discount (₹)">
+            <FormInput type="number" placeholder="0" value={discount} onChange={setDiscount} />
           </FormRow>
         </div>
 
@@ -202,34 +235,69 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
 // ─── Reports Tab ──────────────────────────────────────────────────────────────
 
 function ReportsView({ labTests }: { labTests: LabTestDTO[] }) {
+  // Reports are stored as document attachments against the lab test.
+  const [openFor, setOpenFor] = useState<LabTestDTO | null>(null);
+  const { items: docs } = useList<DocumentDTO>("/documents", { all: true, owner_type: "lab" });
+  const countFor = (id: number) => docs.filter(d => d.ownerId === id).length;
+
   return (
-    <div className="p-5 grid grid-cols-2 gap-4 overflow-y-auto" style={{ height: 555 }}>
-      {labTests.map(test => (
-        <div key={test.id} className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
-          <div className="flex flex-col gap-[6px]">
-            <span className="text-[14px] font-medium text-[#11111c]">{test.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{test.patientName} · {test.patientAge} yrs · {test.date}</span>
-            <div className="flex items-center gap-2">
-              <StatusBadge status={test.status} />
-              {test.reportStatus === "Ready" && (
-                <span className="text-[11px] font-normal text-[#00955c]">PDF ready</span>
-              )}
+    <>
+      <div className="p-5 grid grid-cols-2 gap-4 overflow-y-auto" style={{ height: 555 }}>
+        {labTests.map(test => {
+          const n = countFor(test.id);
+          return (
+            <div key={test.id} className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
+              <div className="flex flex-col gap-[6px] min-w-0">
+                <span className="text-[14px] font-medium text-[#11111c] truncate">{test.testName}</span>
+                <span className="text-[12px] font-light text-[#57575f] truncate">
+                  {test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={test.status} />
+                  {n > 0 && (
+                    <span className="text-[11px] font-normal text-[#00955c]">
+                      {n} file{n > 1 ? "s" : ""} attached
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <button
+                  onClick={() => setOpenFor(test)}
+                  className={`flex items-center gap-[6px] text-[12px] font-normal px-3 py-[5px] rounded-full transition-colors whitespace-nowrap ${
+                    n > 0
+                      ? "text-[#009598] border border-[#009598] hover:bg-[#e8f7f7]"
+                      : "text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6]"
+                  }`}
+                >
+                  {n > 0 ? <><Eye size={13} /> View</> : <><Upload size={13} /> Upload</>}
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-2 shrink-0">
-            {test.reportStatus === "Ready" ? (
-              <button className="flex items-center gap-[6px] text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
-                <Eye size={13} /> View
-              </button>
-            ) : (
-              <button className="flex items-center gap-[6px] text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
-                <Upload size={13} /> Upload
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
+          );
+        })}
+      </div>
+
+      {openFor && (
+        <Modal
+          open
+          onClose={() => setOpenFor(null)}
+          title={`${openFor.testName} — ${openFor.patientName}`}
+          width={620}
+          footer={
+            <button onClick={() => setOpenFor(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              Close
+            </button>
+          }
+        >
+          <DocumentsPanel
+            ownerType="lab"
+            ownerId={openFor.id}
+            categories={["Report", "Scan", "Referral", "Other"]}
+          />
+        </Modal>
+      )}
+    </>
   );
 }
 

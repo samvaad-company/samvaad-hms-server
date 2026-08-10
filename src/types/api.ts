@@ -107,6 +107,11 @@ export interface OpdRecordDTO extends OpdRecord {
 }
 
 export interface LabTestDTO extends LabTest {
+  orderNumber: string;
+  requestedBy: string;
+  priority: string;
+  collectionDate: string;
+  discount: number;
   patientId: number | null;
 }
 
