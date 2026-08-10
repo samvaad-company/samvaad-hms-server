@@ -18,15 +18,33 @@ import type { OpdRecord } from "@/types";
 
 const COLUMNS = [
   { label: "Token",  width: "80px" },
-  { label: "Patient", width: "minmax(150px,1.4fr)" },
-  { label: "Age",    width: "60px" },
-  { label: "Doctor", width: "minmax(150px,1.3fr)" },
-  { label: "Vitals", width: "110px" },
-  { label: "Wait",   width: "90px" },
-  { label: "Check-in", width: "100px" },
+  { label: "Patient", width: "minmax(140px,1.3fr)" },
+  { label: "Age",    width: "55px" },
+  { label: "Doctor", width: "minmax(130px,1.2fr)" },
+  { label: "Reason", width: "minmax(140px,1.4fr)" },
+  { label: "Priority", width: "100px" },
+  { label: "Vitals", width: "150px" },
+  { label: "Wait",   width: "80px" },
+  { label: "Check-in", width: "95px" },
   { label: "Status", width: "130px" },
   { label: "Action", width: "52px", align: "right" as const },
 ];
+
+const PRIORITY_CLR: Record<string, string> = {
+  Emergency: "bg-[#ffe9e9] text-[#ff0004]",
+  Urgent:    "bg-[#fff2e0] text-[#ff9000]",
+  Normal:    "bg-[#f0f0f0] text-[#57575f]",
+};
+
+/** Compact vitals readout, e.g. "120/80 · 74 · 98.6°F · 98%". */
+function vitalsSummary(v: OpdRecord["vitals"]): string {
+  const parts: string[] = [];
+  if (v.bpSystolic && v.bpDiastolic) parts.push(`${v.bpSystolic}/${v.bpDiastolic}`);
+  if (v.pulse) parts.push(`${v.pulse} bpm`);
+  if (v.temperature) parts.push(`${v.temperature}°F`);
+  if (v.spo2) parts.push(`${v.spo2}%`);
+  return parts.join(" · ");
+}
 
 const FILTERS = [
   { id: "All",             label: "All" },
@@ -44,14 +62,25 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[#57575f] truncate" title={row.reason}>
+        {row.reason || "—"}
+      </span>
+      <div>
+        <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-medium ${PRIORITY_CLR[row.priority] ?? PRIORITY_CLR.Normal}`}>
+          {row.priority}
+        </span>
+      </div>
       <div className="flex items-center gap-[6px] min-w-0">
         {row.vitalsRecorded ? (
           <CheckCircle size={15} className="text-[#00955c] shrink-0" />
         ) : (
           <XCircle size={15} className="text-[#ff0004] shrink-0" />
         )}
-        <span className={`text-[13px] font-normal truncate ${row.vitalsRecorded ? "text-[#00955c]" : "text-[#ff0004]"}`}>
-          {row.vitalsRecorded ? "Recorded" : "Pending"}
+        <span
+          className={`text-[12px] font-normal truncate ${row.vitalsRecorded ? "text-[#11111c]" : "text-[#ff0004]"}`}
+          title={vitalsSummary(row.vitals)}
+        >
+          {row.vitalsRecorded ? (vitalsSummary(row.vitals) || "Recorded") : "Pending"}
         </span>
       </div>
       <span className="text-[13px] font-normal text-[#11111c]">{row.waitTime}</span>
@@ -73,10 +102,34 @@ export default function OpdPage() {
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { run, loading, error } = useMutation();
   const { dialog, remove, mutate } = useRowActions("opd", reload);
-  const NEXT_TOKEN = `T-${String(opdRecords.length + 1).padStart(3, "0")}`;
+  // Next token follows the highest existing token, not the row count, so it
+  // stays correct after deletions and re-numbering.
+  const maxToken = opdRecords.reduce((m, r) => {
+    const n = Number(r.tokenNumber.replace(/\D/g, ""));
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+  const NEXT_TOKEN = `T-${String(maxToken + 1).padStart(3, "0")}`;
 
-  const [form, setForm] = useState({ patientId: "", doctorId: "", reason: "", vitals: "no" });
+  const EMPTY = {
+    patientId: "", doctorId: "", reason: "", priority: "Normal",
+    bpSystolic: "", bpDiastolic: "", pulse: "", temperature: "", spo2: "",
+  };
+  const [form, setForm] = useState(EMPTY);
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  /** Selecting a patient pre-fills their usual doctor and visit reason. */
+  function selectPatient(patientId: string) {
+    const p = patients.find(x => String(x.id) === patientId);
+    const usualDoctor = p ? doctors.find(d => d.name === p.doctor) : undefined;
+    setForm(prev => ({
+      ...prev,
+      patientId,
+      doctorId: usualDoctor ? String(usualDoctor.id) : prev.doctorId,
+      reason: p?.reason || prev.reason,
+    }));
+  }
+
+  const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
   async function checkIn() {
     const patient = patients.find(p => String(p.id) === form.patientId);
@@ -88,10 +141,16 @@ export default function OpdPage() {
         patientAge: patient?.age ?? 0,
         doctorId: form.doctorId ? Number(form.doctorId) : undefined,
         doctor: doctor?.name ?? "",
-        vitalsRecorded: form.vitals === "yes",
+        reason: form.reason,
+        priority: form.priority,
+        bpSystolic: num(form.bpSystolic),
+        bpDiastolic: num(form.bpDiastolic),
+        pulse: num(form.pulse),
+        temperature: num(form.temperature),
+        spo2: num(form.spo2),
       }),
     );
-    setForm({ patientId: "", doctorId: "", reason: "", vitals: "no" });
+    setForm(EMPTY);
     setShowModal(false);
     reload();
   }
@@ -125,17 +184,38 @@ export default function OpdPage() {
             </div>
           </div>
           <FormRow label="Patient *">
-            <FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            <FormSelect placeholder="Search patient" value={form.patientId} onChange={selectPatient} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
           </FormRow>
           <FormRow label="Doctor *">
             <FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
           </FormRow>
           <div className="col-span-2"><FormRow label="Chief Complaint"><FormInput placeholder="Brief reason for visit" value={form.reason} onChange={v => set("reason", v)} /></FormRow></div>
-          <FormRow label="Vitals Recorded">
-            <FormSelect placeholder="Status" value={form.vitals} onChange={v => set("vitals", v)} options={[{ value: "yes", label: "Yes — Recorded" }, { value: "no", label: "No — Pending" }]} />
-          </FormRow>
           <FormRow label="Priority">
-            <FormSelect placeholder="Normal" options={[{ value: "normal", label: "Normal" }, { value: "urgent", label: "Urgent" }, { value: "emergency", label: "Emergency" }]} />
+            <FormSelect placeholder="Normal" value={form.priority} onChange={v => set("priority", v)}
+              options={[{ value: "Normal", label: "Normal" }, { value: "Urgent", label: "Urgent" }, { value: "Emergency", label: "Emergency" }]} />
+          </FormRow>
+          <div />
+
+          <div className="col-span-2 border-t border-[#f0f0f0] pt-3">
+            <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">
+              Vitals <span className="font-normal normal-case">— optional; entering any reading marks vitals as recorded</span>
+            </p>
+          </div>
+          <FormRow label="Blood Pressure (mmHg)">
+            <div className="flex items-center gap-2">
+              <FormInput placeholder="120" type="number" value={form.bpSystolic} onChange={v => set("bpSystolic", v)} />
+              <span className="text-[#57575f]">/</span>
+              <FormInput placeholder="80" type="number" value={form.bpDiastolic} onChange={v => set("bpDiastolic", v)} />
+            </div>
+          </FormRow>
+          <FormRow label="Pulse (bpm)">
+            <FormInput placeholder="72" type="number" value={form.pulse} onChange={v => set("pulse", v)} />
+          </FormRow>
+          <FormRow label="Temperature (°F)">
+            <FormInput placeholder="98.6" type="number" value={form.temperature} onChange={v => set("temperature", v)} />
+          </FormRow>
+          <FormRow label="Oxygen / SpO₂ (%)">
+            <FormInput placeholder="98" type="number" value={form.spo2} onChange={v => set("spo2", v)} />
           </FormRow>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>

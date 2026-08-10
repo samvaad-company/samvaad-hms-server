@@ -1,6 +1,13 @@
 import { type OpdRecord } from "@/types";
 
-export const opdRecords: OpdRecord[] = [
+/**
+ * Seed shape for the OPD queue. Reason, priority and vitals readings are
+ * derived when the rows are built (see server/db/seed.ts), so they are not
+ * repeated here.
+ */
+export type OpdSeed = Omit<OpdRecord, "reason" | "priority" | "vitals">;
+
+export const opdRecords: OpdSeed[] = [
   { id: 1,  tokenNumber: "T-001", patientName: "William Scott",   patientAge: 55, doctor: "Dr. Emily Cooper",   vitalsRecorded: true,  waitTime: "5 min",  checkInTime: "9:05 AM",  status: "In Consultation" },
   { id: 2,  tokenNumber: "T-002", patientName: "Ethan Miller",    patientAge: 18, doctor: "Dr. Sophia Adams",   vitalsRecorded: true,  waitTime: "12 min", checkInTime: "9:18 AM",  status: "Waiting"         },
   { id: 3,  tokenNumber: "T-003", patientName: "Priya Sharma",    patientAge: 40, doctor: "Dr. Daniel Reed",    vitalsRecorded: false, waitTime: "20 min", checkInTime: "9:30 AM",  status: "Waiting"         },

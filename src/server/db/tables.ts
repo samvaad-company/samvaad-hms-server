@@ -159,7 +159,15 @@ export interface OpdVisitRow extends Row {
   patient_age: number;
   doctor_id: number | null;
   doctor: string;
+  reason: string;
+  priority: string;
   vitals_recorded: boolean;
+  /** Vitals readings; null until recorded. */
+  bp_systolic: number | null;
+  bp_diastolic: number | null;
+  pulse: number | null;
+  temperature: number | null;
+  spo2: number | null;
   wait_time: string;
   check_in_time: string;
   status: string;

@@ -3,6 +3,7 @@ export type BloodGroup = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-"
 
 export type AppointmentStatus = "Completed" | "Today" | "Upcoming" | "Cancelled";
 export type OpdStatus = "Waiting" | "In Consultation" | "Completed";
+export type OpdPriority = "Normal" | "Urgent" | "Emergency";
 export type DoctorStatus = "Active" | "On Leave" | "In OPD";
 export type PrescriptionStatus = "Dispensed" | "Pending" | "Draft";
 export type PharmacyStatus = "In Stock" | "Low Stock" | "Out of Stock" | "Expired";
@@ -52,13 +53,24 @@ export interface Appointment {
   status: AppointmentStatus;
 }
 
+export interface Vitals {
+  bpSystolic: number | null;
+  bpDiastolic: number | null;
+  pulse: number | null;
+  temperature: number | null;
+  spo2: number | null;
+}
+
 export interface OpdRecord {
   id: number;
   tokenNumber: string;
   patientName: string;
   patientAge: number;
   doctor: string;
+  reason: string;
+  priority: OpdPriority;
   vitalsRecorded: boolean;
+  vitals: Vitals;
   waitTime: string;
   checkInTime: string;
   status: OpdStatus;
