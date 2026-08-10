@@ -33,6 +33,7 @@ import type {
   InventoryItemDTO,
   InventoryIssueDTO,
   TaskDTO,
+  DocumentDTO,
   ScribeNoteDTO,
 } from "@/types/api";
 import type {
@@ -67,6 +68,7 @@ import type {
   InventoryItemRow,
   InventoryIssueRow,
   TaskRow,
+  DocumentRow,
   ScribeNoteRow,
 } from "@/server/db/tables";
 import type {
@@ -538,6 +540,21 @@ export function toInventoryIssueDTO(r: InventoryIssueRow): InventoryIssueDTO {
     issuedTo: r.issued_to,
     date: r.issue_date,
     note: r.note,
+  };
+}
+
+export function toDocumentDTO(r: DocumentRow): DocumentDTO {
+  return {
+    id: r.id,
+    ownerType: r.owner_type,
+    ownerId: r.owner_id,
+    category: r.category,
+    fileName: r.file_name,
+    mimeType: r.mime_type,
+    sizeBytes: r.size_bytes,
+    uploadedBy: r.uploaded_by,
+    createdAt: r.created_at,
+    url: `/api/documents/${r.id}/download`,
   };
 }
 

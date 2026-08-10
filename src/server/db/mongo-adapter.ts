@@ -35,13 +35,35 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Query-string filters arrive as strings ("?patient_id=1") while the stored
+ * value is a number. Postgres coerces this server-side; Mongo compares types
+ * strictly, so a numeric-looking string must match both forms.
+ */
+function equalityCandidates(value: unknown): unknown[] {
+  if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) {
+    return [value, Number(value)];
+  }
+  if (value === "true") return [true, "true"];
+  if (value === "false") return [false, "false"];
+  return [value];
+}
+
 /** Translate one adapter filter into a Mongo query fragment. */
 function toMongoCondition(f: Filter): Document {
   switch (f.op) {
-    case "eq":
-      return { [f.column]: { $eq: f.value } };
-    case "neq":
-      return { [f.column]: { $ne: f.value } };
+    case "eq": {
+      const candidates = equalityCandidates(f.value);
+      return candidates.length > 1
+        ? { [f.column]: { $in: candidates } }
+        : { [f.column]: { $eq: f.value } };
+    }
+    case "neq": {
+      const candidates = equalityCandidates(f.value);
+      return candidates.length > 1
+        ? { [f.column]: { $nin: candidates } }
+        : { [f.column]: { $ne: f.value } };
+    }
     case "gt":
       return { [f.column]: { $gt: f.value } };
     case "gte":
@@ -50,8 +72,10 @@ function toMongoCondition(f: Filter): Document {
       return { [f.column]: { $lt: f.value } };
     case "lte":
       return { [f.column]: { $lte: f.value } };
-    case "in":
-      return { [f.column]: { $in: Array.isArray(f.value) ? f.value : [f.value] } };
+    case "in": {
+      const list = Array.isArray(f.value) ? f.value : [f.value];
+      return { [f.column]: { $in: list.flatMap(equalityCandidates) } };
+    }
     case "is":
       return { [f.column]: { $eq: f.value } };
     case "like":

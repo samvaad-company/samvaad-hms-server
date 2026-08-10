@@ -9,6 +9,7 @@ import type { PatientDTO, PrescriptionDTO, LabTestDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
+import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import {
   Phone, MapPin, Droplets, Calendar,
   FileText, Upload, ShieldCheck, AlertCircle,
@@ -134,35 +135,6 @@ function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function DocumentsTab() {
-  const DOCS = [
-    { name: "Aadhaar Card", type: "ID Proof", date: "Registration" },
-    { name: "Insurance Card", type: "Insurance", date: "Registration" },
-    { name: "Previous Records", type: "Medical History", date: "Upload" },
-  ];
-  return (
-    <div className="p-5 flex flex-col gap-3">
-      {DOCS.map(d => (
-        <div key={d.name} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#f0f0f0] rounded-[8px] flex items-center justify-center">
-              <FileText size={18} className="text-[#57575f]" />
-            </div>
-            <div>
-              <span className="text-[14px] font-medium text-[#11111c] block">{d.name}</span>
-              <span className="text-[12px] font-light text-[#57575f]">{d.type}</span>
-            </div>
-          </div>
-          <button className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors">View</button>
-        </div>
-      ))}
-      <button className="flex items-center justify-center gap-2 mt-2 border-2 border-dashed border-[#dedee1] rounded-[10px] py-4 text-[13px] font-normal text-[#57575f] hover:bg-[#f6f6f6] transition-colors">
-        <Upload size={15} /> Upload Document
-      </button>
     </div>
   );
 }
@@ -300,7 +272,7 @@ export default function PatientDetailPage() {
             {tab === "overview"      && <OverviewTab patientId={patient.id} />}
             {tab === "prescriptions" && <PrescriptionsTab rxList={patient.prescriptions} />}
             {tab === "lab"           && <LabReportsTab tests={patient.labTests} />}
-            {tab === "documents"     && <DocumentsTab />}
+            {tab === "documents"     && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}
             {tab === "vaccinations"  && <VaccinationsTab patientId={patient.id} />}
           </div>
         </div>

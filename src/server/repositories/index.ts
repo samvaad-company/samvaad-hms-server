@@ -39,6 +39,7 @@ import type {
   InventoryItemRow,
   InventoryIssueRow,
   TaskRow,
+  DocumentRow,
   ScribeNoteRow,
 } from "@/server/db/tables";
 import {
@@ -71,6 +72,7 @@ import {
   toInventoryItemDTO,
   toInventoryIssueDTO,
   toTaskDTO,
+  toDocumentDTO,
   toScribeNoteDTO,
 } from "@/server/repositories/mappers";
 
@@ -190,6 +192,10 @@ export const inventoryItemsRepo = createRepository<InventoryItemRow, ReturnType<
 export const inventoryIssuesRepo = createRepository<InventoryIssueRow, ReturnType<typeof toInventoryIssueDTO>>(
   TABLES.inventoryIssues,
   toInventoryIssueDTO,
+);
+export const documentsRepo = createRepository<DocumentRow, ReturnType<typeof toDocumentDTO>>(
+  TABLES.documents,
+  toDocumentDTO,
 );
 export const tasksRepo = createRepository<TaskRow, ReturnType<typeof toTaskDTO>>(
   TABLES.tasks,

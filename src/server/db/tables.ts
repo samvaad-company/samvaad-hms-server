@@ -44,6 +44,7 @@ export const TABLES = {
   inventoryIssues: "inventory_issues",
   tasks: "tasks",
   scribeNotes: "scribe_notes",
+  documents: "documents",
   bedTransfers: "bed_transfers",
 } as const;
 
@@ -562,6 +563,21 @@ export interface TaskRow extends Row {
   priority: string;
   status: string;
   due_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentRow extends Row {
+  id: number;
+  /** What the file is attached to, e.g. "patient" | "lab" | "donor". */
+  owner_type: string;
+  owner_id: number;
+  category: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_key: string;
+  uploaded_by: string;
   created_at: string;
   updated_at: string;
 }

@@ -679,6 +679,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.financeExpenses]: financeExpenses,
     [TABLES.inventoryItems]: inventoryItems,
     [TABLES.inventoryIssues]: inventoryIssues,
+    [TABLES.documents]: [],
     [TABLES.tasks]: tasks,
     [TABLES.scribeNotes]: scribeNotes,
     [TABLES.bedTransfers]: bedTransfers,

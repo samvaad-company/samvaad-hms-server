@@ -30,7 +30,8 @@ export type Resource =
   | "finance"
   | "inventory"
   | "tasks"
-  | "scribe";
+  | "scribe"
+  | "documents";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -59,6 +60,7 @@ export const RESOURCES: Resource[] = [
   "inventory",
   "tasks",
   "scribe",
+  "documents",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(

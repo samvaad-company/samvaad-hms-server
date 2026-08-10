@@ -387,6 +387,20 @@ export interface ScribeNoteDTO {
   updatedAt: string;
 }
 
+export interface DocumentDTO {
+  id: number;
+  ownerType: string;
+  ownerId: number;
+  category: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  createdAt: string;
+  /** Ready-to-use download URL. */
+  url: string;
+}
+
 export interface DashboardStatsDTO {
   patients: number;
   appointmentsToday: number;

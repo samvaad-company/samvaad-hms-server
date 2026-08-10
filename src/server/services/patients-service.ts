@@ -21,11 +21,12 @@ import {
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { toPrescriptionDTO, toLabDTO } from "@/server/repositories/mappers";
+import { mobileRule, dobRule, optionalMobileRule } from "@/server/lib/field-rules";
 
 const createSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
-  phone: { type: "string", required: true, min: 6, max: 20 },
-  dob: { type: "string", required: false },
+  phone: mobileRule,
+  dob: dobRule,
   age: { type: "number", required: false, min: 0, max: 200 },
   gender: { type: "enum", required: true, values: ["Male", "Female", "Other"] },
   email: { type: "string", required: false, max: 160 },
@@ -45,7 +46,7 @@ const createSchema = {
   pincode: { type: "string", required: false, max: 12 },
   emergencyName: { type: "string", required: false, max: 120 },
   emergencyRelation: { type: "string", required: false, max: 40 },
-  emergencyPhone: { type: "string", required: false, max: 20 },
+  emergencyPhone: optionalMobileRule,
   insurer: { type: "string", required: false, max: 120 },
   policyNumber: { type: "string", required: false, max: 80 },
   corporate: { type: "string", required: false, max: 120 },

@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Local browser-test artifacts
 /.playwright-mcp/
+
+# Uploaded files (local storage driver)
+storage/

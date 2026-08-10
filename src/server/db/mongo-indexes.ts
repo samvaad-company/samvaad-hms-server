@@ -43,6 +43,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.financeExpenses]: ["category", "entry_date"],
   [TABLES.inventoryItems]: ["status", "category"],
   [TABLES.inventoryIssues]: ["item_id", "department"],
+  [TABLES.documents]: ["owner_type", "owner_id", "category"],
   [TABLES.tasks]: ["status", "priority", "assignee_id"],
   [TABLES.scribeNotes]: ["appointment_id", "patient_id", "doctor_id", "status"],
 };
