@@ -34,6 +34,10 @@ import type {
   InventoryIssueDTO,
   TaskDTO,
   DocumentDTO,
+  PurchaseOrderDTO,
+  PurchaseOrderItemDTO,
+  PharmacySaleDTO,
+  PharmacySaleItemDTO,
   ScribeNoteDTO,
 } from "@/types/api";
 import type {
@@ -69,6 +73,10 @@ import type {
   InventoryIssueRow,
   TaskRow,
   DocumentRow,
+  PurchaseOrderRow,
+  PurchaseOrderItemRow,
+  PharmacySaleRow,
+  PharmacySaleItemRow,
   ScribeNoteRow,
 } from "@/server/db/tables";
 import type {
@@ -540,6 +548,64 @@ export function toInventoryIssueDTO(r: InventoryIssueRow): InventoryIssueDTO {
     issuedTo: r.issued_to,
     date: r.issue_date,
     note: r.note,
+  };
+}
+
+export function toPurchaseOrderItemDTO(r: PurchaseOrderItemRow): PurchaseOrderItemDTO {
+  return {
+    id: r.id,
+    medicineName: r.medicine_name,
+    quantity: r.quantity,
+    unitCost: Number(r.unit_cost),
+  };
+}
+
+export function toPurchaseOrderDTO(
+  r: PurchaseOrderRow,
+  items: PurchaseOrderItemRow[] = [],
+): PurchaseOrderDTO {
+  return {
+    id: r.id,
+    poNumber: r.po_number,
+    supplier: r.supplier,
+    orderDate: r.order_date,
+    expectedDate: r.expected_date,
+    itemCount: r.item_count,
+    total: Number(r.total),
+    status: r.status,
+    notes: r.notes,
+    items: items.map(toPurchaseOrderItemDTO),
+  };
+}
+
+export function toPharmacySaleItemDTO(r: PharmacySaleItemRow): PharmacySaleItemDTO {
+  return {
+    id: r.id,
+    medicineName: r.medicine_name,
+    quantity: r.quantity,
+    unitPrice: Number(r.unit_price),
+    lineTotal: Number(r.line_total),
+  };
+}
+
+export function toPharmacySaleDTO(
+  r: PharmacySaleRow,
+  items: PharmacySaleItemRow[] = [],
+): PharmacySaleDTO {
+  return {
+    id: r.id,
+    saleNumber: r.sale_number,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    rxNumber: r.rx_number,
+    itemCount: r.item_count,
+    subtotal: Number(r.subtotal),
+    discount: Number(r.discount),
+    total: Number(r.total),
+    paymentMode: r.payment_mode,
+    date: r.sale_date,
+    billId: r.bill_id,
+    items: items.map(toPharmacySaleItemDTO),
   };
 }
 

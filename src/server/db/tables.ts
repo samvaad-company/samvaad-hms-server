@@ -45,6 +45,10 @@ export const TABLES = {
   tasks: "tasks",
   scribeNotes: "scribe_notes",
   documents: "documents",
+  purchaseOrders: "purchase_orders",
+  purchaseOrderItems: "purchase_order_items",
+  pharmacySales: "pharmacy_sales",
+  pharmacySaleItems: "pharmacy_sale_items",
   bedTransfers: "bed_transfers",
 } as const;
 
@@ -567,6 +571,59 @@ export interface TaskRow extends Row {
   due_date: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface PurchaseOrderRow extends Row {
+  id: number;
+  po_number: string;
+  supplier: string;
+  order_date: string;
+  expected_date: string;
+  item_count: number;
+  total: number;
+  status: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseOrderItemRow extends Row {
+  id: number;
+  purchase_order_id: number;
+  pharmacy_item_id: number | null;
+  medicine_name: string;
+  quantity: number;
+  unit_cost: number;
+  created_at: string;
+}
+
+export interface PharmacySaleRow extends Row {
+  id: number;
+  sale_number: string;
+  patient_id: number | null;
+  patient_name: string;
+  prescription_id: number | null;
+  rx_number: string;
+  item_count: number;
+  subtotal: number;
+  discount: number;
+  total: number;
+  payment_mode: string;
+  sale_date: string;
+  bill_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PharmacySaleItemRow extends Row {
+  id: number;
+  sale_id: number;
+  pharmacy_item_id: number | null;
+  medicine_name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
 }
 
 export interface DocumentRow extends Row {

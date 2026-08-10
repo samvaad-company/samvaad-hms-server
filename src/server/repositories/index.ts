@@ -40,6 +40,10 @@ import type {
   InventoryIssueRow,
   TaskRow,
   DocumentRow,
+  PurchaseOrderRow,
+  PurchaseOrderItemRow,
+  PharmacySaleRow,
+  PharmacySaleItemRow,
   ScribeNoteRow,
 } from "@/server/db/tables";
 import {
@@ -73,6 +77,10 @@ import {
   toInventoryIssueDTO,
   toTaskDTO,
   toDocumentDTO,
+  toPurchaseOrderDTO,
+  toPurchaseOrderItemDTO,
+  toPharmacySaleDTO,
+  toPharmacySaleItemDTO,
   toScribeNoteDTO,
 } from "@/server/repositories/mappers";
 
@@ -192,6 +200,22 @@ export const inventoryItemsRepo = createRepository<InventoryItemRow, ReturnType<
 export const inventoryIssuesRepo = createRepository<InventoryIssueRow, ReturnType<typeof toInventoryIssueDTO>>(
   TABLES.inventoryIssues,
   toInventoryIssueDTO,
+);
+export const purchaseOrdersRepo = createRepository<PurchaseOrderRow, ReturnType<typeof toPurchaseOrderDTO>>(
+  TABLES.purchaseOrders,
+  (row) => toPurchaseOrderDTO(row),
+);
+export const purchaseOrderItemsRepo = createRepository<PurchaseOrderItemRow, ReturnType<typeof toPurchaseOrderItemDTO>>(
+  TABLES.purchaseOrderItems,
+  toPurchaseOrderItemDTO,
+);
+export const pharmacySalesRepo = createRepository<PharmacySaleRow, ReturnType<typeof toPharmacySaleDTO>>(
+  TABLES.pharmacySales,
+  (row) => toPharmacySaleDTO(row),
+);
+export const pharmacySaleItemsRepo = createRepository<PharmacySaleItemRow, ReturnType<typeof toPharmacySaleItemDTO>>(
+  TABLES.pharmacySaleItems,
+  toPharmacySaleItemDTO,
 );
 export const documentsRepo = createRepository<DocumentRow, ReturnType<typeof toDocumentDTO>>(
   TABLES.documents,

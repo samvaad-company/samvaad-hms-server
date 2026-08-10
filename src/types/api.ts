@@ -387,6 +387,50 @@ export interface ScribeNoteDTO {
   updatedAt: string;
 }
 
+export interface PurchaseOrderItemDTO {
+  id: number;
+  medicineName: string;
+  quantity: number;
+  unitCost: number;
+}
+
+export interface PurchaseOrderDTO {
+  id: number;
+  poNumber: string;
+  supplier: string;
+  orderDate: string;
+  expectedDate: string;
+  itemCount: number;
+  total: number;
+  status: string;
+  notes: string;
+  items: PurchaseOrderItemDTO[];
+}
+
+export interface PharmacySaleItemDTO {
+  id: number;
+  medicineName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface PharmacySaleDTO {
+  id: number;
+  saleNumber: string;
+  patientId: number | null;
+  patientName: string;
+  rxNumber: string;
+  itemCount: number;
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMode: string;
+  date: string;
+  billId: number | null;
+  items: PharmacySaleItemDTO[];
+}
+
 export interface DocumentDTO {
   id: number;
   ownerType: string;
