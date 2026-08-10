@@ -36,7 +36,7 @@ const createSchema = {
 
 export const APPOINTMENT_LIST_CONFIG = {
   searchColumns: ["patient_name", "doctor", "reason"],
-  filterable: ["status", "type", "doctor"],
+  filterable: ["status", "type", "doctor", "patient_id", "doctor_id", "appointment_date"],
   sortable: ["appointment_date", "patient_name", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

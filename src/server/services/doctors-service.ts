@@ -37,14 +37,34 @@ export const DOCTOR_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
+/**
+ * "Patients today" is derived from the live OPD queue rather than stored, so
+ * the number on the doctors list always agrees with the queue, the doctor
+ * dashboard and the reports. A stored counter drifts the moment a visit is
+ * checked in, deleted or reassigned.
+ */
+async function withLiveCounts<T extends { id: number; patientsToday: number }>(
+  doctors: T[],
+): Promise<T[]> {
+  const { rows } = await opdRepo.listRows({ unpaged: true });
+  const counts = new Map<number, number>();
+  for (const r of rows) {
+    if (r.doctor_id == null) continue;
+    counts.set(r.doctor_id, (counts.get(r.doctor_id) ?? 0) + 1);
+  }
+  return doctors.map((d) => ({ ...d, patientsToday: counts.get(d.id) ?? 0 }));
+}
+
 export async function listDoctors(options: QueryOptions) {
-  return doctorsRepo.list(options);
+  const { rows, total } = await doctorsRepo.list(options);
+  return { rows: await withLiveCounts(rows), total };
 }
 
 export async function getDoctor(id: number) {
   const doc = await doctorsRepo.get(id);
   if (!doc) throw new NotFoundError("Doctor");
-  return doc;
+  const [withCount] = await withLiveCounts([doc]);
+  return withCount;
 }
 
 export async function getDoctorDashboard(id: number) {

@@ -22,7 +22,7 @@ const createSchema = {
 
 export const BILLING_LIST_CONFIG = {
   searchColumns: ["bill_number", "patient_name", "type"],
-  filterable: ["status", "type"],
+  filterable: ["status", "type", "patient_id"],
   sortable: ["bill_date", "total", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

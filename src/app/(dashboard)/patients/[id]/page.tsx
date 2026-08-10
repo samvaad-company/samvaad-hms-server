@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { useItem } from "@/lib/api/hooks";
+import { useItem, useList } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import type { PatientDTO, PrescriptionDTO, LabTestDTO } from "@/types/api";
+import { parseDisplayDate } from "@/lib/dates";
+import type { PatientDTO, PrescriptionDTO, LabTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
@@ -21,21 +22,7 @@ type PatientDetail = PatientDTO & {
   labTests: LabTestDTO[];
 };
 
-// ─── Illustrative timeline / vaccination history (not yet captured in DB) ──────
-
-const TIMELINE: Record<number, Array<{ date: string; type: string; description: string; doctor: string; status: string }>> = {
-  1: [
-    { date: "8 Nov 2025",  type: "OPD Visit",  description: "Dizziness or weakness — possible inner ear issue", doctor: "Dr. Olivia Turner", status: "Completed" },
-    { date: "22 Oct 2025", type: "Lab Test",   description: "CBC, Thyroid Panel",                                doctor: "Dr. Olivia Turner", status: "Completed" },
-    { date: "1 Oct 2025",  type: "OPD Visit",  description: "Migraine follow-up",                                doctor: "Dr. Olivia Turner", status: "Completed" },
-  ],
-  6: [
-    { date: "13 Nov 2025", type: "OPD Visit",     description: "Diabetes management — HbA1c review",        doctor: "Dr. Daniel Reed", status: "Upcoming"  },
-    { date: "28 Oct 2025", type: "Lab Test",      description: "HbA1c, Fasting Blood Sugar, Lipid Profile", doctor: "Dr. Daniel Reed", status: "Completed" },
-    { date: "15 Oct 2025", type: "Prescription",  description: "Metformin 500mg, Losartan 50mg",            doctor: "Dr. Daniel Reed", status: "Completed" },
-    { date: "5 Sep 2025",  type: "IPD Admission", description: "Hyperglycaemic episode — 3-day admission",   doctor: "Dr. Daniel Reed", status: "Discharged"},
-  ],
-};
+// ─── Vaccination history (not yet captured in the database) ───────────────────
 
 const VACCINATIONS: Record<number, Array<{ name: string; date: string; dose: string; next?: string }>> = {
   1: [
@@ -53,23 +40,75 @@ const VACCINATIONS: Record<number, Array<{ name: string; date: string; dose: str
 
 // ─── Sub-views ────────────────────────────────────────────────────────────────
 
-function OverviewTab({ patientId }: { patientId: number }) {
-  const timeline = TIMELINE[patientId] ?? TIMELINE[1];
+interface TimelineEvent {
+  date: string;
+  type: string;
+  description: string;
+  doctor: string;
+  status: string;
+  sort: number;
+}
+
+/**
+ * Builds the visit timeline from the patient's real records — appointments,
+ * OPD visits, prescriptions and lab tests — newest first.
+ */
+function OverviewTab({ patient }: { patient: PatientDetail }) {
+  const { items: appointments } = useList<AppointmentDTO>("/appointments", {
+    all: true, patient_id: patient.id,
+  });
+  const { items: opdVisits } = useList<OpdRecordDTO>("/opd", {
+    all: true, patient_id: patient.id,
+  });
+
   const TYPE_CLR: Record<string, string> = {
     "OPD Visit":     "bg-[#d6eaff] text-[#007cff]",
     "Lab Test":      "bg-[#e8f7f7] text-[#009598]",
     "Prescription":  "bg-[#dffff3] text-[#00955c]",
-    "IPD Admission": "bg-[#fff2e0] text-[#ff9000]",
+    "Appointment":   "bg-[#ede9ff] text-[#6b4eff]",
   };
+
+  const events: TimelineEvent[] = [
+    ...appointments.map(a => ({
+      date: a.date, type: "Appointment",
+      description: a.reason || "Consultation",
+      doctor: a.doctor, status: a.status,
+      sort: parseDisplayDate(a.date)?.getTime() ?? 0,
+    })),
+    ...opdVisits.map(o => ({
+      date: o.checkInTime, type: "OPD Visit",
+      description: o.reason || `Token ${o.tokenNumber}`,
+      doctor: o.doctor, status: o.status,
+      sort: 0,
+    })),
+    ...patient.prescriptions.map(rx => ({
+      date: rx.date, type: "Prescription",
+      description: `${rx.diagnosis} — ${rx.medicineCount} medicines`,
+      doctor: rx.doctor, status: rx.status,
+      sort: parseDisplayDate(rx.date)?.getTime() ?? 0,
+    })),
+    ...patient.labTests.map(t => ({
+      date: t.date, type: "Lab Test",
+      description: t.testName,
+      doctor: patient.doctor, status: t.status,
+      sort: parseDisplayDate(t.date)?.getTime() ?? 0,
+    })),
+  ].sort((a, b) => b.sort - a.sort);
+
   return (
     <div className="p-5 flex flex-col gap-4">
       <h3 className="text-[14px] font-medium text-[#11111c]">Visit Timeline</h3>
+      {events.length === 0 && (
+        <p className="text-[13px] font-light text-[#57575f]">
+          No visits, prescriptions or tests recorded for this patient yet.
+        </p>
+      )}
       <div className="flex flex-col gap-3">
-        {timeline.map((event, i) => (
+        {events.map((event, i) => (
           <div key={i} className="flex gap-4 items-start">
             <div className="flex flex-col items-center shrink-0">
               <div className="w-[10px] h-[10px] rounded-full bg-[#009598] mt-1" />
-              {i < timeline.length - 1 && <div className="w-[1px] flex-1 min-h-[36px] bg-[#dedee1] mt-1" />}
+              {i < events.length - 1 && <div className="w-[1px] flex-1 min-h-[36px] bg-[#dedee1] mt-1" />}
             </div>
             <div className="flex-1 pb-3">
               <div className="flex items-start justify-between gap-3">
@@ -269,7 +308,7 @@ export default function PatientDetailPage() {
           {/* ── Right: Tabbed content ── */}
           <div className={`flex-1 ${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 580 }}>
             <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-            {tab === "overview"      && <OverviewTab patientId={patient.id} />}
+            {tab === "overview"      && <OverviewTab patient={patient} />}
             {tab === "prescriptions" && <PrescriptionsTab rxList={patient.prescriptions} />}
             {tab === "lab"           && <LabReportsTab tests={patient.labTests} />}
             {tab === "documents"     && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}

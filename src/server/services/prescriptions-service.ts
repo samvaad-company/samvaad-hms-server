@@ -39,7 +39,7 @@ const headerSchema = {
 
 export const RX_LIST_CONFIG = {
   searchColumns: ["rx_number", "patient_name", "doctor", "diagnosis"],
-  filterable: ["status", "doctor"],
+  filterable: ["status", "doctor", "patient_id", "doctor_id"],
   sortable: ["prescribed_date", "patient_name", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

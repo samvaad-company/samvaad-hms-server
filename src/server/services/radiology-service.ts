@@ -23,7 +23,7 @@ const createSchema = {
 
 export const RADIOLOGY_LIST_CONFIG = {
   searchColumns: ["patient_name", "test_name"],
-  filterable: ["status", "scan_status", "report_status"],
+  filterable: ["status", "scan_status", "report_status", "patient_id"],
   sortable: ["test_date", "patient_name", "amount", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

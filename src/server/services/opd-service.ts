@@ -54,7 +54,7 @@ function hasAnyVital(d: Record<string, unknown>): boolean {
 
 export const OPD_LIST_CONFIG = {
   searchColumns: ["patient_name", "doctor", "token_number", "reason"],
-  filterable: ["status", "doctor", "priority"],
+  filterable: ["status", "doctor", "priority", "patient_id", "doctor_id"],
   sortable: ["check_in_time", "token_number", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

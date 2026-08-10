@@ -22,7 +22,7 @@ const createSchema = {
 
 export const LAB_LIST_CONFIG = {
   searchColumns: ["patient_name", "test_name"],
-  filterable: ["status", "sample_status", "report_status"],
+  filterable: ["status", "sample_status", "report_status", "patient_id"],
   sortable: ["test_date", "patient_name", "amount", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

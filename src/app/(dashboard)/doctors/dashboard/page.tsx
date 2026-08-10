@@ -3,40 +3,73 @@
 import { tw } from "@/lib/design-system";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import type { OpdRecordDTO, DoctorDTO } from "@/types/api";
+import { useAuth } from "@/lib/auth-context";
+import type { OpdRecordDTO, DoctorDTO, BillDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Users, CheckCircle, XCircle, Clock, DollarSign, Stethoscope } from "lucide-react";
+
+/** Most frequent non-empty value, used for "top reason". */
+function mostCommon(values: string[]): string {
+  const tally = new Map<string, number>();
+  for (const v of values) {
+    const k = v.trim();
+    if (k) tally.set(k, (tally.get(k) ?? 0) + 1);
+  }
+  let best = "—";
+  let n = 0;
+  for (const [k, c] of tally) if (c > n) { best = k; n = c; }
+  return best;
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DoctorDashboardPage() {
-  const { items: queue, reload } = useList<OpdRecordDTO>("/opd", { all: true });
+  const { user } = useAuth();
+  const { items: allQueue, reload } = useList<OpdRecordDTO>("/opd", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: bills } = useList<BillDTO>("/billing", { all: true });
   const { run } = useMutation();
   const advance = (opdId: number, status: string) =>
     run(() => api.patch(`/opd/${opdId}`, { status })).then(reload);
 
-  const TODAY_DOCTOR = doctors.find(d => d.status === "In OPD") ?? doctors[0] ?? {
-    name: "Doctor", specialty: "—", department: "—",
-  };
+  // Show the signed-in doctor's own dashboard. Admin/desk users who aren't
+  // linked to a doctor record fall back to the first doctor currently in OPD.
+  const TODAY_DOCTOR =
+    (user?.doctorId ? doctors.find(d => d.id === user.doctorId) : undefined) ??
+    doctors.find(d => d.status === "In OPD") ??
+    doctors[0] ?? { id: 0, name: "Doctor", specialty: "—", department: "—" };
+
+  // Only this doctor's patients — previously every doctor's queue was shown.
+  const queue = TODAY_DOCTOR.id
+    ? allQueue.filter(r => r.doctorId === TODAY_DOCTOR.id)
+    : allQueue;
 
   const waiting = queue.filter(r => r.status === "Waiting").length;
   const completed = queue.filter(r => r.status === "Completed").length;
   const inConsult = queue.filter(r => r.status === "In Consultation").length;
+
+  const patientNames = new Set(queue.map(r => r.patientName));
+  const revenue = bills
+    .filter(b => patientNames.has(b.patientName) && b.status === "Paid")
+    .reduce((sum, b) => sum + b.total, 0);
+
+  const today = new Date().toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "short", year: "numeric",
+  });
 
   const TODAY_STATS = [
     { icon: Users,       label: "Total Today",    value: String(queue.length), color: "text-[#11111c]",  bg: "bg-[#f0f0f0]" },
     { icon: Clock,       label: "Waiting",        value: String(waiting),      color: "text-[#ff9000]",  bg: "bg-[#fff2e0]" },
     { icon: CheckCircle, label: "Completed",      value: String(completed),    color: "text-[#00955c]",  bg: "bg-[#dffff3]" },
     { icon: XCircle,     label: "In Consultation",value: String(inConsult),    color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
-    { icon: DollarSign,  label: "Revenue (Today)",value: "₹12,400",            color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
+    { icon: DollarSign,  label: "Revenue (Paid)", value: `₹${revenue.toLocaleString("en-IN")}`, color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
   ];
 
   const QUICK_STATS = [
-    { label: "Avg Consult Time", value: "13 min" },
-    { label: "Next Patient",     value: queue.find(r => r.status === "Waiting")?.patientName ?? "—" },
-    { label: "Top Diagnosis",    value: "Hypertension" },
-    { label: "Satisfaction",     value: "4.8 ★" },
+    { label: "Vitals Recorded", value: `${queue.filter(r => r.vitalsRecorded).length}/${queue.length}` },
+    { label: "Next Patient",    value: queue.find(r => r.status === "Waiting")?.patientName ?? "—" },
+    { label: "Top Reason",      value: mostCommon(queue.map(r => r.reason)) },
+    { label: "Urgent / Emergency", value: String(queue.filter(r => r.priority !== "Normal").length) },
   ];
 
   return (
@@ -46,7 +79,7 @@ export default function DoctorDashboardPage() {
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
             <h1 className="text-[26px] font-medium text-[#11111c]">Good morning, {TODAY_DOCTOR.name} 👋</h1>
-            <p className="text-[14px] font-light text-[#57575f]">{TODAY_DOCTOR.specialty} · {TODAY_DOCTOR.department} · Thursday, 13 Nov 2025</p>
+            <p className="text-[14px] font-light text-[#57575f]">{TODAY_DOCTOR.specialty} · {TODAY_DOCTOR.department} · {today}</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-[#dffff3] rounded-full">
             <div className="w-2 h-2 bg-[#00955c] rounded-full animate-pulse" />
