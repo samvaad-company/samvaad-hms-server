@@ -8,7 +8,7 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { type TaskRow } from "@/server/db/tables";
 import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
-import { displayDate } from "@/server/services/helpers";
+import { displayDate, isoDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 
@@ -66,7 +66,7 @@ export async function createTask(input: unknown, actor: Session) {
     assigned_by: actor.name,
     priority: data.priority,
     status: data.status,
-    due_date: data.dueDate || displayDate(),
+    due_date: isoDate(data.dueDate) || isoDate(new Date()),
   });
   await audit(actor, "create", "task", row.id);
   return toTaskDTO(row as TaskRow);
@@ -88,7 +88,7 @@ export async function updateTask(id: number, input: unknown, actor: Session) {
   }
   if ("priority" in data) patch.priority = data.priority;
   if ("status" in data) patch.status = data.status;
-  if ("dueDate" in data) patch.due_date = data.dueDate;
+  if ("dueDate" in data) patch.due_date = isoDate(data.dueDate);
   const row = await tasksRepo.update(id, patch);
   await audit(actor, "update", "task", id, patch);
   return toTaskDTO(row as TaskRow);

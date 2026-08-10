@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { BedDouble, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
@@ -47,7 +48,7 @@ function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
       <span className="text-[12px] font-medium text-[#009598] truncate">{row.patientId}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.admissionDate}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.admissionDate)}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.ward}</span>
       <span className="text-[13px] font-normal text-[#11111c]">{row.bed}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>

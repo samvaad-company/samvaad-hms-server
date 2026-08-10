@@ -13,6 +13,7 @@ import { MongoAdapter } from "@/server/db/mongo-adapter";
 import { ensureIndexes } from "@/server/db/mongo-indexes";
 import { buildSeed } from "@/server/db/seed";
 import { seedIfEmpty } from "@/server/db/seed-runner";
+import { normalizeStoredDates } from "@/server/db/normalize-dates";
 import { getConfig } from "@/server/config/env";
 import { logger } from "@/server/lib/logger";
 
@@ -36,6 +37,7 @@ async function initialize(): Promise<DatabaseAdapter> {
         });
       }
     }
+    await normalizeStoredDates(supabase);
     adapter = supabase;
     return supabase;
   }
@@ -55,6 +57,7 @@ async function initialize(): Promise<DatabaseAdapter> {
         });
       }
     }
+    await normalizeStoredDates(mongo);
     adapter = mongo;
     return mongo;
   }
@@ -63,6 +66,7 @@ async function initialize(): Promise<DatabaseAdapter> {
   const seed = await buildSeed();
   memory.seed(seed);
   await memory.ready();
+  await normalizeStoredDates(memory);
   adapter = memory;
   return memory;
 }

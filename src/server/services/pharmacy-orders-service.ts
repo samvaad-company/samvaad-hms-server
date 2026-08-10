@@ -28,7 +28,7 @@ import {
 } from "@/server/db/tables";
 import { NotFoundError, BadRequestError, ConflictError } from "@/server/lib/errors";
 import { validate } from "@/server/lib/validation";
-import { displayDate, nextCode } from "@/server/services/helpers";
+import { displayDate, nextCode, isoDate } from "@/server/services/helpers";
 import { computePharmacyStatus } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
@@ -96,7 +96,7 @@ export async function createPurchaseOrder(input: unknown, actor: Session) {
     po_number: poNumber,
     supplier: data.supplier,
     order_date: displayDate(),
-    expected_date: data.expectedDate,
+    expected_date: isoDate(data.expectedDate),
     item_count: lines.length,
     total,
     status: "Pending",

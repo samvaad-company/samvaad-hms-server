@@ -61,13 +61,12 @@ export function nextCode(
   return `${prefix}${String(max + 1).padStart(padTo, "0")}`;
 }
 
-/** Today's display date, e.g. "8 Nov 2025". */
+/**
+ * Today's date for storage. Dates are persisted as ISO "yyyy-mm-dd" and
+ * formatted for display in the UI, so this returns ISO.
+ */
 export function displayDate(d: Date = new Date()): string {
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return isoDate(d);
 }
 
 /** Current display time, e.g. "11:30 AM". */
@@ -85,4 +84,34 @@ export function ageFromDob(dob: string): number {
   if (Number.isNaN(birth.getTime())) return 0;
   const diff = Date.now() - birth.getTime();
   return Math.max(0, Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000)));
+}
+
+
+const ISO_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/**
+ * Normalize a date to ISO "yyyy-mm-dd" for storage. Accepts ISO, "8 Nov 2025"
+ * or a Date; returns "" when unparseable so callers can fall back.
+ */
+export function isoDate(value: string | Date = new Date()): string {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : localIso(value);
+  }
+  const raw = String(value).trim();
+  const already = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
+  if (already) return already[1];
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? "" : localIso(d);
+}
+
+function localIso(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** ISO -> "8 Nov 2025", for anywhere the server still emits display text. */
+export function formatIso(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!m) return value ?? "";
+  return `${Number(m[3])} ${ISO_MONTHS[Number(m[2]) - 1]} ${m[1]}`;
 }

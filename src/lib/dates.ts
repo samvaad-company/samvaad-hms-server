@@ -1,6 +1,9 @@
 /**
- * Client-side date helpers for filtering display-formatted dates.
- * Row dates are stored as strings like "8 Nov 2025"; expiries like "Mar 2027".
+ * Date helpers.
+ *
+ * Dates are STORED as ISO "yyyy-mm-dd" so they sort chronologically and compare
+ * exactly, and FORMATTED for display ("8 Nov 2025") only at render time.
+ * Legacy display-string values are still parsed so old rows keep working.
  */
 
 export type DateRangeId = "all" | "today" | "7d" | "30d" | "90d";
@@ -48,4 +51,52 @@ export function inDateRange(dateStr: string, range: DateRangeId): boolean {
   const start = new Date(startOfToday);
   start.setDate(start.getDate() - days);
   return d >= start && d <= endOfToday;
+}
+
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/**
+ * Normalize any supported input to ISO "yyyy-mm-dd".
+ * Accepts ISO, "8 Nov 2025", and Date. Returns "" when unparseable.
+ */
+export function toIsoDate(value: string | Date | null | undefined): string {
+  if (!value) return "";
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : localIso(value);
+  }
+  const raw = String(value).trim();
+  const already = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
+  if (already) return already[1];
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? "" : localIso(d);
+}
+
+/** yyyy-mm-dd in local time (avoids the UTC day-shift of toISOString). */
+function localIso(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** ISO (or legacy) date → "8 Nov 2025" for display. Empty input renders "—". */
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).trim());
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
+  }
+  return String(value); // already display-formatted or free text
+}
+
+/** True when `value` is strictly before today (local). */
+export function isPastDate(value: string | null | undefined): boolean {
+  const iso = toIsoDate(value ?? "");
+  if (!iso) return false;
+  return iso < localIso(new Date());
+}
+
+/** Today as ISO — handy as a `min` for date inputs. */
+export function todayIso(): string {
+  return localIso(new Date());
 }

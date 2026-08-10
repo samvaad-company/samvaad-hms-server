@@ -16,6 +16,7 @@ import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { checkInOpd } from "@/server/services/opd-service";
+import { isoDate } from "@/server/services/helpers";
 import { type Session } from "@/server/auth/session";
 
 const createSchema = {
@@ -78,7 +79,7 @@ export async function createAppointment(input: unknown, actor: Session) {
     patient_age: patientAge,
     doctor_id: data.doctorId ?? null,
     doctor: doctorName,
-    appointment_date: data.date,
+    appointment_date: isoDate(data.date),
     appointment_time: data.time,
     type: data.type,
     reason: data.reason,
@@ -95,7 +96,7 @@ export async function updateAppointment(id: number, input: unknown, actor: Sessi
   const patch: Record<string, unknown> = {};
   if ("patientName" in data) patch.patient_name = data.patientName;
   if ("patientAge" in data) patch.patient_age = data.patientAge;
-  if ("date" in data) patch.appointment_date = data.date;
+  if ("date" in data) patch.appointment_date = isoDate(data.date);
   if ("time" in data) patch.appointment_time = data.time;
   if ("type" in data) patch.type = data.type;
   if ("reason" in data) patch.reason = data.reason;

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FileText, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
-import { inDateRange, type DateRangeId } from "@/lib/dates";
+import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -52,7 +52,7 @@ function PrescriptionRow({ row, actions }: { row: Prescription; actions: RowActi
           {row.medicineCount}
         </span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>

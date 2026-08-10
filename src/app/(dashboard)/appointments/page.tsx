@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
-import { inDateRange, type DateRangeId } from "@/lib/dates";
+import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import Link from "next/link";
 import type { Appointment } from "@/types";
 
@@ -44,7 +44,7 @@ function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.time}</span>
       <div>
         <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : "bg-[#f0f0f0] text-[#57575f]"}`}>

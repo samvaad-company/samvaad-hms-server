@@ -5,7 +5,7 @@ import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
 import { FlaskConical, Plus, Upload, Eye } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
-import { inDateRange, type DateRangeId } from "@/lib/dates";
+import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -53,7 +53,7 @@ function LabRow({ row, actions }: { row: LabTest; actions: RowAction[] }) {
           {row.reportStatus}
         </span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>

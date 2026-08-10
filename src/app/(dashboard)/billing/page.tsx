@@ -6,7 +6,7 @@ import { BarChart3, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useList, useMutation } from "@/lib/api/hooks";
-import { inDateRange, type DateRangeId } from "@/lib/dates";
+import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
@@ -54,7 +54,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
       <div>
         <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[#f0f0f0] text-[#57575f]"}`}>{row.type}</span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-normal text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <span className="text-[13px] font-normal text-[#57575f] text-right">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
       <span className="text-[13px] font-normal text-[#57575f] text-right">₹{row.gst.toFixed(0)}</span>
