@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FileText, Plus } from "lucide-react";
-import { useList } from "@/lib/api/hooks";
+import { useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
@@ -14,6 +14,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { Modal } from "@/components/shared/Modal";
+import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { Prescription } from "@/types";
 
 const COLUMNS = [
@@ -64,6 +66,46 @@ export default function PrescriptionsPage() {
   const [range, setRange] = useState<DateRangeId>("all");
   const { items: prescriptions, reload } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { dialog, remove, mutate } = useRowActions("prescriptions", reload);
+  const { run: runEdit, loading: saving } = useMutation();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [editing, setEditing] = useState<PrescriptionDTO | null>(null);
+  const [editForm, setEditForm] = useState({ diagnosis: "", status: "Pending" });
+
+  /** Dispense and report anything the pharmacy could not fulfil. */
+  async function dispense(rx: PrescriptionDTO) {
+    setNotice(null);
+    const res = await api.post<PrescriptionDTO & {
+      dispense?: {
+        adjustments: { name: string; units: number }[];
+        unmatched: string[];
+        shortStocked: { name: string; needed: number; available: number }[];
+      };
+    }>(`/prescriptions/${rx.id}/dispense`);
+    const d = res?.dispense;
+    const parts: string[] = [];
+    if (d?.adjustments?.length) {
+      parts.push(`Stock updated: ${d.adjustments.map(a => `${a.name} (−${a.units})`).join(", ")}.`);
+    }
+    if (d?.shortStocked?.length) {
+      parts.push(`Short stock: ${d.shortStocked.map(s => `${s.name} needed ${s.needed}, had ${s.available}`).join("; ")}.`);
+    }
+    if (d?.unmatched?.length) {
+      parts.push(`Not found in pharmacy inventory: ${d.unmatched.join(", ")}.`);
+    }
+    setNotice(parts.join(" ") || "Prescription dispensed.");
+    reload();
+  }
+
+  function openEdit(rx: PrescriptionDTO) {
+    setEditForm({ diagnosis: rx.diagnosis, status: rx.status });
+    setEditing(rx);
+  }
+  async function saveEdit() {
+    if (!editing) return;
+    await runEdit(() => api.patch(`/prescriptions/${editing.id}`, editForm));
+    setEditing(null);
+    reload();
+  }
 
   const visible = prescriptions.filter(r => {
     const matchF = filter === "All" || r.status === filter;
@@ -84,6 +126,15 @@ export default function PrescriptionsPage() {
         onRangeChange={setRange}
       />
 
+      {notice && (
+        <div className={`${tw.gutterX} mb-3`}>
+          <div className="flex items-start justify-between gap-3 text-[13px] text-[#11111c] bg-[#e8f7f7] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
+            <span>{notice}</span>
+            <button onClick={() => setNotice(null)} className="text-[#57575f] hover:text-[#11111c] shrink-0">✕</button>
+          </div>
+        </div>
+      )}
+
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
@@ -100,13 +151,49 @@ export default function PrescriptionsPage() {
             ) : visible.map((r) => (
               <PrescriptionRow key={r.id} row={r} actions={[
                 { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
-                { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => mutate(() => api.post(`/prescriptions/${r.id}/dispense`)) },
+                { label: "Edit", onClick: () => openEdit(r) },
+                { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => void dispense(r) },
                 { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
               ]} />
             ))}
           </DataTable>
         </div>
       </div>
+
+      {editing && (
+        <Modal
+          open
+          onClose={() => setEditing(null)}
+          title={`Edit ${editing.rxNumber}`}
+          width={520}
+          footer={
+            <>
+              <button onClick={() => setEditing(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+              <button onClick={saveEdit} disabled={saving} className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          }
+        >
+          <div className="mb-3 text-[12px] text-[#57575f]">
+            {editing.patientName} · {editing.doctor} · {editing.medicineCount} medicines
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <FormRow label="Diagnosis">
+                <FormInput value={editForm.diagnosis} onChange={v => setEditForm(f => ({ ...f, diagnosis: v }))} />
+              </FormRow>
+            </div>
+            <FormRow label="Status">
+              <FormSelect value={editForm.status} onChange={v => setEditForm(f => ({ ...f, status: v }))}
+                options={["Draft", "Pending", "Dispensed"].map(s => ({ value: s, label: s }))} />
+            </FormRow>
+          </div>
+          <p className="mt-3 text-[11px] font-light text-[#57575f]">
+            To change the medicine list, open the prescription and use the builder.
+          </p>
+        </Modal>
+      )}
     </>
   );
 }
