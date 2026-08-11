@@ -14,7 +14,7 @@ import {
   FlaskConical, ScanLine, AlertCircle,
 } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function DoctorPanel() {
   const { user } = useAuth();
@@ -146,6 +146,7 @@ export function DoctorPanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

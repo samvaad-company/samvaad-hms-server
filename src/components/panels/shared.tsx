@@ -8,6 +8,11 @@ import Link from "next/link";
 import { tw } from "@/lib/design-system";
 import { type LucideIcon } from "lucide-react";
 import { type ReactNode } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
+import { formatDate } from "@/lib/dates";
+import type { TaskDTO, StaffDTO } from "@/types/api";
 
 export interface PanelStat {
   icon: LucideIcon;
@@ -104,4 +109,65 @@ export function WorklistCard({ title, action, children }: {
 
 export function EmptyRow({ text }: { text: string }) {
   return <div className="py-10 text-center text-[13px] text-[#57575f]">{text}</div>;
+}
+
+/**
+ * Tasks assigned to the signed-in user, for the role home panels.
+ *
+ * The task board was only reachable from its own page, so staff had no view of
+ * what had been assigned to them. This matches the session user to a staff
+ * record by name and lists their open tasks, newest first.
+ */
+export function MyTasksCard() {
+  const { user } = useAuth();
+  const { items: staff } = useList<StaffDTO>("/staff", { all: true });
+  const { items: tasks, reload } = useList<TaskDTO>("/tasks", { all: true });
+  const { run } = useMutation();
+
+  const me = staff.find((s) => s.name === user?.name);
+  const mine = tasks
+    .filter((t) => (me ? t.assigneeId === me.id : t.assigneeName === user?.name))
+    .filter((t) => t.status !== "Done");
+
+  const advance = async (id: number, status: string) => {
+    await run(() => api.patch(`/tasks/${id}`, { status }));
+    reload();
+  };
+
+  const PRIORITY: Record<string, string> = {
+    Urgent: "bg-[#ffe9e9] text-[#ff0004]",
+    High: "bg-[#fff2e0] text-[#ff9000]",
+    Medium: "bg-[#d6eaff] text-[#007cff]",
+    Low: "bg-[#f0f0f0] text-[#57575f]",
+  };
+
+  return (
+    <WorklistCard title={`My Tasks${mine.length ? ` (${mine.length})` : ""}`} action={{ label: "Task board", href: "/tasks" }}>
+      {mine.length === 0 ? (
+        <EmptyRow text="No open tasks assigned to you." />
+      ) : (
+        mine.map((t) => (
+          <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#f0f0f0] last:border-0">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-[#11111c] truncate">{t.title}</p>
+              <p className="text-[11px] font-light text-[#57575f] truncate">
+                {t.goal ? `${t.goal} · ` : ""}Due {formatDate(t.dueDate)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-medium ${PRIORITY[t.priority] ?? ""}`}>
+                {t.priority}
+              </span>
+              <button
+                onClick={() => advance(t.id, t.status === "To Do" ? "In Progress" : "Done")}
+                className="text-[11px] font-medium text-[#009598] border border-[#009598] px-3 py-[4px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap"
+              >
+                {t.status === "To Do" ? "Start" : "Mark done"}
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </WorklistCard>
+  );
 }

@@ -12,7 +12,7 @@ import {
   Pill, FlaskConical, IndianRupee, Stethoscope, BarChart3, Settings2,
 } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, MyTasksCard } from "./shared";
 
 export function AdminPanel() {
   const { user } = useAuth();
@@ -49,6 +49,7 @@ export function AdminPanel() {
           ]} />
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

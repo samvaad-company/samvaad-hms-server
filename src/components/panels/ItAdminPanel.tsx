@@ -6,7 +6,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { Settings2, ShieldCheck, Users2, BarChart3 } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, QuickLinks } from "./shared";
+import { PanelHeader, QuickLinks, MyTasksCard } from "./shared";
 
 export function ItAdminPanel() {
   const { user } = useAuth();
@@ -25,6 +25,7 @@ export function ItAdminPanel() {
           ]} />
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

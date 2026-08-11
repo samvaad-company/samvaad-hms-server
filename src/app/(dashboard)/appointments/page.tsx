@@ -60,6 +60,8 @@ function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction
 
 // ─── Live Queue ───────────────────────────────────────────────────────────────
 
+const QUEUE_COLS = "90px minmax(160px,1.4fr) minmax(150px,1.2fr) 110px 110px 110px minmax(200px,1fr)";
+
 function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onCallNext: (id: number) => void }) {
   const waiting = opdRecords.filter(r => r.status === "Waiting").length;
   const inConsult = opdRecords.filter(r => r.status === "In Consultation").length;
@@ -89,47 +91,45 @@ function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onC
       </div>
       {/* Queue rows */}
       <div className="overflow-x-auto flex-1">
-        <div style={{ minWidth: 1200 }}>
-          {/* header */}
-          <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 1200 }}>
-            {[
-              { label: "Token #", left: 20 }, { label: "Patient", left: 110 },
-              { label: "Doctor", left: 360 }, { label: "Wait Time", left: 600 },
-              { label: "Vitals", left: 760 }, { label: "Check-in", left: 930 },
-              { label: "Status", left: 1060 },
-            ].map(c => (
-              <span key={c.label} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.left }}>{c.label}</span>
-            ))}
+        <div style={{ minWidth: 1100 }}>
+          {/* A CSS grid keeps the header and cells aligned; the previous
+              absolute offsets drifted once vitals showed real readings. */}
+          <div
+            className="grid items-center px-5 h-10 bg-[#f2f3f3] text-[13px] font-medium text-[#11111c]"
+            style={{ gridTemplateColumns: QUEUE_COLS }}
+          >
+            <span>Token #</span><span>Patient</span><span>Doctor</span>
+            <span>Wait Time</span><span>Vitals</span><span>Check-in</span><span>Status</span>
           </div>
+
           {opdRecords.map(row => (
-            <div key={row.id} className={tw.table.dataRow} style={{ minWidth: 1200 }}>
-              <div className="absolute left-5">
-                <span className="text-[16px] font-medium text-[#009598]">{row.tokenNumber}</span>
+            <div
+              key={row.id}
+              className="grid items-center px-5 h-[64px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors"
+              style={{ gridTemplateColumns: QUEUE_COLS }}
+            >
+              <span className="text-[15px] font-medium text-[#009598]">{row.tokenNumber}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[14px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+                <span className="text-[11px] font-light text-[#57575f]">{row.patientAge} yrs</span>
               </div>
-              <div className="absolute flex flex-col justify-center" style={{ left: 110 }}>
-                <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{row.patientName}</span>
-                <span className="text-[12px] font-light text-[#57575f]">{row.patientAge} yrs</span>
-              </div>
-              <div className="absolute" style={{ left: 360 }}>
-                <span className="text-[14px] font-normal text-[#11111c] whitespace-nowrap">{row.doctor}</span>
-              </div>
-              <div className="absolute" style={{ left: 600 }}>
-                <span className={`text-[14px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[#57575f]"}`}>
-                  {row.waitTime !== "—" ? row.waitTime : "—"}
-                </span>
-              </div>
-              <div className="absolute" style={{ left: 760 }}>
-                <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${row.vitalsRecorded ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
+              <span className="text-[14px] font-normal text-[#11111c] truncate">{row.doctor}</span>
+              <span className={`text-[13px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[#57575f]"}`}>
+                {row.waitTime !== "—" ? row.waitTime : "—"}
+              </span>
+              <div className="min-w-0">
+                <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.vitalsRecorded ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
                   {row.vitalsRecorded ? "Recorded" : "Pending"}
                 </span>
               </div>
-              <div className="absolute" style={{ left: 930 }}>
-                <span className="text-[14px] font-normal text-[#11111c]">{row.checkInTime}</span>
-              </div>
-              <div className="absolute flex items-center gap-2" style={{ left: 1060 }}>
+              <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.checkInTime}</span>
+              <div className="flex items-center gap-2 min-w-0">
                 <StatusBadge status={row.status} />
                 {row.status === "Waiting" && (
-                  <button onClick={() => onCallNext(row.id)} className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors ml-2 whitespace-nowrap">
+                  <button
+                    onClick={() => onCallNext(row.id)}
+                    className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+                  >
                     Call Next
                   </button>
                 )}

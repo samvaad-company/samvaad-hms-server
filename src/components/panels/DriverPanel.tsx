@@ -10,7 +10,7 @@ import type { AmbulanceCallDTO, AmbulanceDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Ambulance, MapPin, CheckCircle } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function DriverPanel() {
   const { user } = useAuth();
@@ -50,6 +50,7 @@ export function DriverPanel() {
           </div>
         </WorklistCard>
       </div>
+      <MyTasksCard />
     </>
   );
 }

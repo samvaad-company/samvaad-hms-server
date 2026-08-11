@@ -10,7 +10,7 @@ import type { AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Calendar, Clock, Users, UserPlus, MonitorPlay, Activity } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function ReceptionistPanel() {
   const { user } = useAuth();
@@ -76,6 +76,7 @@ export function ReceptionistPanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

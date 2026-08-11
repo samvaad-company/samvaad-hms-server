@@ -10,7 +10,7 @@ import type { IpdRecordDTO, BedDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { BedDouble, Users, LayoutGrid, Activity, HeartPulse } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function NursePanel() {
   const { user } = useAuth();
@@ -61,6 +61,7 @@ export function NursePanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

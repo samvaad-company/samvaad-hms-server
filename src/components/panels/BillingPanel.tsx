@@ -10,7 +10,7 @@ import type { BillDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Receipt, IndianRupee, Clock, Wallet, ShieldCheck } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function BillingPanel() {
   const { user } = useAuth();
@@ -64,6 +64,7 @@ export function BillingPanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

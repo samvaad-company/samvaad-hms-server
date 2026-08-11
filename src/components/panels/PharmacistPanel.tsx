@@ -10,7 +10,7 @@ import type { PrescriptionDTO, PharmacyItemDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Pill, FileText, AlertTriangle, PackageX } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function PharmacistPanel() {
   const { user } = useAuth();
@@ -74,6 +74,7 @@ export function PharmacistPanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }

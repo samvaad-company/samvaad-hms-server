@@ -8,6 +8,7 @@ import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import { ClaimForm } from "@/components/shared/ClaimForm";
 import type { TpaDTO, TpaClaimDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -79,6 +80,7 @@ function ClaimRow({ row, actions }: { row: TpaClaimDTO; actions: RowAction[] }) 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TpaPage() {
+  const [claimFormFor, setClaimFormFor] = useState<TpaClaimDTO | null>(null);
   const [tab, setTab] = useState("claims");
   const [tpaSearch, setTpaSearch] = useState("");
   const [claimFilter, setClaimFilter] = useState("All");
@@ -199,6 +201,7 @@ export default function TpaPage() {
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No claims found.</div>
                 ) : visibleClaims.map(c => (
                   <ClaimRow key={c.id} row={c} actions={[
+                    { label: "Generate claim form", onClick: () => setClaimFormFor(c) },
                     { label: "Move to Review", disabled: c.status !== "Submitted", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "In Review" })) },
                     { label: "Approve (full amount)", disabled: c.status === "Approved" || c.status === "Settled", onClick: () => approveClaim(c) },
                     { label: "Reject", disabled: c.status === "Rejected" || c.status === "Settled", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "Rejected" })) },
@@ -229,6 +232,7 @@ export default function TpaPage() {
           )}
         </div>
       </div>
+      {claimFormFor && <ClaimForm claim={claimFormFor} onClose={() => setClaimFormFor(null)} />}
     </>
   );
 }

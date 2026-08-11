@@ -12,7 +12,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TabBar } from "@/components/shared/TabBar";
 import { FlaskConical, ScanLine, Droplets, FileCheck } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function LabPanel() {
   const { user } = useAuth();
@@ -73,6 +73,7 @@ export function LabPanel() {
           </div>
         </div>
       </div>
+      <MyTasksCard />
     </>
   );
 }
