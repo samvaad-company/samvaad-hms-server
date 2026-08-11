@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
 import { useItem } from "@/lib/api/hooks";
-import { printElement } from "@/lib/print";
+import { printElement, downloadElement, shareDocument } from "@/lib/print";
+import { DocumentLetterhead, useHospital } from "@/components/shared/DocumentLetterhead";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PrescriptionDTO } from "@/types/api";
 import { Printer, Share2, Download, QrCode } from "lucide-react";
@@ -17,6 +18,7 @@ export default function PrescriptionDetailPage() {
   const { item: rx, loading } = useItem<PrescriptionDTO>(`/prescriptions/${id}`);
   useBreadcrumb("/prescriptions", "Prescriptions", rx?.rxNumber ?? "Prescription");
   const docRef = useRef<HTMLDivElement>(null);
+  const hospital = useHospital();
   const printRx = () => printElement(docRef.current, rx ? `Prescription ${rx.rxNumber}` : "Prescription");
 
   if (loading) {
@@ -47,11 +49,11 @@ export default function PrescriptionDetailPage() {
       {/* Actions */}
       <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-end`}>
         <div className="flex items-center gap-2">
-          <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={() => shareDocument(`Prescription ${rx.rxNumber}`, window.location.href)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
             <Share2 size={14} /> Share
           </button>
-          <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
-            <Download size={14} /> PDF
+          <button onClick={() => downloadElement(docRef.current, `Prescription ${rx.rxNumber}`)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+            <Download size={14} /> Download
           </button>
           <button onClick={printRx} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} /> Print
@@ -62,18 +64,16 @@ export default function PrescriptionDetailPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
           {/* Hospital header */}
-          <div className="px-8 py-6 border-b border-[#dedee1] flex items-start justify-between">
-            <div className="flex flex-col gap-1">
-              <span className="text-[20px] font-medium text-[#11111c]">Samvaad Hospital</span>
-              <span className="text-[12px] font-light text-[#57575f]">12 MG Road, Koramangala, Bengaluru — 560095</span>
-              <span className="text-[12px] font-light text-[#57575f]">Phone: +91 80-4000-0000 · GSTIN: 29AABCA1234C1Z5</span>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-[13px] font-medium text-[#009598]">{rx.rxNumber}</span>
-              <span className="text-[12px] font-light text-[#57575f]">Date: {formatDate(rx.date)}</span>
-              <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-normal mt-1 ${rx.status === "Dispensed" ? "bg-[#dffff3] text-[#00955c]" : rx.status === "Pending" ? "bg-[#fff2e0] text-[#ff9000]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{rx.status}</span>
-            </div>
-          </div>
+          <DocumentLetterhead
+            hospital={hospital}
+            right={
+              <>
+                <div className="text-[13px] font-medium text-[#009598]">{rx.rxNumber}</div>
+                <div className="text-[12px] font-light text-[#57575f]">Date: {formatDate(rx.date)}</div>
+                <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-normal mt-1 ${rx.status === "Dispensed" ? "bg-[#dffff3] text-[#00955c]" : rx.status === "Pending" ? "bg-[#fff2e0] text-[#ff9000]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{rx.status}</span>
+              </>
+            }
+          />
 
           {/* Patient + Doctor info */}
           <div className="px-8 py-4 grid grid-cols-2 gap-4 border-b border-[#f0f0f0]">

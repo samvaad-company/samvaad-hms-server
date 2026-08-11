@@ -8,10 +8,11 @@ import { ArrowLeft, Printer, Download, Share2, Building2 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import { printElement } from "@/lib/print";
+import { printElement, downloadElement, shareDocument } from "@/lib/print";
 import type { BillDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
+import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/shared/DocumentLetterhead";
 import Link from "next/link";
 
 const LINE_ITEMS: Record<string, { description: string; qty: number; rate: number }[]> = {
@@ -40,8 +41,14 @@ export default function BillingDetailPage() {
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { run, loading: acting } = useMutation();
   const docRef = useRef<HTMLDivElement>(null);
+  const hospital = useHospital();
   const recordPayment = () => run(() => api.patch(`/billing/${id}`, { status: "Paid" })).then(reload);
-  const printInvoice = () => printElement(docRef.current, bill ? `Invoice ${bill.billNumber}` : "Invoice");
+  const docTitle = bill ? `Invoice ${bill.billNumber}` : "Invoice";
+  const printInvoice = () => printElement(docRef.current, docTitle);
+  /** Save the invoice as a self-contained file, without the print dialog. */
+  const downloadInvoice = () => downloadElement(docRef.current, docTitle);
+  /** Native share sheet where available, otherwise copy the link. */
+  const shareInvoice = () => shareDocument(docTitle, window.location.href);
 
   if (loading) {
     return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
@@ -73,8 +80,8 @@ export default function BillingDetailPage() {
         </div>
         <StatusBadge status={bill.status} />
         <div className="flex items-center gap-2">
-          <button onClick={printInvoice} title="Share (print / save as PDF)" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
-          <button onClick={printInvoice} title="Download PDF" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
+          <button onClick={shareInvoice} title="Share this invoice" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Share2 size={16} strokeWidth={1.5} /></button>
+          <button onClick={downloadInvoice} title="Download a copy" className="p-2 rounded-[8px] text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6] transition-colors"><Download size={16} strokeWidth={1.5} /></button>
           <button onClick={printInvoice} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors">
             <Printer size={14} strokeWidth={1.5} />Print
           </button>
@@ -84,23 +91,16 @@ export default function BillingDetailPage() {
       <div className={`${tw.gutterX} py-6`} style={{ maxWidth: 900 }}>
         <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
           {/* Invoice header */}
-          <div className="flex items-start justify-between p-8 pb-6" style={{ borderBottom: "1px solid #dedee1" }}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-[10px] bg-[#009598] flex items-center justify-center">
-                <Building2 size={22} strokeWidth={1.5} className="text-white" />
-              </div>
-              <div>
-                <div className="text-[17px] font-medium text-[#11111c]">Samvaad Hospital</div>
-                <div className="text-[12px] font-light text-[#57575f]">123 Health Street, Medical City · GST: 27AAAPL1234F1ZE</div>
-                <div className="text-[12px] font-light text-[#57575f]">+91 22 4567 8900 · samvaadhospital.in</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[22px] font-medium text-[#11111c]">{bill.billNumber}</div>
-              <div className="text-[13px] font-normal text-[#57575f] mt-1">Date: {formatDate(bill.date)}</div>
-              <div className="mt-2"><StatusBadge status={bill.status} /></div>
-            </div>
-          </div>
+          <DocumentLetterhead
+            hospital={hospital}
+            right={
+              <>
+                <div className="text-[22px] font-medium text-[#11111c]">{bill.billNumber}</div>
+                <div className="text-[13px] font-normal text-[#57575f] mt-1">Date: {formatDate(bill.date)}</div>
+                <div className="mt-2"><StatusBadge status={bill.status} /></div>
+              </>
+            }
+          />
 
           {/* Patient info */}
           <div className="grid grid-cols-2 gap-6 p-8 pb-6" style={{ borderBottom: "1px solid #dedee1" }}>
@@ -188,9 +188,7 @@ export default function BillingDetailPage() {
           </div>
 
           {/* Footer note */}
-          <div className="px-8 pb-8 text-[11px] font-light text-[#57575f] text-center">
-            Thank you for choosing Samvaad Hospital. For queries call +91 22 4567 8900.
-          </div>
+          <DocumentFooter hospital={hospital} />
         </div>
       </div>
     </>

@@ -3,9 +3,11 @@
 import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import { printElement } from "@/lib/print";
+import { printElement, downloadElement, shareDocument } from "@/lib/print";
+import { DocumentLetterhead, useHospital } from "@/components/shared/DocumentLetterhead";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { LabTestDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -62,6 +64,7 @@ export default function LabReportDetailPage() {
   useBreadcrumb("/lab", "Laboratory", test?.testName ?? "Lab Report");
   const { run, loading: acting } = useMutation();
   const docRef = useRef<HTMLDivElement>(null);
+  const hospital = useHospital();
   const printReport = () => printElement(docRef.current, test ? `Lab Report — ${test.testName}` : "Lab Report");
 
   async function markReady() {
@@ -86,11 +89,11 @@ export default function LabReportDetailPage() {
         <div className="flex items-center gap-2">
           {isReady ? (
             <>
-              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={() => shareDocument(`Lab Report — ${test.testName}`, window.location.href)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
                 <Share2 size={14} /> Share
               </button>
-              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
-                <Download size={14} /> PDF
+              <button onClick={() => downloadElement(docRef.current, `Lab Report — ${test.testName}`)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+                <Download size={14} /> Download
               </button>
               <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
                 <Printer size={14} /> Print
@@ -107,20 +110,24 @@ export default function LabReportDetailPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} overflow-hidden max-w-[860px] mx-auto`}>
           {/* Header */}
-          <div className="px-8 py-5 border-b border-[#dedee1] flex items-start justify-between">
-            <div>
-              <p className="text-[18px] font-medium text-[#11111c]">{test.testName}</p>
-              <p className="text-[12px] font-light text-[#57575f] mt-1">Samvaad Hospital · Lab Report</p>
-            </div>
-            <StatusBadge status={test.status} />
-          </div>
+          <DocumentLetterhead
+            hospital={hospital}
+            compact
+            right={
+              <>
+                <div className="text-[16px] font-medium text-[#11111c]">{test.testName}</div>
+                <div className="text-[12px] font-light text-[#57575f] mt-1">Lab Report · {formatDate(test.date)}</div>
+                <div className="mt-2"><StatusBadge status={test.status} /></div>
+              </>
+            }
+          />
 
           {/* Patient info */}
           <div className="px-8 py-4 grid grid-cols-3 gap-4 border-b border-[#f0f0f0]">
             {[
               { label: "Patient",        value: test.patientName },
               { label: "Age",            value: `${test.patientAge} years` },
-              { label: "Test Date",      value: test.date },
+              { label: "Test Date",      value: formatDate(test.date) },
               { label: "Sample Status",  value: test.sampleStatus },
               { label: "Report Status",  value: test.reportStatus },
               { label: "Amount",         value: `₹${test.amount.toLocaleString("en-IN")}` },
