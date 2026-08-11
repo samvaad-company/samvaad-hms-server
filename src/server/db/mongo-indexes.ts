@@ -47,6 +47,8 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.purchaseOrderItems]: ["purchase_order_id"],
   [TABLES.pharmacySales]: ["patient_id", "payment_mode"],
   [TABLES.pharmacySaleItems]: ["sale_id"],
+  [TABLES.ipdNotes]: ["admission_id", "note_type"],
+  [TABLES.ipdMedications]: ["admission_id", "status"],
   [TABLES.documents]: ["owner_type", "owner_id", "category"],
   [TABLES.tasks]: ["status", "priority", "assignee_id"],
   [TABLES.scribeNotes]: ["appointment_id", "patient_id", "doctor_id", "status"],

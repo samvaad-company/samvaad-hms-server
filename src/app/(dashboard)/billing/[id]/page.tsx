@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { ArrowLeft, Printer, Download, Share2, Building2 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -96,7 +97,7 @@ export default function BillingDetailPage() {
             </div>
             <div className="text-right">
               <div className="text-[22px] font-medium text-[#11111c]">{bill.billNumber}</div>
-              <div className="text-[13px] font-normal text-[#57575f] mt-1">Date: {bill.date}</div>
+              <div className="text-[13px] font-normal text-[#57575f] mt-1">Date: {formatDate(bill.date)}</div>
               <div className="mt-2"><StatusBadge status={bill.status} /></div>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Droplets, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -123,7 +124,7 @@ function IssueRow({ row, actions }: { row: BloodIssueDTO; actions: RowAction[] }
       <span className="text-[13px] font-normal text-[#11111c]">{row.component}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">{row.units}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>

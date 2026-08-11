@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Boxes, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -72,7 +73,7 @@ function IssueRow({ row, actions }: { row: InventoryIssueDTO; actions: RowAction
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">{row.quantity}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.issuedTo || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-light text-[#57575f] truncate">{row.note || "—"}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>

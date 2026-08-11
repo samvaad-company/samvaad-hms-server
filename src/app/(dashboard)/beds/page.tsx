@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import {
   Plus, ArrowRight, BedSingle, UserRound, Pencil, Trash2, ArrowRightLeft, LogOut, UserPlus,
 } from "lucide-react";
@@ -410,7 +411,7 @@ function TransfersView({ transfers }: { transfers: BedTransferDTO[] }) {
               <ArrowRight size={14} className="text-[#57575f] shrink-0" />
               <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{t.to}</span>
             </div>
-            <span className="absolute text-[14px] font-normal text-[#11111c] whitespace-nowrap" style={{ left: 700 }}>{t.date}</span>
+            <span className="absolute text-[14px] font-normal text-[#11111c] whitespace-nowrap" style={{ left: 700 }}>{formatDate(t.date)}</span>
             <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 860 }}>{t.reason}</span>
             <span className={`absolute inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${TRANSFER_CLR[t.status] ?? "bg-[#f0f0f0] text-[#57575f]"}`} style={{ left: 1040 }}>{t.status}</span>
           </div>

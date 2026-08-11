@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Ambulance as AmbulanceIcon, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -42,7 +43,7 @@ function CallRow({ row, actions }: { row: AmbulanceCallDTO; actions: RowAction[]
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.pickupLocation}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.dropLocation}</span>
       <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.vehicleNumber || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>

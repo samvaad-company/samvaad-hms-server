@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { ShieldCheck, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -68,7 +69,7 @@ function ClaimRow({ row, actions }: { row: TpaClaimDTO; actions: RowAction[] }) 
       <span className="text-[13px] font-normal text-[#009598] whitespace-nowrap">{row.billNumber || "—"}</span>
       <span className="text-[13px] font-normal text-[#11111c] text-right">₹{row.claimAmount.toLocaleString("en-IN")}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">{row.approvedAmount > 0 ? `₹${row.approvedAmount.toLocaleString("en-IN")}` : "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>

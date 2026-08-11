@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import { parseDisplayDate } from "@/lib/dates";
+import { parseDisplayDate, formatDate } from "@/lib/dates";
 import type { TaskDTO, StaffDTO } from "@/types/api";
 import type { TaskStatus, TaskPriority } from "@/types";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -337,7 +337,7 @@ export default function TasksPage() {
                   <User size={11} className="text-[#57575f]" /> {t.assigneeName}
                 </span>
                 <PriorityChip p={t.priority} />
-                <span className="text-[12px] text-[#57575f]">{t.dueDate}</span>
+                <span className="text-[12px] text-[#57575f]">{formatDate(t.dueDate)}</span>
                 <select
                   value={t.status}
                   onClick={(e) => e.stopPropagation()}

@@ -34,6 +34,8 @@ import type {
   InventoryIssueDTO,
   TaskDTO,
   DocumentDTO,
+  IpdNoteDTO,
+  IpdMedicationDTO,
   PurchaseOrderDTO,
   PurchaseOrderItemDTO,
   PharmacySaleDTO,
@@ -73,6 +75,8 @@ import type {
   InventoryIssueRow,
   TaskRow,
   DocumentRow,
+  IpdNoteRow,
+  IpdMedicationRow,
   PurchaseOrderRow,
   PurchaseOrderItemRow,
   PharmacySaleRow,
@@ -611,6 +615,34 @@ export function toPharmacySaleDTO(
     date: r.sale_date,
     billId: r.bill_id,
     items: items.map(toPharmacySaleItemDTO),
+  };
+}
+
+export function toIpdNoteDTO(r: IpdNoteRow): IpdNoteDTO {
+  return {
+    id: r.id,
+    admissionId: r.admission_id,
+    noteType: r.note_type,
+    date: r.note_date,
+    time: r.note_time,
+    author: r.author,
+    content: r.content,
+  };
+}
+
+export function toIpdMedicationDTO(r: IpdMedicationRow): IpdMedicationDTO {
+  return {
+    id: r.id,
+    admissionId: r.admission_id,
+    medicineName: r.medicine_name,
+    dosage: r.dosage,
+    frequency: r.frequency,
+    route: r.route,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    status: r.status,
+    lastGivenAt: r.last_given_at,
+    notes: r.notes,
   };
 }
 

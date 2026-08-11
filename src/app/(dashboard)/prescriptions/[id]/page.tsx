@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { useItem } from "@/lib/api/hooks";
 import { printElement } from "@/lib/print";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
@@ -69,7 +70,7 @@ export default function PrescriptionDetailPage() {
             </div>
             <div className="flex flex-col items-end gap-1">
               <span className="text-[13px] font-medium text-[#009598]">{rx.rxNumber}</span>
-              <span className="text-[12px] font-light text-[#57575f]">Date: {rx.date}</span>
+              <span className="text-[12px] font-light text-[#57575f]">Date: {formatDate(rx.date)}</span>
               <span className={`inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-normal mt-1 ${rx.status === "Dispensed" ? "bg-[#dffff3] text-[#00955c]" : rx.status === "Pending" ? "bg-[#fff2e0] text-[#ff9000]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{rx.status}</span>
             </div>
           </div>

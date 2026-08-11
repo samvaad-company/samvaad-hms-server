@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { Users2, Plus, Phone, Mail } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
@@ -51,7 +52,7 @@ function StaffRow({ row, actions }: { row: Staff; actions: RowAction[] }) {
         <Mail size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
         <span className="text-[13px] font-normal text-[#57575f] truncate">{row.email}</span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.joinDate}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.joinDate)}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>

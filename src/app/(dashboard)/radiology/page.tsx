@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { ScanLine, Plus, Upload, Eye, FileText, Loader2, Download } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -166,7 +167,7 @@ function UploadReportModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-[13px] font-light text-[#57575f]">
-          {test.patientName} · {test.patientAge} yrs · Ordered {test.date}
+          {test.patientName} · {test.patientAge} yrs · Ordered {formatDate(test.date)}
         </p>
 
         <FormRow label="Report file * (PDF, PNG, JPEG — max 5 MB)">
@@ -251,7 +252,7 @@ function RadiologyRow({ row, actions, onView }: { row: RadiologyTestDTO; actions
         )}
       </div>
       <span className="text-[12px] font-normal text-[#57575f] truncate">{row.reportUploadedBy ?? "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
@@ -405,7 +406,7 @@ function ReportsView({
         <div key={test.id} className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
           <div className="flex flex-col gap-[6px] min-w-0">
             <span className="text-[14px] font-medium text-[#11111c] truncate">{test.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{test.patientName} · {test.patientAge} yrs · {test.date}</span>
+            <span className="text-[12px] font-light text-[#57575f]">{test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}</span>
             <div className="flex items-center gap-2">
               <StatusBadge status={test.status} />
               {test.hasReport && (

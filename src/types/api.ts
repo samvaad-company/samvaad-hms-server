@@ -436,6 +436,30 @@ export interface PharmacySaleDTO {
   items: PharmacySaleItemDTO[];
 }
 
+export interface IpdNoteDTO {
+  id: number;
+  admissionId: number;
+  noteType: string;
+  date: string;
+  time: string;
+  author: string;
+  content: string;
+}
+
+export interface IpdMedicationDTO {
+  id: number;
+  admissionId: number;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  route: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  lastGivenAt: string;
+  notes: string;
+}
+
 export interface DocumentDTO {
   id: number;
   ownerType: string;

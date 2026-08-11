@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import {
   ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, Tag,
   CheckCircle2, CalendarClock, XCircle, RotateCcw, CalendarPlus,
@@ -58,7 +59,7 @@ export default function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
-  useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${appt.date}` : "Appointment");
+  useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${formatDate(appt.date)}` : "Appointment");
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -215,7 +216,7 @@ export default function AppointmentDetailPage() {
               <AbhaBadge abhaId={patientRec?.abhaId} />
             </div>
             <InfoRow icon={Stethoscope} label="Doctor"       value={appt.doctor} />
-            <InfoRow icon={Calendar}    label="Date"         value={appt.date} />
+            <InfoRow icon={Calendar}    label="Date"         value={formatDate(appt.date)} />
             <InfoRow icon={Clock}       label="Time"         value={appt.time} />
             <InfoRow icon={Tag}         label="Type"         value={appt.type} />
             <div className="py-3">
@@ -329,7 +330,7 @@ export default function AppointmentDetailPage() {
         <div className="mb-3 text-[12px] text-[#57575f]">
           {appt.patientName} · {appt.patientAge} yrs
           {modal === "reschedule" && (
-            <span className="text-[#57575f]"> — currently {appt.date} at {appt.time}</span>
+            <span className="text-[#57575f]"> — currently {formatDate(appt.date)} at {appt.time}</span>
           )}
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -346,7 +347,7 @@ export default function AppointmentDetailPage() {
       <ConfirmDialog
         open={confirmCancel}
         title="Cancel this appointment?"
-        message={`This will mark ${appt.patientName}'s appointment on ${appt.date} at ${appt.time} as Cancelled. You can reschedule or restore it afterwards.`}
+        message={`This will mark ${appt.patientName}'s appointment on ${formatDate(appt.date)} at ${appt.time} as Cancelled. You can reschedule or restore it afterwards.`}
         confirmLabel="Cancel Appointment"
         cancelLabel="Keep it"
         loading={acting}

@@ -45,6 +45,8 @@ export const TABLES = {
   tasks: "tasks",
   scribeNotes: "scribe_notes",
   documents: "documents",
+  ipdNotes: "ipd_notes",
+  ipdMedications: "ipd_medications",
   purchaseOrders: "purchase_orders",
   purchaseOrderItems: "purchase_order_items",
   pharmacySales: "pharmacy_sales",
@@ -630,6 +632,36 @@ export interface PharmacySaleItemRow extends Row {
   unit_price: number;
   line_total: number;
   created_at: string;
+}
+
+export interface IpdNoteRow extends Row {
+  id: number;
+  admission_id: number;
+  /** "Daily Note" | "Doctor Round" | "Diet" — one table, three timelines. */
+  note_type: string;
+  note_date: string;
+  note_time: string;
+  author: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IpdMedicationRow extends Row {
+  id: number;
+  admission_id: number;
+  medicine_name: string;
+  dosage: string;
+  frequency: string;
+  route: string;
+  start_date: string;
+  end_date: string;
+  /** "Active" | "Stopped" | "Completed" */
+  status: string;
+  last_given_at: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DocumentRow extends Row {

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import { parseDisplayDate } from "@/lib/dates";
+import { parseDisplayDate, formatDate } from "@/lib/dates";
 import type { PatientDTO, PrescriptionDTO, LabTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -140,7 +140,7 @@ function PrescriptionsTab({ rxList }: { rxList: PrescriptionDTO[] }) {
         <div key={rx.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
           <div className="flex flex-col gap-[4px]">
             <span className="text-[14px] font-medium text-[#11111c]">{rx.rxNumber}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{rx.doctor} · {rx.date}</span>
+            <span className="text-[12px] font-light text-[#57575f]">{rx.doctor} · {formatDate(rx.date)}</span>
             <span className="text-[12px] font-normal text-[#57575f]">{rx.medicineCount} medicines · {rx.diagnosis}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -163,7 +163,7 @@ function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
         <div key={t.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
           <div className="flex flex-col gap-[4px]">
             <span className="text-[14px] font-medium text-[#11111c]">{t.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{t.date} · ₹{t.amount}</span>
+            <span className="text-[12px] font-light text-[#57575f]">{formatDate(t.date)} · ₹{t.amount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${t.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{t.reportStatus}</span>

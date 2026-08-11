@@ -5,7 +5,7 @@ import { tw } from "@/lib/design-system";
 import { Pill, Plus, MoreVertical, AlertTriangle, Clock, XCircle, TrendingDown } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import { parseMonthYear } from "@/lib/dates";
+import { parseMonthYear, formatDate } from "@/lib/dates";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { PharmacyItemDTO, PurchaseOrderDTO, PharmacySaleDTO, PatientDTO } from "@/types/api";
@@ -221,7 +221,7 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
               style={{ gridTemplateColumns: "110px 1.4fr 110px 70px 110px 110px 150px" }}>
               <span className="text-[13px] font-medium text-[#009598]">{po.poNumber}</span>
               <span className="text-[13px] text-[#11111c] truncate">{po.supplier}</span>
-              <span className="text-[13px] text-[#57575f]">{po.orderDate}</span>
+              <span className="text-[13px] text-[#57575f]">{formatDate(po.orderDate)}</span>
               <span className="text-[13px] text-[#57575f]">{po.itemCount}</span>
               <span className="text-[13px] font-medium text-[#11111c]">₹{po.total.toLocaleString("en-IN")}</span>
               <span className={`inline-flex w-fit items-center px-[10px] py-[4px] rounded-full text-[11px] ${PO_STATUS[po.status] ?? ""}`}>{po.status}</span>

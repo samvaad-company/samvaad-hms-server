@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Baby, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -36,7 +37,7 @@ function BirthRow({ row, actions }: { row: BirthRecordDTO; actions: RowAction[] 
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.childName}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.gender}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.time}</span>
       <span className="text-[13px] font-normal text-[#11111c] text-right">{row.weightKg ? `${row.weightKg} kg` : "—"}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.motherName}</span>
@@ -67,7 +68,7 @@ function DeathRow({ row, actions }: { row: DeathRecordDTO; actions: RowAction[] 
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.deceasedName}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.gender}</span>
       <span className="text-[13px] font-normal text-[#57575f]">{row.age || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.time}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.cause || "—"}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.guardianName || "—"}</span>

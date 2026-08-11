@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Wallet, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -40,7 +41,7 @@ function EntryRow({ row, amountClass, actions }: { row: FinanceEntryDTO; amountC
       <span className="text-[13px] font-medium text-[#11111c] truncate">{row.category}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.description}</span>
       <span className="text-[13px] font-normal text-[#009598] whitespace-nowrap">{row.invoiceNumber || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.date}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className={`text-[13px] font-medium text-right ${amountClass}`}>₹{row.amount.toLocaleString("en-IN")}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
