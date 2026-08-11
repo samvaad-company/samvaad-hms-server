@@ -13,7 +13,9 @@ async function main() {
 
   const countOf = async (table: string) => (await db.list(table, { unpaged: true })).total;
   const stockOf = async (id: number) =>
-    Number((await db.findById<{ stock: number }>(TABLES.pharmacyItems, id))?.stock ?? -1);
+    Number(
+      (await db.findById<{ id: number; stock: number }>(TABLES.pharmacyItems, id))?.stock ?? -1,
+    );
 
   const salesBefore = await countOf(TABLES.pharmacySales);
   const itemsBefore = await countOf(TABLES.pharmacySaleItems);
@@ -25,7 +27,7 @@ async function main() {
   let threw = false;
   try {
     await transactional("verify.partialFailure", async (uow) => {
-      const sale = await uow.insert<{ id: number }>(TABLES.pharmacySales, {
+      const sale = await uow.insert<{ id: number } & Record<string, unknown>>(TABLES.pharmacySales, {
         sale_number: "SALE-VERIFY", patient_id: null, patient_name: "Rollback Test",
         prescription_id: null, rx_number: "", item_count: 1, subtotal: 100,
         discount: 0, total: 100, payment_mode: "Cash", sale_date: "2026-01-01", bill_id: null,
