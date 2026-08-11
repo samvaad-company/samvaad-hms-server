@@ -12,6 +12,8 @@ import {
 } from "@/server/repositories";
 import { toIpdDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import { type IpdAdmissionRow } from "@/server/db/tables";
 import { NotFoundError, ConflictError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
@@ -73,6 +75,7 @@ export async function admitPatient(input: unknown, actor: Session) {
 
   // Resolve and occupy the bed.
   let ward = data.ward ?? "";
+  let bedToOccupy: number | null = null;
   let bedLabel = "";
   const bedId = data.bedId ?? null;
   if (bedId) {
@@ -83,33 +86,40 @@ export async function admitPatient(input: unknown, actor: Session) {
     }
     ward = bed.ward;
     bedLabel = bed.bed_number;
-    await bedsRepo.update(bed.id, {
-      status: "Occupied",
-      patient_id: data.patientId ?? null,
-      patient_name: patientName,
-      patient_code: patientCode,
-    });
+    bedToOccupy = bed.id;
   }
 
   const wardRow = ward
     ? await wardsRepo.findRow([{ column: "name", op: "eq", value: ward }])
     : null;
 
-  const row = await ipdRepo.create({
-    patient_id: data.patientId ?? null,
-    patient_name: patientName,
-    patient_age: patientAge,
-    patient_code: patientCode,
-    admission_date: displayDate(),
-    ward_id: wardRow?.id ?? null,
-    ward,
-    bed_id: bedId,
-    bed: bedLabel,
-    doctor_id: data.doctorId ?? null,
-    doctor: doctorName,
-    diagnosis: data.diagnosis,
-    credit_limit: data.creditLimit ?? 0,
-    status: data.status,
+  // Occupying the bed and creating the admission must land together, or a bed
+  // is marked occupied for an admission that does not exist.
+  const row = await transactional("ipd.admit", async (uow) => {
+    if (bedToOccupy) {
+      await uow.update(TABLES.beds, bedToOccupy, {
+        status: "Occupied",
+        patient_id: data.patientId ?? null,
+        patient_name: patientName,
+        patient_code: patientCode,
+      });
+    }
+    return uow.insert<IpdAdmissionRow>(TABLES.ipdAdmissions, {
+      patient_id: data.patientId ?? null,
+      patient_name: patientName,
+      patient_age: patientAge,
+      patient_code: patientCode,
+      admission_date: displayDate(),
+      ward_id: wardRow?.id ?? null,
+      ward,
+      bed_id: bedId,
+      bed: bedLabel,
+      doctor_id: data.doctorId ?? null,
+      doctor: doctorName,
+      diagnosis: data.diagnosis,
+      credit_limit: data.creditLimit ?? 0,
+      status: data.status,
+    });
   });
   await audit(actor, "admit", "ipd", row.id, { bedId, ward });
   return toIpdDTO(row as IpdAdmissionRow);
@@ -140,15 +150,17 @@ export async function dischargePatient(id: number, actor: Session) {
   if (admission.status === "Discharged") {
     throw new ConflictError("Patient is already discharged");
   }
-  if (admission.bed_id) {
-    await bedsRepo.update(admission.bed_id, {
-      status: "Available",
-      patient_id: null,
-      patient_name: null,
-      patient_code: null,
-    });
-  }
-  const row = await ipdRepo.update(id, { status: "Discharged" });
+  const row = await transactional("ipd.discharge", async (uow) => {
+    if (admission.bed_id) {
+      await uow.update(TABLES.beds, admission.bed_id, {
+        status: "Available",
+        patient_id: null,
+        patient_name: null,
+        patient_code: null,
+      });
+    }
+    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged" });
+  });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id });
   return toIpdDTO(row as IpdAdmissionRow);
 }
@@ -166,25 +178,29 @@ export async function transferBed(id: number, newBedId: number, actor: Session) 
     throw new BadRequestError("Patient is already in that bed");
   }
 
-  if (admission.bed_id) {
-    await bedsRepo.update(admission.bed_id, {
-      status: "Available",
-      patient_id: null,
-      patient_name: null,
-      patient_code: null,
+  // Freeing the old bed, occupying the new one and moving the admission are a
+  // single move — a partial failure would leave the patient in two beds.
+  const row = await transactional("ipd.transfer", async (uow) => {
+    if (admission.bed_id) {
+      await uow.update(TABLES.beds, admission.bed_id, {
+        status: "Available",
+        patient_id: null,
+        patient_name: null,
+        patient_code: null,
+      });
+    }
+    await uow.update(TABLES.beds, newBedId, {
+      status: "Occupied",
+      patient_id: admission.patient_id,
+      patient_name: admission.patient_name,
+      patient_code: admission.patient_code,
     });
-  }
-  await bedsRepo.update(newBedId, {
-    status: "Occupied",
-    patient_id: admission.patient_id,
-    patient_name: admission.patient_name,
-    patient_code: admission.patient_code,
-  });
-  const row = await ipdRepo.update(id, {
-    bed_id: newBedId,
-    bed: target.bed_number,
-    ward: target.ward,
-    ward_id: target.ward_id,
+    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, {
+      bed_id: newBedId,
+      bed: target.bed_number,
+      ward: target.ward,
+      ward_id: target.ward_id,
+    });
   });
   await bedTransfersRepo.create({
     patient_name: admission.patient_name,

@@ -5,6 +5,8 @@
 import { opdRepo, patientsRepo, doctorsRepo } from "@/server/repositories";
 import { toOpdDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { type UnitOfWork } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import { type OpdVisitRow } from "@/server/db/tables";
 import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
@@ -70,7 +72,18 @@ export async function getOpd(id: number) {
   return o;
 }
 
-export async function checkInOpd(input: unknown, actor: Session) {
+/**
+ * Check a patient into the OPD queue.
+ *
+ * Accepts an optional unit of work so a caller (e.g. checking in a booked
+ * appointment) can enlist this write in its own transaction; when omitted the
+ * insert is standalone.
+ */
+export async function checkInOpd(
+  input: unknown,
+  actor: Session,
+  uow?: UnitOfWork,
+) {
   const data = validate(createSchema, input);
 
   let patientName = data.patientName;
@@ -95,7 +108,11 @@ export async function checkInOpd(input: unknown, actor: Session) {
     3,
   );
 
-  const row = await opdRepo.create({
+  const create = uow
+    ? (values: Record<string, unknown>) => uow.insert<OpdVisitRow>(TABLES.opdVisits, values)
+    : (values: Record<string, unknown>) => opdRepo.create(values);
+
+  const row = await create({
     token_number: token,
     appointment_id: data.appointmentId ?? null,
     patient_id: data.patientId ?? null,

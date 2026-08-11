@@ -11,6 +11,8 @@ import {
 } from "@/server/repositories";
 import { toAppointmentDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import { type AppointmentRow } from "@/server/db/tables";
 import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
@@ -142,20 +144,25 @@ export async function checkInAppointment(id: number, actor: Session) {
     );
   }
 
-  const visit = await checkInOpd(
-    {
-      appointmentId: id,
-      patientId: appt.patient_id ?? undefined,
-      patientName: appt.patient_name,
-      patientAge: appt.patient_age,
-      doctorId: appt.doctor_id ?? undefined,
-      doctor: appt.doctor,
-      reason: appt.reason,
-    },
-    actor,
-  );
-
-  await appointmentsRepo.update(id, { status: "Today" });
+  // The token and the appointment's new status commit together, so an
+  // appointment can never show as checked in without a queue entry.
+  const visit = await transactional("appointment.checkIn", async (uow) => {
+    const created = await checkInOpd(
+      {
+        appointmentId: id,
+        patientId: appt.patient_id ?? undefined,
+        patientName: appt.patient_name,
+        patientAge: appt.patient_age,
+        doctorId: appt.doctor_id ?? undefined,
+        doctor: appt.doctor,
+        reason: appt.reason,
+      },
+      actor,
+      uow,
+    );
+    await uow.update(TABLES.appointments, id, { status: "Today" });
+    return created;
+  });
   await audit(actor, "checkin", "appointment", id, { token: visit.tokenNumber });
   return visit;
 }

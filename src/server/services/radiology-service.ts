@@ -4,6 +4,8 @@
 import { radiologyRepo, patientsRepo } from "@/server/repositories";
 import { toRadiologyDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional, type UnitOfWork } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import { type RadiologyTestRow } from "@/server/db/tables";
 import { NotFoundError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
@@ -44,7 +46,7 @@ async function nextOrderNumber(): Promise<string> {
   return nextCode(rows.map((r) => r.order_number ?? ""), "RAD-", 4);
 }
 
-export async function createRadiology(input: unknown, actor: Session) {
+export async function createRadiology(input: unknown, actor: Session, uow?: UnitOfWork) {
   const data = validate(createSchema, input);
   const orderNumber =
     (input as { orderNumber?: string })?.orderNumber || (await nextOrderNumber());
@@ -57,7 +59,10 @@ export async function createRadiology(input: unknown, actor: Session) {
       patientAge = p.age;
     }
   }
-  const row = await radiologyRepo.create({
+  const create = uow
+    ? (v: Record<string, unknown>) => uow.insert<RadiologyTestRow>(TABLES.radiologyTests, v)
+    : (v: Record<string, unknown>) => radiologyRepo.create(v);
+  const row = await create({
     order_number: orderNumber,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
@@ -86,15 +91,21 @@ export async function createRadiologyOrder(input: unknown, actor: Session) {
     throw new BadRequestError("Select at least one study");
   }
   const orderNumber = await nextOrderNumber();
-  const created = [];
-  for (const t of tests) {
-    created.push(
-      await createRadiology(
-        { ...body, orderNumber, testName: t.testName, amount: t.amount ?? 0 },
-        actor,
-      ),
-    );
-  }
+  // The whole order lands or none of it does — a failure partway through
+  // previously left a half-booked order behind.
+  const created = await transactional("radiology.order", async (uow) => {
+    const rows = [];
+    for (const t of tests) {
+      rows.push(
+        await createRadiology(
+          { ...body, orderNumber, testName: t.testName, amount: t.amount ?? 0 },
+          actor,
+          uow,
+        ),
+      );
+    }
+    return rows;
+  });
   return { orderNumber, tests: created };
 }
 

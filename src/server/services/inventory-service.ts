@@ -11,6 +11,8 @@ import {
   toInventoryIssueDTO,
 } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import {
   type InventoryItemRow,
   type InventoryIssueRow,
@@ -149,11 +151,13 @@ export async function createIssue(input: unknown, actor: Session) {
     );
   }
   const stock = item.stock - data.quantity;
-  await inventoryItemsRepo.update(item.id, {
+  // Decrementing stock and recording the issue must not come apart.
+  const row = await transactional("inventory.issue", async (uow) => {
+  await uow.update(TABLES.inventoryItems, item.id, {
     stock,
     status: deriveStatus(stock, item.min_stock),
   });
-  const row = await inventoryIssuesRepo.create({
+  return uow.insert<InventoryIssueRow>(TABLES.inventoryIssues, {
     item_id: item.id,
     item_name: item.name,
     department: data.department,
@@ -161,6 +165,7 @@ export async function createIssue(input: unknown, actor: Session) {
     issued_to: data.issuedTo,
     issue_date: displayDate(),
     note: data.note,
+  });
   });
   await audit(actor, "issue", "inventory-issue", row.id, {
     itemId: item.id,

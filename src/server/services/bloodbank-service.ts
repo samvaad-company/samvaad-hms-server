@@ -15,6 +15,8 @@ import {
   toBloodStockDTO,
 } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import {
   type BloodDonorRow,
   type BloodIssueRow,
@@ -199,18 +201,33 @@ export async function createIssue(input: unknown, actor: Session) {
     if (p) patientName = p.name;
   }
 
-  await adjustStock(data.bloodGroup, data.component, -data.units);
+  // Find the stock line first so the decrement and the issue record can be
+  // written as one unit — units must never leave stock without a record.
+  const stockLine = await bloodStockRepo.findRow([
+    { column: "blood_group", op: "eq", value: data.bloodGroup },
+    { column: "component", op: "eq", value: data.component },
+  ]);
+  if (!stockLine || stockLine.units < data.units) {
+    throw new ConflictError(
+      `Only ${stockLine?.units ?? 0} unit(s) of ${data.component} (${data.bloodGroup}) in stock`,
+    );
+  }
 
-  const row = await bloodIssuesRepo.create({
-    patient_id: data.patientId ?? null,
-    patient_name: patientName,
-    blood_group: data.bloodGroup,
-    component: data.component,
-    units: data.units,
-    doctor: data.doctor,
-    issue_date: displayDate(),
-    amount: data.amount,
-    status: "Issued",
+  const row = await transactional("bloodbank.issue", async (uow) => {
+    await uow.update(TABLES.bloodStock, stockLine.id, {
+      units: stockLine.units - data.units,
+    });
+    return uow.insert<BloodIssueRow>(TABLES.bloodIssues, {
+      patient_id: data.patientId ?? null,
+      patient_name: patientName,
+      blood_group: data.bloodGroup,
+      component: data.component,
+      units: data.units,
+      doctor: data.doctor,
+      issue_date: displayDate(),
+      amount: data.amount,
+      status: "Issued",
+    });
   });
 
   if ((data.amount ?? 0) > 0) {

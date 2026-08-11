@@ -11,6 +11,8 @@ import {
 } from "@/server/repositories";
 import { toPrescriptionDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import { type PrescriptionRow, type PrescriptionItemRow } from "@/server/db/tables";
 import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
@@ -194,6 +196,7 @@ export async function dispensePrescription(id: number, actor: Session) {
     if (!byKey.has(k)) byKey.set(k, s);
   }
 
+  await transactional("prescription.dispense", async (uow) => {
   for (const item of items) {
     const match =
       stock.find((s) => s.name === item.medicine_name) ??
@@ -209,7 +212,7 @@ export async function dispensePrescription(id: number, actor: Session) {
       shortStocked.push({ name: match.name, needed: units, available: match.stock });
     }
     const newStock = Math.max(0, match.stock - units);
-    await pharmacyRepo.update(match.id, {
+    await uow.update(TABLES.pharmacyItems, match.id, {
       stock: newStock,
       status: computePharmacyStatus(newStock, match.min_stock, match.expiry_date),
     });
@@ -217,8 +220,11 @@ export async function dispensePrescription(id: number, actor: Session) {
     match.stock = newStock;
     adjustments.push({ name: match.name, units, from: match.stock + units, to: newStock });
   }
+  // Status and every stock movement commit together.
+  await uow.update(TABLES.prescriptions, id, { status: "Dispensed" });
+  });
 
-  const row = await prescriptionsRepo.update(id, { status: "Dispensed" });
+  const row = await prescriptionsRepo.getRow(id);
   await audit(actor, "dispense", "prescription", id, { adjustments, unmatched, shortStocked });
 
   return {

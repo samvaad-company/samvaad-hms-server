@@ -20,7 +20,11 @@ import {
   toPharmacySaleDTO,
 } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
+import { transactional } from "@/server/db/unit-of-work";
+import { TABLES } from "@/server/db/tables";
 import {
+  type BillRow,
+  type PharmacyItemRow,
   type PurchaseOrderRow,
   type PurchaseOrderItemRow,
   type PharmacySaleRow,
@@ -132,6 +136,7 @@ export async function receivePurchaseOrder(id: number, actor: Session) {
   const applied: { name: string; added: number; to: number }[] = [];
   const unmatched: string[] = [];
 
+  await transactional("pharmacy.receivePO", async (uow) => {
   for (const item of items) {
     const stock =
       (item.pharmacy_item_id
@@ -146,14 +151,16 @@ export async function receivePurchaseOrder(id: number, actor: Session) {
       continue;
     }
     const newStock = stock.stock + item.quantity;
-    await pharmacyRepo.update(stock.id, {
+    await uow.update(TABLES.pharmacyItems, stock.id, {
       stock: newStock,
       status: computePharmacyStatus(newStock, stock.min_stock, stock.expiry_date),
     });
     applied.push({ name: stock.name, added: item.quantity, to: newStock });
   }
+  await uow.update(TABLES.purchaseOrders, id, { status: "Received" });
+  });
 
-  const updated = await purchaseOrdersRepo.update(id, { status: "Received" });
+  const updated = await purchaseOrdersRepo.getRow(id);
   await audit(actor, "receive", "purchase-order", id, { applied, unmatched });
   return {
     ...toPurchaseOrderDTO(updated as PurchaseOrderRow, items),
@@ -230,7 +237,7 @@ export async function createSale(input: unknown, actor: Session) {
   }
 
   // Resolve every line and check availability before mutating anything.
-  const resolved = [];
+  const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number }[] = [];
   for (const l of lines) {
     const stock =
       (l.pharmacyItemId ? await pharmacyRepo.getRow(l.pharmacyItemId) : null) ??
@@ -261,57 +268,63 @@ export async function createSale(input: unknown, actor: Session) {
 
   const { rows: existing } = await pharmacySalesRepo.listRows({ unpaged: true });
   const saleNumber = nextCode(existing.map((r) => r.sale_number), "SALE-", 4);
-
-  const sale = await pharmacySalesRepo.create({
-    sale_number: saleNumber,
-    patient_id: data.patientId ?? null,
-    patient_name: patientName,
-    prescription_id: null,
-    rx_number: data.rxNumber,
-    item_count: resolved.length,
-    subtotal,
-    discount,
-    total,
-    payment_mode: data.paymentMode,
-    sale_date: displayDate(),
-    bill_id: null,
-  });
-
-  for (const r of resolved) {
-    await pharmacySaleItemsRepo.create({
-      sale_id: sale.id,
-      pharmacy_item_id: r.stock.id,
-      medicine_name: r.stock.name,
-      quantity: r.qty,
-      unit_price: r.unitPrice,
-      line_total: r.qty * r.unitPrice,
-    });
-    const newStock = r.stock.stock - r.qty;
-    await pharmacyRepo.update(r.stock.id, {
-      stock: newStock,
-      status: computePharmacyStatus(newStock, r.stock.min_stock, r.stock.expiry_date),
-    });
-  }
-
-  // Raise the corresponding bill so pharmacy revenue shows up in Billing.
   const { rows: bills } = await billsRepo.listRows({ unpaged: true });
-  const bill = await billsRepo.create({
-    bill_number: nextCode(bills.map((b) => b.bill_number), "INV-", 8),
-    patient_id: data.patientId ?? null,
-    patient_name: patientName,
-    type: "Pharmacy",
-    bill_date: displayDate(),
-    amount: subtotal,
-    discount,
-    gst: 0,
-    total,
-    status: "Paid",
-  });
-  await pharmacySalesRepo.update(sale.id, { bill_id: bill.id });
+  const billNumber = nextCode(bills.map((b) => b.bill_number), "INV-", 8);
 
-  await audit(actor, "create", "pharmacy-sale", sale.id, { saleNumber, total });
-  const finalRow = await pharmacySalesRepo.getRow(sale.id);
-  return toPharmacySaleDTO(finalRow as PharmacySaleRow, await saleItems(sale.id));
+  // Sale, line items, stock levels and the bill must land together — a partial
+  // write here would decrement stock for a sale that was never recorded.
+  const saleId = await transactional("pharmacy.sale", async (uow) => {
+    const sale = await uow.insert<PharmacySaleRow>(TABLES.pharmacySales, {
+      sale_number: saleNumber,
+      patient_id: data.patientId ?? null,
+      patient_name: patientName,
+      prescription_id: null,
+      rx_number: data.rxNumber,
+      item_count: resolved.length,
+      subtotal,
+      discount,
+      total,
+      payment_mode: data.paymentMode,
+      sale_date: displayDate(),
+      bill_id: null,
+    });
+
+    for (const r of resolved) {
+      await uow.insert(TABLES.pharmacySaleItems, {
+        sale_id: sale.id,
+        pharmacy_item_id: r.stock.id,
+        medicine_name: r.stock.name,
+        quantity: r.qty,
+        unit_price: r.unitPrice,
+        line_total: r.qty * r.unitPrice,
+      });
+      const newStock = r.stock.stock - r.qty;
+      await uow.update(TABLES.pharmacyItems, r.stock.id, {
+        stock: newStock,
+        status: computePharmacyStatus(newStock, r.stock.min_stock, r.stock.expiry_date),
+      });
+    }
+
+    // Raise the corresponding bill so pharmacy revenue shows up in Billing.
+    const bill = await uow.insert<BillRow>(TABLES.bills, {
+      bill_number: billNumber,
+      patient_id: data.patientId ?? null,
+      patient_name: patientName,
+      type: "Pharmacy",
+      bill_date: displayDate(),
+      amount: subtotal,
+      discount,
+      gst: 0,
+      total,
+      status: "Paid",
+    });
+    await uow.update(TABLES.pharmacySales, sale.id, { bill_id: bill.id });
+    return sale.id;
+  });
+
+  await audit(actor, "create", "pharmacy-sale", saleId, { saleNumber, total });
+  const finalRow = await pharmacySalesRepo.getRow(saleId);
+  return toPharmacySaleDTO(finalRow as PharmacySaleRow, await saleItems(saleId));
 }
 
 export async function deleteSale(id: number, actor: Session) {
