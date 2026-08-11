@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
+import { PatientPicker } from "@/components/shared/PatientPicker";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { Modal } from "@/components/shared/Modal";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
@@ -145,7 +146,7 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
       <div className="col-span-2 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Patient *">
-            <FormSelect placeholder="Search or select patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
           </FormRow>
           <FormRow label="Requesting Doctor">
             <FormInput placeholder="Doctor name or OPD reference" value={requestedBy} onChange={setRequestedBy} />

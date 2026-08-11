@@ -16,6 +16,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
+import { PatientPicker } from "@/components/shared/PatientPicker";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 
 // ─── Report viewer ────────────────────────────────────────────────────────────
@@ -292,18 +293,19 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
   async function bookStudies() {
     if (!patientId || selected.length === 0) return;
     const patient = patients.find(p => String(p.id) === patientId);
-    await run(async () => {
-      for (const name of selected) {
-        const study = COMMON_STUDIES.find(t => t.name === name);
-        await api.post("/radiology", {
-          patientId: Number(patientId),
-          patientName: patient?.name ?? "",
-          patientAge: patient?.age ?? 0,
+    // One order for the whole booking, so several studies don't read as
+    // several separate patient entries.
+    await run(() =>
+      api.post("/radiology/orders", {
+        patientId: Number(patientId),
+        patientName: patient?.name ?? "",
+        patientAge: patient?.age ?? 0,
+        tests: selected.map(name => ({
           testName: name,
-          amount: study?.price ?? 0,
-        });
-      }
-    });
+          amount: COMMON_STUDIES.find(t => t.name === name)?.price ?? 0,
+        })),
+      }),
+    );
     setSelected([]);
     setPatientId("");
     onBooked();
@@ -315,7 +317,7 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
       <div className="col-span-2 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Patient *">
-            <FormSelect placeholder="Search or select patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
           </FormRow>
           <FormRow label="Referring Doctor">
             <FormInput placeholder="Doctor name or OPD reference" />

@@ -32,7 +32,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.bloodDonors]: ["blood_group", "status"],
   [TABLES.bloodStock]: ["blood_group", "component"],
   [TABLES.bloodIssues]: ["status", "patient_id"],
-  [TABLES.radiologyTests]: ["status", "patient_id"],
+  [TABLES.radiologyTests]: ["status", "patient_id", "order_number"],
   [TABLES.ambulances]: ["status"],
   [TABLES.ambulanceCalls]: ["status", "ambulance_id"],
   [TABLES.birthRecords]: ["gender"],

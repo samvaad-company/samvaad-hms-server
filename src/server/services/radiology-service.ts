@@ -7,7 +7,7 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { type RadiologyTestRow } from "@/server/db/tables";
 import { NotFoundError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
-import { displayDate, displayTime } from "@/server/services/helpers";
+import { displayDate, displayTime, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { type RadiologyStatus } from "@/types";
@@ -23,7 +23,7 @@ const createSchema = {
 
 export const RADIOLOGY_LIST_CONFIG = {
   searchColumns: ["patient_name", "test_name"],
-  filterable: ["status", "scan_status", "report_status", "patient_id"],
+  filterable: ["status", "scan_status", "report_status", "patient_id", "order_number"],
   sortable: ["test_date", "patient_name", "amount", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
@@ -38,8 +38,16 @@ export async function getRadiology(id: number) {
   return t;
 }
 
+/** Next order number, shared by every study ordered in one go. */
+async function nextOrderNumber(): Promise<string> {
+  const { rows } = await radiologyRepo.listRows({ unpaged: true });
+  return nextCode(rows.map((r) => r.order_number ?? ""), "RAD-", 4);
+}
+
 export async function createRadiology(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
+  const orderNumber =
+    (input as { orderNumber?: string })?.orderNumber || (await nextOrderNumber());
   let patientName = data.patientName;
   let patientAge = data.patientAge ?? 0;
   if (data.patientId) {
@@ -50,6 +58,7 @@ export async function createRadiology(input: unknown, actor: Session) {
     }
   }
   const row = await radiologyRepo.create({
+    order_number: orderNumber,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
     patient_age: patientAge,
@@ -60,8 +69,33 @@ export async function createRadiology(input: unknown, actor: Session) {
     amount: data.amount,
     status: "Pending",
   });
-  await audit(actor, "create", "radiology", row.id);
+  await audit(actor, "create", "radiology", row.id, { orderNumber });
   return toRadiologyDTO(row as RadiologyTestRow);
+}
+
+/**
+ * Order several studies for one patient as a single order.
+ *
+ * Selecting two studies previously created two unrelated rows, which read as
+ * two separate patient entries.
+ */
+export async function createRadiologyOrder(input: unknown, actor: Session) {
+  const body = (input ?? {}) as { tests?: { testName: string; amount?: number }[] };
+  const tests = (body.tests ?? []).filter((t) => t?.testName?.trim());
+  if (tests.length === 0) {
+    throw new BadRequestError("Select at least one study");
+  }
+  const orderNumber = await nextOrderNumber();
+  const created = [];
+  for (const t of tests) {
+    created.push(
+      await createRadiology(
+        { ...body, orderNumber, testName: t.testName, amount: t.amount ?? 0 },
+        actor,
+      ),
+    );
+  }
+  return { orderNumber, tests: created };
 }
 
 /** Derive the headline status from scan + report states. */

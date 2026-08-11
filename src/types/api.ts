@@ -229,6 +229,7 @@ export interface BloodIssueDTO {
 }
 
 export interface RadiologyTestDTO {
+  orderNumber: string;
   id: number;
   patientId: number | null;
   patientName: string;

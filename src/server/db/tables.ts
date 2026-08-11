@@ -413,6 +413,8 @@ export interface BloodIssueRow extends Row {
 
 export interface RadiologyTestRow extends Row {
   id: number;
+  /** Studies ordered together share one order number (RAD-0001). */
+  order_number: string;
   patient_id: number | null;
   patient_name: string;
   patient_age: number;

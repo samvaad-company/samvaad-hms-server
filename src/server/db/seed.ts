@@ -482,6 +482,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const radiologyTests: Row[] = radiologyData.map((r) => ({
     id: r.id,
+    order_number: `RAD-${String(r.id).padStart(4, "0")}`,
     patient_id: findPatientByName(r.patientName)?.id ?? null,
     patient_name: r.patientName,
     patient_age: r.patientAge,

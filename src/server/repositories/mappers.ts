@@ -417,6 +417,7 @@ export function toBloodIssueDTO(r: BloodIssueRow): BloodIssueDTO {
 export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
   return {
     id: r.id,
+    orderNumber: r.order_number ?? "",
     patientId: r.patient_id,
     patientName: r.patient_name,
     patientAge: r.patient_age,
