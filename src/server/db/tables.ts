@@ -45,6 +45,7 @@ export const TABLES = {
   tasks: "tasks",
   scribeNotes: "scribe_notes",
   documents: "documents",
+  staffAttendance: "staff_attendance",
   ipdNotes: "ipd_notes",
   ipdMedications: "ipd_medications",
   purchaseOrders: "purchase_orders",
@@ -634,6 +635,21 @@ export interface PharmacySaleItemRow extends Row {
   unit_price: number;
   line_total: number;
   created_at: string;
+}
+
+export interface StaffAttendanceRow extends Row {
+  id: number;
+  staff_id: number;
+  staff_name: string;
+  work_date: string;
+  punch_in: string;
+  punch_out: string;
+  /** Minutes between punch in and punch out; 0 until punched out. */
+  minutes: number;
+  status: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface IpdNoteRow extends Row {

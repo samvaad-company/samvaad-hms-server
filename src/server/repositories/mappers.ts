@@ -35,6 +35,7 @@ import type {
   TaskDTO,
   DocumentDTO,
   IpdNoteDTO,
+  StaffAttendanceDTO,
   IpdMedicationDTO,
   PurchaseOrderDTO,
   PurchaseOrderItemDTO,
@@ -76,6 +77,7 @@ import type {
   TaskRow,
   DocumentRow,
   IpdNoteRow,
+  StaffAttendanceRow,
   IpdMedicationRow,
   PurchaseOrderRow,
   PurchaseOrderItemRow,
@@ -616,6 +618,20 @@ export function toPharmacySaleDTO(
     date: r.sale_date,
     billId: r.bill_id,
     items: items.map(toPharmacySaleItemDTO),
+  };
+}
+
+export function toStaffAttendanceDTO(r: StaffAttendanceRow): StaffAttendanceDTO {
+  return {
+    id: r.id,
+    staffId: r.staff_id,
+    staffName: r.staff_name,
+    date: r.work_date,
+    punchIn: r.punch_in,
+    punchOut: r.punch_out,
+    minutes: r.minutes,
+    status: r.status,
+    note: r.note,
   };
 }
 

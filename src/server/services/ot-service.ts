@@ -14,7 +14,7 @@ const createSchema = {
   patientId: { type: "number", required: false },
   patientName: { type: "string", required: true, min: 2, max: 120 },
   procedure: { type: "string", required: true, min: 2, max: 160 },
-  otRoom: { type: "string", required: false, max: 20, default: "OT-1" },
+  otRoom: { type: "string", required: false, max: 60, default: "OT-1" },
   surgeonId: { type: "number", required: false },
   surgeon: { type: "string", required: false, max: 120, default: "" },
   anesthetist: { type: "string", required: false, max: 120, default: "" },

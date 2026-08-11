@@ -15,6 +15,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
+import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -135,6 +136,7 @@ function IssueRow({ row, actions }: { row: BloodIssueDTO; actions: RowAction[] }
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BloodBankPage() {
+  const [docsFor, setDocsFor] = useState<BloodDonorDTO | null>(null);
   const [tab, setTab] = useState("stock");
   const [donorFilter, setDonorFilter] = useState("All");
   const [donorSearch, setDonorSearch] = useState("");
@@ -295,6 +297,7 @@ export default function BloodBankPage() {
                   <DonorRow key={d.id} row={d} actions={[
                     { label: "Record donation", disabled: d.status !== "Eligible", onClick: () => donorActions.mutate(() => api.post(`/blood-bank/donors/${d.id}/donate`, {})) },
                     { label: d.status === "Eligible" ? "Mark Deferred" : "Mark Eligible", onClick: () => donorActions.mutate(() => api.patch(`/blood-bank/donors/${d.id}`, { status: d.status === "Eligible" ? "Deferred" : "Eligible" })) },
+                    { label: "ID proof / Aadhaar", onClick: () => setDocsFor(d) },
                     { label: "Delete", danger: true, onClick: () => donorActions.remove(d.id, d.name) },
                   ]} />
                 ))}
@@ -325,6 +328,25 @@ export default function BloodBankPage() {
           )}
         </div>
       </div>
+      {docsFor && (
+        <Modal
+          open
+          onClose={() => setDocsFor(null)}
+          title={`ID Proof — ${docsFor.name}`}
+          width={600}
+          footer={
+            <button onClick={() => setDocsFor(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              Close
+            </button>
+          }
+        >
+          <DocumentsPanel
+            ownerType="donor"
+            ownerId={docsFor.id}
+            categories={["Aadhaar", "PAN", "Driving Licence", "Consent Form", "Other"]}
+          />
+        </Modal>
+      )}
     </>
   );
 }

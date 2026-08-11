@@ -437,6 +437,18 @@ export interface PharmacySaleDTO {
   items: PharmacySaleItemDTO[];
 }
 
+export interface StaffAttendanceDTO {
+  id: number;
+  staffId: number;
+  staffName: string;
+  date: string;
+  punchIn: string;
+  punchOut: string;
+  minutes: number;
+  status: string;
+  note: string;
+}
+
 export interface IpdNoteDTO {
   id: number;
   admissionId: number;

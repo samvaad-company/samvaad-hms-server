@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
+import { formatDate } from "@/lib/dates";
 import { Scissors, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -51,7 +52,7 @@ function OtRow({ row, actions }: { row: OtRecord; actions: RowAction[] }) {
       </div>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.surgeon}</span>
       <span className="text-[13px] font-normal text-[#11111c] truncate">{row.anesthetist}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.scheduledDate}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.scheduledDate)}</span>
       <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.scheduledTime}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
@@ -72,7 +73,7 @@ export default function OtPage() {
   const { run, loading, error } = useMutation();
   const { dialog, remove, mutate } = useRowActions("ot", reload);
 
-  const [form, setForm] = useState({ patientId: "", procedure: "", otRoom: "", surgeonId: "", date: "", time: "" });
+  const [form, setForm] = useState({ patientId: "", procedure: "", otRoom: "", surgeonId: "", anesthetistId: "", date: "", time: "" });
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   async function schedule() {
@@ -85,12 +86,13 @@ export default function OtPage() {
         procedure: form.procedure,
         otRoom: form.otRoom,
         surgeonId: form.surgeonId ? Number(form.surgeonId) : undefined,
+        anesthetist: doctors.find(d => String(d.id) === form.anesthetistId)?.name ?? "",
         surgeon: surgeon?.name ?? "",
         scheduledDate: form.date,
         scheduledTime: form.time,
       }),
     );
-    setForm({ patientId: "", procedure: "", otRoom: "", surgeonId: "", date: "", time: "" });
+    setForm({ patientId: "", procedure: "", otRoom: "", surgeonId: "", anesthetistId: "", date: "", time: "" });
     setShowModal(false);
     reload();
   }
@@ -122,6 +124,7 @@ export default function OtPage() {
           <FormRow label="Procedure *"><FormInput placeholder="e.g. Appendectomy, CABG..." value={form.procedure} onChange={v => set("procedure", v)} /></FormRow>
           <FormRow label="OT Room *"><FormSelect placeholder="Select OT" value={form.otRoom} onChange={v => set("otRoom", v)} options={OT_ROOMS} /></FormRow>
           <FormRow label="Surgeon *"><FormSelect placeholder="Select surgeon" value={form.surgeonId} onChange={v => set("surgeonId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
+          <FormRow label="Anaesthetist"><FormSelect placeholder="Select anaesthetist" value={form.anesthetistId} onChange={v => set("anesthetistId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
           <FormRow label="Scheduled Date *"><FormInput type="date" value={form.date} onChange={v => set("date", v)} /></FormRow>
           <FormRow label="Start Time *"><FormInput type="time" value={form.time} onChange={v => set("time", v)} /></FormRow>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}

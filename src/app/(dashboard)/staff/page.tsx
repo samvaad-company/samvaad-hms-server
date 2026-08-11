@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { formatDate } from "@/lib/dates";
+import { formatDate, todayIso } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { Users2, Plus, Phone, Mail } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { StaffDTO } from "@/types/api";
+import type { StaffDTO, StaffAttendanceDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -151,15 +151,51 @@ const ATT_STATUS_CLR: Record<string, string> = {
   Late:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
-function AttendanceView() {
+function AttendanceView({ staff }: { staff: StaffDTO[] }) {
+  const [date, setDate] = useState(todayIso());
+  const { items: records, reload } = useList<StaffAttendanceDTO>("/staff/attendance", {
+    all: true, work_date: date,
+  });
+  const { run, loading } = useMutation();
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const byStaff = new Map(records.map(r => [r.staffId, r]));
+  const isToday = date === todayIso();
+
+  async function punch(staffId: number, action: "in" | "out") {
+    setNotice(null);
+    try {
+      await run(() => api.post("/staff/attendance/punch", { staffId, action }));
+      reload();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not record the punch.");
+    }
+  }
+
+  const present = records.filter(r => r.status === "Present").length;
+  const onLeave = staff.filter(s => s.status === "On Leave").length;
+  const absent = Math.max(0, staff.length - present - onLeave);
+
+  const hhmm = (mins: number) =>
+    mins > 0 ? `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m` : "—";
+
   return (
     <div className="flex flex-col" style={{ height: 555 }}>
       {/* Date bar */}
       <div className="flex items-center gap-4 px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1]">
-        <input type="date" defaultValue="2025-11-13"
-          className="h-[34px] bg-white border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+        <input
+          type="date"
+          value={date}
+          max={todayIso()}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-[34px] bg-white border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+        />
         <div className="flex items-center gap-5 ml-4">
-          {[{ l: "Present", v: 8, c: "text-[#00955c]" }, { l: "Absent", v: 1, c: "text-[#ff0004]" }, { l: "On Leave", v: 1, c: "text-[#ff9000]" }].map(s => (
+          {[
+            { l: "Present", v: present, c: "text-[#00955c]" },
+            { l: "Absent", v: absent, c: "text-[#ff0004]" },
+            { l: "On Leave", v: onLeave, c: "text-[#ff9000]" },
+          ].map(s => (
             <div key={s.l} className="flex items-center gap-2">
               <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.l}</span>
               <span className={`text-[18px] font-medium leading-none ${s.c}`}>{s.v}</span>
@@ -167,30 +203,50 @@ function AttendanceView() {
           ))}
         </div>
       </div>
-      {/* Table */}
-      <div className="overflow-x-auto flex-1">
-        <div style={{ minWidth: 1100 }}>
-          <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 1100 }}>
-            {[{ l: "Staff Member", x: 20 }, { l: "Shift", x: 290 }, { l: "Check-in", x: 450 }, { l: "Check-out", x: 610 }, { l: "Hours", x: 780 }, { l: "Status", x: 930 }].map(c => (
-              <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
-            ))}
-          </div>
-          <div className="overflow-y-auto" style={{ maxHeight: 464 }}>
-            {ATTENDANCE_DATA.map((row, i) => (
-              <div key={i} className="relative flex items-center h-[56px] border-b border-[#dedee1] last:border-0 bg-white hover:bg-[#fafafa] transition-colors" style={{ minWidth: 1100 }}>
-                <div className="absolute flex flex-col justify-center" style={{ left: 20 }}>
-                  <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{row.name}</span>
-                  <span className="text-[11px] font-light text-[#57575f]">{row.role}</span>
-                </div>
-                <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 290 }}>{row.shift}</span>
-                <span className="absolute text-[14px] font-normal text-[#11111c]" style={{ left: 450 }}>{row.in}</span>
-                <span className="absolute text-[14px] font-normal text-[#11111c]" style={{ left: 610 }}>{row.out}</span>
-                <span className={`absolute text-[14px] font-medium ${row.hours === "—" ? "text-[#57575f]" : "text-[#11111c]"}`} style={{ left: 780 }}>{row.hours}</span>
-                <span className={`absolute inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal ${ATT_STATUS_CLR[row.status]}`} style={{ left: 930 }}>{row.status}</span>
-              </div>
-            ))}
-          </div>
+
+      {notice && (
+        <div className="mx-5 mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{notice}</div>
+      )}
+
+      {/* Roster */}
+      <div className="overflow-y-auto flex-1">
+        <div className="grid items-center px-5 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
+          style={{ gridTemplateColumns: "1.6fr 1.2fr 110px 110px 110px 200px" }}>
+          <span>Staff Member</span><span>Role</span><span>Punch In</span>
+          <span>Punch Out</span><span>Hours</span><span>Action</span>
         </div>
+        {staff.map(m => {
+          const rec = byStaff.get(m.id);
+          return (
+            <div key={m.id} className="grid items-center px-5 h-[56px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors"
+              style={{ gridTemplateColumns: "1.6fr 1.2fr 110px 110px 110px 200px" }}>
+              <span className="text-[13px] font-medium text-[#11111c] truncate">{m.name}</span>
+              <span className="text-[13px] text-[#57575f] truncate">{m.role}</span>
+              <span className="text-[13px] text-[#11111c]">{rec?.punchIn || "—"}</span>
+              <span className="text-[13px] text-[#11111c]">{rec?.punchOut || "—"}</span>
+              <span className="text-[13px] text-[#57575f]">{hhmm(rec?.minutes ?? 0)}</span>
+              <div className="flex items-center gap-2">
+                {!isToday ? (
+                  <span className="text-[12px] text-[#57575f]">
+                    {rec ? "Recorded" : "No record"}
+                  </span>
+                ) : !rec ? (
+                  <button onClick={() => punch(m.id, "in")} disabled={loading}
+                    className="text-[12px] text-white bg-[#009598] px-3 py-[5px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                    Punch In
+                  </button>
+                ) : !rec.punchOut ? (
+                  <button onClick={() => punch(m.id, "out")} disabled={loading}
+                    className="text-[12px] text-[#ff9000] border border-[#ff9000] px-3 py-[5px] rounded-full hover:bg-[#fff2e0] transition-colors disabled:opacity-50">
+                    Punch Out
+                  </button>
+                ) : (
+                  <span className="text-[12px] text-[#00955c]">Shift complete</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -294,7 +350,7 @@ export default function StaffPage() {
             </>
           )}
           {tab === "access"     && <AccessControlView />}
-          {tab === "attendance" && <AttendanceView />}
+          {tab === "attendance" && <AttendanceView staff={staffMembers} />}
         </div>
       </div>
     </>

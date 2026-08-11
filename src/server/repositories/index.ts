@@ -41,6 +41,7 @@ import type {
   TaskRow,
   DocumentRow,
   IpdNoteRow,
+  StaffAttendanceRow,
   IpdMedicationRow,
   PurchaseOrderRow,
   PurchaseOrderItemRow,
@@ -80,6 +81,7 @@ import {
   toTaskDTO,
   toDocumentDTO,
   toIpdNoteDTO,
+  toStaffAttendanceDTO,
   toIpdMedicationDTO,
   toPurchaseOrderDTO,
   toPurchaseOrderItemDTO,
@@ -220,6 +222,10 @@ export const pharmacySalesRepo = createRepository<PharmacySaleRow, ReturnType<ty
 export const pharmacySaleItemsRepo = createRepository<PharmacySaleItemRow, ReturnType<typeof toPharmacySaleItemDTO>>(
   TABLES.pharmacySaleItems,
   toPharmacySaleItemDTO,
+);
+export const staffAttendanceRepo = createRepository<StaffAttendanceRow, ReturnType<typeof toStaffAttendanceDTO>>(
+  TABLES.staffAttendance,
+  toStaffAttendanceDTO,
 );
 export const ipdNotesRepo = createRepository<IpdNoteRow, ReturnType<typeof toIpdNoteDTO>>(
   TABLES.ipdNotes,
