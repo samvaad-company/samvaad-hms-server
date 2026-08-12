@@ -48,6 +48,7 @@ import type {
   PharmacySaleRow,
   PharmacySaleItemRow,
   ScribeNoteRow,
+  PrescriptionTemplateRow,
 } from "@/server/db/tables";
 import {
   toPatientDTO,

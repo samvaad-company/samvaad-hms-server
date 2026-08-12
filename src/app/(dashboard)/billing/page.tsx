@@ -38,7 +38,7 @@ const FILTERS = [
   { id: "Pending", label: "Pending" }, { id: "Partial", label: "Partial" },
   { id: "Refunded", label: "Refunded" },
 ];
-const MIN_WIDTH = 1180;
+const MIN_WIDTH = 1220;
 const TYPE_COLORS: Record<string, string> = {
   OPD: "bg-[#d6eaff] text-[#007cff]", Pharmacy: "bg-[#fff2e0] text-[#ff9000]",
   Lab: "bg-[#dffff3] text-[#00955c]",  IPD: "bg-[#ffe9e9] text-[#ff0004]",
@@ -88,6 +88,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
     { id: 1, description: "", qty: 1, rate: 0, gstPct: 0 },
   ]);
   const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
   const [payMode, setPayMode] = useState("");
   const [patientId, setPatientId] = useState("");
   const [billType, setBillType] = useState("OPD");
@@ -100,7 +101,9 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
 
   const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
   const gstTotal = items.reduce((s, i) => s + (i.qty * i.rate * i.gstPct) / 100, 0);
-  const discAmt = discount;
+  const discAmt = discountType === "percent"
+    ? subtotal * (Math.min(100, Math.max(0, discount)) / 100)
+    : Math.max(0, discount);
   const grandTotal = subtotal + gstTotal - discAmt;
 
   async function generate() {
@@ -111,7 +114,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         patientName: patient?.name ?? "",
         type: billType,
         amount: subtotal,
-        discount: discAmt,
+        discount: Math.round(discAmt),
         status: payMode ? "Paid" : "Pending",
       }),
     );
@@ -200,13 +203,29 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           <FormRow label="Payment Mode *">
             <FormSelect placeholder="Select payment mode" options={PAYMENT_MODES} />
           </FormRow>
-          <FormRow label="Discount (₹)">
-            <input
-              type="number" min={0} value={discount || ""}
-              onChange={e => setDiscount(Number(e.target.value))}
-              placeholder="0"
-              className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
-            />
+          <FormRow label="Discount">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-[#f6f6f6] rounded-[8px] p-[3px] shrink-0">
+                {([{ id: "flat", label: "₹" }, { id: "percent", label: "%" }] as const).map(o => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => setDiscountType(o.id)}
+                    className={`w-8 h-9 rounded-[6px] text-[13px] font-medium transition-colors ${
+                      discountType === o.id ? "bg-[#009598] text-white" : "text-[#57575f] hover:text-[#11111c]"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number" min={0} max={discountType === "percent" ? 100 : undefined} value={discount || ""}
+                onChange={e => setDiscount(Number(e.target.value))}
+                placeholder="0"
+                className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+              />
+            </div>
           </FormRow>
           <FormRow label="Notes">
             <textarea
@@ -221,7 +240,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           {[
             { label: "Subtotal",    value: `₹${subtotal.toLocaleString("en-IN")}` },
             { label: "GST",         value: `₹${gstTotal.toFixed(0)}` },
-            { label: "Discount",    value: discAmt > 0 ? `-₹${discAmt.toLocaleString("en-IN")}` : "—" },
+            { label: discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-₹${Math.round(discAmt).toLocaleString("en-IN")}` : "—" },
           ].map(r => (
             <div key={r.label} className="flex justify-between text-[13px]">
               <span className="font-normal text-[#57575f]">{r.label}</span>

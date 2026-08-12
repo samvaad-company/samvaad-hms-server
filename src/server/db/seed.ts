@@ -449,6 +449,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     gender: d.gender,
     blood_group: d.bloodGroup,
     phone: d.phone,
+    aadhaar_number: "",
     last_donation_date: d.lastDonationDate,
     total_donations: d.totalDonations,
     status: d.status,

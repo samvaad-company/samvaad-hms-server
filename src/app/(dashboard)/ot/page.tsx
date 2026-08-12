@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
 import { Scissors, Plus } from "lucide-react";
@@ -64,6 +65,7 @@ const OT_ROOMS = ["OT-1 (General Surgery)","OT-2 (Cardiac)","OT-3 (Orthopaedics)
 const FILTER_MAP: Record<string, string> = { "InProgress": "In Progress" };
 
 export default function OtPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -151,6 +153,7 @@ export default function OtPage() {
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
               <OtRow key={r.id} row={r} actions={[
+                { label: "View full form", onClick: () => router.push(`/ot/${r.id}`) },
                 { label: "Start procedure", disabled: r.status !== "Scheduled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "In Progress" })) },
                 { label: "Mark completed", disabled: r.status === "Completed" || r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Completed" })) },
                 { label: "Cancel", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Cancelled" })) },

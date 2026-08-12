@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MoreVertical } from "lucide-react";
 
 export interface RowAction {
@@ -10,32 +11,83 @@ export interface RowAction {
   disabled?: boolean;
 }
 
+interface Position {
+  right: number;
+  top?: number;
+  bottom?: number;
+}
+
+const GAP = 4;
+const VIEWPORT_MARGIN = 8;
+
 /**
  * Self-contained "⋮" action menu for table rows. Stops event propagation so it
- * works inside clickable/link rows, closes on outside click or Escape, and
- * renders a small dropdown of actions.
+ * works inside clickable/link rows, closes on outside click, Escape, or
+ * scroll, and renders its dropdown through a portal to `document.body` —
+ * fixed-positioned off the button's own rect — so it floats above the table's
+ * scrollable/clipped ancestors instead of being cut off or forcing a nested
+ * scrollbar. Opens below the button by default, but flips above it when
+ * there isn't enough room left in the viewport (e.g. the last rows of a
+ * long table), so the menu is never rendered off-screen.
  */
 export function RowMenu({ actions }: { actions: RowAction[] }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<Position | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Two-pass placement: mount the menu hidden to measure its real height,
+  // then decide below-vs-above and reveal it — all before paint, so there's
+  // no visible flash.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const button = buttonRef.current;
+    const menu = menuRef.current;
+    if (!button || !menu) return;
+
+    const buttonRect = button.getBoundingClientRect();
+    const menuHeight = menu.offsetHeight;
+    const spaceBelow = window.innerHeight - buttonRect.bottom;
+    const fitsBelow = spaceBelow >= menuHeight + GAP + VIEWPORT_MARGIN;
+    const fitsAbove = buttonRect.top >= menuHeight + GAP + VIEWPORT_MARGIN;
+    const openAbove = !fitsBelow && fitsAbove;
+
+    setPos(
+      openAbove
+        ? { bottom: window.innerHeight - buttonRect.top + GAP, right: window.innerWidth - buttonRect.right }
+        : { top: buttonRect.bottom + GAP, right: window.innerWidth - buttonRect.right },
+    );
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    // Any scroll can invalidate the fixed position, so close rather than chase it.
+    const onScroll = () => setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={buttonRef}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -47,35 +99,43 @@ export function RowMenu({ actions }: { actions: RowAction[] }) {
         <MoreVertical size={24} strokeWidth={1.5} />
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-[28px] z-50 w-[160px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          {actions.map((a) => (
-            <button
-              key={a.label}
-              disabled={a.disabled}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                a.onClick();
-              }}
-              className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                a.danger
-                  ? "text-[#ff0004] hover:bg-[#ffe9e9]"
-                  : "text-[#11111c] hover:bg-[#f6f6f6]"
-              }`}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-50 w-[160px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1"
+            style={
+              pos
+                ? { top: pos.top, bottom: pos.bottom, right: pos.right }
+                : { top: 0, right: 0, visibility: "hidden" }
+            }
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                disabled={a.disabled}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                  a.onClick();
+                }}
+                className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  a.danger
+                    ? "text-[#ff0004] hover:bg-[#ffe9e9]"
+                    : "text-[#11111c] hover:bg-[#f6f6f6]"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

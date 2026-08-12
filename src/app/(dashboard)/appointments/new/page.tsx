@@ -11,6 +11,7 @@ import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO } from "@/types/api";
 import { Check, Clock, Loader2, UserPlus, Users } from "lucide-react";
+import { todayIso } from "@/lib/validators";
 
 const STEPS = ["Patient", "Doctor & Slot", "Confirm"];
 const APPT_TYPES = [
@@ -25,6 +26,26 @@ const GENDER_OPTS = [
 const SLOTS = ["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM"];
 
 type PatientMode = "existing" | "new";
+
+/** Parse a "9:00 AM" / "12:30 PM" slot label into a Date on the given yyyy-mm-dd day, in local time. */
+function parseSlotDateTime(dateStr: string, label: string): Date {
+  const match = label.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  if (!match) return new Date(NaN);
+  const [, hh, mm, period] = match;
+  let hours = Number(hh) % 12;
+  if (period.toUpperCase() === "PM") hours += 12;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d, hours, Number(mm), 0, 0);
+}
+
+/** A slot is bookable when its date is today-or-later, and — for today — its time hasn't already passed. */
+function isSlotAvailable(dateStr: string, label: string): boolean {
+  if (!dateStr) return false;
+  const today = todayIso();
+  if (dateStr > today) return true;
+  if (dateStr < today) return false;
+  return parseSlotDateTime(dateStr, label).getTime() > Date.now();
+}
 
 export default function NewAppointmentPage() {
   const router = useRouter();
@@ -46,6 +67,12 @@ export default function NewAppointmentPage() {
   const setNP = (k: keyof typeof newPatient, v: string) =>
     setNewPatient(prev => ({ ...prev, [k]: v }));
 
+  /** Changing the date can invalidate an already-picked slot (e.g. moving to today past that time). */
+  function handleDateChange(v: string) {
+    setDate(v);
+    if (slot && !isSlotAvailable(v, slot)) setSlot("");
+  }
+
   const patient = patients.find(p => String(p.id) === patientId);
   const doctor = doctors.find(d => String(d.id) === doctorId);
 
@@ -53,16 +80,19 @@ export default function NewAppointmentPage() {
     newPatient.name.trim() && newPatient.mobile.trim() && newPatient.dob && newPatient.gender,
   );
   const step1Valid = mode === "existing" ? Boolean(patientId) : newPatientValid;
-  const step2Valid = Boolean(doctorId && date && slot);
+  const dateValid = Boolean(date) && date >= todayIso();
+  const step2Valid = Boolean(doctorId && date && slot) && dateValid;
   const stepValid = step === 1 ? step1Valid : step === 2 ? step2Valid : true;
   const stepHint =
     step === 1 && !step1Valid
       ? mode === "existing"
         ? "Select a patient to continue."
         : "Fill name, mobile, date of birth and gender to continue."
-      : step === 2 && !step2Valid
-        ? "Select doctor, date and a time slot to continue."
-        : null;
+      : step === 2 && date && !dateValid
+        ? "Appointment date cannot be in the past."
+        : step === 2 && !step2Valid
+          ? "Select doctor, date and a time slot to continue."
+          : null;
 
   const displayName = mode === "existing" ? (patient?.name ?? "—") : newPatient.name || "—";
 
@@ -218,8 +248,8 @@ export default function NewAppointmentPage() {
                       options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
                     />
                   </FormRow>
-                  <FormRow label="Date *">
-                    <FormInput type="date" value={date} onChange={setDate} />
+                  <FormRow label="Date *" error={date && !dateValid ? "Cannot be in the past" : undefined}>
+                    <FormInput type="date" value={date} onChange={handleDateChange} min={todayIso()} error={Boolean(date) && !dateValid} />
                   </FormRow>
                   <FormRow label="Type">
                     <FormSelect placeholder="Select type" options={APPT_TYPES} value={type} onChange={setType} />
@@ -230,8 +260,8 @@ export default function NewAppointmentPage() {
                   <div>
                     <p className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider mb-3">Available Slots</p>
                     <div className="flex flex-wrap gap-2">
-                      {SLOTS.map((t, i) => {
-                        const avail = i % 3 !== 1;
+                      {SLOTS.map((t) => {
+                        const avail = isSlotAvailable(date, t);
                         const active = slot === t;
                         return (
                           <button key={t} disabled={!avail} onClick={() => setSlot(t)}

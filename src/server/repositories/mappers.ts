@@ -386,6 +386,7 @@ export function toBloodDonorDTO(r: BloodDonorRow): BloodDonorDTO {
     gender: r.gender as Gender,
     bloodGroup: r.blood_group as BloodGroup,
     phone: r.phone,
+    aadhaarNumber: r.aadhaar_number,
     lastDonationDate: r.last_donation_date,
     totalDonations: r.total_donations,
     status: r.status as DonorStatus,

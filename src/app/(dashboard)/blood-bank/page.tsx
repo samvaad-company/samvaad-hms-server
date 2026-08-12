@@ -17,6 +17,7 @@ import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { validateAadhaar } from "@/lib/validators";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const COMPONENTS = ["Whole Blood", "Plasma", "Platelets", "RBC"];
@@ -154,7 +155,9 @@ export default function BloodBankPage() {
   const { run, loading, error, reset } = useMutation();
 
   const [stockForm, setStockForm] = useState({ bloodGroup: "", component: "", units: "" });
-  const [donorForm, setDonorForm] = useState({ name: "", age: "", gender: "", bloodGroup: "", phone: "" });
+  const [donorForm, setDonorForm] = useState({ name: "", age: "", gender: "", bloodGroup: "", phone: "", aadhaarNumber: "" });
+  const [aadhaarTouched, setAadhaarTouched] = useState(false);
+  const aadhaarError = validateAadhaar(donorForm.aadhaarNumber);
   const [issueForm, setIssueForm] = useState({ patientId: "", bloodGroup: "", component: "", units: "1", doctor: "", amount: "" });
 
   const closeModal = () => { setModal(""); reset(); };
@@ -177,8 +180,10 @@ export default function BloodBankPage() {
       gender: donorForm.gender,
       bloodGroup: donorForm.bloodGroup,
       phone: donorForm.phone,
+      aadhaarNumber: donorForm.aadhaarNumber || undefined,
     }));
-    setDonorForm({ name: "", age: "", gender: "", bloodGroup: "", phone: "" });
+    setDonorForm({ name: "", age: "", gender: "", bloodGroup: "", phone: "", aadhaarNumber: "" });
+    setAadhaarTouched(false);
     closeModal();
     reloadDonors();
   }
@@ -245,13 +250,22 @@ export default function BloodBankPage() {
       </Modal>
 
       <Modal open={modal === "donor"} onClose={closeModal} title="Register Donor"
-        footer={modalFooter(submitDonor, "Register", !donorForm.name || !donorForm.age || !donorForm.gender || !donorForm.bloodGroup || !donorForm.phone)}>
+        footer={modalFooter(submitDonor, "Register", !donorForm.name || !donorForm.age || !donorForm.gender || !donorForm.bloodGroup || !donorForm.phone || !!aadhaarError)}>
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Full Name *"><FormInput placeholder="Donor name" value={donorForm.name} onChange={v => setDonorForm(f => ({ ...f, name: v }))} /></FormRow>
           <FormRow label="Age *" hint="Donors must be 18–65"><FormInput type="number" placeholder="e.g. 30" value={donorForm.age} onChange={v => setDonorForm(f => ({ ...f, age: v }))} /></FormRow>
           <FormRow label="Gender *"><FormSelect placeholder="Select gender" value={donorForm.gender} onChange={v => setDonorForm(f => ({ ...f, gender: v }))} options={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} /></FormRow>
           <FormRow label="Blood Group *"><FormSelect placeholder="Select group" value={donorForm.bloodGroup} onChange={v => setDonorForm(f => ({ ...f, bloodGroup: v }))} options={BLOOD_GROUPS.map(g => ({ value: g, label: g }))} /></FormRow>
           <FormRow label="Phone *"><FormInput placeholder="+91 ..." value={donorForm.phone} onChange={v => setDonorForm(f => ({ ...f, phone: v }))} /></FormRow>
+          <FormRow label="Aadhaar Number" error={aadhaarTouched ? aadhaarError ?? undefined : undefined}>
+            <FormInput
+              placeholder="XXXX XXXX XXXX"
+              value={donorForm.aadhaarNumber}
+              onChange={v => setDonorForm(f => ({ ...f, aadhaarNumber: v }))}
+              onBlur={() => setAadhaarTouched(true)}
+              error={aadhaarTouched && Boolean(aadhaarError)}
+            />
+          </FormRow>
           {modalError}
         </div>
       </Modal>

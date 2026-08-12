@@ -52,7 +52,7 @@ const COLUMNS = [
   { label: "Time",         width: "90px" },
   { label: "Action",       width: "52px", align: "right" as const },
 ];
-const MIN_WIDTH = 1180;
+const MIN_WIDTH = 1320;
 
 const FILTERS = [
   { id: "All",       label: "All" },

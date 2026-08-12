@@ -103,12 +103,12 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
           No visits, prescriptions or tests recorded for this patient yet.
         </p>
       )}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         {events.map((event, i) => (
-          <div key={i} className="flex gap-4 items-start">
+          <div key={i} className="flex gap-4">
             <div className="flex flex-col items-center shrink-0">
               <div className="w-[10px] h-[10px] rounded-full bg-[#009598] mt-1" />
-              {i < events.length - 1 && <div className="w-[1px] flex-1 min-h-[36px] bg-[#dedee1] mt-1" />}
+              {i < events.length - 1 && <div className="w-[1px] flex-1 bg-[#dedee1] mt-1" />}
             </div>
             <div className="flex-1 pb-3">
               <div className="flex items-start justify-between gap-3">

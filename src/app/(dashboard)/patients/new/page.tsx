@@ -9,6 +9,7 @@ import { User, Check, Loader2 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api/client";
 import { useMutation } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
+import { validateMobile, validateDob, todayIso } from "@/lib/validators";
 
 const STEPS = ["Quick Info", "Medical History", "Address & Contact", "Insurance"];
 
@@ -32,19 +33,32 @@ export default function NewPatientPage() {
     insurer: "", policyNumber: "", corporate: "",
   });
 
-  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const isStep1Done = Boolean(form.name.trim() && form.mobile.trim() && form.dob && form.gender);
-  const isStep3Done = Boolean(form.emergencyName.trim() && form.emergencyPhone.trim());
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const touch = (k: string) => setTouched(prev => ({ ...prev, [k]: true }));
+
+  const mobileError = validateMobile(form.mobile);
+  const dobError = validateDob(form.dob);
+  const emergencyPhoneError = validateMobile(form.emergencyPhone);
+
+  const requiredFilled1 = Boolean(form.name.trim() && form.mobile.trim() && form.dob && form.gender);
+  const requiredFilled3 = Boolean(form.emergencyName.trim() && form.emergencyPhone.trim());
+  const isStep1Done = requiredFilled1 && !mobileError && !dobError;
+  const isStep3Done = requiredFilled3 && !emergencyPhoneError;
 
   /** Whether the current step's required fields are complete. */
   const stepValid = step === 1 ? isStep1Done : step === 3 ? isStep3Done : true;
   const stepHint =
-    step === 1 && !isStep1Done
+    step === 1 && !requiredFilled1
       ? "Fill name, mobile, date of birth and gender to continue."
-      : step === 3 && !isStep3Done
-        ? "Emergency contact name and phone are required to continue."
-        : null;
+      : step === 1 && (mobileError || dobError)
+        ? "Fix the highlighted fields to continue."
+        : step === 3 && !requiredFilled3
+          ? "Emergency contact name and phone are required to continue."
+          : step === 3 && emergencyPhoneError
+            ? "Fix the highlighted fields to continue."
+            : null;
 
   async function submit() {
     try {
@@ -115,11 +129,25 @@ export default function NewPatientPage() {
                   <FormRow label="Full Name *">
                     <FormInput placeholder="Patient's full name" value={form.name} onChange={v => set("name", v)} />
                   </FormRow>
-                  <FormRow label="Mobile Number *">
-                    <FormInput placeholder="+91 XXXXX XXXXX" type="tel" value={form.mobile} onChange={v => set("mobile", v)} />
+                  <FormRow label="Mobile Number *" error={touched.mobile ? mobileError ?? undefined : undefined}>
+                    <FormInput
+                      placeholder="+91 XXXXX XXXXX"
+                      type="tel"
+                      value={form.mobile}
+                      onChange={v => set("mobile", v)}
+                      onBlur={() => touch("mobile")}
+                      error={touched.mobile && Boolean(mobileError)}
+                    />
                   </FormRow>
-                  <FormRow label="Date of Birth *">
-                    <FormInput type="date" value={form.dob} onChange={v => set("dob", v)} />
+                  <FormRow label="Date of Birth *" error={touched.dob ? dobError ?? undefined : undefined}>
+                    <FormInput
+                      type="date"
+                      value={form.dob}
+                      onChange={v => set("dob", v)}
+                      onBlur={() => touch("dob")}
+                      error={touched.dob && Boolean(dobError)}
+                      max={todayIso()}
+                    />
                   </FormRow>
                   <FormRow label="Gender *">
                     <FormSelect placeholder="Select gender" options={GENDER_OPTS} value={form.gender} onChange={v => set("gender", v)} />
@@ -184,8 +212,15 @@ export default function NewPatientPage() {
                     <FormRow label="Relationship">
                       <FormSelect placeholder="Select" options={RELATION_OPTS} value={form.emergencyRelation} onChange={v => set("emergencyRelation", v)} />
                     </FormRow>
-                    <FormRow label="Phone *">
-                      <FormInput placeholder="+91 XXXXX XXXXX" type="tel" value={form.emergencyPhone} onChange={v => set("emergencyPhone", v)} />
+                    <FormRow label="Phone *" error={touched.emergencyPhone ? emergencyPhoneError ?? undefined : undefined}>
+                      <FormInput
+                        placeholder="+91 XXXXX XXXXX"
+                        type="tel"
+                        value={form.emergencyPhone}
+                        onChange={v => set("emergencyPhone", v)}
+                        onBlur={() => touch("emergencyPhone")}
+                        error={touched.emergencyPhone && Boolean(emergencyPhoneError)}
+                      />
                     </FormRow>
                   </div>
                 </div>

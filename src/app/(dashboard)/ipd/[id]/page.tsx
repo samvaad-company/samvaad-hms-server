@@ -47,6 +47,12 @@ function NotesTab({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
 
+  // Doctor Rounds are captured as two distinct fields rather than one free-text blob.
+  const isRounds = noteType === "Doctor Round";
+  const [findings, setFindings] = useState("");
+  const [orders, setOrders] = useState("");
+  const roundsEmpty = !findings.trim() && !orders.trim();
+
   const visible = search.trim()
     ? notes.filter(n =>
         n.content.toLowerCase().includes(search.toLowerCase()) ||
@@ -54,9 +60,13 @@ function NotesTab({
     : notes;
 
   async function add() {
-    if (!content.trim()) return;
-    await run(() => api.post("/ipd/notes", { admissionId, noteType, content }));
-    setContent("");
+    const combined = isRounds
+      ? [findings.trim() && `Findings: ${findings.trim()}`, orders.trim() && `Orders: ${orders.trim()}`]
+          .filter(Boolean).join("\n\n")
+      : content.trim();
+    if (!combined) return;
+    await run(() => api.post("/ipd/notes", { admissionId, noteType, content: combined }));
+    setContent(""); setFindings(""); setOrders("");
     reload();
   }
   async function saveEdit(id: number) {
@@ -85,14 +95,37 @@ function NotesTab({
 
       {/* Add new entry */}
       <div className="border border-[#dedee1] rounded-[10px] p-4">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={placeholder}
-          className="w-full min-h-[72px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
-        />
+        {isRounds ? (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider block mb-1">Findings</label>
+              <textarea
+                value={findings}
+                onChange={(e) => setFindings(e.target.value)}
+                placeholder="Clinical findings on this round…"
+                className="w-full min-h-[64px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider block mb-1">Orders</label>
+              <textarea
+                value={orders}
+                onChange={(e) => setOrders(e.target.value)}
+                placeholder="Orders / instructions…"
+                className="w-full min-h-[64px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+              />
+            </div>
+          </div>
+        ) : (
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={placeholder}
+            className="w-full min-h-[72px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+          />
+        )}
         <div className="flex justify-end mt-2">
-          <button onClick={add} disabled={loading || !content.trim()}
+          <button onClick={add} disabled={loading || (isRounds ? roundsEmpty : !content.trim())}
             className="text-[13px] text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : `Add ${noteType === "Diet" ? "diet entry" : noteType.toLowerCase()}`}
           </button>

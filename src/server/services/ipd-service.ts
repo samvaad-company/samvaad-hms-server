@@ -17,7 +17,8 @@ import { TABLES } from "@/server/db/tables";
 import { type IpdAdmissionRow } from "@/server/db/tables";
 import { NotFoundError, ConflictError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
-import { displayDate } from "@/server/services/helpers";
+import { validateNotPast } from "@/server/lib/field-rules";
+import { displayDate, isoDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 
@@ -31,6 +32,7 @@ const admitSchema = {
   doctorId: { type: "number", required: false },
   doctor: { type: "string", required: false, max: 120, default: "" },
   diagnosis: { type: "string", required: true, min: 2, max: 240 },
+  admissionDate: { type: "string", required: false, max: 40, custom: validateNotPast("admission date") },
   creditLimit: { type: "number", required: false, min: 0, default: 0 },
   status: { type: "enum", required: false, values: ["Admitted", "ICU", "Discharged"], default: "Admitted" },
 } as const;
@@ -109,7 +111,7 @@ export async function admitPatient(input: unknown, actor: Session) {
       patient_name: patientName,
       patient_age: patientAge,
       patient_code: patientCode,
-      admission_date: displayDate(),
+      admission_date: isoDate(data.admissionDate) || displayDate(),
       ward_id: wardRow?.id ?? null,
       ward,
       bed_id: bedId,

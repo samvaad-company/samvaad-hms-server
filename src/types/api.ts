@@ -203,6 +203,7 @@ export interface BloodDonorDTO {
   gender: Gender;
   bloodGroup: BloodGroup;
   phone: string;
+  aadhaarNumber: string;
   lastDonationDate: string;
   totalDonations: number;
   status: DonorStatus;

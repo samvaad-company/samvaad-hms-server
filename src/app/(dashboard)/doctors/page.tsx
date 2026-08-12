@@ -146,7 +146,9 @@ export default function DoctorsPage() {
               <DoctorRow key={r.id} row={r} actions={[
                 { label: "View details", onClick: () => router.push(`/doctors/${r.id}`) },
                 { label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) },
-                { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
+                { label: "Mark Active", disabled: r.status === "Active", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "Active" })) },
+                { label: "Mark In OPD", disabled: r.status === "In OPD", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "In OPD" })) },
+                { label: "Mark On Leave", disabled: r.status === "On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "On Leave" })) },
                 { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
               ]} />
             ))}

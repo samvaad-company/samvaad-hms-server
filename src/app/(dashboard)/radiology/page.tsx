@@ -338,20 +338,17 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
 
         <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 280 }}>
           {filtered.map(study => (
-            <label key={study.name} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(study.name)}
-                  onChange={e => setSelected(prev => e.target.checked ? [...prev, study.name] : prev.filter(t => t !== study.name))}
-                  className="w-4 h-4 accent-[#009598]"
-                />
-                <div>
-                  <span className="text-[14px] font-normal text-[#11111c]">{study.name}</span>
-                  <span className="text-[11px] font-light text-[#57575f] ml-2">{study.category}</span>
-                </div>
+            <label key={study.name} className="flex items-center gap-3 p-3 border border-[#dedee1] rounded-[8px] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
+              <input
+                type="checkbox"
+                checked={selected.includes(study.name)}
+                onChange={e => setSelected(prev => e.target.checked ? [...prev, study.name] : prev.filter(t => t !== study.name))}
+                className="w-4 h-4 accent-[#009598]"
+              />
+              <div>
+                <span className="text-[14px] font-normal text-[#11111c]">{study.name}</span>
+                <span className="text-[11px] font-light text-[#57575f] ml-2">{study.category}</span>
               </div>
-              <span className="text-[13px] font-medium text-[#11111c]">₹{study.price}</span>
             </label>
           ))}
         </div>

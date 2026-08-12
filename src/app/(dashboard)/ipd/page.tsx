@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { formatDate } from "@/lib/dates";
+import { formatDate, todayIso } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { BedDouble, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
@@ -75,7 +75,9 @@ export default function IpdPage() {
   const { dialog, remove, mutate, ask } = useRowActions("ipd", () => { reload(); reloadBeds(); });
 
   const [form, setForm] = useState({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "", creditLimit: "" });
+  const [admissionDate, setAdmissionDate] = useState(todayIso());
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const admissionDateValid = Boolean(admissionDate) && admissionDate >= todayIso();
 
   async function admit() {
     const patient = patients.find(p => String(p.id) === form.patientId);
@@ -89,13 +91,36 @@ export default function IpdPage() {
         status: form.status,
         diagnosis: form.diagnosis,
         creditLimit: form.creditLimit ? Number(form.creditLimit) : 0,
+        admissionDate,
       }),
     );
     setForm({ patientId: "", doctorId: "", bedId: "", status: "Admitted", diagnosis: "", creditLimit: "" });
     setWard("");
+    setAdmissionDate(todayIso());
     setShowModal(false);
     reload();
     reloadBeds();
+  }
+
+  // Quick "Add Doctor Round" from the list, without navigating to the admission page.
+  const [roundTarget, setRoundTarget] = useState<IpdRecordDTO | null>(null);
+  const [roundFindings, setRoundFindings] = useState("");
+  const [roundOrders, setRoundOrders] = useState("");
+  const { run: runRound, loading: roundLoading } = useMutation();
+
+  function openRound(r: IpdRecordDTO) {
+    setRoundTarget(r);
+    setRoundFindings("");
+    setRoundOrders("");
+  }
+
+  async function saveRound() {
+    if (!roundTarget) return;
+    const combined = [roundFindings.trim() && `Findings: ${roundFindings.trim()}`, roundOrders.trim() && `Orders: ${roundOrders.trim()}`]
+      .filter(Boolean).join("\n\n");
+    if (!combined) return;
+    await runRound(() => api.post("/ipd/notes", { admissionId: roundTarget.id, noteType: "Doctor Round", content: combined }));
+    setRoundTarget(null);
   }
 
   const WARD_OPTS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
@@ -117,7 +142,7 @@ export default function IpdPage() {
           <>
             <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
             <Link href="/ipd/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
-            <button onClick={admit} disabled={loading || !form.patientId || !form.bedId || !form.diagnosis.trim()}
+            <button onClick={admit} disabled={loading || !form.patientId || !form.bedId || !form.diagnosis.trim() || !admissionDateValid}
               className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
               {loading ? "Admitting…" : "Admit Patient"}
             </button>
@@ -126,7 +151,9 @@ export default function IpdPage() {
       >
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
-          <FormRow label="Admission Date *"><FormInput type="date" /></FormRow>
+          <FormRow label="Admission Date *" error={admissionDate && !admissionDateValid ? "Cannot be in the past" : undefined}>
+            <FormInput type="date" value={admissionDate} onChange={setAdmissionDate} min={todayIso()} error={Boolean(admissionDate) && !admissionDateValid} />
+          </FormRow>
           <FormRow label="Doctor *"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>
           <FormRow label="Ward *"><FormSelect placeholder="Select ward" options={WARD_OPTS} value={ward} onChange={v => { setWard(v); set("bedId", ""); }} /></FormRow>
           <FormRow label="Bed *"><FormSelect placeholder={ward ? `${availableBeds.length} available` : "Select ward first"} value={form.bedId} onChange={v => set("bedId", v)} options={availableBeds.map(b => ({ value: String(b.id), label: b.bedNumber }))} /></FormRow>
@@ -134,6 +161,27 @@ export default function IpdPage() {
           <FormRow label="Credit Limit (₹)" hint="Maximum credit allowed for this admission"><FormInput type="number" placeholder="e.g. 50000" value={form.creditLimit} onChange={v => set("creditLimit", v)} /></FormRow>
           <div className="col-span-2"><FormRow label="Diagnosis / Reason"><FormInput placeholder="Provisional diagnosis or reason for admission" value={form.diagnosis} onChange={v => set("diagnosis", v)} /></FormRow></div>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+        </div>
+      </Modal>
+
+      <Modal open={!!roundTarget} onClose={() => setRoundTarget(null)} title={roundTarget ? `Add Doctor Round — ${roundTarget.patientName}` : ""}
+        footer={
+          <>
+            <button onClick={() => setRoundTarget(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={saveRound} disabled={roundLoading || (!roundFindings.trim() && !roundOrders.trim())}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {roundLoading ? "Saving…" : "Add Round"}
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <FormRow label="Findings">
+            <FormTextarea placeholder="Clinical findings on this round…" rows={3} value={roundFindings} onChange={setRoundFindings} />
+          </FormRow>
+          <FormRow label="Orders">
+            <FormTextarea placeholder="Orders / instructions…" rows={3} value={roundOrders} onChange={setRoundOrders} />
+          </FormRow>
         </div>
       </Modal>
 
@@ -158,6 +206,7 @@ export default function IpdPage() {
             {visible.map((r) => (
               <IpdRow key={r.id} row={r} actions={[
                 { label: "View admission", onClick: () => router.push(`/ipd/${r.id}`) },
+                { label: "Add doctor round", disabled: r.status === "Discharged", onClick: () => openRound(r) },
                 { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName} and free bed ${r.bed}?`, confirmLabel: "Discharge", action: () => api.post(`/ipd/${r.id}/discharge`) }) },
                 { label: "Move to ICU", disabled: r.status === "ICU" || r.status === "Discharged", onClick: () => mutate(() => api.patch(`/ipd/${r.id}`, { status: "ICU" })) },
                 { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },

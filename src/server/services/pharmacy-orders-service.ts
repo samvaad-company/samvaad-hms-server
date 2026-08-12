@@ -31,7 +31,7 @@ import {
   type PharmacySaleItemRow,
 } from "@/server/db/tables";
 import { NotFoundError, BadRequestError, ConflictError } from "@/server/lib/errors";
-import { validate } from "@/server/lib/validation";
+import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, nextCode, isoDate } from "@/server/services/helpers";
 import { computePharmacyStatus } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
@@ -176,6 +176,59 @@ export async function updatePurchaseOrderStatus(id: number, status: string, acto
   const row = await purchaseOrdersRepo.update(id, { status });
   if (!row) throw new NotFoundError("Purchase order");
   await audit(actor, "update", "purchase-order", id, { status });
+  return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
+}
+
+const poEditSchema = {
+  supplier: { type: "string", required: false, min: 2, max: 160 },
+  expectedDate: { type: "string", required: false, max: 40 },
+} as const;
+
+/**
+ * Full content edit (supplier, expected date, line items) — distinct from
+ * `updatePurchaseOrderStatus`. Once a PO has been received, its items already
+ * moved stock, so editing is restricted to Pending orders only.
+ */
+export async function updatePurchaseOrder(id: number, input: unknown, actor: Session) {
+  const existing = await purchaseOrdersRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Purchase order");
+  if (existing.status !== "Pending") {
+    throw new ConflictError("Only a pending purchase order can be edited");
+  }
+
+  const data = validatePartial(poEditSchema, input);
+  const lines = (input as { items?: POLine[] })?.items?.filter(
+    (l) => l?.medicineName?.trim() && Number(l.quantity) > 0,
+  );
+  if (lines && lines.length === 0) {
+    throw new BadRequestError("Add at least one medicine with a quantity");
+  }
+
+  const patch: Record<string, unknown> = {};
+  if ("supplier" in data) patch.supplier = data.supplier;
+  if ("expectedDate" in data) patch.expected_date = isoDate(data.expectedDate);
+  if (lines) {
+    patch.item_count = lines.length;
+    patch.total = lines.reduce((sum, l) => sum + Number(l.quantity) * Number(l.unitCost ?? 0), 0);
+  }
+
+  const row = await purchaseOrdersRepo.update(id, patch);
+  if (!row) throw new NotFoundError("Purchase order");
+
+  if (lines) {
+    for (const i of await poItems(id)) await purchaseOrderItemsRepo.remove(i.id);
+    for (const l of lines) {
+      await purchaseOrderItemsRepo.create({
+        purchase_order_id: id,
+        pharmacy_item_id: l.pharmacyItemId ?? null,
+        medicine_name: l.medicineName.trim(),
+        quantity: Number(l.quantity),
+        unit_cost: Number(l.unitCost ?? 0),
+      });
+    }
+  }
+
+  await audit(actor, "update", "purchase-order", id, patch);
   return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
 }
 
@@ -325,6 +378,50 @@ export async function createSale(input: unknown, actor: Session) {
   await audit(actor, "create", "pharmacy-sale", saleId, { saleNumber, total });
   const finalRow = await pharmacySalesRepo.getRow(saleId);
   return toPharmacySaleDTO(finalRow as PharmacySaleRow, await saleItems(saleId));
+}
+
+export async function getSale(id: number) {
+  const row = await pharmacySalesRepo.getRow(id);
+  if (!row) throw new NotFoundError("Sale");
+  return toPharmacySaleDTO(row as PharmacySaleRow, await saleItems(id));
+}
+
+const saleEditSchema = {
+  rxNumber: { type: "string", required: false, max: 40 },
+  paymentMode: { type: "enum", required: false, values: PAYMENT_MODES },
+  discount: { type: "number", required: false, min: 0 },
+} as const;
+
+/**
+ * Edits a recorded sale's billing details (Rx reference, payment mode,
+ * discount). Line items and stock are intentionally left alone here — they
+ * already moved real inventory when the sale was created, so changing
+ * quantities would need a separate stock-reconciliation step.
+ */
+export async function updateSale(id: number, input: unknown, actor: Session) {
+  const existing = await pharmacySalesRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Sale");
+
+  const data = validatePartial(saleEditSchema, input);
+  const patch: Record<string, unknown> = {};
+  if ("rxNumber" in data) patch.rx_number = data.rxNumber;
+  if ("paymentMode" in data) patch.payment_mode = data.paymentMode;
+  if ("discount" in data) {
+    const discount = Number(data.discount) || 0;
+    patch.discount = discount;
+    patch.total = Math.max(0, Number(existing.subtotal) - discount);
+  }
+
+  const row = await pharmacySalesRepo.update(id, patch);
+  if (!row) throw new NotFoundError("Sale");
+
+  // Keep the linked bill's figures in sync so Billing doesn't drift from the sale.
+  if (existing.bill_id && "discount" in patch) {
+    await billsRepo.update(existing.bill_id, { discount: patch.discount, total: patch.total });
+  }
+
+  await audit(actor, "update", "pharmacy-sale", id, patch);
+  return toPharmacySaleDTO(row as PharmacySaleRow, await saleItems(id));
 }
 
 export async function deleteSale(id: number, actor: Session) {

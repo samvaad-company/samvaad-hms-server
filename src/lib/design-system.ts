@@ -185,8 +185,8 @@ export const tw = {
     // Grid-based: cells are laid out via `grid-template-columns: var(--cols)`,
     // which the DataTable sets from each page's column widths. This keeps every
     // field in its own column (no stacking) and rows compact.
-    headerRow: "grid items-center gap-3 px-5 h-[34px] bg-[#f2f3f3]",
-    dataRow:   "grid items-center gap-3 px-5 h-[42px] border-b border-[#dedee1] bg-white hover:bg-[#fafafa] transition-colors",
+    headerRow: "grid items-center gap-3 pl-5 pr-6 h-[34px] bg-[#f2f3f3]",
+    dataRow:   "grid items-center gap-3 pl-5 pr-6 h-[42px] border-b border-[#dedee1] bg-white hover:bg-[#fafafa] transition-colors",
     minWidth:  1240,
   },
 

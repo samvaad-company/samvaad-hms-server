@@ -52,6 +52,24 @@ export function validateDob(value: unknown): string | null {
   return null;
 }
 
+/** Digits only, ignoring spaces and dashes. */
+export function normalizeAadhaar(raw: string): string {
+  return String(raw).replace(/\D/g, "");
+}
+
+/**
+ * Aadhaar numbers are exactly 12 digits and never start with 0 or 1 (UIDAI
+ * rule). Optional everywhere it's used — blank passes.
+ */
+export function validateAadhaar(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const digits = normalizeAadhaar(raw);
+  if (digits.length !== 12) return "Aadhaar number must be exactly 12 digits";
+  if (!/^[2-9]/.test(digits)) return "Aadhaar number cannot start with 0 or 1";
+  return null;
+}
+
 /** Rejects a date earlier than today — for bookings and scheduling. */
 export function validateNotPast(label: string) {
   return (value: unknown): string | null => {
@@ -86,4 +104,11 @@ export const dobRule = {
   required: false,
   max: 40,
   custom: validateDob,
+} as const;
+
+export const optionalAadhaarRule = {
+  type: "string",
+  required: false,
+  max: 20,
+  custom: validateAadhaar,
 } as const;

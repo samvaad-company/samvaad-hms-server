@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
+import { Modal } from "@/components/shared/Modal";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import Link from "next/link";
 import type { Appointment } from "@/types";
@@ -158,15 +159,24 @@ function scheduleDates(appointments: AppointmentDTO[], max = 6): string[] {
     .map(([date]) => date);
 }
 
+interface ScheduleCell {
+  doctor: string;
+  specialty: string;
+  date: string;
+}
+
 function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appointments: AppointmentDTO[] }) {
   const dates = scheduleDates(appointments);
   const withAppointments = new Set(appointments.map(a => a.doctor));
   const rows = doctors.filter(d => withAppointments.has(d.name) || d.status !== "On Leave");
+  const [openCell, setOpenCell] = useState<ScheduleCell | null>(null);
 
   const cellAppointments = (doctor: string, date: string) =>
     appointments
       .filter(a => a.doctor === doctor && a.date === date && a.status !== "Cancelled")
       .sort((a, b) => a.time.localeCompare(b.time));
+
+  const dayTimeline = openCell ? cellAppointments(openCell.doctor, openCell.date) : [];
 
   if (dates.length === 0) {
     return <div className="py-16 text-center text-[14px] text-[#57575f]">No appointments scheduled.</div>;
@@ -174,6 +184,32 @@ function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appoint
 
   return (
     <div className="p-5 overflow-auto" style={{ height: 555 }}>
+      <Modal
+        open={!!openCell}
+        onClose={() => setOpenCell(null)}
+        title={openCell ? `${openCell.doctor} — ${openCell.date}` : ""}
+      >
+        {openCell && (
+          <div className="flex flex-col gap-1">
+            <p className="text-[12px] font-light text-[#57575f] mb-3">
+              {openCell.specialty} · {dayTimeline.length} appointment{dayTimeline.length === 1 ? "" : "s"}
+            </p>
+            {dayTimeline.map(s => (
+              <div key={s.id} className="flex items-start gap-3 py-3 border-b border-[#f0f0f0] last:border-0">
+                <span className="text-[13px] font-medium text-[#009598] w-[72px] shrink-0 whitespace-nowrap">{s.time}</span>
+                <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[14px] font-medium text-[#11111c]">{s.patientName}</span>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  {s.reason && <span className="text-[12px] font-light text-[#57575f]">{s.reason}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
       <div style={{ minWidth: 900 }}>
         {/* Header */}
         <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `200px repeat(${dates.length}, 1fr)` }}>
@@ -195,25 +231,25 @@ function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appoint
             {dates.map(date => {
               const slots = cellAppointments(doc.name, date);
               const onLeave = doc.status === "On Leave";
+              const clickable = !onLeave && slots.length > 0;
               return (
-                <div key={date} className={`rounded-[8px] p-2 text-center ${onLeave ? "bg-[#ffe9e9]" : slots.length > 0 ? "bg-[#e8f7f7]" : "bg-[#f6f6f6]"}`}>
+                <button
+                  key={date}
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => clickable && setOpenCell({ doctor: doc.name, specialty: doc.specialty, date })}
+                  className={`rounded-[8px] p-2 text-center transition-colors ${
+                    onLeave ? "bg-[#ffe9e9]" : slots.length > 0 ? "bg-[#e8f7f7] hover:bg-[#d7f0f0] cursor-pointer" : "bg-[#f6f6f6] cursor-default"
+                  }`}
+                >
                   {onLeave ? (
                     <span className="text-[10px] font-medium text-[#ff0004]">On Leave</span>
                   ) : slots.length === 0 ? (
                     <span className="text-[10px] font-normal text-[#57575f]">Free</span>
                   ) : (
-                    <div className="flex flex-col gap-[3px]">
-                      <div className="text-[11px] font-medium text-[#009598]">{slots.length} appt{slots.length > 1 ? "s" : ""}</div>
-                      {slots.map(s => (
-                        <div key={s.id} title={`${s.time} — ${s.patientName}${s.reason ? ` (${s.reason})` : ""}`}
-                          className="text-[10px] font-normal text-[#11111c] bg-white/70 rounded-[4px] px-[4px] py-[2px] leading-tight">
-                          <span className="font-medium">{s.time}</span>
-                          <span className="block truncate text-[#57575f]">{s.patientName}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="text-[11px] font-medium text-[#009598]">{slots.length} appt{slots.length > 1 ? "s" : ""}</span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>

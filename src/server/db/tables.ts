@@ -53,6 +53,7 @@ export const TABLES = {
   pharmacySales: "pharmacy_sales",
   pharmacySaleItems: "pharmacy_sale_items",
   bedTransfers: "bed_transfers",
+  prescriptionTemplates: "prescription_templates",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -381,6 +382,7 @@ export interface BloodDonorRow extends Row {
   gender: string;
   blood_group: string;
   phone: string;
+  aadhaar_number: string;
   last_donation_date: string;
   total_donations: number;
   status: string;
@@ -709,6 +711,20 @@ export interface ScribeNoteRow extends Row {
   language: string;
   duration_sec: number;
   status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A doctor's personal "quick fill" prescription template — private to the
+ * doctor who created it, not shared across the practice.
+ */
+export interface PrescriptionTemplateRow extends Row {
+  id: number;
+  doctor_id: number;
+  name: string;
+  /** Array of { medicineName, dosage, frequency, duration, instructions }. */
+  items: unknown;
   created_at: string;
   updated_at: string;
 }

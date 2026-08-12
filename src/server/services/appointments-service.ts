@@ -16,6 +16,7 @@ import { TABLES } from "@/server/db/tables";
 import { type AppointmentRow } from "@/server/db/tables";
 import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
+import { validateNotPast } from "@/server/lib/field-rules";
 import { audit } from "@/server/services/audit";
 import { checkInOpd } from "@/server/services/opd-service";
 import { isoDate } from "@/server/services/helpers";
@@ -27,7 +28,7 @@ const createSchema = {
   patientAge: { type: "number", required: false, min: 0, max: 200, default: 0 },
   doctorId: { type: "number", required: false },
   doctor: { type: "string", required: false, max: 120, default: "" },
-  date: { type: "string", required: true, max: 40 },
+  date: { type: "string", required: true, max: 40, custom: validateNotPast("appointment date") },
   time: { type: "string", required: true, max: 20 },
   type: { type: "enum", required: false, values: ["Walk-in", "Booked"], default: "Booked" },
   reason: { type: "string", required: false, max: 240, default: "" },

@@ -24,6 +24,7 @@ import {
 } from "@/server/db/tables";
 import { NotFoundError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
+import { optionalAadhaarRule } from "@/server/lib/field-rules";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
@@ -39,6 +40,7 @@ const donorSchema = {
   gender: { type: "enum", required: true, values: ["Male", "Female"] },
   bloodGroup: { type: "enum", required: true, values: BLOOD_GROUPS },
   phone: { type: "string", required: true, min: 7, max: 20 },
+  aadhaarNumber: optionalAadhaarRule,
   lastDonationDate: { type: "string", required: false, max: 40, default: "" },
   totalDonations: { type: "number", required: false, min: 0, default: 0 },
   status: { type: "enum", required: false, values: ["Eligible", "Deferred"], default: "Eligible" },
@@ -69,6 +71,7 @@ export async function createDonor(input: unknown, actor: Session) {
     gender: data.gender,
     blood_group: data.bloodGroup,
     phone: data.phone,
+    aadhaar_number: data.aadhaarNumber ?? "",
     last_donation_date: data.lastDonationDate,
     total_donations: data.totalDonations,
     status: data.status,
@@ -87,6 +90,7 @@ export async function updateDonor(id: number, input: unknown, actor: Session) {
   if ("gender" in data) patch.gender = data.gender;
   if ("bloodGroup" in data) patch.blood_group = data.bloodGroup;
   if ("phone" in data) patch.phone = data.phone;
+  if ("aadhaarNumber" in data) patch.aadhaar_number = data.aadhaarNumber;
   if ("lastDonationDate" in data) patch.last_donation_date = data.lastDonationDate;
   if ("totalDonations" in data) patch.total_donations = data.totalDonations;
   if ("status" in data) patch.status = data.status;

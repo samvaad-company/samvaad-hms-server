@@ -9,6 +9,7 @@ import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
 import { Check, Loader2 } from "lucide-react";
+import { todayIso } from "@/lib/dates";
 import Link from "next/link";
 
 export default function NewIpdAdmissionPage() {
@@ -24,10 +25,12 @@ export default function NewIpdAdmissionPage() {
   const [doctorId, setDoctorId] = useState("");
   const [bedId, setBedId] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
+  const [admissionDate, setAdmissionDate] = useState(todayIso());
 
   const WARDS = [...new Set(beds.map(b => b.ward))].map(w => ({ value: w, label: w }));
   const availableBeds = beds.filter(b => b.ward === ward && b.status === "Available");
-  const valid = patientId && doctorId && bedId && diagnosis.trim();
+  const dateValid = Boolean(admissionDate) && admissionDate >= todayIso();
+  const valid = patientId && doctorId && bedId && diagnosis.trim() && dateValid;
 
   async function submit() {
     await run(() =>
@@ -38,6 +41,7 @@ export default function NewIpdAdmissionPage() {
         bedId: Number(bedId),
         ward,
         diagnosis,
+        admissionDate,
       }),
     );
     router.push("/ipd");
@@ -70,8 +74,8 @@ export default function NewIpdAdmissionPage() {
                 <FormRow label="Patient *">
                   <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} value={patientId} onChange={setPatientId} />
                 </FormRow>
-                <FormRow label="Admission Date *">
-                  <FormInput type="date" />
+                <FormRow label="Admission Date *" error={admissionDate && !dateValid ? "Cannot be in the past" : undefined}>
+                  <FormInput type="date" value={admissionDate} onChange={setAdmissionDate} min={todayIso()} error={Boolean(admissionDate) && !dateValid} />
                 </FormRow>
                 <FormRow label="Admission Type *">
                   <FormSelect placeholder="Select type" options={["Emergency","Planned Surgery","Medical Observation","Post-Operative","Maternity","Other"].map(t => ({ value: t.toLowerCase().replace(/\s+/g,"-"), label: t }))} />

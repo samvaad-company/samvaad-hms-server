@@ -53,7 +53,7 @@ const FILTERS = [
   { id: "Completed",       label: "Completed" },
 ];
 
-const MIN_WIDTH = 1140;
+const MIN_WIDTH = 1340;
 
 function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
   return (
@@ -97,6 +97,7 @@ export default function OpdPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingRow, setEditingRow] = useState<OpdRecordDTO | null>(null);
   const { items: opdRecords, reload } = useList<OpdRecordDTO>("/opd", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -131,6 +132,29 @@ export default function OpdPage() {
 
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
+  function closeModal() {
+    setShowModal(false);
+    setEditingRow(null);
+    setForm(EMPTY);
+  }
+
+  /** Open the modal pre-filled with an existing entry's details. */
+  function openEdit(row: OpdRecordDTO) {
+    setEditingRow(row);
+    setForm({
+      patientId: row.patientId != null ? String(row.patientId) : "",
+      doctorId: row.doctorId != null ? String(row.doctorId) : "",
+      reason: row.reason ?? "",
+      priority: row.priority,
+      bpSystolic: row.vitals.bpSystolic ? String(row.vitals.bpSystolic) : "",
+      bpDiastolic: row.vitals.bpDiastolic ? String(row.vitals.bpDiastolic) : "",
+      pulse: row.vitals.pulse ? String(row.vitals.pulse) : "",
+      temperature: row.vitals.temperature ? String(row.vitals.temperature) : "",
+      spo2: row.vitals.spo2 ? String(row.vitals.spo2) : "",
+    });
+    setShowModal(true);
+  }
+
   async function checkIn() {
     const patient = patients.find(p => String(p.id) === form.patientId);
     const doctor = doctors.find(d => String(d.id) === form.doctorId);
@@ -150,10 +174,29 @@ export default function OpdPage() {
         spo2: num(form.spo2),
       }),
     );
-    setForm(EMPTY);
-    setShowModal(false);
+    closeModal();
     reload();
   }
+
+  async function saveEdit() {
+    if (!editingRow) return;
+    await run(() =>
+      api.patch(`/opd/${editingRow.id}`, {
+        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+        reason: form.reason,
+        priority: form.priority,
+        bpSystolic: num(form.bpSystolic),
+        bpDiastolic: num(form.bpDiastolic),
+        pulse: num(form.pulse),
+        temperature: num(form.temperature),
+        spo2: num(form.spo2),
+      }),
+    );
+    closeModal();
+    reload();
+  }
+
+  const submit = editingRow ? saveEdit : checkIn;
 
   const visible = opdRecords.filter(r => {
     const matchF = filter === "All" || r.status === (STATUS_MAP[filter] ?? filter);
@@ -165,27 +208,38 @@ export default function OpdPage() {
   return (
     <>
       {dialog}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="New OPD Check-in"
+      <Modal open={showModal} onClose={closeModal} title={editingRow ? `Edit OPD Entry — ${editingRow.tokenNumber}` : "New OPD Check-in"}
         footer={
           <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <button onClick={checkIn} disabled={loading || !form.patientId}
+            <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={submit} disabled={loading || (!editingRow && !form.patientId)}
               className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
-              {loading ? "Issuing…" : "Issue Token"}
+              {loading ? (editingRow ? "Saving…" : "Issuing…") : editingRow ? "Save Changes" : "Issue Token"}
             </button>
           </>
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2 flex items-center gap-3 p-3 bg-[#e8f7f7] rounded-[10px]">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-medium text-[#009598] uppercase tracking-wider">Next Token</span>
-              <span className="text-[24px] font-medium text-[#009598]">{NEXT_TOKEN}</span>
+          {editingRow ? (
+            <div className="col-span-2 flex items-center gap-3 p-3 bg-[#e8f7f7] rounded-[10px]">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-[#009598] uppercase tracking-wider">{editingRow.tokenNumber}</span>
+                <span className="text-[16px] font-medium text-[#11111c]">{editingRow.patientName}</span>
+              </div>
             </div>
-          </div>
-          <FormRow label="Patient *">
-            <FormSelect placeholder="Search patient" value={form.patientId} onChange={selectPatient} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
-          </FormRow>
+          ) : (
+            <div className="col-span-2 flex items-center gap-3 p-3 bg-[#e8f7f7] rounded-[10px]">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium text-[#009598] uppercase tracking-wider">Next Token</span>
+                <span className="text-[24px] font-medium text-[#009598]">{NEXT_TOKEN}</span>
+              </div>
+            </div>
+          )}
+          {!editingRow && (
+            <FormRow label="Patient *">
+              <FormSelect placeholder="Search patient" value={form.patientId} onChange={selectPatient} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+            </FormRow>
+          )}
           <FormRow label="Doctor *">
             <FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
           </FormRow>
@@ -225,7 +279,7 @@ export default function OpdPage() {
         title="OPD Queue"
         subtitle="Manage today's outpatient queue — track tokens, vitals, and consultation status in real time."
         stats={[{ icon: Activity, value: `${visible.length}`, label: "Active Tokens" }]}
-        action={{ label: "New Check-in", icon: Plus, onClick: () => setShowModal(true) }}
+        action={{ label: "New Check-in", icon: Plus, onClick: () => { setEditingRow(null); setForm(EMPTY); setShowModal(true); } }}
         dateRange={false}
       />
 
@@ -242,6 +296,7 @@ export default function OpdPage() {
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
               <OpdRow key={r.id} row={r} actions={[
+                { label: "Edit", onClick: () => openEdit(r) },
                 { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
                 { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
                 { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },

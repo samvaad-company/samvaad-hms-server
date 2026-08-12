@@ -47,9 +47,9 @@ export function FilterBar({
   const activeLabel = filters.find((f) => f.id === activeFilter)?.label ?? statusLabel;
 
   return (
-    <div className="flex items-center justify-between px-5 py-[25px]">
+    <div className="flex items-center justify-between flex-wrap gap-x-[15px] gap-y-3 px-5 py-[25px]">
       {/* Filter Tabs */}
-      <div className="bg-[#f6f6f6] flex items-center gap-[15px] p-[3px] rounded-full">
+      <div className="bg-[#f6f6f6] flex items-center gap-[15px] p-[3px] rounded-full flex-wrap shrink-0">
         {filters.map((f) => (
           <button
             key={f.id}
@@ -66,23 +66,23 @@ export function FilterBar({
       </div>
 
       {/* Search + Status dropdown */}
-      <div className="flex items-center gap-[15px]">
-        <div className="bg-[#f6f6f6] flex items-center gap-[10px] px-3 py-[6px] rounded-full" style={{ width: 372 }}>
+      <div className="flex items-center gap-[15px] flex-wrap">
+        <div className="bg-[#f6f6f6] flex items-center gap-[10px] px-3 py-[6px] rounded-full flex-1 min-w-[200px]" style={{ maxWidth: 372 }}>
           <Search size={20} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
           <input
             type="text"
             placeholder={searchPlaceholder}
             value={controlledSearch ?? ""}
             onChange={e => onSearchChange?.(e.target.value)}
-            className="flex-1 bg-transparent text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none"
+            className="flex-1 min-w-0 bg-transparent text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none"
           />
           {controlledSearch && (
-            <button onClick={() => onSearchChange?.("")} className="text-[#57575f] hover:text-[#11111c] text-[18px] leading-none">×</button>
+            <button onClick={() => onSearchChange?.("")} className="text-[#57575f] hover:text-[#11111c] text-[18px] leading-none shrink-0">×</button>
           )}
         </div>
 
         {/* Status filter dropdown — mirrors the filter tabs */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((o) => !o)}
             className="bg-[#f6f6f6] flex items-center justify-between gap-2 px-[15px] py-2 rounded-full cursor-pointer hover:bg-[#ebebeb] transition-colors"
@@ -119,7 +119,7 @@ export function FilterBar({
         {action && (
           <button
             onClick={action.onClick}
-            className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+            className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap shrink-0"
           >
             {action.icon && <action.icon size={14} />}
             {action.label}
