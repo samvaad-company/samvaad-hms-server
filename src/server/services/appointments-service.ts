@@ -21,6 +21,7 @@ import { audit } from "@/server/services/audit";
 import { checkInOpd } from "@/server/services/opd-service";
 import { isoDate } from "@/server/services/helpers";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -47,8 +48,8 @@ export const APPOINTMENT_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listAppointments(options: QueryOptions) {
-  return appointmentsRepo.list(options);
+export async function listAppointments(options: QueryOptions, actor: Session) {
+  return appointmentsRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
 }
 
 export async function getAppointment(id: number) {

@@ -91,7 +91,7 @@ const NONE: Record<Resource, Access> = RESOURCES.reduce(
  */
 export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Super Admin": ALL_WRITE,
-  "IT Admin": withOverrides(NONE, { admin: "write", reports: "read", tasks: "write" }),
+  "IT Admin": withOverrides(NONE, { admin: "write", reports: "read", tasks: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
     opd: "write",
     prescriptions: "write",
@@ -115,6 +115,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     bloodbank: "read",
     inventory: "read",
     tasks: "write",
+    staff: "read",
   }),
   Receptionist: withOverrides(NONE, {
     patients: "write",

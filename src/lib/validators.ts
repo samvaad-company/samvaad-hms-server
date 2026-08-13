@@ -15,8 +15,8 @@ export function normalizeMobile(raw: string): string {
 
 /** Indian mobile numbers are exactly 10 digits and start 6-9. */
 export function validateMobile(value: string): string | null {
+  if (!value.trim()) return null;
   const digits = normalizeMobile(value);
-  if (!digits) return null;
   if (digits.length !== 10) return "Enter a valid 10-digit mobile number";
   if (!/^[6-9]/.test(digits)) return "Mobile number must start with 6, 7, 8 or 9";
   return null;
@@ -47,8 +47,8 @@ export function normalizeAadhaar(raw: string): string {
 
 /** Aadhaar numbers are exactly 12 digits and never start with 0 or 1. Optional — blank passes. */
 export function validateAadhaar(value: string): string | null {
+  if (!value.trim()) return null;
   const digits = normalizeAadhaar(value);
-  if (!digits) return null;
   if (digits.length !== 12) return "Aadhaar number must be exactly 12 digits";
   if (!/^[2-9]/.test(digits)) return "Aadhaar number cannot start with 0 or 1";
   return null;

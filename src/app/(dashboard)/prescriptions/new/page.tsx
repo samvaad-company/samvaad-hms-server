@@ -3,27 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { prescriptionTemplates } from "@/data/medicines";
 import { icd10Codes } from "@/data/icd10";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import type { PatientDTO, DoctorDTO, MedicineDTO } from "@/types/api";
-import { FormRow, FormTextarea } from "@/components/shared/FormRow";
+import { useAuth } from "@/lib/auth-context";
+import type { PatientDTO, DoctorDTO, MedicineDTO, PrescriptionTemplateDTO } from "@/types/api";
+import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
-import { Plus, Trash2, Search, Zap, Loader2 } from "lucide-react";
+import { Modal } from "@/components/shared/Modal";
+import { Plus, Trash2, Pencil, Search, Zap, Loader2 } from "lucide-react";
 
 type RxRow = { id: number; medicine: string; dosage: string; frequency: string; duration: string; instructions: string };
 
 const FREQ_OPTS = ["OD", "BD", "TDS", "QID", "PRN", "Weekly", "At Night"].map(f => ({ value: f, label: f }));
 const DUR_OPTS  = ["3 days","5 days","7 days","10 days","14 days","1 month","2 months","3 months","Ongoing"].map(d => ({ value: d, label: d }));
-const TEMPLATES = [
-  { label: "Fever",      key: "fever"        },
-  { label: "Diabetes",   key: "diabetes"     },
-  { label: "Hypertension",key:"hypertension" },
-  { label: "Cold / URTI",key: "cold"        },
-  { label: "Acidity",    key: "acidity"      },
-];
 
 let nextId = 100;
 const mkRow = (override: Partial<RxRow> = {}): RxRow => ({
@@ -33,10 +27,17 @@ const mkRow = (override: Partial<RxRow> = {}): RxRow => ({
 export default function NewPrescriptionPage() {
   const router = useRouter();
   useBreadcrumb("/prescriptions", "Prescriptions", "New Prescription");
+  const { user } = useAuth();
+  const isDoctorUser = user?.doctorId != null;
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { items: medicines } = useList<MedicineDTO>("/medicines", { all: true });
+  const { items: myTemplates, reload: reloadTemplates } = useList<PrescriptionTemplateDTO>(
+    "/prescriptions/templates",
+    { all: true },
+  );
+  const tmplMutation = useMutation();
 
   const [rows, setRows] = useState<RxRow[]>([mkRow()]);
   const [medSearch, setMedSearch] = useState<Record<number, string>>({});
@@ -61,15 +62,78 @@ export default function NewPrescriptionPage() {
   const updateRow = (id: number, field: keyof RxRow, value: string) =>
     setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
 
-  const applyTemplate = (key: string) => {
-    const tmpl = (prescriptionTemplates as Record<string, { medicineId: number; dosage: string; frequency: string; duration: string; instructions: string }[]>)[key] ?? [];
-    setRows(tmpl.map(m => {
-      const med = medicines.find(x => x.id === m.medicineId);
-      return mkRow({
-        medicine: med?.name ?? "", dosage: m.dosage,
-        frequency: m.frequency, duration: m.duration, instructions: m.instructions,
-      });
-    }));
+  const applyTemplate = (t: PrescriptionTemplateDTO) => {
+    setRows(t.items.map(it => mkRow({
+      medicine: it.medicineName, dosage: it.dosage,
+      frequency: it.frequency || "OD", duration: it.duration || "7 days",
+      instructions: it.instructions,
+    })));
+  };
+
+  // ── Template create/edit modal ──
+  const [tmplModalOpen, setTmplModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<PrescriptionTemplateDTO | null>(null);
+  const [tmplName, setTmplName] = useState("");
+  const [tmplRows, setTmplRows] = useState<RxRow[]>([mkRow()]);
+  const [tmplMedSearch, setTmplMedSearch] = useState<Record<number, string>>({});
+
+  const openCreateTemplate = () => {
+    setEditingTemplate(null);
+    setTmplName("");
+    setTmplRows([mkRow()]);
+    setTmplMedSearch({});
+    setTmplModalOpen(true);
+  };
+  const openEditTemplate = (t: PrescriptionTemplateDTO) => {
+    setEditingTemplate(t);
+    setTmplName(t.name);
+    setTmplRows(t.items.length
+      ? t.items.map(it => mkRow({
+          medicine: it.medicineName, dosage: it.dosage,
+          frequency: it.frequency || "OD", duration: it.duration || "7 days",
+          instructions: it.instructions,
+        }))
+      : [mkRow()]);
+    setTmplMedSearch({});
+    setTmplModalOpen(true);
+  };
+
+  const addTmplRow = () => setTmplRows(prev => [...prev, mkRow()]);
+  const removeTmplRow = (id: number) => setTmplRows(prev => prev.filter(r => r.id !== id));
+  const updateTmplRow = (id: number, field: keyof RxRow, value: string) =>
+    setTmplRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+
+  const tmplFilledRows = tmplRows.filter(r => r.medicine.trim());
+  const tmplValid = tmplName.trim().length > 1 && tmplFilledRows.length > 0;
+
+  const saveTemplate = async () => {
+    const payload = {
+      name: tmplName.trim(),
+      items: tmplFilledRows.map(r => ({
+        medicineId: medicines.find(m => m.name === r.medicine)?.id,
+        medicineName: r.medicine,
+        dosage: r.dosage,
+        frequency: r.frequency,
+        duration: r.duration,
+        instructions: r.instructions,
+      })),
+    };
+    await tmplMutation.run(() =>
+      editingTemplate
+        ? api.patch(`/prescriptions/templates/${editingTemplate.id}`, payload)
+        : api.post("/prescriptions/templates", payload),
+    );
+    setTmplModalOpen(false);
+    reloadTemplates();
+  };
+
+  const [deletingTemplate, setDeletingTemplate] = useState<PrescriptionTemplateDTO | null>(null);
+
+  const confirmDeleteTemplate = async () => {
+    if (!deletingTemplate) return;
+    await tmplMutation.run(() => api.del(`/prescriptions/templates/${deletingTemplate.id}`));
+    setDeletingTemplate(null);
+    reloadTemplates();
   };
 
   const filledRows = rows.filter(r => r.medicine.trim());
@@ -238,12 +302,34 @@ export default function NewPrescriptionPage() {
                 <div className="flex items-center gap-1 text-[12px] font-medium text-[#57575f]">
                   <Zap size={13} /> Quick Templates:
                 </div>
-                {TEMPLATES.map(t => (
-                  <button key={t.key} onClick={() => applyTemplate(t.key)}
-                    className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
-                    {t.label}
-                  </button>
+                {myTemplates.map(t => (
+                  <div key={t.id}
+                    className="flex items-center gap-1 border border-[#009598] rounded-full pl-3 pr-[6px] py-[3px] whitespace-nowrap">
+                    <button onClick={() => applyTemplate(t)}
+                      className="text-[12px] font-normal text-[#009598] hover:underline">
+                      {t.name}
+                    </button>
+                    {isDoctorUser && (
+                      <>
+                        <button onClick={() => openEditTemplate(t)} title="Edit template"
+                          className="text-[#57575f] hover:text-[#009598] transition-colors p-[2px]">
+                          <Pencil size={11} />
+                        </button>
+                        <button onClick={() => setDeletingTemplate(t)} title="Delete template"
+                          className="text-[#57575f] hover:text-[#ff0004] transition-colors p-[2px]">
+                          <Trash2 size={11} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 ))}
+
+                {isDoctorUser && (
+                  <button onClick={openCreateTemplate}
+                    className="flex items-center gap-1 text-[12px] font-normal text-[#009598] border border-dashed border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+                    <Plus size={12} /> New Template
+                  </button>
+                )}
               </div>
             </div>
 
@@ -323,6 +409,127 @@ export default function NewPrescriptionPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={tmplModalOpen}
+        onClose={() => setTmplModalOpen(false)}
+        title={editingTemplate ? "Edit Template" : "New Template"}
+        width={680}
+        footer={
+          <>
+            <button onClick={() => setTmplModalOpen(false)}
+              className="text-[13px] font-normal text-[#57575f] px-4 py-[8px] rounded-full hover:bg-[#f0f0f0] transition-colors">
+              Cancel
+            </button>
+            <button onClick={saveTemplate} disabled={!tmplValid || tmplMutation.loading}
+              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {tmplMutation.loading ? <Loader2 size={14} className="animate-spin" /> : null}
+              {tmplMutation.loading ? "Saving…" : "Save Template"}
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {tmplMutation.error && (
+            <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">
+              {tmplMutation.error.message}
+            </div>
+          )}
+          <FormRow label="Template Name" required>
+            <FormInput placeholder="e.g. Migraine relief" value={tmplName} onChange={setTmplName} />
+          </FormRow>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Medicines</span>
+              <button onClick={addTmplRow} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] hover:underline">
+                <Plus size={13} /> Add Medicine
+              </button>
+            </div>
+
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_26px] gap-2 px-1">
+              {["Medicine", "Dosage", "Frequency", "Duration", "Instructions", ""].map(h => (
+                <span key={h} className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{h}</span>
+              ))}
+            </div>
+
+            {tmplRows.map(row => (
+              <div key={row.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_26px] gap-2 items-start">
+                <div className="relative">
+                  <input
+                    placeholder="Search medicine..."
+                    value={tmplMedSearch[row.id] ?? row.medicine}
+                    onChange={e => {
+                      setTmplMedSearch(prev => ({ ...prev, [row.id]: e.target.value }));
+                      updateTmplRow(row.id, "medicine", e.target.value);
+                    }}
+                    className="h-[36px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                  />
+                  {(tmplMedSearch[row.id]?.length ?? 0) > 1 && !row.medicine.includes("mg") && (
+                    <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#dedee1] rounded-[8px] shadow-md z-10 overflow-hidden">
+                      {filteredMed(tmplMedSearch[row.id]).map(m => (
+                        <button key={m.id} onClick={() => {
+                          updateTmplRow(row.id, "medicine", m.name);
+                          updateTmplRow(row.id, "dosage", m.defaultDosage);
+                          updateTmplRow(row.id, "frequency", m.defaultFrequency);
+                          updateTmplRow(row.id, "duration", m.defaultDuration);
+                          setTmplMedSearch(prev => ({ ...prev, [row.id]: m.name }));
+                        }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#f6f6f6] border-b border-[#f0f0f0] last:border-0">
+                          <span className="font-medium text-[#11111c]">{m.name}</span>
+                          <span className="text-[#57575f] ml-2 text-[11px]">{m.generic}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <input value={row.dosage} onChange={e => updateTmplRow(row.id, "dosage", e.target.value)}
+                  placeholder="e.g. 500mg"
+                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                <select value={row.frequency} onChange={e => updateTmplRow(row.id, "frequency", e.target.value)}
+                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                  {FREQ_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <select value={row.duration} onChange={e => updateTmplRow(row.id, "duration", e.target.value)}
+                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                  {DUR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <input value={row.instructions} onChange={e => updateTmplRow(row.id, "instructions", e.target.value)}
+                  placeholder="With meals, etc."
+                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                {tmplRows.length > 1 ? (
+                  <button onClick={() => removeTmplRow(row.id)} className="flex items-center justify-center h-[36px] text-[#ff0004] hover:text-red-700 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                ) : <div />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deletingTemplate != null}
+        onClose={() => setDeletingTemplate(null)}
+        title="Delete Template"
+        width={420}
+        footer={
+          <>
+            <button onClick={() => setDeletingTemplate(null)}
+              className="text-[13px] font-normal text-[#57575f] px-4 py-[8px] rounded-full hover:bg-[#f0f0f0] transition-colors">
+              Cancel
+            </button>
+            <button onClick={confirmDeleteTemplate} disabled={tmplMutation.loading}
+              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#ff0004] px-5 py-[8px] rounded-full hover:bg-red-700 transition-colors disabled:opacity-50">
+              {tmplMutation.loading ? <Loader2 size={14} className="animate-spin" /> : null}
+              {tmplMutation.loading ? "Deleting…" : "Delete"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-[13px] font-normal text-[#57575f] leading-5">
+          Delete template <span className="font-medium text-[#11111c]">“{deletingTemplate?.name}”</span>? This can&apos;t be undone.
+        </p>
+      </Modal>
     </>
   );
 }

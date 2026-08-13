@@ -26,7 +26,7 @@ export function PanelHeader({ name, subtitle, badge }: { name: string; subtitle:
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
-    <div className={`${tw.gutterX} mb-5`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-5`}>
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-[26px] font-medium text-[#11111c]">{greeting}, {name} 👋</h1>

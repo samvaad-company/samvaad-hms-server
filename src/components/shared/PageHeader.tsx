@@ -15,7 +15,7 @@ interface PageHeaderProps {
   title: string;
   subtitle: string;
   stats: StatItem[];
-  action: {
+  action?: {
     label: string;
     icon?: LucideIcon;
     onClick?: () => void;
@@ -35,7 +35,7 @@ export function PageHeader({
   range = "all",
   onRangeChange,
 }: PageHeaderProps) {
-  const ActionIcon = action.icon ?? Plus;
+  const ActionIcon = action?.icon ?? Plus;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -102,15 +102,17 @@ export function PageHeader({
           </div>
         )}
 
-        <button
-          onClick={action.onClick}
-          className="bg-[#009598] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#007f82] transition-colors"
-        >
-          <ActionIcon size={18} strokeWidth={1.5} className="text-white" />
-          <span className="text-[13px] font-normal text-white leading-[18px] whitespace-nowrap">
-            {action.label}
-          </span>
-        </button>
+        {action && (
+          <button
+            onClick={action.onClick}
+            className="bg-[#009598] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#007f82] transition-colors"
+          >
+            <ActionIcon size={18} strokeWidth={1.5} className="text-white" />
+            <span className="text-[13px] font-normal text-white leading-[18px] whitespace-nowrap">
+              {action.label}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

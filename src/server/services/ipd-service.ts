@@ -21,6 +21,7 @@ import { validateNotPast } from "@/server/lib/field-rules";
 import { displayDate, isoDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 
 const admitSchema = {
   patientId: { type: "number", required: false },
@@ -44,8 +45,8 @@ export const IPD_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listIpd(options: QueryOptions) {
-  return ipdRepo.list(options);
+export async function listIpd(options: QueryOptions, actor: Session) {
+  return ipdRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
 }
 
 export async function getIpd(id: number) {

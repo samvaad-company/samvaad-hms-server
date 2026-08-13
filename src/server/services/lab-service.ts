@@ -13,6 +13,7 @@ import { validateNotPast } from "@/server/lib/field-rules";
 import { displayDate, isoDate, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnPatients } from "@/server/services/doctor-scope";
 import { type LabStatus } from "@/types";
 
 export const LAB_PRIORITIES = ["Routine", "Urgent", "STAT"] as const;
@@ -40,8 +41,8 @@ export const LAB_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listLab(options: QueryOptions) {
-  return labRepo.list(options);
+export async function listLab(options: QueryOptions, actor: Session) {
+  return labRepo.list(await scopeToOwnPatients(options, actor));
 }
 
 export async function getLab(id: number) {

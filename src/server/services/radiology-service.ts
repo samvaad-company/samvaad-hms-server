@@ -12,6 +12,7 @@ import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, displayTime, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnPatients } from "@/server/services/doctor-scope";
 import { type RadiologyStatus } from "@/types";
 import { type RadiologyReportFileDTO } from "@/types/api";
 
@@ -30,8 +31,8 @@ export const RADIOLOGY_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listRadiology(options: QueryOptions) {
-  return radiologyRepo.list(options);
+export async function listRadiology(options: QueryOptions, actor: Session) {
+  return radiologyRepo.list(await scopeToOwnPatients(options, actor));
 }
 
 export async function getRadiology(id: number) {

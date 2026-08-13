@@ -13,6 +13,7 @@ import { validate, validatePartial } from "@/server/lib/validation";
 import { displayTime, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 
 export const OPD_PRIORITIES = ["Normal", "Urgent", "Emergency"] as const;
 
@@ -62,8 +63,8 @@ export const OPD_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listOpd(options: QueryOptions) {
-  return opdRepo.list(options);
+export async function listOpd(options: QueryOptions, actor: Session) {
+  return opdRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
 }
 
 export async function getOpd(id: number) {

@@ -9,6 +9,7 @@ import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -35,8 +36,8 @@ export const OT_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listOt(options: QueryOptions) {
-  return otRepo.list(options);
+export async function listOt(options: QueryOptions, actor: Session) {
+  return otRepo.list(scopeToOwnDoctor(options, actor, "surgeon_id"));
 }
 
 export async function getOt(id: number) {

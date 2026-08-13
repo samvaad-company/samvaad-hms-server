@@ -70,17 +70,20 @@ export function FormSelect({
   options,
   value,
   onChange,
+  disabled,
 }: {
   placeholder?: string;
   options: { value: string; label: string }[];
   value?: string;
   onChange?: (v: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <select
       value={value ?? ""}
+      disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors appearance-none"
+      className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {placeholder && (
         <option value="" disabled>
@@ -101,19 +104,22 @@ export function FormTextarea({
   value,
   onChange,
   rows = 3,
+  disabled,
 }: {
   placeholder?: string;
   value?: string;
   onChange?: (v: string) => void;
   rows?: number;
+  disabled?: boolean;
 }) {
   return (
     <textarea
       placeholder={placeholder}
       value={value}
       rows={rows}
+      disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className="w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] focus:bg-white transition-colors resize-none"
+      className="w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] focus:bg-white transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
     />
   );
 }

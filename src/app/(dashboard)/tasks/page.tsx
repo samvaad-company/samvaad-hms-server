@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { parseDisplayDate, formatDate } from "@/lib/dates";
 import type { TaskDTO, StaffDTO } from "@/types/api";
 import type { TaskStatus, TaskPriority } from "@/types";
@@ -59,29 +60,32 @@ function toDisplayDateValue(ymd: string): string {
 }
 
 function TaskCard({
-  task, onMove, onDelete, onOpen, draggable,
+  task, onMove, onDelete, onOpen, draggable, canWrite,
 }: {
   task: TaskDTO;
   onMove: (id: number, status: TaskStatus) => void;
   onDelete: (task: TaskDTO) => void;
   onOpen: (task: TaskDTO) => void;
   draggable?: boolean;
+  canWrite: boolean;
 }) {
   return (
     <div
-      draggable={draggable}
+      draggable={canWrite && draggable}
       onDragStart={(e) => e.dataTransfer.setData("text/task-id", String(task.id))}
       onClick={() => onOpen(task)}
-      className="bg-white border border-[#dedee1] rounded-[10px] p-3 flex flex-col gap-2 cursor-pointer active:cursor-grabbing hover:border-[#009598] transition-colors"
+      className={`bg-white border border-[#dedee1] rounded-[10px] p-3 flex flex-col gap-2 cursor-pointer hover:border-[#009598] transition-colors ${canWrite ? "active:cursor-grabbing" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-[13px] font-medium text-[#11111c] leading-snug">{task.title}</span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(task); }}
-          className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors shrink-0"
-        >
-          <Trash2 size={13} />
-        </button>
+        {canWrite && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(task); }}
+            className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors shrink-0"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
       </div>
       {task.goal && (
         <span className="inline-flex items-center gap-1 text-[11px] text-[#009598]">
@@ -104,9 +108,10 @@ function TaskCard({
         <span className="text-[11px] text-[#57575f] truncate flex-1">{task.assigneeName}</span>
         <select
           value={task.status}
+          disabled={!canWrite}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onMove(task.id, e.target.value as TaskStatus)}
-          className="text-[10px] text-[#57575f] border border-[#dedee1] rounded-[6px] px-1 py-[2px] outline-none focus:border-[#009598] bg-white"
+          className="text-[10px] text-[#57575f] border border-[#dedee1] rounded-[6px] px-1 py-[2px] outline-none focus:border-[#009598] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -117,10 +122,11 @@ function TaskCard({
 
 /** Create when `task` is null, otherwise view/edit an existing task. */
 function TaskModal({
-  task, staff, onClose, onSaved, onDelete,
+  task, staff, canWrite, onClose, onSaved, onDelete,
 }: {
   task: TaskDTO | null;
   staff: StaffDTO[];
+  canWrite: boolean;
   onClose: () => void;
   onSaved: () => void;
   onDelete: (task: TaskDTO) => void;
@@ -160,7 +166,7 @@ function TaskModal({
     <Modal open onClose={onClose} title={task ? "Task Details" : "New Task"} width={620}
       footer={
         <>
-          {task && (
+          {task && canWrite && (
             <button
               onClick={() => onDelete(task)}
               className="mr-auto inline-flex items-center gap-[6px] text-[13px] font-normal text-[#ff0004] border border-[#ffc8c8] px-4 py-[8px] rounded-full hover:bg-[#ffe9e9] transition-colors"
@@ -168,23 +174,32 @@ function TaskModal({
               <Trash2 size={13} /> Delete
             </button>
           )}
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-          <button onClick={save} disabled={loading || !form.title.trim()}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
-            {loading ? "Saving…" : task ? "Save Changes" : "Create Task"}
+          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+            {canWrite ? "Cancel" : "Close"}
           </button>
+          {canWrite && (
+            <button onClick={save} disabled={loading || !form.title.trim()}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Saving…" : task ? "Save Changes" : "Create Task"}
+            </button>
+          )}
         </>
       }
     >
       <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2"><FormRow label="Task Title *"><FormInput placeholder="What needs to be done?" value={form.title} onChange={(v) => set("title", v)} /></FormRow></div>
-        <div className="col-span-2"><FormRow label="Description"><FormTextarea placeholder="Details, checklist, context…" value={form.description} onChange={(v) => set("description", v)} /></FormRow></div>
-        <FormRow label="Goal / Objective"><FormInput placeholder="e.g. OT Readiness" value={form.goal} onChange={(v) => set("goal", v)} /></FormRow>
-        <FormRow label="Assign To *"><FormSelect placeholder="Select staff" value={form.assigneeId} onChange={(v) => set("assigneeId", v)} options={staff.map((s) => ({ value: String(s.id), label: `${s.name} — ${s.role}` }))} /></FormRow>
-        <FormRow label="Priority"><FormSelect value={form.priority} onChange={(v) => set("priority", v)} options={PRIORITIES.map((p) => ({ value: p, label: p }))} /></FormRow>
-        <FormRow label="Due Date"><FormInput type="date" value={form.dueDate} onChange={(v) => set("dueDate", v)} /></FormRow>
+        {!canWrite && (
+          <div className="col-span-2 text-[12px] font-normal text-[#57575f] bg-[#f6f6f6] rounded-[8px] px-3 py-2">
+            You have read-only access to tasks.
+          </div>
+        )}
+        <div className="col-span-2"><FormRow label="Task Title *"><FormInput placeholder="What needs to be done?" value={form.title} onChange={(v) => set("title", v)} disabled={!canWrite} /></FormRow></div>
+        <div className="col-span-2"><FormRow label="Description"><FormTextarea placeholder="Details, checklist, context…" value={form.description} onChange={(v) => set("description", v)} disabled={!canWrite} /></FormRow></div>
+        <FormRow label="Goal / Objective"><FormInput placeholder="e.g. OT Readiness" value={form.goal} onChange={(v) => set("goal", v)} disabled={!canWrite} /></FormRow>
+        <FormRow label="Assign To *"><FormSelect placeholder="Select staff" value={form.assigneeId} onChange={(v) => set("assigneeId", v)} options={staff.map((s) => ({ value: String(s.id), label: `${s.name} — ${s.role}` }))} disabled={!canWrite} /></FormRow>
+        <FormRow label="Priority"><FormSelect value={form.priority} onChange={(v) => set("priority", v)} options={PRIORITIES.map((p) => ({ value: p, label: p }))} disabled={!canWrite} /></FormRow>
+        <FormRow label="Due Date"><FormInput type="date" value={form.dueDate} onChange={(v) => set("dueDate", v)} disabled={!canWrite} /></FormRow>
         {task && (
-          <FormRow label="Status"><FormSelect value={form.status} onChange={(v) => set("status", v)} options={STATUSES.map((s) => ({ value: s, label: s }))} /></FormRow>
+          <FormRow label="Status"><FormSelect value={form.status} onChange={(v) => set("status", v)} options={STATUSES.map((s) => ({ value: s, label: s }))} disabled={!canWrite} /></FormRow>
         )}
         {task && (
           <div className="col-span-2 text-[12px] font-light text-[#57575f] border-t border-[#f0f0f0] pt-3">
@@ -199,6 +214,8 @@ function TaskModal({
 }
 
 export default function TasksPage() {
+  const { can } = useAuth();
+  const canWrite = can("tasks", "write");
   const { items: tasks, reload } = useList<TaskDTO>("/tasks", { all: true });
   const { items: staff } = useList<StaffDTO>("/staff", { all: true });
   const { run, loading } = useMutation();
@@ -231,6 +248,7 @@ export default function TasksPage() {
           key={modal.task?.id ?? "new"}
           task={modal.task}
           staff={staff}
+          canWrite={canWrite}
           onClose={() => setModal({ open: false, task: null })}
           onSaved={reload}
           onDelete={(t) => setDeleting(t)}
@@ -251,7 +269,7 @@ export default function TasksPage() {
         title="Task Board"
         subtitle="Set goals and assign tasks to staff — track them from To Do to Done."
         stats={[{ icon: ClipboardList, value: `${openCount}`, label: "Open Tasks" }]}
-        action={{ label: "New Task", icon: Plus, onClick: () => setModal({ open: true, task: null }) }}
+        action={canWrite ? { label: "New Task", icon: Plus, onClick: () => setModal({ open: true, task: null }) } : undefined}
         dateRange={false}
       />
 
@@ -277,14 +295,14 @@ export default function TasksPage() {
               return (
                 <div
                   key={status}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(status); }}
-                  onDragLeave={() => setDragOver((s) => (s === status ? null : s))}
-                  onDrop={(e) => {
+                  onDragOver={canWrite ? (e) => { e.preventDefault(); setDragOver(status); } : undefined}
+                  onDragLeave={canWrite ? () => setDragOver((s) => (s === status ? null : s)) : undefined}
+                  onDrop={canWrite ? (e) => {
                     e.preventDefault();
                     const id = Number(e.dataTransfer.getData("text/task-id"));
                     setDragOver(null);
                     if (id) moveTask(id, status);
-                  }}
+                  } : undefined}
                   className={`rounded-[12px] p-3 min-h-[400px] transition-colors ${
                     dragOver === status ? "bg-[#e8f7f7]" : "bg-[#f7f7f7]"
                   }`}
@@ -305,6 +323,7 @@ export default function TasksPage() {
                         onDelete={(task) => setDeleting(task)}
                         onOpen={(task) => setModal({ open: true, task })}
                         draggable
+                        canWrite={canWrite}
                       />
                     ))}
                     {list.length === 0 && (
@@ -340,9 +359,10 @@ export default function TasksPage() {
                 <span className="text-[12px] text-[#57575f]">{formatDate(t.dueDate)}</span>
                 <select
                   value={t.status}
+                  disabled={!canWrite}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => moveTask(t.id, e.target.value as TaskStatus)}
-                  className="text-[12px] text-[#11111c] border border-[#dedee1] rounded-[8px] px-2 py-1 outline-none focus:border-[#009598] bg-white w-fit"
+                  className="text-[12px] text-[#11111c] border border-[#dedee1] rounded-[8px] px-2 py-1 outline-none focus:border-[#009598] bg-white w-fit disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>

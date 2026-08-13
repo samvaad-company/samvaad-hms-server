@@ -15,7 +15,7 @@ import { type Session } from "@/server/auth/session";
 export interface CollectionConfig<TDto> {
   resource: Resource;
   listConfig: ListParamConfig;
-  list: (options: QueryOptions) => Promise<{ rows: TDto[]; total: number }>;
+  list: (options: QueryOptions, actor: Session) => Promise<{ rows: TDto[]; total: number }>;
   create?: (input: unknown, actor: Session) => Promise<TDto>;
 }
 
@@ -39,9 +39,9 @@ function parseId(raw: string): number {
 /** Build the collection-level handlers (GET list, POST create). */
 export function collectionRoute<TDto>(config: CollectionConfig<TDto>) {
   const GET = withRoute(async (req: NextRequest): Promise<NextResponse> => {
-    await requirePermission(config.resource, "read");
+    const session = await requirePermission(config.resource, "read");
     const options = parseListParams(req, config.listConfig);
-    const { rows, total } = await config.list(options);
+    const { rows, total } = await config.list(options, session);
     return paginated(
       rows,
       makePaginationMeta(options.page ?? 1, options.pageSize ?? rows.length, total),

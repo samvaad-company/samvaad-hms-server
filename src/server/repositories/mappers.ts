@@ -9,6 +9,8 @@ import type {
   DoctorDTO,
   PrescriptionDTO,
   PrescriptionItemDTO,
+  PrescriptionTemplateDTO,
+  PrescriptionTemplateItemDTO,
   PharmacyItemDTO,
   LabTestDTO,
   BillDTO,
@@ -84,6 +86,7 @@ import type {
   PharmacySaleRow,
   PharmacySaleItemRow,
   ScribeNoteRow,
+  PrescriptionTemplateRow,
 } from "@/server/db/tables";
 import type {
   Gender,
@@ -242,6 +245,19 @@ export function toPrescriptionDTO(
     patientId: r.patient_id,
     doctorId: r.doctor_id,
     items: items.map(toPrescriptionItemDTO),
+  };
+}
+
+export function toPrescriptionTemplateDTO(
+  r: PrescriptionTemplateRow,
+): PrescriptionTemplateDTO {
+  return {
+    id: r.id,
+    doctorId: r.doctor_id,
+    name: r.name,
+    items: Array.isArray(r.items) ? (r.items as PrescriptionTemplateItemDTO[]) : [],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 

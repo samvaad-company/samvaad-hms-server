@@ -20,6 +20,7 @@ import {
 } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 import { toPrescriptionDTO, toLabDTO } from "@/server/repositories/mappers";
 import { mobileRule, dobRule, optionalMobileRule } from "@/server/lib/field-rules";
 
@@ -65,8 +66,8 @@ export const PATIENT_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listPatients(options: QueryOptions) {
-  return patientsRepo.list(options);
+export async function listPatients(options: QueryOptions, actor: Session) {
+  return patientsRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
 }
 
 export async function getPatient(id: number) {

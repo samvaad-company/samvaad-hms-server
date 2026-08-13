@@ -92,6 +92,25 @@ export interface PrescriptionDTO extends Prescription {
   items: PrescriptionItemDTO[];
 }
 
+export interface PrescriptionTemplateItemDTO {
+  medicineId: number | null;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+}
+
+/** A doctor's personal "quick fill" prescription template. */
+export interface PrescriptionTemplateDTO {
+  id: number;
+  doctorId: number;
+  name: string;
+  items: PrescriptionTemplateItemDTO[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DoctorDTO extends Doctor {
   departmentId: number | null;
 }

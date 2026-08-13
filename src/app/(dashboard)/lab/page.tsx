@@ -141,90 +141,77 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
   }
 
   return (
-    <div className="p-5 grid grid-cols-3 gap-5" style={{ height: 580 }}>
-      {/* Left: Form */}
-      <div className="col-span-2 flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *">
-            <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
-          </FormRow>
-          <FormRow label="Requesting Doctor">
-            <FormInput placeholder="Doctor name or OPD reference" value={requestedBy} onChange={setRequestedBy} />
-          </FormRow>
-          <FormRow label="Sample Collection Date">
-            <input
-              type="date"
-              value={collectionDate}
-              min={todayIso()}
-              onChange={(e) => setCollectionDate(e.target.value)}
-              className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
-            />
-          </FormRow>
-          <FormRow label="Priority">
-            <FormSelect placeholder="Select priority" value={priority} onChange={setPriority}
-              options={LAB_PRIORITY_OPTS} />
-          </FormRow>
-          <FormRow label="Discount (₹)">
-            <FormInput type="number" placeholder="0" value={discount} onChange={setDiscount} />
-          </FormRow>
-        </div>
-
-        {/* Test search */}
-        <FormRow label="Add Tests">
-          <div className="relative">
-            <FlaskConical size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57575f]" />
-            <input
-              placeholder="Search tests by name or category..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[36px] pr-[14px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] transition-colors"
-            />
-          </div>
+    <div className="p-5 flex flex-col gap-4" style={{ height: 580 }}>
+      <div className="grid grid-cols-2 gap-4">
+        <FormRow label="Patient *">
+          <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
         </FormRow>
-
-        {/* Test list */}
-        <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 200 }}>
-          {filtered.map(test => (
-            <label key={test.name} className="flex items-center gap-3 p-3 border border-[#dedee1] rounded-[8px] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
-              <input
-                type="checkbox"
-                checked={selectedTests.includes(test.name)}
-                onChange={e => setSelectedTests(prev => e.target.checked ? [...prev, test.name] : prev.filter(t => t !== test.name))}
-                className="w-4 h-4 accent-[#009598]"
-              />
-              <div>
-                <span className="text-[14px] font-normal text-[#11111c]">{test.name}</span>
-                <span className="text-[11px] font-light text-[#57575f] ml-2">{test.category}</span>
-              </div>
-            </label>
-          ))}
-        </div>
+        <FormRow label="Requesting Doctor">
+          <FormInput placeholder="Doctor name or OPD reference" value={requestedBy} onChange={setRequestedBy} />
+        </FormRow>
+        <FormRow label="Sample Collection Date">
+          <input
+            type="date"
+            value={collectionDate}
+            min={todayIso()}
+            onChange={(e) => setCollectionDate(e.target.value)}
+            className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+          />
+        </FormRow>
+        <FormRow label="Priority">
+          <FormSelect placeholder="Select priority" value={priority} onChange={setPriority}
+            options={LAB_PRIORITY_OPTS} />
+        </FormRow>
+        <FormRow label="Discount (₹)">
+          <FormInput type="number" placeholder="0" value={discount} onChange={setDiscount} />
+        </FormRow>
       </div>
 
-      {/* Right: Summary */}
-      <div className="border border-[#dedee1] rounded-[10px] p-4 flex flex-col gap-3 h-fit">
-        <h3 className="text-[14px] font-medium text-[#11111c]">Order Summary</h3>
-        {selectedTests.length === 0 ? (
-          <p className="text-[13px] font-light text-[#57575f]">No tests selected</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {COMMON_TESTS.filter(t => selectedTests.includes(t.name)).map(t => (
-              <div key={t.name} className="flex justify-between text-[13px]">
-                <span className="text-[#11111c] font-normal">{t.name}</span>
-                <span className="text-[#57575f]">₹{t.price}</span>
-              </div>
-            ))}
-            <div className="border-t border-[#dedee1] pt-2 flex justify-between">
-              <span className="text-[14px] font-medium text-[#11111c]">Total</span>
-              <span className="text-[14px] font-medium text-[#009598]">₹{total.toLocaleString("en-IN")}</span>
+      {/* Test search */}
+      <FormRow label="Add Tests">
+        <div className="relative">
+          <FlaskConical size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57575f]" />
+          <input
+            placeholder="Search tests by name or category..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[36px] pr-[14px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] transition-colors"
+          />
+        </div>
+      </FormRow>
+
+      {/* Test list */}
+      <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+        {filtered.map(test => (
+          <label key={test.name} className="flex items-center gap-3 p-3 border border-[#dedee1] rounded-[8px] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
+            <input
+              type="checkbox"
+              checked={selectedTests.includes(test.name)}
+              onChange={e => setSelectedTests(prev => e.target.checked ? [...prev, test.name] : prev.filter(t => t !== test.name))}
+              className="w-4 h-4 accent-[#009598]"
+            />
+            <div>
+              <span className="text-[14px] font-normal text-[#11111c]">{test.name}</span>
+              <span className="text-[11px] font-light text-[#57575f] ml-2">{test.category}</span>
             </div>
-          </div>
-        )}
-        <button onClick={bookTests} disabled={loading || selectedTests.length === 0 || !patientId}
-          className={`w-full text-[14px] font-normal py-[10px] rounded-full transition-colors ${selectedTests.length > 0 && patientId ? "bg-[#009598] text-white hover:bg-[#007f82]" : "bg-[#f0f0f0] text-[#57575f] cursor-not-allowed"}`}>
-          {loading ? "Booking…" : "Book Tests"}
-        </button>
-        {error && <div className="text-[12px] text-[#ff0004]">{error.message}</div>}
+          </label>
+        ))}
+      </div>
+
+      {/* Footer: selection total + submit */}
+      <div className="flex items-center justify-between border-t border-[#dedee1] pt-4 shrink-0">
+        <span className="text-[13px] font-normal text-[#57575f]">
+          {selectedTests.length > 0
+            ? `${selectedTests.length} test${selectedTests.length > 1 ? "s" : ""} selected · ₹${total.toLocaleString("en-IN")}`
+            : "No tests selected"}
+        </span>
+        <div className="flex items-center gap-3">
+          {error && <span className="text-[12px] text-[#ff0004]">{error.message}</span>}
+          <button onClick={bookTests} disabled={loading || selectedTests.length === 0 || !patientId}
+            className={`text-[14px] font-normal px-6 py-[10px] rounded-full transition-colors ${selectedTests.length > 0 && patientId ? "bg-[#009598] text-white hover:bg-[#007f82]" : "bg-[#f0f0f0] text-[#57575f] cursor-not-allowed"}`}>
+            {loading ? "Booking…" : "Book Tests"}
+          </button>
+        </div>
       </div>
     </div>
   );

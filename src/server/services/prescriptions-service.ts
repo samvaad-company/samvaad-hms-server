@@ -19,6 +19,7 @@ import { validate, validatePartial } from "@/server/lib/validation";
 import { computePharmacyStatus, displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 
 interface ItemInput {
   medicineId?: number;
@@ -46,8 +47,8 @@ export const RX_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listPrescriptions(options: QueryOptions) {
-  return prescriptionsRepo.list(options);
+export async function listPrescriptions(options: QueryOptions, actor: Session) {
+  return prescriptionsRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
 }
 
 async function loadItems(prescriptionId: number): Promise<PrescriptionItemRow[]> {
