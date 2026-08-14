@@ -8,7 +8,9 @@ import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
+import Link from "next/link";
 import type { PatientDTO, DoctorDTO } from "@/types/api";
 import { Check, Clock, Loader2, UserPlus, Users } from "lucide-react";
 import { todayIso } from "@/lib/validators";
@@ -49,6 +51,7 @@ function isSlotAvailable(dateStr: string, label: string): boolean {
 
 export default function NewAppointmentPage() {
   const router = useRouter();
+  const { can } = useAuth();
   useBreadcrumb("/appointments", "Appointments", "Book Appointment");
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -129,6 +132,16 @@ export default function NewAppointmentPage() {
       });
     });
     router.push("/appointments");
+  }
+
+  if (!can("appointments", "write")) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">
+          You don&apos;t have permission to book appointments. <Link href="/appointments" className="text-[#009598] hover:underline">Back to Appointments</Link>
+        </p>
+      </div>
+    );
   }
 
   return (

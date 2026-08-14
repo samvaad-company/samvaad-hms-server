@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Stethoscope, Plus, Phone } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { DoctorDTO } from "@/types/api";
@@ -62,6 +63,10 @@ const DEPT_OPTS = ["OPD","Paediatrics","Cardiology","Neurology","Ortho","Skin","
 const STATUS_OPTS = [{ value: "Active", label: "Active" }, { value: "In OPD", label: "In OPD" }, { value: "On Leave", label: "On Leave" }];
 
 export default function DoctorsPage() {
+  const { can, user } = useAuth();
+  const canWrite = can("doctors", "write");
+  // Front-desk staff don't need the per-doctor personal dashboard shortcut.
+  const showOpenDashboard = user?.role !== "Receptionist";
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -125,7 +130,7 @@ export default function DoctorsPage() {
         title="Doctors"
         subtitle="Manage doctor profiles, specialties, schedules, and daily patient load."
         stats={[{ icon: Stethoscope, value: `${visible.length}`, label: "Doctors" }]}
-        action={{ label: "Add Doctor", icon: Plus, onClick: () => setShowModal(true) }}
+        action={canWrite ? { label: "Add Doctor", icon: Plus, onClick: () => setShowModal(true) } : undefined}
         dateRange={false}
       />
 
@@ -145,11 +150,13 @@ export default function DoctorsPage() {
             ) : visible.map((r) => (
               <DoctorRow key={r.id} row={r} actions={[
                 { label: "View details", onClick: () => router.push(`/doctors/${r.id}`) },
-                { label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) },
-                { label: "Mark Active", disabled: r.status === "Active", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "Active" })) },
-                { label: "Mark In OPD", disabled: r.status === "In OPD", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "In OPD" })) },
-                { label: "Mark On Leave", disabled: r.status === "On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "On Leave" })) },
-                { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                ...(showOpenDashboard ? [{ label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) }] : []),
+                ...(canWrite ? [
+                  { label: "Mark Active", disabled: r.status === "Active", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "Active" })) },
+                  { label: "Mark In OPD", disabled: r.status === "In OPD", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "In OPD" })) },
+                  { label: "Mark On Leave", disabled: r.status === "On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "On Leave" })) },
+                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                ] : []),
               ]} />
             ))}
           </DataTable>

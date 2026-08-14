@@ -17,6 +17,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { Bill } from "@/types";
 
 // ─── All Bills ────────────────────────────────────────────────────────────────
@@ -126,7 +127,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
       {/* Patient & type */}
       <div className="grid grid-cols-4 gap-4">
         <FormRow label="Patient *">
-          <FormSelect placeholder="Search patient" value={patientId} onChange={setPatientId} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+          <SearchSelect
+            placeholder="Search patient by name, ID or phone…"
+            value={patientId}
+            onChange={setPatientId}
+            options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+          />
         </FormRow>
         <FormRow label="Bill Type *">
           <FormSelect placeholder="Select type" value={billType} onChange={setBillType} options={["OPD", "IPD", "Lab", "Pharmacy", "Radiology", "Blood", "Ambulance"].map(t => ({ value: t, label: t === "Blood" ? "Blood Issue" : t }))} />

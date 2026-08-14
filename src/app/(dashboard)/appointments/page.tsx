@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Calendar, Plus, Download, MonitorPlay } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { AppointmentDTO, OpdRecordDTO, DoctorDTO } from "@/types/api";
@@ -63,7 +64,7 @@ function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction
 
 const QUEUE_COLS = "90px minmax(160px,1.4fr) minmax(150px,1.2fr) 110px 110px 110px minmax(200px,1fr)";
 
-function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onCallNext: (id: number) => void }) {
+function QueueView({ opdRecords, onCallNext, canCallNext }: { opdRecords: OpdRecordDTO[]; onCallNext: (id: number) => void; canCallNext: boolean }) {
   const waiting = opdRecords.filter(r => r.status === "Waiting").length;
   const inConsult = opdRecords.filter(r => r.status === "In Consultation").length;
   const completed = opdRecords.filter(r => r.status === "Completed").length;
@@ -126,7 +127,7 @@ function QueueView({ opdRecords, onCallNext }: { opdRecords: OpdRecordDTO[]; onC
               <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.checkInTime}</span>
               <div className="flex items-center gap-2 min-w-0">
                 <StatusBadge status={row.status} />
-                {row.status === "Waiting" && (
+                {row.status === "Waiting" && canCallNext && (
                   <button
                     onClick={() => onCallNext(row.id)}
                     className="text-[11px] font-medium text-white bg-[#009598] px-3 py-[4px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
@@ -262,6 +263,9 @@ function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appoint
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AppointmentsPage() {
+  const { can } = useAuth();
+  const canWrite = can("appointments", "write");
+  const canOpdWrite = can("opd", "write");
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -330,7 +334,7 @@ export default function AppointmentsPage() {
         title="Appointments"
         subtitle="Manage appointments, track the live OPD queue, and view doctor schedules."
         stats={[{ icon: Calendar, value: `${visible.length}`, label: "Appointments" }]}
-        action={{ label: "New Appointment", icon: Plus, onClick: () => router.push("/appointments/new") }}
+        action={canWrite ? { label: "New Appointment", icon: Plus, onClick: () => router.push("/appointments/new") } : undefined}
         range={range}
         onRangeChange={setRange}
       />
@@ -357,16 +361,18 @@ export default function AppointmentsPage() {
                 ) : visible.map(r => (
                   <AppointmentRow key={r.id} row={r} actions={[
                     { label: "View details", onClick: () => router.push(`/appointments/${r.id}`) },
-                    { label: "Check in to OPD", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => void checkIn(r) },
-                    { label: "Mark Completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Completed" })) },
-                    { label: "Cancel appointment", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Cancelled" })) },
-                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+                    ...(canWrite ? [
+                      { label: "Check in to OPD", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => void checkIn(r) },
+                      { label: "Mark Completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Completed" })) },
+                      { label: "Cancel appointment", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Cancelled" })) },
+                      { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+                    ] : []),
                   ]} />
                 ))}
               </DataTable>
             </>
           )}
-          {tab === "queue"    && <QueueView opdRecords={opdRecords} onCallNext={callNext} />}
+          {tab === "queue"    && <QueueView opdRecords={opdRecords} onCallNext={callNext} canCallNext={canOpdWrite} />}
           {tab === "schedule" && <ScheduleView doctors={doctors} appointments={appointments} />}
         </div>
       </div>

@@ -16,6 +16,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import Link from "next/link";
 import type { OtRecord } from "@/types";
 
@@ -122,7 +123,14 @@ export default function OtPage() {
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Patient *">
+            <SearchSelect
+              placeholder="Search patient by name, ID or phone…"
+              value={form.patientId}
+              onChange={v => set("patientId", v)}
+              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+            />
+          </FormRow>
           <FormRow label="Procedure *"><FormInput placeholder="e.g. Appendectomy, CABG..." value={form.procedure} onChange={v => set("procedure", v)} /></FormRow>
           <FormRow label="OT Room *"><FormSelect placeholder="Select OT" value={form.otRoom} onChange={v => set("otRoom", v)} options={OT_ROOMS} /></FormRow>
           <FormRow label="Surgeon *"><FormSelect placeholder="Select surgeon" value={form.surgeonId} onChange={v => set("surgeonId", v)} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} /></FormRow>

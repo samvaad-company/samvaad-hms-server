@@ -7,6 +7,7 @@ import { FlaskConical, Plus, Upload, Eye } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId, formatDate, todayIso } from "@/lib/dates";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { LabTestDTO, PatientDTO, DocumentDTO } from "@/types/api";
@@ -291,6 +292,8 @@ function ReportsView({ labTests }: { labTests: LabTestDTO[] }) {
 const LAB_FILTER_MAP: Record<string, string> = { "SampleCollected": "Sample Collected", "ReportReady": "Report Ready" };
 
 export default function LabPage() {
+  const { can } = useAuth();
+  const canWrite = can("lab", "write");
   const [tab, setTab] = useState("tests");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -302,7 +305,7 @@ export default function LabPage() {
 
   const TABS = [
     { id: "tests",   label: "All Tests",    count: labTests.length },
-    { id: "booking", label: "New Booking" },
+    ...(canWrite ? [{ id: "booking", label: "New Booking" }] : []),
     { id: "reports", label: "Reports",      count: labTests.filter(t => t.reportStatus === "Ready").length },
   ];
 
@@ -320,7 +323,7 @@ export default function LabPage() {
         title="Laboratory"
         subtitle="Manage lab tests, sample collection, report generation, and test bookings."
         stats={[{ icon: FlaskConical, value: `${visible.filter(t => t.status !== "Report Ready").length}`, label: "Active Tests" }]}
-        action={{ label: "Order Test", icon: Plus, onClick: () => setTab("booking") }}
+        action={canWrite ? { label: "Order Test", icon: Plus, onClick: () => setTab("booking") } : undefined}
         range={range}
         onRangeChange={setRange}
       />
@@ -336,10 +339,12 @@ export default function LabPage() {
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No tests found.</div>
                 ) : visible.map(r => (
                   <LabRow key={r.id} row={r} actions={[
-                    { label: "Collect sample", disabled: r.sampleStatus === "Collected", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { sampleStatus: "Collected" })) },
-                    { label: "Mark report ready", disabled: r.reportStatus === "Ready", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { reportStatus: "Ready" })) },
+                    ...(canWrite ? [
+                      { label: "Collect sample", disabled: r.sampleStatus === "Collected", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { sampleStatus: "Collected" })) },
+                      { label: "Mark report ready", disabled: r.reportStatus === "Ready", onClick: () => mutate(() => api.patch(`/lab/${r.id}`, { reportStatus: "Ready" })) },
+                    ] : []),
                     { label: "View report", disabled: r.reportStatus !== "Ready", onClick: () => router.push(`/lab/${r.id}`) },
-                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) },
+                    ...(canWrite ? [{ label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) }] : []),
                   ]} />
                 ))}
               </DataTable>

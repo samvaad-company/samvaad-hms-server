@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { Ambulance as AmbulanceIcon, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { AmbulanceDTO, AmbulanceCallDTO } from "@/types/api";
@@ -82,6 +83,8 @@ function FleetRow({ row, actions }: { row: AmbulanceDTO; actions: RowAction[] })
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AmbulancePage() {
+  const { can } = useAuth();
+  const canWrite = can("ambulance", "write");
   const [tab, setTab] = useState("calls");
   const [callFilter, setCallFilter] = useState("All");
   const [callSearch, setCallSearch] = useState("");
@@ -188,7 +191,7 @@ export default function AmbulancePage() {
         title="Ambulance"
         subtitle="Dispatch ambulance calls, manage the vehicle fleet, and bill trips."
         stats={[{ icon: AmbulanceIcon, value: `${activeCalls}`, label: "Active Calls" }]}
-        action={{ label: "New Call", icon: Plus, onClick: () => setModal("call") }}
+        action={canWrite ? { label: "New Call", icon: Plus, onClick: () => setModal("call") } : undefined}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -198,16 +201,16 @@ export default function AmbulancePage() {
             <>
               <FilterBar filters={CALL_FILTERS} searchPlaceholder="Search by patient, vehicle, or pickup..."
                 activeFilter={callFilter} onFilterChange={setCallFilter} searchQuery={callSearch} onSearchChange={setCallSearch}
-                action={{ label: "New Call", icon: Plus, onClick: () => setModal("call") }} />
+                action={canWrite ? { label: "New Call", icon: Plus, onClick: () => setModal("call") } : undefined} />
               <DataTable columns={CALL_COLUMNS} minWidth={1250}>
                 {visibleCalls.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No calls logged.</div>
                 ) : visibleCalls.map(c => (
-                  <CallRow key={c.id} row={c} actions={[
+                  <CallRow key={c.id} row={c} actions={canWrite ? [
                     { label: "Mark Completed", disabled: c.status !== "Dispatched", onClick: () => callActions.mutate(() => api.patch(`/ambulance/calls/${c.id}`, { status: "Completed" })) },
                     { label: "Cancel call", disabled: c.status !== "Dispatched", onClick: () => callActions.mutate(() => api.patch(`/ambulance/calls/${c.id}`, { status: "Cancelled" })) },
                     { label: "Delete", danger: true, onClick: () => callActions.remove(c.id, `call for ${c.patientName}`) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>
@@ -217,16 +220,16 @@ export default function AmbulancePage() {
             <>
               <FilterBar filters={FLEET_FILTERS} searchPlaceholder="Search by vehicle number, model, or driver..."
                 activeFilter={fleetFilter} onFilterChange={setFleetFilter} searchQuery={fleetSearch} onSearchChange={setFleetSearch}
-                action={{ label: "Add Vehicle", icon: Plus, onClick: () => setModal("vehicle") }} />
+                action={canWrite ? { label: "Add Vehicle", icon: Plus, onClick: () => setModal("vehicle") } : undefined} />
               <DataTable columns={FLEET_COLUMNS} minWidth={1000}>
                 {visibleVehicles.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No vehicles in the fleet.</div>
                 ) : visibleVehicles.map(v => (
-                  <FleetRow key={v.id} row={v} actions={[
+                  <FleetRow key={v.id} row={v} actions={canWrite ? [
                     { label: "Mark Available", disabled: v.status === "Available", onClick: () => fleetActions.mutate(() => api.patch(`/ambulance/vehicles/${v.id}`, { status: "Available" })) },
                     { label: "Send to Maintenance", disabled: v.status === "Maintenance", onClick: () => fleetActions.mutate(() => api.patch(`/ambulance/vehicles/${v.id}`, { status: "Maintenance" })) },
                     { label: "Delete", danger: true, onClick: () => fleetActions.remove(v.id, v.vehicleNumber) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
@@ -70,7 +71,12 @@ export default function NewOTPage() {
               <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Patient & Procedure</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormRow label="Patient *">
-                  <FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+                  <SearchSelect
+                    placeholder="Search patient by name, ID or phone…"
+                    value={form.patientId}
+                    onChange={v => set("patientId", v)}
+                    options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+                  />
                 </FormRow>
                 <FormRow label="Procedure / Surgery Name *">
                   <FormInput placeholder="e.g. Appendectomy, CABG, TKR..." value={form.procedure} onChange={v => set("procedure", v)} />

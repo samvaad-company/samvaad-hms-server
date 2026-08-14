@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { AppointmentDTO, DoctorDTO, PrescriptionDTO, PatientDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -58,6 +59,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: s
 export default function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { can } = useAuth();
+  const canWrite = can("appointments", "write");
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
   useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${formatDate(appt.date)}` : "Appointment");
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -168,7 +171,7 @@ export default function AppointmentDetailPage() {
         </div>
         <StatusBadge status={appt.status} />
         <div className="flex items-center gap-2">
-          {isActive && (
+          {canWrite && isActive && (
             <>
               <button onClick={() => setStatus("Completed")} disabled={acting} className={btnPrimary}>
                 <CheckCircle2 size={15} /> Mark Completed
@@ -181,7 +184,7 @@ export default function AppointmentDetailPage() {
               </button>
             </>
           )}
-          {appt.status === "Completed" && (
+          {canWrite && appt.status === "Completed" && (
             <>
               <button onClick={openFollowup} disabled={acting} className={btnPrimary}>
                 <CalendarPlus size={15} /> Book Follow-up
@@ -191,7 +194,7 @@ export default function AppointmentDetailPage() {
               </button>
             </>
           )}
-          {appt.status === "Cancelled" && (
+          {canWrite && appt.status === "Cancelled" && (
             <>
               <button onClick={openReschedule} disabled={acting} className={btnPrimary}>
                 <CalendarClock size={15} /> Reschedule

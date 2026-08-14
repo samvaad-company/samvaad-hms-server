@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { tw } from "@/lib/design-system";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { Modal } from "@/components/shared/Modal";
+import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import type { DepartmentDTO, AdminUserDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Plus, Trash2, Edit2, Settings2, Save, Loader2 } from "lucide-react";
@@ -177,12 +180,50 @@ const ROLE_CLR: Record<string, string> = {
 
 const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner"];
 
+function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
+  const { run, loading, error } = useMutation();
+  const [role, setRole] = useState(user.role);
+
+  async function save() {
+    if (role === user.role) { onClose(); return; }
+    await run(() => api.patch(`/admin/users/${user.id}`, { role }));
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Change Role — ${user.name}`}
+      width={420}
+      footer={
+        <>
+          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={save} disabled={loading}
+            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? "Saving…" : "Save Role"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <FormRow label="Role">
+          <FormSelect value={role} onChange={setRole} options={ROLE_OPTIONS.map(r => ({ value: r, label: r }))} />
+        </FormRow>
+        {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+      </div>
+    </Modal>
+  );
+}
+
 function UsersView() {
   const { items: adminUsers, reload } = useList<AdminUserDTO>("/admin/users");
   const { items: departments } = useList<DepartmentDTO>("/departments");
   const { run, loading, error } = useMutation();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
+  const [changingRole, setChangingRole] = useState<AdminUserDTO | null>(null);
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -246,38 +287,56 @@ function UsersView() {
 
       {/* Users table */}
       <div className="overflow-y-auto flex-1">
-        <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 900 }}>
-          {[{ l: "Name", x: 20 }, { l: "Role", x: 250 }, { l: "Email", x: 440 }, { l: "Last Login", x: 700 }, { l: "Status", x: 880 }].map(c => (
+        <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 980 }}>
+          {[{ l: "Name", x: 20 }, { l: "Role", x: 250 }, { l: "Email", x: 440 }, { l: "Last Login", x: 700 }, { l: "Status", x: 880 }, { l: "Actions", x: 940 }].map(c => (
             <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
           ))}
         </div>
-        {adminUsers.map(u => (
-          <div key={u.id} className="relative flex items-center h-[60px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 900 }}>
-            <div className="absolute flex flex-col" style={{ left: 20 }}>
-              <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{u.name}</span>
-              <span className="text-[11px] font-light text-[#57575f]">{u.department}</span>
+        {adminUsers.map(u => {
+          const actions: RowAction[] = [
+            { label: "Change Role", onClick: () => setChangingRole(u) },
+          ];
+          return (
+            <div key={u.id} className="relative flex items-center h-[60px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 980 }}>
+              <div className="absolute flex flex-col" style={{ left: 20 }}>
+                <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{u.name}</span>
+                <span className="text-[11px] font-light text-[#57575f]">{u.department}</span>
+              </div>
+              <span className={`absolute inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${ROLE_CLR[u.role] ?? "bg-[#f0f0f0] text-[#57575f]"}`} style={{ left: 250 }}>{u.role}</span>
+              <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 440 }}>{u.email}</span>
+              <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 700 }}>{u.lastLogin}</span>
+              <div className="absolute" style={{ left: 880 }}><StatusBadge status={u.status} /></div>
+              <div className="absolute" style={{ left: 940 }}><RowMenu actions={actions} /></div>
             </div>
-            <span className={`absolute inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${ROLE_CLR[u.role] ?? "bg-[#f0f0f0] text-[#57575f]"}`} style={{ left: 250 }}>{u.role}</span>
-            <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 440 }}>{u.email}</span>
-            <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 700 }}>{u.lastLogin}</span>
-            <div className="absolute" style={{ left: 880 }}><StatusBadge status={u.status} /></div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {changingRole && (
+        <ChangeRoleModal user={changingRole} onClose={() => setChangingRole(null)} onSaved={reload} />
+      )}
     </div>
   );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
+const ALL_TABS = [
   { id: "settings", label: "Settings" },
   { id: "master",   label: "Master Data" },
   { id: "users",    label: "Users" },
 ];
 
 export default function AdminPage() {
+  const { user } = useAuth();
+  // IT Admin manages user access only — hospital settings and master data
+  // stay Super Admin territory.
+  const isItAdmin = user?.role === "IT Admin";
+  const TABS = isItAdmin ? ALL_TABS.filter(t => t.id === "users") : ALL_TABS;
   const [tab, setTab] = useState("settings");
+  // `user` loads asynchronously, so `isItAdmin` isn't known on the very first
+  // render — derive the effective tab rather than storing a guess in state.
+  const activeTab = isItAdmin ? "users" : tab;
 
   return (
     <>
@@ -288,16 +347,18 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-[26px] font-medium text-[#11111c] leading-8">Admin Panel</h1>
-            <p className="text-[14px] font-light text-[#57575f]">Manage hospital settings, master data, and user access.</p>
+            <p className="text-[14px] font-light text-[#57575f]">
+              {isItAdmin ? "Manage user access and roles." : "Manage hospital settings, master data, and user access."}
+            </p>
           </div>
         </div>
       </div>
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
-          <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-          {tab === "settings" && <SettingsView />}
-          {tab === "master"   && <MasterDataView />}
-          {tab === "users"    && <UsersView />}
+          <TabBar tabs={TABS} activeTab={activeTab} onTabChange={setTab} />
+          {activeTab === "settings" && <SettingsView />}
+          {activeTab === "master"   && <MasterDataView />}
+          {activeTab === "users"    && <UsersView />}
         </div>
       </div>
     </>

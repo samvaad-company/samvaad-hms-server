@@ -50,7 +50,9 @@ export function DriverPanel() {
           </div>
         </WorklistCard>
       </div>
-      <MyTasksCard />
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <MyTasksCard />
+      </div>
     </>
   );
 }

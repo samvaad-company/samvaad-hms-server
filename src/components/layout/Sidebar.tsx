@@ -39,6 +39,12 @@ interface NavItem {
   icon: LucideIcon;
   /** RBAC resource gating this item; omit for always-visible items. */
   resource?: Resource;
+  /**
+   * Roles that have API-level access to `resource` for some other purpose
+   * (e.g. populating a picker elsewhere) but shouldn't see this as its own
+   * nav destination.
+   */
+  hiddenForRoles?: string[];
 }
 
 interface NavGroup {
@@ -69,6 +75,7 @@ const groups: NavGroup[] = [
       { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy" },
       { href: "/lab",           label: "Lab",           icon: FlaskConical, resource: "lab" },
       { href: "/radiology",     label: "Radiology",     icon: ScanLine,     resource: "radiology" },
+      { href: "/tasks",         label: "Task Board",    icon: ClipboardList, resource: "tasks" },
     ],
   },
   {
@@ -94,14 +101,13 @@ const groups: NavGroup[] = [
       { href: "/billing",       label: "Billing",          icon: Receipt,     resource: "billing" },
       { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance" },
       { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa" },
+      { href: "/reports",       label: "Reports",          icon: BarChart3,   resource: "reports" },
     ],
   },
   {
     label: "Admin",
     items: [
-      { href: "/tasks",         label: "Task Board",    icon: ClipboardList, resource: "tasks" },
-      { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff" },
-      { href: "/reports",       label: "Reports",       icon: BarChart3, resource: "reports" },
+      { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff", hiddenForRoles: ["Head Nurse"] },
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin" },
     ],
   },
@@ -122,7 +128,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.resource || (user ? can(item.resource) : false),
+        (item) =>
+          (!item.resource || (user ? can(item.resource) : false)) &&
+          !item.hiddenForRoles?.includes(user?.role ?? ""),
       ),
     }))
     .filter((group) => group.items.length > 0);

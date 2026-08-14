@@ -146,7 +146,9 @@ export function DoctorPanel() {
           </div>
         </div>
       </div>
-      <MyTasksCard />
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <MyTasksCard />
+      </div>
     </>
   );
 }

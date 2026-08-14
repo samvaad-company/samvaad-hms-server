@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
 import { Check, Loader2 } from "lucide-react";
@@ -14,6 +16,7 @@ import Link from "next/link";
 
 export default function NewIpdAdmissionPage() {
   const router = useRouter();
+  const { can } = useAuth();
   useBreadcrumb("/ipd", "IPD", "New Admission");
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -47,6 +50,16 @@ export default function NewIpdAdmissionPage() {
     router.push("/ipd");
   }
 
+  if (!can("ipd", "write")) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">
+          You don&apos;t have permission to create admissions. <Link href="/ipd" className="text-[#009598] hover:underline">Back to IPD</Link>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className={`${tw.gutterX} mb-4 pt-3 flex items-center justify-between`}>
@@ -72,7 +85,12 @@ export default function NewIpdAdmissionPage() {
               <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Patient Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormRow label="Patient *">
-                  <FormSelect placeholder="Search patient" options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} value={patientId} onChange={setPatientId} />
+                  <SearchSelect
+                    placeholder="Search patient by name, ID or phone…"
+                    value={patientId}
+                    onChange={setPatientId}
+                    options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+                  />
                 </FormRow>
                 <FormRow label="Admission Date *" error={admissionDate && !dateValid ? "Cannot be in the past" : undefined}>
                   <FormInput type="date" value={admissionDate} onChange={setAdmissionDate} min={todayIso()} error={Boolean(admissionDate) && !dateValid} />

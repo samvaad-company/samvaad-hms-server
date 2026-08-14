@@ -8,9 +8,9 @@ import { useList } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import type { AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Calendar, Clock, Users, UserPlus, MonitorPlay, Activity } from "lucide-react";
+import { Calendar, Clock, Users, MonitorPlay, Activity } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
 
 export function ReceptionistPanel() {
   const { user } = useAuth();
@@ -68,15 +68,13 @@ export function ReceptionistPanel() {
             </WorklistCard>
 
             <QuickLinks links={[
-              { href: "/patients/new",  label: "Register Patient",  description: "New patient registration", icon: UserPlus },
-              { href: "/appointments",  label: "Book Appointment",  description: "Schedule a visit",          icon: Calendar },
-              { href: "/opd",           label: "OPD Desk",          description: "Manage today's queue",      icon: Activity },
+              { href: "/appointments",  label: "View Appointments", description: "Check today's schedule",    icon: Calendar },
+              { href: "/opd",           label: "OPD Desk",          description: "View today's queue",        icon: Activity },
               { href: "/queue-board",   label: "Token Board",       description: "Waiting-room display",      icon: MonitorPlay },
             ]} />
           </div>
         </div>
       </div>
-      <MyTasksCard />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { IpdRecordDTO, IpdNoteDTO, IpdMedicationDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
@@ -30,13 +31,14 @@ const TABS = [
 
 /** Shared timeline for daily notes, doctor rounds and the diet chart. */
 function NotesTab({
-  admissionId, noteType, title, placeholder, searchable,
+  admissionId, noteType, title, placeholder, searchable, readOnly,
 }: {
   admissionId: number;
   noteType: "Daily Note" | "Doctor Round" | "Diet";
   title: string;
   placeholder: string;
   searchable?: boolean;
+  readOnly: boolean;
 }) {
   const { items: notes, reload } = useList<IpdNoteDTO>("/ipd/notes", {
     all: true, admission_id: admissionId, note_type: noteType,
@@ -94,6 +96,7 @@ function NotesTab({
       </div>
 
       {/* Add new entry */}
+      {!readOnly && (
       <div className="border border-[#dedee1] rounded-[10px] p-4">
         {isRounds ? (
           <div className="flex flex-col gap-3">
@@ -131,6 +134,7 @@ function NotesTab({
           </button>
         </div>
       </div>
+      )}
 
       {visible.length === 0 && (
         <p className="text-[13px] font-light text-[#57575f]">
@@ -146,15 +150,17 @@ function NotesTab({
             </span>
             <div className="flex items-center gap-3">
               <span className="text-[12px] font-light text-[#57575f]">By: {n.author}</span>
-              {editingId === n.id ? (
+              {!readOnly && (editingId === n.id ? (
                 <button onClick={() => saveEdit(n.id)} className="text-[12px] text-[#009598] hover:underline">Save</button>
               ) : (
                 <button onClick={() => { setEditingId(n.id); setEditText(n.content); }}
                   className="text-[12px] text-[#57575f] hover:text-[#11111c]">Edit</button>
+              ))}
+              {!readOnly && (
+                <button onClick={() => remove(n.id)} className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors">
+                  <Trash2 size={13} />
+                </button>
               )}
-              <button onClick={() => remove(n.id)} className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors">
-                <Trash2 size={13} />
-              </button>
             </div>
           </div>
           {editingId === n.id ? (
@@ -179,7 +185,7 @@ const MED_STATUS_CLR: Record<string, string> = {
 };
 
 /** Editable medication chart for an admission. */
-function MedicationTab({ admissionId }: { admissionId: number }) {
+function MedicationTab({ admissionId, readOnly }: { admissionId: number; readOnly: boolean }) {
   const { items: meds, reload } = useList<IpdMedicationDTO>("/ipd/medications", {
     all: true, admission_id: admissionId,
   });
@@ -206,6 +212,7 @@ function MedicationTab({ admissionId }: { admissionId: number }) {
     <div className="p-5 flex flex-col gap-4">
       <h3 className="text-[14px] font-medium text-[#11111c]">Medication Chart</h3>
 
+      {!readOnly && (
       <div className="border border-[#dedee1] rounded-[10px] p-4 grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto" }}>
         <input value={form.medicineName} onChange={(e) => set("medicineName", e.target.value)} placeholder="Medicine"
           className="text-[13px] bg-[#f6f6f6] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] focus:bg-white" />
@@ -222,6 +229,7 @@ function MedicationTab({ admissionId }: { admissionId: number }) {
           Add
         </button>
       </div>
+      )}
 
       <div className="border border-[#dedee1] rounded-[10px] overflow-hidden">
         <div className="grid items-center px-4 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
@@ -242,11 +250,13 @@ function MedicationTab({ admissionId }: { admissionId: number }) {
             <span className="text-[12px] text-[#57575f]">{m.lastGivenAt || "—"}</span>
             <select
               value={m.status}
+              disabled={readOnly}
               onChange={(e) => update(m.id, { status: e.target.value })}
-              className={`text-[11px] w-fit rounded-full px-[8px] py-[3px] outline-none border-0 ${MED_STATUS_CLR[m.status] ?? ""}`}
+              className={`text-[11px] w-fit rounded-full px-[8px] py-[3px] outline-none border-0 disabled:opacity-70 ${MED_STATUS_CLR[m.status] ?? ""}`}
             >
               {["Active", "Stopped", "Completed"].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            {!readOnly && (
             <div className="flex items-center gap-2 justify-end">
               <button onClick={() => update(m.id, { markGiven: true })}
                 className="text-[11px] text-[#009598] border border-[#009598] px-2 py-[3px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
@@ -256,6 +266,7 @@ function MedicationTab({ admissionId }: { admissionId: number }) {
                 <Trash2 size={13} />
               </button>
             </div>
+            )}
           </div>
         ))}
       </div>
@@ -264,9 +275,10 @@ function MedicationTab({ admissionId }: { admissionId: number }) {
 }
 
 /** Discharge summary — persists the summary and frees the bed. */
-function DischargeTab({ record, onDischarged }: { record: IpdRecordDTO; onDischarged: () => void }) {
+function DischargeTab({ record, onDischarged, readOnly }: { record: IpdRecordDTO; onDischarged: () => void; readOnly: boolean }) {
   const { run, loading, error } = useMutation();
   const discharged = record.status === "Discharged";
+  const locked = discharged || readOnly;
   const [form, setForm] = useState({
     dischargeDate: todayIso(),
     condition: "",
@@ -305,12 +317,12 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
             value={form.dischargeDate}
             min={toIsoDate(record.admissionDate) || undefined}
             onChange={(e) => set("dischargeDate", e.target.value)}
-            disabled={discharged}
+            disabled={locked}
             className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] outline-none focus:border-[#009598] disabled:opacity-50"
           />
         </FormRow>
         <FormRow label="Condition at Discharge">
-          <FormInput value={form.condition} onChange={v => set("condition", v)} placeholder="Stable / Improved / LAMA" />
+          <FormInput value={form.condition} onChange={v => set("condition", v)} placeholder="Stable / Improved / LAMA" disabled={locked} />
         </FormRow>
       </div>
 
@@ -318,30 +330,34 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
         <textarea
           value={form.summary}
           onChange={(e) => set("summary", e.target.value)}
-          disabled={discharged}
+          disabled={locked}
           placeholder="Course in hospital, procedures, medications on discharge…"
           className="w-full min-h-[120px] text-[13px] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y disabled:opacity-50"
         />
       </FormRow>
 
       <FormRow label="Follow-up Advice">
-        <FormInput value={form.followUp} onChange={v => set("followUp", v)} placeholder="Review after 7 days with reports" />
+        <FormInput value={form.followUp} onChange={v => set("followUp", v)} placeholder="Review after 7 days with reports" disabled={locked} />
       </FormRow>
 
       {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
 
+      {!readOnly && (
       <div className="flex justify-end">
         <button onClick={confirm} disabled={loading || discharged}
           className="text-[14px] text-white bg-[#009598] px-6 py-[10px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
           {discharged ? "Discharged" : loading ? "Discharging…" : "Confirm Discharge"}
         </button>
       </div>
+      )}
     </div>
   );
 }
 
 export default function IpdDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { can } = useAuth();
+  const canWrite = can("ipd", "write");
   const [tab, setTab] = useState("notes");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -409,12 +425,14 @@ export default function IpdDetailPage() {
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               <span className="text-[12px] font-normal text-[#57575f]">Day {days} of admission</span>
-              <button
-                onClick={() => setConfirmOpen(true)}
-                disabled={record.status === "Discharged"}
-                className="text-[12px] font-normal text-[#ff9000] border border-[#ff9000] px-4 py-[6px] rounded-full hover:bg-[#fff2e0] transition-colors disabled:opacity-40">
-                {record.status === "Discharged" ? "Discharged" : "Initiate Discharge"}
-              </button>
+              {canWrite && (
+                <button
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={record.status === "Discharged"}
+                  className="text-[12px] font-normal text-[#ff9000] border border-[#ff9000] px-4 py-[6px] rounded-full hover:bg-[#fff2e0] transition-colors disabled:opacity-40">
+                  {record.status === "Discharged" ? "Discharged" : "Initiate Discharge"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -425,11 +443,11 @@ export default function IpdDetailPage() {
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 500 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
 
-          {tab === "notes"      && <NotesTab admissionId={record.id} noteType="Daily Note" title="Daily Nursing Notes" placeholder="Vitals, intake/output, observations…" />}
-          {tab === "medication" && <MedicationTab admissionId={record.id} />}
-          {tab === "diet"       && <NotesTab admissionId={record.id} noteType="Diet" title="Diet Chart" placeholder="Diet plan for the day — e.g. Diabetic diet, low salt, soft foods…" />}
-          {tab === "rounds"     && <NotesTab admissionId={record.id} noteType="Doctor Round" title="Doctor Rounds" placeholder="Findings, plan, orders…" searchable />}
-          {tab === "discharge"  && <DischargeTab record={record} onDischarged={reload} />}
+          {tab === "notes"      && <NotesTab admissionId={record.id} noteType="Daily Note" title="Daily Nursing Notes" placeholder="Vitals, intake/output, observations…" readOnly={!canWrite} />}
+          {tab === "medication" && <MedicationTab admissionId={record.id} readOnly={!canWrite} />}
+          {tab === "diet"       && <NotesTab admissionId={record.id} noteType="Diet" title="Diet Chart" placeholder="Diet plan for the day — e.g. Diabetic diet, low salt, soft foods…" readOnly={!canWrite} />}
+          {tab === "rounds"     && <NotesTab admissionId={record.id} noteType="Doctor Round" title="Doctor Rounds" placeholder="Findings, plan, orders…" searchable readOnly={!canWrite} />}
+          {tab === "discharge"  && <DischargeTab record={record} onDischarged={reload} readOnly={!canWrite} />}
         </div>
       </div>
     </>

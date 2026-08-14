@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { ShieldCheck, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { ClaimForm } from "@/components/shared/ClaimForm";
@@ -17,6 +18,7 @@ import { DataTable } from "@/components/shared/DataTable";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 
 // ─── TPA Master Tab ───────────────────────────────────────────────────────────
 
@@ -80,6 +82,8 @@ function ClaimRow({ row, actions }: { row: TpaClaimDTO; actions: RowAction[] }) 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TpaPage() {
+  const { can } = useAuth();
+  const canWrite = can("tpa", "write");
   const [claimFormFor, setClaimFormFor] = useState<TpaClaimDTO | null>(null);
   const [tab, setTab] = useState("claims");
   const [tpaSearch, setTpaSearch] = useState("");
@@ -174,7 +178,14 @@ export default function TpaPage() {
         footer={modalFooter(submitClaim, "Submit Claim", !claimForm.tpaId || !claimForm.patientId || !claimForm.claimAmount)}>
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="TPA / Insurer *"><FormSelect placeholder="Select TPA" value={claimForm.tpaId} onChange={v => setClaimForm(f => ({ ...f, tpaId: v }))} options={tpas.filter(t => t.status === "Active").map(t => ({ value: String(t.id), label: t.name }))} /></FormRow>
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={claimForm.patientId} onChange={v => setClaimForm(f => ({ ...f, patientId: v }))} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Patient *">
+            <SearchSelect
+              placeholder="Search patient by name, ID or phone…"
+              value={claimForm.patientId}
+              onChange={v => setClaimForm(f => ({ ...f, patientId: v }))}
+              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+            />
+          </FormRow>
           <FormRow label="Bill Number"><FormInput placeholder="INV-..." value={claimForm.billNumber} onChange={v => setClaimForm(f => ({ ...f, billNumber: v }))} /></FormRow>
           <FormRow label="Claim Amount (₹) *"><FormInput type="number" placeholder="0" value={claimForm.claimAmount} onChange={v => setClaimForm(f => ({ ...f, claimAmount: v }))} /></FormRow>
           {modalError}
@@ -185,7 +196,7 @@ export default function TpaPage() {
         title="TPA / Insurance"
         subtitle="Manage insurance companies and track cashless claim settlements."
         stats={[{ icon: ShieldCheck, value: `${pendingClaims}`, label: "Open Claims" }]}
-        action={{ label: tab === "master" ? "Add TPA" : "Submit Claim", icon: Plus, onClick: () => setModal(tab === "master" ? "tpa" : "claim") }}
+        action={canWrite ? { label: tab === "master" ? "Add TPA" : "Submit Claim", icon: Plus, onClick: () => setModal(tab === "master" ? "tpa" : "claim") } : undefined}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -195,18 +206,20 @@ export default function TpaPage() {
             <>
               <FilterBar filters={CLAIM_FILTERS} searchPlaceholder="Search by patient, TPA, or bill number..."
                 activeFilter={claimFilter} onFilterChange={setClaimFilter} searchQuery={claimSearch} onSearchChange={setClaimSearch}
-                action={{ label: "Submit Claim", icon: Plus, onClick: () => setModal("claim") }} />
+                action={canWrite ? { label: "Submit Claim", icon: Plus, onClick: () => setModal("claim") } : undefined} />
               <DataTable columns={CLAIM_COLUMNS} minWidth={1150}>
                 {visibleClaims.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No claims found.</div>
                 ) : visibleClaims.map(c => (
                   <ClaimRow key={c.id} row={c} actions={[
                     { label: "Generate claim form", onClick: () => setClaimFormFor(c) },
-                    { label: "Move to Review", disabled: c.status !== "Submitted", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "In Review" })) },
-                    { label: "Approve (full amount)", disabled: c.status === "Approved" || c.status === "Settled", onClick: () => approveClaim(c) },
-                    { label: "Reject", disabled: c.status === "Rejected" || c.status === "Settled", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "Rejected" })) },
-                    { label: "Mark Settled", disabled: c.status !== "Approved", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "Settled" })) },
-                    { label: "Delete", danger: true, onClick: () => claimActions.remove(c.id, `claim for ${c.patientName}`) },
+                    ...(canWrite ? [
+                      { label: "Move to Review", disabled: c.status !== "Submitted", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "In Review" })) },
+                      { label: "Approve (full amount)", disabled: c.status === "Approved" || c.status === "Settled", onClick: () => approveClaim(c) },
+                      { label: "Reject", disabled: c.status === "Rejected" || c.status === "Settled", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "Rejected" })) },
+                      { label: "Mark Settled", disabled: c.status !== "Approved", onClick: () => claimActions.mutate(() => api.patch(`/tpa/claims/${c.id}`, { status: "Settled" })) },
+                      { label: "Delete", danger: true, onClick: () => claimActions.remove(c.id, `claim for ${c.patientName}`) },
+                    ] : []),
                   ]} />
                 ))}
               </DataTable>
@@ -217,15 +230,15 @@ export default function TpaPage() {
             <>
               <FilterBar filters={[{ id: "All", label: "All" }]} searchPlaceholder="Search by name, code, or contact..."
                 activeFilter="All" onFilterChange={() => {}} searchQuery={tpaSearch} onSearchChange={setTpaSearch}
-                action={{ label: "Add TPA", icon: Plus, onClick: () => setModal("tpa") }} />
+                action={canWrite ? { label: "Add TPA", icon: Plus, onClick: () => setModal("tpa") } : undefined} />
               <DataTable columns={TPA_COLUMNS} minWidth={1100}>
                 {visibleTpas.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No TPAs registered.</div>
                 ) : visibleTpas.map(t => (
-                  <TpaRow key={t.id} row={t} actions={[
+                  <TpaRow key={t.id} row={t} actions={canWrite ? [
                     { label: t.status === "Active" ? "Mark Inactive" : "Mark Active", onClick: () => tpaActions.mutate(() => api.patch(`/tpa/${t.id}`, { status: t.status === "Active" ? "Inactive" : "Active" })) },
                     { label: "Delete", danger: true, onClick: () => tpaActions.remove(t.id, t.name) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

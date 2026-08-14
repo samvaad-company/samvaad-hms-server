@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { Droplets, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { BloodDonorDTO, BloodStockDTO, BloodIssueDTO, PatientDTO } from "@/types/api";
@@ -17,6 +18,7 @@ import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import { validateAadhaar } from "@/lib/validators";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -24,7 +26,7 @@ const COMPONENTS = ["Whole Blood", "Plasma", "Platelets", "RBC"];
 
 // ─── Stock Tab ────────────────────────────────────────────────────────────────
 
-function StockView({ stock, onAdd }: { stock: BloodStockDTO[]; onAdd: () => void }) {
+function StockView({ stock, onAdd, canWrite }: { stock: BloodStockDTO[]; onAdd: () => void; canWrite: boolean }) {
   const unitsFor = (group: string, component: string) =>
     stock.find(s => s.bloodGroup === group && s.component === component)?.units ?? 0;
 
@@ -34,9 +36,11 @@ function StockView({ stock, onAdd }: { stock: BloodStockDTO[]; onAdd: () => void
         <p className="text-[13px] font-light text-[#57575f]">
           Live availability by blood group and component. Issuing blood decrements stock automatically.
         </p>
-        <button onClick={onAdd} className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
-          <Plus size={14} /> Add Stock
-        </button>
+        {canWrite && (
+          <button onClick={onAdd} className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+            <Plus size={14} /> Add Stock
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto">
         <div style={{ minWidth: 760 }}>
@@ -137,6 +141,8 @@ function IssueRow({ row, actions }: { row: BloodIssueDTO; actions: RowAction[] }
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BloodBankPage() {
+  const { can } = useAuth();
+  const canWrite = can("bloodbank", "write");
   const [docsFor, setDocsFor] = useState<BloodDonorDTO | null>(null);
   const [tab, setTab] = useState("stock");
   const [donorFilter, setDonorFilter] = useState("All");
@@ -273,7 +279,14 @@ export default function BloodBankPage() {
       <Modal open={modal === "issue"} onClose={closeModal} title="Issue Blood / Component"
         footer={modalFooter(submitIssue, "Issue", !issueForm.patientId || !issueForm.bloodGroup || !issueForm.component || !issueForm.units)}>
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={issueForm.patientId} onChange={v => setIssueForm(f => ({ ...f, patientId: v }))} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Patient *">
+            <SearchSelect
+              placeholder="Search patient by name, ID or phone…"
+              value={issueForm.patientId}
+              onChange={v => setIssueForm(f => ({ ...f, patientId: v }))}
+              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+            />
+          </FormRow>
           <FormRow label="Requesting Doctor"><FormInput placeholder="Doctor name" value={issueForm.doctor} onChange={v => setIssueForm(f => ({ ...f, doctor: v }))} /></FormRow>
           <FormRow label="Blood Group *"><FormSelect placeholder="Select group" value={issueForm.bloodGroup} onChange={v => setIssueForm(f => ({ ...f, bloodGroup: v }))} options={BLOOD_GROUPS.map(g => ({ value: g, label: g }))} /></FormRow>
           <FormRow label="Component *"><FormSelect placeholder="Select component" value={issueForm.component} onChange={v => setIssueForm(f => ({ ...f, component: v }))} options={COMPONENTS.map(c => ({ value: c, label: c }))} /></FormRow>
@@ -287,13 +300,13 @@ export default function BloodBankPage() {
         title="Blood Bank"
         subtitle="Track donors, group-wise stock, and blood or component issues."
         stats={[{ icon: Droplets, value: `${totalUnits}`, label: "Units in Stock" }]}
-        action={{ label: "Issue Blood", icon: Plus, onClick: () => setModal("issue") }}
+        action={canWrite ? { label: "Issue Blood", icon: Plus, onClick: () => setModal("issue") } : undefined}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
 
-          {tab === "stock" && <StockView stock={stock} onAdd={() => setModal("stock")} />}
+          {tab === "stock" && <StockView stock={stock} onAdd={() => setModal("stock")} canWrite={canWrite} />}
 
           {tab === "donors" && (
             <>
@@ -302,17 +315,19 @@ export default function BloodBankPage() {
                 searchPlaceholder="Search by donor name, group, or phone..."
                 activeFilter={donorFilter} onFilterChange={setDonorFilter}
                 searchQuery={donorSearch} onSearchChange={setDonorSearch}
-                action={{ label: "Register Donor", onClick: () => setModal("donor") }}
+                action={canWrite ? { label: "Register Donor", onClick: () => setModal("donor") } : undefined}
               />
               <DataTable columns={DONOR_COLUMNS} minWidth={1100}>
                 {visibleDonors.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No donors found.</div>
                 ) : visibleDonors.map(d => (
                   <DonorRow key={d.id} row={d} actions={[
-                    { label: "Record donation", disabled: d.status !== "Eligible", onClick: () => donorActions.mutate(() => api.post(`/blood-bank/donors/${d.id}/donate`, {})) },
-                    { label: d.status === "Eligible" ? "Mark Deferred" : "Mark Eligible", onClick: () => donorActions.mutate(() => api.patch(`/blood-bank/donors/${d.id}`, { status: d.status === "Eligible" ? "Deferred" : "Eligible" })) },
+                    ...(canWrite ? [
+                      { label: "Record donation", disabled: d.status !== "Eligible", onClick: () => donorActions.mutate(() => api.post(`/blood-bank/donors/${d.id}/donate`, {})) },
+                      { label: d.status === "Eligible" ? "Mark Deferred" : "Mark Eligible", onClick: () => donorActions.mutate(() => api.patch(`/blood-bank/donors/${d.id}`, { status: d.status === "Eligible" ? "Deferred" : "Eligible" })) },
+                    ] : []),
                     { label: "ID proof / Aadhaar", onClick: () => setDocsFor(d) },
-                    { label: "Delete", danger: true, onClick: () => donorActions.remove(d.id, d.name) },
+                    ...(canWrite ? [{ label: "Delete", danger: true, onClick: () => donorActions.remove(d.id, d.name) }] : []),
                   ]} />
                 ))}
               </DataTable>
@@ -326,16 +341,16 @@ export default function BloodBankPage() {
                 searchPlaceholder="Search by patient, group, or component..."
                 activeFilter="All" onFilterChange={() => {}}
                 searchQuery={issueSearch} onSearchChange={setIssueSearch}
-                action={{ label: "Issue Blood", onClick: () => setModal("issue") }}
+                action={canWrite ? { label: "Issue Blood", onClick: () => setModal("issue") } : undefined}
               />
               <DataTable columns={ISSUE_COLUMNS} minWidth={1100}>
                 {visibleIssues.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No issues recorded.</div>
                 ) : visibleIssues.map(i => (
-                  <IssueRow key={i.id} row={i} actions={[
+                  <IssueRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Cancel & restock", disabled: i.status === "Cancelled", onClick: () => issueActions.ask({ message: `Cancel this issue and return ${i.units} unit(s) of ${i.bloodGroup} ${i.component} to stock?`, confirmLabel: "Cancel Issue", danger: true, action: () => api.patch(`/blood-bank/issues/${i.id}`, { status: "Cancelled" }) }) },
                     { label: "Delete", danger: true, onClick: () => issueActions.remove(i.id, `issue for ${i.patientName}`) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

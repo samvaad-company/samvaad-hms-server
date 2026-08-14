@@ -376,10 +376,12 @@ function ReportsView({
   tests,
   onUpload,
   onView,
+  canWrite,
 }: {
   tests: RadiologyTestDTO[];
   onUpload: (test: RadiologyTestDTO) => void;
   onView: (test: RadiologyTestDTO) => void;
+  canWrite: boolean;
 }) {
   if (tests.length === 0) {
     return (
@@ -410,10 +412,12 @@ function ReportsView({
               <button onClick={() => onView(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
                 <Eye size={13} /> View
               </button>
-            ) : (
+            ) : canWrite ? (
               <button onClick={() => onUpload(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
                 <Upload size={13} /> Upload
               </button>
+            ) : (
+              <span className="text-[12px] font-light text-[#c8c8cc] whitespace-nowrap">No report yet</span>
             )}
           </div>
         </div>
@@ -429,7 +433,8 @@ const FILTER_MAP: Record<string, string> = { "ScanDone": "Scan Done", "ReportRea
 export default function RadiologyPage() {
   const { can, user } = useAuth();
   const isPartner = user?.role === "Radiology Partner";
-  const canBook = can("patients"); // ordering studies needs the patient registry
+  const canWrite = can("radiology", "write");
+  const canBook = canWrite && can("patients"); // ordering studies needs the patient registry too
 
   const [tab, setTab] = useState("scans");
   const [filter, setFilter] = useState("All");
@@ -490,11 +495,13 @@ export default function RadiologyPage() {
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No studies found.</div>
                 ) : visible.map(r => (
                   <RadiologyRow key={r.id} row={r} onView={setViewing} actions={[
-                    { label: r.hasReport ? "Replace report" : "Upload report", onClick: () => setUploadFor(r) },
+                    ...(canWrite ? [{ label: r.hasReport ? "Replace report" : "Upload report", onClick: () => setUploadFor(r) }] : []),
                     { label: "View report", disabled: !r.hasReport, onClick: () => setViewing(r) },
-                    { label: "Mark scan done", disabled: r.scanStatus === "Done", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { scanStatus: "Done" })) },
-                    { label: "Cancel study", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { status: "Cancelled" })) },
-                    ...(isPartner ? [] : [{ label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) }]),
+                    ...(canWrite ? [
+                      { label: "Mark scan done", disabled: r.scanStatus === "Done", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { scanStatus: "Done" })) },
+                      { label: "Cancel study", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { status: "Cancelled" })) },
+                    ] : []),
+                    ...(canWrite && !isPartner ? [{ label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) }] : []),
                   ]} />
                 ))}
               </DataTable>
@@ -503,7 +510,7 @@ export default function RadiologyPage() {
           {tab === "booking" && canBook && (
             <BookingView patients={patients} onBooked={() => { reload(); setTab("scans"); }} />
           )}
-          {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} />}
+          {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canWrite={canWrite} />}
         </div>
       </div>
     </>

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { BedDouble, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { IpdRecordDTO, PatientDTO, DoctorDTO, BedDTO } from "@/types/api";
@@ -16,6 +17,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormSelect, FormInput, FormTextarea } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import Link from "next/link";
 import type { IpdRecord } from "@/types";
 
@@ -61,6 +63,8 @@ function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
 }
 
 export default function IpdPage() {
+  const { can } = useAuth();
+  const canWrite = can("ipd", "write");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -150,7 +154,14 @@ export default function IpdPage() {
         }
       >
         <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Patient *"><FormSelect placeholder="Search patient" value={form.patientId} onChange={v => set("patientId", v)} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} /></FormRow>
+          <FormRow label="Patient *">
+            <SearchSelect
+              placeholder="Search patient by name, ID or phone…"
+              value={form.patientId}
+              onChange={v => set("patientId", v)}
+              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+            />
+          </FormRow>
           <FormRow label="Admission Date *" error={admissionDate && !admissionDateValid ? "Cannot be in the past" : undefined}>
             <FormInput type="date" value={admissionDate} onChange={setAdmissionDate} min={todayIso()} error={Boolean(admissionDate) && !admissionDateValid} />
           </FormRow>
@@ -189,7 +200,7 @@ export default function IpdPage() {
         title="IPD"
         subtitle="Manage inpatient admissions, ward assignments, and discharge records."
         stats={[{ icon: BedDouble, value: `${visible.filter(r => r.status !== "Discharged").length}`, label: "Active Admissions" }]}
-        action={{ label: "New Admission", icon: Plus, onClick: () => setShowModal(true) }}
+        action={canWrite ? { label: "New Admission", icon: Plus, onClick: () => setShowModal(true) } : undefined}
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -206,10 +217,12 @@ export default function IpdPage() {
             {visible.map((r) => (
               <IpdRow key={r.id} row={r} actions={[
                 { label: "View admission", onClick: () => router.push(`/ipd/${r.id}`) },
-                { label: "Add doctor round", disabled: r.status === "Discharged", onClick: () => openRound(r) },
-                { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName} and free bed ${r.bed}?`, confirmLabel: "Discharge", action: () => api.post(`/ipd/${r.id}/discharge`) }) },
-                { label: "Move to ICU", disabled: r.status === "ICU" || r.status === "Discharged", onClick: () => mutate(() => api.patch(`/ipd/${r.id}`, { status: "ICU" })) },
-                { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+                ...(canWrite ? [
+                  { label: "Add doctor round", disabled: r.status === "Discharged", onClick: () => openRound(r) },
+                  { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName} and free bed ${r.bed}?`, confirmLabel: "Discharge", action: () => api.post(`/ipd/${r.id}/discharge`) }) },
+                  { label: "Move to ICU", disabled: r.status === "ICU" || r.status === "Discharged", onClick: () => mutate(() => api.patch(`/ipd/${r.id}`, { status: "ICU" })) },
+                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
+                ] : []),
               ]} />
             ))}
           </DataTable>

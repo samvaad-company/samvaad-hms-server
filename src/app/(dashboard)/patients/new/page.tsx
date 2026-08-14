@@ -8,8 +8,10 @@ import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/share
 import { User, Check, Loader2 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api/client";
 import { useMutation } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { validateMobile, validateDob, todayIso } from "@/lib/validators";
+import Link from "next/link";
 
 const STEPS = ["Quick Info", "Medical History", "Address & Contact", "Insurance"];
 
@@ -21,6 +23,7 @@ const GENDER_MAP: Record<string, string> = { male: "Male", female: "Female", oth
 
 export default function NewPatientPage() {
   const router = useRouter();
+  const { can } = useAuth();
   useBreadcrumb("/patients", "Patients", "New Patient Registration");
   const { run, loading, error } = useMutation();
   const [step, setStep] = useState(1);
@@ -89,6 +92,16 @@ export default function NewPatientPage() {
     } catch {
       // error surfaced via `error` below
     }
+  }
+
+  if (!can("patients", "write")) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">
+          You don&apos;t have permission to register patients. <Link href="/patients" className="text-[#009598] hover:underline">Back to Patients</Link>
+        </p>
+      </div>
+    );
   }
 
   return (

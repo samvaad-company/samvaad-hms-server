@@ -25,7 +25,9 @@ export function ItAdminPanel() {
           ]} />
         </div>
       </div>
-      <MyTasksCard />
+      <div className={`${tw.gutterX} mb-[30px]`}>
+        <MyTasksCard />
+      </div>
     </>
   );
 }

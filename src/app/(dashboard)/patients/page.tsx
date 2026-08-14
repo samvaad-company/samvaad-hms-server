@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { tw, iconSize } from "@/lib/design-system";
 import { User, Phone, Plus } from "lucide-react";
 import { useList } from "@/lib/api/hooks";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { PatientDTO } from "@/types/api";
@@ -90,6 +91,8 @@ function PatientRow({ patient, actions }: { patient: Patient; actions: RowAction
 
 export default function PatientsPage() {
   const router = useRouter();
+  const { can } = useAuth();
+  const canWrite = can("patients", "write");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRangeId>("all");
@@ -110,7 +113,7 @@ export default function PatientsPage() {
         title="Patients"
         subtitle="Manage your patient records, review visit history, and track ongoing treatments — all in one place."
         stats={[{ icon: User, value: `${visible.length}`, label: "Matching Patients" }]}
-        action={{ label: "Add Patient", icon: Plus, onClick: () => router.push("/patients/new") }}
+        action={canWrite ? { label: "Add Patient", icon: Plus, onClick: () => router.push("/patients/new") } : undefined}
         range={range}
         onRangeChange={setRange}
       />
@@ -137,7 +140,7 @@ export default function PatientsPage() {
                   patient={p}
                   actions={[
                     { label: "View details", onClick: () => router.push(`/patients/${p.id}`) },
-                    { label: "Delete", danger: true, onClick: () => remove(p.id, p.name) },
+                    ...(canWrite ? [{ label: "Delete", danger: true, onClick: () => remove(p.id, p.name) }] : []),
                   ]}
                 />
               ))

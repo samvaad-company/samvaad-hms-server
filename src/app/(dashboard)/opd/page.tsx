@@ -5,6 +5,7 @@ import { tw } from "@/lib/design-system";
 import { Activity, Plus, CheckCircle, XCircle } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { OpdRecordDTO, PatientDTO, DoctorDTO } from "@/types/api";
@@ -14,6 +15,7 @@ import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { OpdRecord } from "@/types";
 
 const COLUMNS = [
@@ -94,6 +96,8 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
 const STATUS_MAP: Record<string, string> = { "InConsultation": "In Consultation" };
 
 export default function OpdPage() {
+  const { can } = useAuth();
+  const canWrite = can("opd", "write");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -237,7 +241,12 @@ export default function OpdPage() {
           )}
           {!editingRow && (
             <FormRow label="Patient *">
-              <FormSelect placeholder="Search patient" value={form.patientId} onChange={selectPatient} options={patients.map(p => ({ value: String(p.id), label: `${p.name} — ${p.patientId}` }))} />
+              <SearchSelect
+                placeholder="Search patient by name, ID or phone…"
+                value={form.patientId}
+                onChange={selectPatient}
+                options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+              />
             </FormRow>
           )}
           <FormRow label="Doctor *">
@@ -279,7 +288,7 @@ export default function OpdPage() {
         title="OPD Queue"
         subtitle="Manage today's outpatient queue — track tokens, vitals, and consultation status in real time."
         stats={[{ icon: Activity, value: `${visible.length}`, label: "Active Tokens" }]}
-        action={{ label: "New Check-in", icon: Plus, onClick: () => { setEditingRow(null); setForm(EMPTY); setShowModal(true); } }}
+        action={canWrite ? { label: "New Check-in", icon: Plus, onClick: () => { setEditingRow(null); setForm(EMPTY); setShowModal(true); } } : undefined}
         dateRange={false}
       />
 
@@ -295,13 +304,13 @@ export default function OpdPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
-              <OpdRow key={r.id} row={r} actions={[
+              <OpdRow key={r.id} row={r} actions={canWrite ? [
                 { label: "Edit", onClick: () => openEdit(r) },
                 { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
                 { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
                 { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },
                 { label: "Delete", danger: true, onClick: () => remove(r.id, r.tokenNumber) },
-              ]} />
+              ] : []} />
             ))}
           </DataTable>
         </div>
