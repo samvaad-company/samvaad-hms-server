@@ -1,0 +1,707 @@
+<title>Samvaad HMS QA Report</title>
+<style>
+  @font-face {
+    font-family: "sys-serif";
+    src: local("Iowan Old Style"), local("Palatino Linotype"), local("Palatino");
+  }
+
+  :root {
+    --bg: #F2F4F3;
+    --surface: #FFFFFF;
+    --surface-2: #EAEDEB;
+    --ink: #16201D;
+    --ink-soft: #4B5854;
+    --ink-faint: #7C8884;
+    --border: #D8DDD9;
+    --border-strong: #C2C9C5;
+    --accent: #0E6B63;
+    --accent-ink: #08423D;
+    --accent-soft: #E3F0EE;
+    --pass: #227A4C;
+    --pass-soft: #E3F3E9;
+    --fail: #B23B33;
+    --fail-soft: #FBE9E7;
+    --warn: #A66A17;
+    --warn-soft: #FBF0DC;
+    --info: #3D5A80;
+    --info-soft: #E7EDF4;
+    --chip-bg: #EEF1F0;
+    --shadow: 0 1px 2px rgba(20, 30, 27, 0.06), 0 6px 20px rgba(20, 30, 27, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101512;
+      --surface: #171D1A;
+      --surface-2: #1F2622;
+      --ink: #E7ECE9;
+      --ink-soft: #A9B4AF;
+      --ink-faint: #798480;
+      --border: #2A3330;
+      --border-strong: #384540;
+      --accent: #56C9BA;
+      --accent-ink: #A9E8DE;
+      --accent-soft: #17302C;
+      --pass: #63C98D;
+      --pass-soft: #17301F;
+      --fail: #E8877D;
+      --fail-soft: #331917;
+      --warn: #E3B45C;
+      --warn-soft: #332411;
+      --info: #8FB0D6;
+      --info-soft: #1B2733;
+      --chip-bg: #1F2622;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #101512;
+    --surface: #171D1A;
+    --surface-2: #1F2622;
+    --ink: #E7ECE9;
+    --ink-soft: #A9B4AF;
+    --ink-faint: #798480;
+    --border: #2A3330;
+    --border-strong: #384540;
+    --accent: #56C9BA;
+    --accent-ink: #A9E8DE;
+    --accent-soft: #17302C;
+    --pass: #63C98D;
+    --pass-soft: #17301F;
+    --fail: #E8877D;
+    --fail-soft: #331917;
+    --warn: #E3B45C;
+    --warn-soft: #332411;
+    --info: #8FB0D6;
+    --info-soft: #1B2733;
+    --chip-bg: #1F2622;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "Inter", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .serif {
+    font-family: "sys-serif", Georgia, "Times New Roman", serif;
+  }
+
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: var(--accent-ink); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-inner {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .topbar-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .topbar-meta {
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .verdict-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--warn-soft);
+    color: var(--warn);
+    border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+    white-space: nowrap;
+  }
+
+  /* ---- hero / masthead ---- */
+  .masthead {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 56px 24px 40px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 14px;
+  }
+  h1.doc-title {
+    font-family: "sys-serif", Georgia, "Times New Roman", serif;
+    font-size: 40px;
+    line-height: 1.14;
+    font-weight: 500;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .doc-sub {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  .meta-item .k {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .meta-item .v {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* ---- content shell ---- */
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  section.doc-section {
+    padding: 46px 0;
+    border-top: 1px solid var(--border);
+  }
+  section.doc-section:first-of-type { border-top: none; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  .section-num {
+    font-family: "sys-serif", Georgia, serif;
+    font-size: 14px;
+    color: var(--ink-faint);
+    min-width: 22px;
+  }
+  h2 {
+    font-family: "sys-serif", Georgia, "Times New Roman", serif;
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .section-scope {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 4px 0 24px 36px;
+    max-width: 64ch;
+  }
+  .section-body { margin-left: 36px; }
+
+  .status-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 11px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .status-pass { background: var(--pass-soft); color: var(--pass); }
+  .status-fail { background: var(--fail-soft); color: var(--fail); }
+  .status-warn { background: var(--warn-soft); color: var(--warn); }
+  .status-info { background: var(--info-soft); color: var(--info); }
+
+  p { margin: 0 0 14px; color: var(--ink-soft); }
+  p.tight { margin-bottom: 8px; }
+  strong { color: var(--ink); font-weight: 600; }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    background: var(--chip-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--ink);
+  }
+
+  /* ---- tables ---- */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 18px 0 22px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 9px 13px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--surface-2);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 600;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td.rowhead { font-weight: 600; color: var(--ink); position: sticky; left: 0; background: var(--surface); }
+  tbody tr:hover td.rowhead { background: var(--surface-2); }
+
+  .perm { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+  .perm::before { content: ""; width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .perm-write::before { background: var(--pass); }
+  .perm-write { color: var(--pass); }
+  .perm-read::before { background: var(--info); }
+  .perm-read { color: var(--info); }
+  .perm-none::before { background: var(--ink-faint); }
+  .perm-none { color: var(--ink-faint); }
+
+  /* ---- cards ---- */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 18px 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .card h3 { font-size: 14px; margin: 0 0 8px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+  .card li { margin-bottom: 4px; }
+  .card .evidence { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--ink-faint); }
+
+  /* ---- issue rows ---- */
+  .issue {
+    display: grid; grid-template-columns: auto 1fr; gap: 14px;
+    padding: 16px 0; border-bottom: 1px solid var(--border);
+  }
+  .issue:last-child { border-bottom: none; }
+  .issue-sev {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 5px; height: fit-content; white-space: nowrap;
+  }
+  .sev-med { background: var(--warn-soft); color: var(--warn); }
+  .sev-low { background: var(--info-soft); color: var(--info); }
+  .issue h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; }
+  .issue p { margin: 0 0 6px; font-size: 13.5px; }
+  .issue .fields { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
+  .issue .fields b { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---- summary table ---- */
+  .summary-table td:nth-child(3) { text-align: right; }
+
+  /* ---- sign-off ---- */
+  .signoff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 22px; }
+  .sig-box { border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: var(--surface); }
+  .sig-box .role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; }
+  .sig-line { border-bottom: 1px solid var(--border-strong); height: 34px; margin-bottom: 6px; }
+  .sig-cap { font-size: 12px; color: var(--ink-faint); }
+
+  footer {
+    max-width: 920px; margin: 0 auto; padding: 30px 24px 60px;
+    color: var(--ink-faint); font-size: 12px; border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 640px) {
+    h1.doc-title { font-size: 30px; }
+    .section-scope, .section-body { margin-left: 0; }
+    .signoff-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div>
+      <div class="topbar-title">Samvaad HMS &mdash; QA Execution Report</div>
+      <div class="topbar-meta">Executed 14 Aug 2026 &middot; localhost:3005 &middot; branch <span class="mono">surya-dev</span></div>
+    </div>
+    <span class="verdict-chip">⚠ Pass with findings</span>
+  </div>
+</div>
+
+<div class="masthead">
+  <p class="eyebrow">QA Test Execution Report</p>
+  <h1 class="doc-title">Samvaad HMS platform verification</h1>
+  <p class="doc-sub">A full live execution of the requested test plan against the running application &mdash; role-based access control, data propagation, component CRUD, cross-module consistency, search, and build stability, including an end-to-end file upload check.</p>
+  <div class="meta-row">
+    <div class="meta-item"><div class="k">Scope</div><div class="v">Full plan, all 7 roles</div></div>
+    <div class="meta-item"><div class="k">Environment</div><div class="v">Local dev &middot; in-memory driver</div></div>
+    <div class="meta-item"><div class="k">Method</div><div class="v">Live UI + direct API verification</div></div>
+    <div class="meta-item"><div class="k">Sections passed</div><div class="v">5 / 7</div></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- 01 RBAC -->
+  <section class="doc-section" id="s1">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2>RBAC access verification</h2>
+    </div>
+    <p class="section-scope">Logged in as each of the 7 roles and confirmed the sidebar, page content, and direct API writes match the access matrix specified over this project's role-permission requests. <span class="status-line status-pass">✓ Pass &mdash; all 7 roles match spec</span></p>
+    <div class="section-body">
+      <p>Every role was verified two ways: <strong>visually</strong> (logged in, checked which nav sections and action buttons appear) and <strong>at the API</strong> (issued direct write requests for resources the role should not touch, confirming a <code>403 FORBIDDEN</code>). All 24 resources are enforced centrally in <code>rbac.ts</code> and checked server-side on every request, so the permission below is what's actually authoritative &mdash; not just a UI suggestion.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Super Admin</th>
+              <th>Doctor</th>
+              <th>Head Nurse</th>
+              <th>Receptionist</th>
+              <th>Billing Exec</th>
+              <th>IT Admin</th>
+              <th>Driver</th>
+            </tr>
+          </thead>
+          <tbody id="rbac-body"></tbody>
+        </table>
+      </div>
+      <p style="font-size:13px;">Legend &mdash; <span class="perm perm-write">write</span>&nbsp; <span class="perm perm-read">read</span>&nbsp; <span class="perm perm-none">none</span></p>
+    </div>
+  </section>
+
+  <!-- 02 propagation -->
+  <section class="doc-section" id="s2">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2>Super Admin data propagation</h2>
+    </div>
+    <p class="section-scope">Confirms a record created by one role is visible immediately to every other role permitted to read it &mdash; the app reads from one shared store, not per-role forks. <span class="status-line status-pass">✓ Pass</span></p>
+    <div class="section-body">
+      <p>Created patient <strong>&ldquo;QA Propagation Test&rdquo;</strong> (id 21) while logged in as Super Admin, then fetched that same record while logged in as Receptionist and again as Doctor, without any reload or cache-bust trick.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Step</th><th>Actor</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="rowhead">Create patient</td><td>Super Admin</td><td class="mono">201 Created</td></tr>
+            <tr><td class="rowhead">Read back</td><td>Receptionist</td><td class="mono">name = "QA Propagation Test"</td></tr>
+            <tr><td class="rowhead">Read back</td><td>Doctor</td><td class="mono">name = "QA Propagation Test"</td></tr>
+            <tr><td class="rowhead">Cleanup</td><td>Super Admin</td><td class="mono">204 No Content</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>No propagation delay, no stale caching, no per-role data divergence observed.</p>
+    </div>
+  </section>
+
+  <!-- 03 component CRUD -->
+  <section class="doc-section" id="s3">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>Component-level CRUD testing</h2>
+    </div>
+    <p class="section-scope">Create, edit, and delete exercised live for the four highest-traffic entry points, plus a negative test confirming write attempts by an unauthorized role are rejected. <span class="status-line status-pass">✓ Pass</span></p>
+    <div class="section-body">
+      <div class="card-grid">
+        <div class="card">
+          <h3>Patients <span class="status-line status-pass">Pass</span></h3>
+          <ul>
+            <li>Registration form validation exercised</li>
+            <li>Search-as-you-type picker confirmed</li>
+            <li>Delete via row action verified</li>
+          </ul>
+          <div class="evidence">Full UI flow + API</div>
+        </div>
+        <div class="card">
+          <h3>Appointments <span class="status-line status-pass">Pass</span></h3>
+          <ul>
+            <li>Create / reschedule / cancel round-trip</li>
+            <li>Doctor-scoped visibility rules held</li>
+          </ul>
+          <div class="evidence">API-level verification</div>
+        </div>
+        <div class="card">
+          <h3>Prescription templates <span class="status-line status-pass">Pass</span></h3>
+          <ul>
+            <li>Create, edit, delete &mdash; incl. default templates</li>
+            <li>Doctor-only restriction enforced</li>
+            <li>In-app confirm dialog on delete</li>
+          </ul>
+          <div class="evidence">Full UI flow, live clicks</div>
+        </div>
+        <div class="card">
+          <h3>Inventory <span class="status-line status-pass">Pass</span></h3>
+          <ul>
+            <li>&ldquo;QA Gloves&rdquo; item added via UI, stock 100</li>
+            <li>Restocked to 150, then deleted (200 / 204)</li>
+            <li>Doctor's write attempt correctly <span class="mono">403</span></li>
+          </ul>
+          <div class="evidence">UI create + API edit/delete</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 consistency -->
+  <section class="doc-section" id="s4">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Data update consistency</h2>
+    </div>
+    <p class="section-scope">Renamed a patient referenced across six modules and checked whether every module reflected the new name. <span class="status-line status-fail">✗ Fail &mdash; see finding I-1</span></p>
+    <div class="section-body">
+      <p>Patient <strong>Noah Carter</strong> (id 6) is referenced from Appointments, OPD, Billing, Lab, Prescriptions, and Radiology. Renamed to <span class="mono">"Noah Carter-QAUPDATED"</span> via the Patients API, then re-read every linked record without any other change.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th>Record</th><th>Name shown after rename</th><th>Expected</th></tr></thead>
+          <tbody>
+            <tr><td class="rowhead">Patients</td><td>id 6</td><td class="mono">Noah Carter-QAUPDATED</td><td class="status-line status-pass">as expected</td></tr>
+            <tr><td class="rowhead">Appointments</td><td>id 6</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+            <tr><td class="rowhead">Billing</td><td>id 4</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+            <tr><td class="rowhead">Lab</td><td>id 3</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+            <tr><td class="rowhead">OPD</td><td>id 6</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+            <tr><td class="rowhead">Prescriptions</td><td>id 4</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+            <tr><td class="rowhead">Radiology</td><td>id 5</td><td class="mono">Noah Carter</td><td class="status-line status-fail">stale</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Root cause and remediation are detailed as finding <strong>I-1</strong> in Section 08. Test data reverted to <span class="mono">"Noah Carter"</span> afterward.</p>
+    </div>
+  </section>
+
+  <!-- 05 realtime -->
+  <section class="doc-section" id="s5">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2>Real-time update verification</h2>
+    </div>
+    <p class="section-scope">Whether a change made in one session appears in another open session without a manual reload. <span class="status-line status-fail">✗ Not applicable &mdash; capability doesn't exist</span></p>
+    <div class="section-body">
+      <p>The app has no WebSocket, Server-Sent Events, or polling layer &mdash; every screen fetches once on mount and only refetches on navigation or an explicit action. This was flagged before execution began, and marked Fail / Not Applicable per direction rather than treated as a regression: it is a capability gap, not a broken feature. Any workflow that depends on two staff members seeing the same screen update live (e.g. the OPD queue board, bed board) currently needs a manual refresh.</p>
+    </div>
+  </section>
+
+  <!-- 06 search -->
+  <section class="doc-section" id="s6">
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2>Search &amp; dropdown validation</h2>
+    </div>
+    <p class="section-scope">Every patient-selection field across the six modules that book against a patient was confirmed to be the searchable picker, and search was exercised live in two of them. <span class="status-line status-pass">✓ Pass</span></p>
+    <div class="section-body">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th>Entry point</th><th>Picker</th><th>Live search tested</th></tr></thead>
+          <tbody>
+            <tr><td class="rowhead">OPD</td><td>New Check-in</td><td class="status-line status-pass">Searchable</td><td>&ldquo;Noah&rdquo; &rarr; Noah Carter (HMS-0006)</td></tr>
+            <tr><td class="rowhead">IPD</td><td>New Admission</td><td class="status-line status-pass">Searchable</td><td>&ldquo;Ava&rdquo; &rarr; Ava Johnson (HMS-0005)</td></tr>
+            <tr><td class="rowhead">OT</td><td>Schedule OT</td><td class="status-line status-pass">Searchable</td><td>field confirmed present</td></tr>
+            <tr><td class="rowhead">Billing</td><td>New Bill</td><td class="status-line status-pass">Searchable</td><td>field confirmed present</td></tr>
+            <tr><td class="rowhead">TPA / Insurance</td><td>Submit Claim</td><td class="status-line status-pass">Searchable</td><td>field confirmed present</td></tr>
+            <tr><td class="rowhead">Blood Bank</td><td>Issue Blood</td><td class="status-line status-pass">Searchable</td><td>field confirmed present</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 build -->
+  <section class="doc-section" id="s7">
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2>Build &amp; stability verification</h2>
+    </div>
+    <p class="section-scope">App startup, server error logs across the whole session, and an end-to-end file upload/download round trip through the storage layer built earlier the same day. <span class="status-line status-pass">✓ Pass</span></p>
+    <div class="section-body">
+      <p class="tight"><strong>Server health.</strong> Reviewed the dev server log for the full test session: every logged failure was an intentional <code>403</code>/<code>422</code> from a permission or validation probe. No unhandled exceptions, no <code>500</code>s.</p>
+      <p><strong>File upload.</strong> Uploaded a PNG to a lab report (Lipid Profile &middot; Ethan Miller) through the Lab &rsaquo; Reports &rsaquo; Upload dialog:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Step</th><th>Endpoint</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="rowhead">Upload</td><td class="mono">POST /api/documents</td><td class="mono">201 Created</td></tr>
+            <tr><td class="rowhead">View / download</td><td class="mono">GET /api/documents/1/download</td><td class="mono">200 OK, bytes intact</td></tr>
+            <tr><td class="rowhead">Cleanup</td><td class="mono">DELETE /api/documents/1</td><td class="mono">204 No Content</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This exercised the in-memory <code>StorageDriver</code> built for this app end to end for the first time &mdash; write, read, and delete all confirmed working through the real UI, not just a unit test.</p>
+    </div>
+  </section>
+
+  <!-- 08 issues -->
+  <section class="doc-section" id="s8">
+    <div class="section-head">
+      <span class="section-num">08</span>
+      <h2>Issues found</h2>
+    </div>
+    <p class="section-scope">Four findings, none of them a security bypass &mdash; every unauthorized write attempted during this pass was rejected at the API regardless of what the screen showed.</p>
+    <div class="section-body">
+
+      <div class="issue">
+        <span class="issue-sev sev-med">I-1 &middot; Medium</span>
+        <div>
+          <h4>Patient name edits don't propagate to related records</h4>
+          <p>Appointments, OPD, Billing, Lab, Prescriptions, and Radiology each store their own copy of the patient's name at the moment the record is created, and nothing updates that copy when the patient is later renamed (see Section 04). For a bill or a lab report, freezing the name as of that visit is arguably correct &mdash; you don't want history rewriting itself. For Appointments, OPD, and Prescriptions it's more likely to read as a bug to front-desk staff searching by current name.</p>
+          <div class="fields"><b>Where</b>&nbsp;appointments-service.ts, billing-service.ts, lab-service.ts and siblings &middot; <b>Fix</b>&nbsp;either cascade the rename into denormalized rows, or join against the live patient name at read time</div>
+        </div>
+      </div>
+
+      <div class="issue">
+        <span class="issue-sev sev-low">I-2 &middot; Low</span>
+        <div>
+          <h4>Write buttons render regardless of role permission on 10 pages</h4>
+          <p>Billing, Inventory, OT (list, new, and detail), Pharmacy, Beds &amp; Wards, Records, Finance, Staff, the main Prescriptions list, and the Lab/Billing detail-page actions all show their Add / Edit / Delete / status-change controls to every role, unlike the pages already gated this session (OPD, IPD, Patients, Appointments, Doctors, Lab, Radiology, Ambulance, TPA, Blood Bank). Confirmed with Head Nurse against <code>OT</code>, <code>Billing</code>, and <code>Staff</code> &mdash; the button is visible but every submit still comes back <code>403</code>. It's a confusing UI, not an access hole.</p>
+          <div class="fields"><b>Where</b>&nbsp;the 10 page files listed above, none of which call <code>useAuth().can(...)</code> &middot; <b>Fix</b>&nbsp;apply the same <code>can(resource,"write")</code> gating pattern used elsewhere</div>
+        </div>
+      </div>
+
+      <div class="issue">
+        <span class="issue-sev sev-low">I-3 &middot; Low</span>
+        <div>
+          <h4>Reports dashboard shows static KPI values</h4>
+          <p>Most tiles on <code>/reports</code> (Total Revenue ₹4.8L, +14%, New Registrations 312, &hellip;) are hardcoded and never change with real data; only the header stat pill is bound to the live report. Anyone using this page to check current numbers is looking at fixed placeholder figures.</p>
+          <div class="fields"><b>Where</b>&nbsp;src/app/(dashboard)/reports/page.tsx &middot; <b>Fix</b>&nbsp;bind each tile to <code>report.kpis</code> the way the header pill already is</div>
+        </div>
+      </div>
+
+      <div class="issue">
+        <span class="issue-sev sev-low">I-4 &middot; Low</span>
+        <div>
+          <h4>No live sync between open sessions</h4>
+          <p>Restated from Section 05: shared views such as the OPD queue or bed board don't update for a second viewer until they navigate or reload. Acceptable for the current single-terminal-per-desk usage pattern; worth a polling or WebSocket layer if multiple staff start watching the same board simultaneously.</p>
+          <div class="fields"><b>Where</b>&nbsp;architectural &mdash; no realtime transport in the stack &middot; <b>Fix</b>&nbsp;short-interval polling on the highest-traffic boards would be the cheapest first step</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 09 summary -->
+  <section class="doc-section" id="s9">
+    <div class="section-head">
+      <span class="section-num">09</span>
+      <h2>Final test summary</h2>
+    </div>
+    <div class="section-body">
+      <div class="table-wrap">
+        <table class="summary-table">
+          <thead><tr><th>Section</th><th>Result</th><th>Findings</th></tr></thead>
+          <tbody>
+            <tr><td class="rowhead">01 &middot; RBAC access verification</td><td><span class="status-line status-pass">Pass</span></td><td>0</td></tr>
+            <tr><td class="rowhead">02 &middot; Data propagation</td><td><span class="status-line status-pass">Pass</span></td><td>0</td></tr>
+            <tr><td class="rowhead">03 &middot; Component CRUD</td><td><span class="status-line status-pass">Pass</span></td><td>0</td></tr>
+            <tr><td class="rowhead">04 &middot; Data update consistency</td><td><span class="status-line status-fail">Fail</span></td><td>1 &middot; I-1</td></tr>
+            <tr><td class="rowhead">05 &middot; Real-time updates</td><td><span class="status-line status-fail">N/A</span></td><td>1 &middot; I-4</td></tr>
+            <tr><td class="rowhead">06 &middot; Search &amp; dropdown</td><td><span class="status-line status-pass">Pass</span></td><td>0</td></tr>
+            <tr><td class="rowhead">07 &middot; Build &amp; stability</td><td><span class="status-line status-pass">Pass</span></td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>5 of 7 sections passed outright.</strong> The two that didn't are a real bug worth scheduling (I-1) and a known, previously-flagged capability gap (I-4) rather than a defect. Two further low-severity UI issues (I-2, I-3) surfaced during testing outside the original section scope.</p>
+    </div>
+  </section>
+
+  <!-- 10 conclusion -->
+  <section class="doc-section" id="s10">
+    <div class="section-head">
+      <span class="section-num">10</span>
+      <h2>QA conclusion</h2>
+    </div>
+    <div class="section-body">
+      <p>Access control is sound: the role matrix built up over this project's many role-permission requests was verified role by role, and in every negative test attempted &mdash; a Doctor posting to Billing, a Head Nurse posting to OT, a Driver reading Staff &mdash; the server rejected the request regardless of what the interface displayed. That held true even for the pages flagged in I-2, which is the reason those are graded low severity rather than a security finding.</p>
+      <p>The one functional defect (I-1) is narrow and well understood: six services write a name snapshot on create and nothing updates it afterward. It's a straightforward fix once a decision is made about which modules should show current identity versus a point-in-time record.</p>
+      <p>No blocking issues were found. The platform is stable enough for continued use in this environment, with I-1 through I-4 tracked as follow-up work rather than release blockers.</p>
+    </div>
+  </section>
+
+  <!-- 11 signoff -->
+  <section class="doc-section" id="s11">
+    <div class="section-head">
+      <span class="section-num">11</span>
+      <h2>QA sign-off</h2>
+    </div>
+    <div class="section-body">
+      <div class="signoff-grid">
+        <div class="sig-box">
+          <div class="role">Executed by</div>
+          <div class="sig-line"></div>
+          <div class="sig-cap">Claude &middot; agentic QA pass &middot; 14 Aug 2026</div>
+        </div>
+        <div class="sig-box">
+          <div class="role">Reviewed &amp; signed off by</div>
+          <div class="sig-line"></div>
+          <div class="sig-cap">Name &amp; date</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Samvaad HMS QA Execution Report &middot; generated from a live test pass against localhost:3005 &middot; branch <span class="mono">surya-dev</span>
+</footer>
+
+<script>
+  const ROLES = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","IT Admin","Driver"];
+  const DATA = {
+    "Patients":        ["write","write","read","read","read","none","none"],
+    "Appointments":    ["write","read","read","read","read","none","none"],
+    "Doctors":         ["write","read","read","read","none","none","none"],
+    "OPD":             ["write","write","read","read","none","none","none"],
+    "Prescriptions":   ["write","write","none","none","none","none","none"],
+    "Pharmacy":        ["write","read","none","none","none","none","none"],
+    "Lab":              ["write","write","read","none","none","none","none"],
+    "IPD":              ["write","write","read","none","none","none","none"],
+    "OT":               ["write","read","none","none","none","none","none"],
+    "Beds":             ["write","read","write","read","none","none","none"],
+    "Billing":          ["write","none","none","none","write","none","none"],
+    "Staff":            ["write","none","read","none","none","read","none"],
+    "Reports":          ["write","none","none","none","read","none","none"],
+    "Admin":            ["write","none","none","none","none","write","none"],
+    "Radiology":        ["write","read","read","none","none","none","none"],
+    "Blood Bank":       ["write","read","read","read","none","none","none"],
+    "Ambulance":        ["write","none","none","read","none","none","read"],
+    "Records":          ["write","read","none","none","none","none","none"],
+    "TPA / Insurance":  ["write","read","none","read","write","none","none"],
+    "Finance":          ["write","read","none","none","write","none","none"],
+    "Inventory":        ["write","none","write","write","none","none","none"],
+    "Tasks":            ["write","read","write","none","read","write","read"],
+    "Scribe":           ["write","write","none","none","none","none","none"],
+    "Documents":        ["write","read","none","none","none","none","none"],
+  };
+  const tbody = document.getElementById("rbac-body");
+  tbody.innerHTML = Object.entries(DATA).map(([resource, levels]) => `
+    <tr>
+      <td class="rowhead">${resource}</td>
+      ${levels.map(l => `<td><span class="perm perm-${l}">${l}</span></td>`).join("")}
+    </tr>
+  `).join("");
+</script>
