@@ -33,6 +33,8 @@ import {
 import { type LucideIcon } from "lucide-react";
 import { type Resource } from "@/server/auth/rbac";
 import { useAuth } from "@/lib/auth-context";
+import Image from "next/image";
+import logo from "../../../public/favicon.svg";
 
 interface NavItem {
   href: string;
@@ -153,15 +155,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         {collapsed ? (
           <Link href="/home" className="w-full flex items-center justify-center">
-            <div className="w-[28px] h-[28px] rounded-[8px] bg-[#009598] flex items-center justify-center shrink-0">
-              <span className="text-white text-[13px] font-medium">S</span>
+            <div className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0">
+              {/* <span className="text-white text-[13px] font-medium">S</span> */}
+            <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
             </div>
           </Link>
         ) : (
           <Link href="/home" className="flex items-center gap-[8px] flex-1 min-w-0">
-            <div className="w-[28px] h-[28px] rounded-[8px] bg-[#009598] flex items-center justify-center shrink-0">
+            {/* <div className="w-[28px] h-[28px] rounded-[8px] bg-[#009598] flex items-center justify-center shrink-0">
               <span className="text-white text-[13px] font-medium">S</span>
-            </div>
+            </div> */}
+
+            <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
             <span className="text-[17px] font-medium text-[#11111c] leading-tight whitespace-nowrap">
               Samvaad <span className="text-[#009598]">HMS</span>
             </span>

@@ -7,6 +7,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api/client";
 import type { OpdRecordDTO } from "@/types/api";
+import Image from "next/image";
+import logo from "../../../public/favicon.svg"
 
 const REFRESH_MS = 10_000;
 
@@ -38,8 +40,9 @@ export default function QueueBoardPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-10 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-[36px] h-[36px] rounded-[10px] bg-[#009598] flex items-center justify-center">
-            <span className="text-white text-[16px] font-medium">S</span>
+          <div className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center">
+            {/* <span className="text-white text-[16px] font-medium">S</span> */}
+            <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
           </div>
           <span className="text-[24px] font-medium">Samvaad <span className="text-[#009598]">HMS</span> — OPD Queue</span>
         </div>

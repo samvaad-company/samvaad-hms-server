@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ApiClientError } from "@/lib/api/client";
 import { Lock, Mail, Loader2 } from "lucide-react";
+import logo from "../../../public/favicon.svg";
+import Image from "next/image";
 
 const DEMO_PASSWORD = "Samvaad@123";
 const DEMO_ACCOUNTS = [
@@ -68,8 +70,9 @@ function LoginForm() {
       <div className="w-full max-w-[420px]">
         {/* Brand */}
         <div className="flex items-center gap-[10px] justify-center mb-8">
-          <div className="w-[36px] h-[36px] rounded-[10px] bg-[#009598] flex items-center justify-center">
-            <span className="text-white text-[16px] font-medium">S</span>
+          <div className="w-[36px] h-[36px] rounded-[10px] flex items-center justify-center">
+            {/* <span className="text-white text-[16px] font-medium">S</span> */}
+            <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
           </div>
           <span className="text-[22px] font-medium text-[#11111c]">
             Samvaad <span className="text-[#009598]">HMS</span>
