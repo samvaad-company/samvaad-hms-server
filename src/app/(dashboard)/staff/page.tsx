@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Users2, Plus, Phone, Mail } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { StaffDTO, StaffAttendanceDTO } from "@/types/api";
@@ -151,7 +152,7 @@ const ATT_STATUS_CLR: Record<string, string> = {
   Late:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
-function AttendanceView({ staff }: { staff: StaffDTO[] }) {
+function AttendanceView({ staff, canWrite }: { staff: StaffDTO[]; canWrite: boolean }) {
   const [date, setDate] = useState(todayIso());
   const { items: records, reload } = useList<StaffAttendanceDTO>("/staff/attendance", {
     all: true, work_date: date,
@@ -226,7 +227,7 @@ function AttendanceView({ staff }: { staff: StaffDTO[] }) {
               <span className="text-[13px] text-[#11111c]">{rec?.punchOut || "—"}</span>
               <span className="text-[13px] text-[#57575f]">{hhmm(rec?.minutes ?? 0)}</span>
               <div className="flex items-center gap-2">
-                {!isToday ? (
+                {!isToday || !canWrite ? (
                   <span className="text-[12px] text-[#57575f]">
                     {rec ? "Recorded" : "No record"}
                   </span>
@@ -257,6 +258,8 @@ function AttendanceView({ staff }: { staff: StaffDTO[] }) {
 const STAFF_FILTER_MAP: Record<string, string> = { "OnLeave": "On Leave" };
 
 export default function StaffPage() {
+  const { can } = useAuth();
+  const canWrite = can("staff", "write");
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -326,7 +329,7 @@ export default function StaffPage() {
         title="Staff"
         subtitle="Manage hospital staff — nurses, technicians, admin personnel, and support staff."
         stats={[{ icon: Users2, value: `${visible.length}`, label: "Total Staff" }]}
-        action={{ label: "Add Staff", icon: Plus, onClick: () => setShowModal(true) }}
+        action={canWrite ? { label: "Add Staff", icon: Plus, onClick: () => setShowModal(true) } : undefined}
         dateRange={false}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -342,15 +345,17 @@ export default function StaffPage() {
                 ) : visible.map(r => (
                   <StaffRow key={r.id} row={r} actions={[
                     { label: "View profile", onClick: () => router.push(`/staff/${r.id}`) },
-                    { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/staff/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
-                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                    ...(canWrite ? [
+                      { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/staff/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
+                      { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
+                    ] : []),
                   ]} />
                 ))}
               </DataTable>
             </>
           )}
           {tab === "access"     && <AccessControlView />}
-          {tab === "attendance" && <AttendanceView staff={staffMembers} />}
+          {tab === "attendance" && <AttendanceView staff={staffMembers} canWrite={canWrite} />}
         </div>
       </div>
     </>

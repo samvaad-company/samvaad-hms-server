@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { Baby, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { BirthRecordDTO, DeathRecordDTO } from "@/types/api";
@@ -81,6 +82,8 @@ function DeathRow({ row, actions }: { row: DeathRecordDTO; actions: RowAction[] 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RecordsPage() {
+  const { can } = useAuth();
+  const canWrite = can("records", "write");
   const [tab, setTab] = useState("births");
   const [birthSearch, setBirthSearch] = useState("");
   const [deathSearch, setDeathSearch] = useState("");
@@ -183,7 +186,7 @@ export default function RecordsPage() {
         title="Birth & Death Records"
         subtitle="Register and maintain the hospital's birth and death registries."
         stats={[{ icon: Baby, value: `${births.length}`, label: "Births Registered" }]}
-        action={{ label: tab === "deaths" ? "Register Death" : "Register Birth", icon: Plus, onClick: () => setModal(tab === "deaths" ? "death" : "birth") }}
+        action={canWrite ? { label: tab === "deaths" ? "Register Death" : "Register Birth", icon: Plus, onClick: () => setModal(tab === "deaths" ? "death" : "birth") } : undefined}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -193,14 +196,14 @@ export default function RecordsPage() {
             <>
               <FilterBar filters={[{ id: "All", label: "All" }]} searchPlaceholder="Search by child, mother, or father..."
                 activeFilter="All" onFilterChange={() => {}} searchQuery={birthSearch} onSearchChange={setBirthSearch}
-                action={{ label: "Register Birth", icon: Plus, onClick: () => setModal("birth") }} />
+                action={canWrite ? { label: "Register Birth", icon: Plus, onClick: () => setModal("birth") } : undefined} />
               <DataTable columns={BIRTH_COLUMNS} minWidth={1200}>
                 {visibleBirths.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No birth records.</div>
                 ) : visibleBirths.map(b => (
-                  <BirthRow key={b.id} row={b} actions={[
+                  <BirthRow key={b.id} row={b} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => birthActions.remove(b.id, b.childName) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>
@@ -210,14 +213,14 @@ export default function RecordsPage() {
             <>
               <FilterBar filters={[{ id: "All", label: "All" }]} searchPlaceholder="Search by name, guardian, or cause..."
                 activeFilter="All" onFilterChange={() => {}} searchQuery={deathSearch} onSearchChange={setDeathSearch}
-                action={{ label: "Register Death", icon: Plus, onClick: () => setModal("death") }} />
+                action={canWrite ? { label: "Register Death", icon: Plus, onClick: () => setModal("death") } : undefined} />
               <DataTable columns={DEATH_COLUMNS} minWidth={1200}>
                 {visibleDeaths.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No death records.</div>
                 ) : visibleDeaths.map(d => (
-                  <DeathRow key={d.id} row={d} actions={[
+                  <DeathRow key={d.id} row={d} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => deathActions.remove(d.id, d.deceasedName) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

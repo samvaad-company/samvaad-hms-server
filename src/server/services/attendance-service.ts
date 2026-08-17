@@ -9,10 +9,11 @@ import { staffAttendanceRepo, staffRepo } from "@/server/repositories";
 import { toStaffAttendanceDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type StaffAttendanceRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { isoDate, displayTime } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const ATTENDANCE_LIST_CONFIG = {
   searchColumns: ["staff_name"],
@@ -21,8 +22,8 @@ export const ATTENDANCE_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "desc" as const }],
 };
 
-export async function listAttendance(options: QueryOptions) {
-  return staffAttendanceRepo.list(options);
+export async function listAttendance(options: QueryOptions, actor: Session) {
+  return staffAttendanceRepo.list(scopeToHospital(options, actor));
 }
 
 /** Today's open (punched-in, not yet out) record for a staff member. */
@@ -54,7 +55,7 @@ function minutesBetween(from: string, to: string): number {
 
 export async function punchIn(staffId: number, actor: Session) {
   const staff = await staffRepo.getRow(staffId);
-  if (!staff) throw new NotFoundError("Staff member");
+  assertOwnedByHospital(staff, actor, "Staff member");
 
   const existing = await todaysRecord(staffId);
   if (existing && !existing.punch_out) {
@@ -65,6 +66,7 @@ export async function punchIn(staffId: number, actor: Session) {
   }
 
   const row = await staffAttendanceRepo.create({
+    hospital_id: actor.hospitalId,
     staff_id: staffId,
     staff_name: staff.name,
     work_date: isoDate(new Date()),
@@ -80,7 +82,7 @@ export async function punchIn(staffId: number, actor: Session) {
 
 export async function punchOut(staffId: number, actor: Session) {
   const staff = await staffRepo.getRow(staffId);
-  if (!staff) throw new NotFoundError("Staff member");
+  assertOwnedByHospital(staff, actor, "Staff member");
 
   const existing = await todaysRecord(staffId);
   if (!existing) throw new ConflictError(`${staff.name} has not punched in today`);
@@ -98,7 +100,8 @@ export async function punchOut(staffId: number, actor: Session) {
 }
 
 export async function deleteAttendance(id: number, actor: Session) {
-  const ok = await staffAttendanceRepo.remove(id);
-  if (!ok) throw new NotFoundError("Attendance record");
+  const existing = await staffAttendanceRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Attendance record");
+  await staffAttendanceRepo.remove(id);
   await audit(actor, "delete", "attendance", id);
 }

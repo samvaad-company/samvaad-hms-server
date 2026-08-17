@@ -191,8 +191,9 @@ export interface Staff {
 export interface KpiStat {
   label: string;
   value: string;
-  change: string;
-  positive: boolean;
+  /** Period-over-period trend, when a historical baseline is available. */
+  change?: string;
+  positive?: boolean;
 }
 
 export interface ReportRow {

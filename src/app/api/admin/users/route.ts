@@ -6,8 +6,8 @@ import { requirePermission } from "@/server/auth/server";
 import { listUsers, createUser } from "@/server/services/admin-service";
 
 export const GET = withRoute(async () => {
-  await requirePermission("admin", "read");
-  return ok(await listUsers());
+  const session = await requirePermission("admin", "read");
+  return ok(await listUsers(session));
 });
 
 export const POST = withRoute(async (req: NextRequest) => {

@@ -13,6 +13,12 @@ export interface SessionPayload {
   name: string;
   email: string;
   role: string;
+  /** owning hospital id — set for hospital accounts, absent for radiology center accounts */
+  hid?: number;
+  /** owning radiology center id — set for radiology center accounts only */
+  rcid?: number;
+  /** owning lab center id — set for lab center accounts only */
+  lcid?: number;
   /** linked doctor id, present only for doctor accounts */
   did?: number;
   /** issued-at (epoch seconds) */
@@ -26,6 +32,12 @@ export interface Session {
   name: string;
   email: string;
   role: string;
+  /** null for radiology/lab center accounts, which belong to no single hospital */
+  hospitalId: number | null;
+  /** set only for radiology center accounts */
+  radiologyCenterId: number | null;
+  /** set only for lab center accounts */
+  labCenterId: number | null;
   doctorId: number | null;
 }
 
@@ -76,6 +88,9 @@ export async function createToken(
     name: session.name,
     email: session.email,
     role: session.role,
+    ...(session.hospitalId != null ? { hid: session.hospitalId } : {}),
+    ...(session.radiologyCenterId != null ? { rcid: session.radiologyCenterId } : {}),
+    ...(session.labCenterId != null ? { lcid: session.labCenterId } : {}),
     ...(session.doctorId != null ? { did: session.doctorId } : {}),
     iat,
     exp: iat + (maxAgeSeconds ?? cfg.sessionMaxAge),
@@ -106,6 +121,9 @@ export async function verifyToken(
       name: payload.name,
       email: payload.email,
       role: payload.role,
+      hospitalId: payload.hid ?? null,
+      radiologyCenterId: payload.rcid ?? null,
+      labCenterId: payload.lcid ?? null,
       doctorId: payload.did ?? null,
     };
   } catch {

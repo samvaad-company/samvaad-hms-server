@@ -35,6 +35,8 @@ import type {
   InventoryItemDTO,
   InventoryIssueDTO,
   TaskDTO,
+  ChatThreadDTO,
+  ChatMessageDTO,
   DocumentDTO,
   IpdNoteDTO,
   StaffAttendanceDTO,
@@ -77,6 +79,8 @@ import type {
   InventoryItemRow,
   InventoryIssueRow,
   TaskRow,
+  ChatThreadRow,
+  ChatMessageRow,
   DocumentRow,
   IpdNoteRow,
   StaffAttendanceRow,
@@ -277,6 +281,7 @@ export function toPharmacyDTO(r: PharmacyItemRow): PharmacyItemDTO {
 export function toLabDTO(r: LabTestRow): LabTestDTO {
   return {
     id: r.id,
+    hospitalId: r.hospital_id,
     patientName: r.patient_name,
     patientAge: r.patient_age,
     testName: r.test_name,
@@ -288,9 +293,22 @@ export function toLabDTO(r: LabTestRow): LabTestDTO {
     patientId: r.patient_id,
     orderNumber: r.order_number ?? "",
     requestedBy: r.requested_by ?? "",
+    doctorId: r.doctor_id,
+    doctor: r.doctor ?? "",
     priority: r.priority ?? "Routine",
     collectionDate: r.collection_date ?? "",
     discount: Number(r.discount ?? 0),
+    discountType: (r.discount_type as "percent" | "amount") ?? "amount",
+    labCenterId: r.lab_center_id,
+    // Joined in by the service layer (a plain row->DTO mapper has no async
+    // lookups); default so every LabTestDTO has the same shape.
+    labCenterName: null,
+    hospitalName: null,
+    hasReport: Boolean(r.report_file),
+    reportFileName: r.report_file_name ?? null,
+    reportNote: r.report_note ?? null,
+    reportUploadedBy: r.report_uploaded_by ?? null,
+    reportUploadedAt: r.report_uploaded_at ?? null,
   };
 }
 
@@ -437,6 +455,7 @@ export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
   return {
     id: r.id,
     orderNumber: r.order_number ?? "",
+    hospitalId: r.hospital_id,
     patientId: r.patient_id,
     patientName: r.patient_name,
     patientAge: r.patient_age,
@@ -445,7 +464,16 @@ export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
     reportStatus: r.report_status as "Pending" | "Ready",
     date: r.test_date,
     amount: Number(r.amount),
+    discount: Number(r.discount ?? 0),
+    discountType: (r.discount_type as "percent" | "amount") ?? "amount",
     status: r.status as RadiologyStatus,
+    doctorId: r.doctor_id,
+    doctor: r.doctor,
+    radiologyCenterId: r.radiology_center_id,
+    // Joined in by the service layer (a plain row->DTO mapper has no async
+    // lookups); default so every RadiologyTestDTO has the same shape.
+    radiologyCenterName: null,
+    hospitalName: null,
     // The file body itself is only served via GET /radiology/[id]/report.
     hasReport: Boolean(r.report_file),
     reportFileName: r.report_file_name ?? null,
@@ -709,6 +737,26 @@ export function toTaskDTO(r: TaskRow): TaskDTO {
     dueDate: r.due_date,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+  };
+}
+
+export function toChatThreadDTO(r: ChatThreadRow): ChatThreadDTO {
+  return {
+    id: r.id,
+    title: r.title,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function toChatMessageDTO(r: ChatMessageRow): ChatMessageDTO {
+  return {
+    id: r.id,
+    threadId: r.thread_id,
+    role: r.role as "user" | "assistant",
+    content: r.content,
+    sources: r.sources,
+    createdAt: r.created_at,
   };
 }
 

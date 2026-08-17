@@ -31,7 +31,8 @@ export type Resource =
   | "inventory"
   | "tasks"
   | "scribe"
-  | "documents";
+  | "documents"
+  | "chat";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -61,6 +62,7 @@ export const RESOURCES: Resource[] = [
   "tasks",
   "scribe",
   "documents",
+  "chat",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -90,16 +92,29 @@ const NONE: Record<Resource, Access> = RESOURCES.reduce(
  * `users` table. Unknown roles fall back to read-only on clinical data.
  */
 export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
+  /**
+   * Platform-level operator, not tied to any one hospital's data — used to
+   * onboard hospitals and for cross-hospital support. Distinct from
+   * "Super Admin", which is a hospital's own top admin and stays scoped to
+   * that hospital like every other role (see hospital-scope.ts).
+   */
+  /**
+   * AI Chat and the Task Board are deliberately restricted to Super Admin
+   * only — see the "none" overrides below and on every non-ALL_WRITE role.
+   */
+  "Platform Admin": withOverrides(ALL_WRITE, { chat: "none", tasks: "none" }),
   "Super Admin": ALL_WRITE,
-  "IT Admin": withOverrides(NONE, { admin: "write", tasks: "write", staff: "read" }),
+  "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
     opd: "write",
     prescriptions: "write",
     patients: "write",
     lab: "write",
+    radiology: "write",
     ipd: "write",
     scribe: "write",
-    tasks: "read",
+    chat: "none",
+    tasks: "none",
     admin: "none",
     staff: "none",
     ambulance: "none",
@@ -118,7 +133,6 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     doctors: "read",
     bloodbank: "read",
     inventory: "write",
-    tasks: "write",
     staff: "read",
   }),
   Receptionist: withOverrides(NONE, {
@@ -139,22 +153,21 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     reports: "read",
     tpa: "write",
     finance: "write",
-    tasks: "read",
   }),
   Pharmacist: withOverrides(NONE, {
     pharmacy: "write",
     prescriptions: "read",
-    tasks: "read",
   }),
   "Lab Technician": withOverrides(NONE, {
     lab: "write",
     radiology: "write",
     patients: "read",
-    tasks: "read",
   }),
-  Driver: withOverrides(NONE, { ambulance: "read", tasks: "read" }),
+  Driver: withOverrides(NONE, { ambulance: "read" }),
   /** External imaging centre: sees only the radiology worklist and uploads reports. */
   "Radiology Partner": withOverrides(NONE, { radiology: "write" }),
+  /** External diagnostic lab: sees only the lab worklist and uploads reports. */
+  "Lab Partner": withOverrides(NONE, { lab: "write" }),
 };
 
 function levelSatisfies(level: Access, action: Action): boolean {

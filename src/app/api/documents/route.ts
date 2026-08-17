@@ -15,9 +15,9 @@ import {
 } from "@/server/services/documents-service";
 
 export const GET = withRoute(async (req: NextRequest) => {
-  await requirePermission("documents", "read");
+  const session = await requirePermission("documents", "read");
   const options = parseListParams(req, DOCUMENTS_LIST_CONFIG);
-  const { rows, total } = await listDocuments(options);
+  const { rows, total } = await listDocuments(options, session);
   return paginated(
     rows,
     makePaginationMeta(options.page ?? 1, options.pageSize ?? rows.length, total),

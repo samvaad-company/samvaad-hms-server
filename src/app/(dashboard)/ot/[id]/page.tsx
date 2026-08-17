@@ -5,6 +5,7 @@ import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { OtRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -22,6 +23,8 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 export default function OtDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { can } = useAuth();
+  const canWrite = can("ot", "write");
   const { item: record, loading, reload } = useItem<OtRecordDTO>(`/ot/${id}`);
   useBreadcrumb("/ot", "OT", record?.procedure ?? "Procedure");
   const { run, loading: acting, error } = useMutation();
@@ -96,20 +99,22 @@ export default function OtDetailPage() {
               <StatusBadge status={record.status} />
             </div>
             {error && <div className="mb-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setStatus("In Progress")} disabled={acting || record.status !== "Scheduled"}
-                className="text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                Start procedure
-              </button>
-              <button onClick={() => setStatus("Completed")} disabled={acting || locked}
-                className="text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                Mark completed
-              </button>
-              <button onClick={() => setStatus("Cancelled")} disabled={acting || locked}
-                className="text-[13px] font-normal text-[#ff0004] border border-[#ff0004] px-4 py-[8px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                Cancel
-              </button>
-            </div>
+            {canWrite && (
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setStatus("In Progress")} disabled={acting || record.status !== "Scheduled"}
+                  className="text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Start procedure
+                </button>
+                <button onClick={() => setStatus("Completed")} disabled={acting || locked}
+                  className="text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Mark completed
+                </button>
+                <button onClick={() => setStatus("Cancelled")} disabled={acting || locked}
+                  className="text-[13px] font-normal text-[#ff0004] border border-[#ff0004] px-4 py-[8px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Cancel
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </div>

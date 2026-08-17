@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
-import { ScanLine, Plus, Upload, Eye, FileText, Loader2, Download } from "lucide-react";
-import { useList, useMutation } from "@/lib/api/hooks";
+import { ScanLine, Plus, Upload, Eye, FileText, Loader2, Download, Copy, Check, Building2 } from "lucide-react";
+import { useList, useMutation, useItem } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
-import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { RadiologyTestDTO, RadiologyReportFileDTO, PatientDTO } from "@/types/api";
+import { RowMenu } from "@/components/shared/RowMenu";
+import type {
+  RadiologyTestDTO,
+  RadiologyReportFileDTO,
+  RadiologyPatientDetailDTO,
+  PatientDTO,
+  RadiologyLinkDTO,
+  RadiologyCenterDTO,
+  DoctorDTO,
+} from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -99,6 +108,136 @@ function ReportViewerModal({
             <img src={blobUrl} alt="Report document" className="w-full rounded-[8px] border border-[#dedee1] object-contain" style={{ maxHeight: 480 }} />
           )
         )}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * The study's price is the routed-to center's call, not this hospital's — so
+ * there's nothing fixed to show. Only the discount the referring doctor
+ * granted is worth surfacing, as "10% off" or "₹200 off".
+ */
+function discountLabel(t: RadiologyTestDTO): string | null {
+  if (!t.discount) return null;
+  return t.discountType === "percent" ? `${t.discount}% off` : `₹${t.discount.toLocaleString("en-IN")} off`;
+}
+
+// ─── Patient detail modal ──────────────────────────────────────────────────────
+
+/** Labeled read-only field for the patient detail grid — skips rendering when there's nothing to show. */
+function DetailField({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex flex-col gap-[2px]">
+      <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{label}</span>
+      <span className="text-[13px] font-normal text-[#11111c]">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Full patient demographics plus every other study on record for them — a
+ * radiology-center account has no `patients` access of its own, so this is
+ * the only place it can see who it's actually scanning beyond a bare name.
+ */
+function PatientDetailModal({
+  test,
+  allTests,
+  canWrite,
+  canDelete,
+  onClose,
+  onUpload,
+  onViewReport,
+  onMarkScanDone,
+  onCancelStudy,
+  onDelete,
+}: {
+  test: RadiologyTestDTO;
+  /** Every study for this same patient at this same hospital, newest first. */
+  allTests: RadiologyTestDTO[];
+  canWrite: boolean;
+  canDelete: boolean;
+  onClose: () => void;
+  onUpload: (t: RadiologyTestDTO) => void;
+  onViewReport: (t: RadiologyTestDTO) => void;
+  onMarkScanDone: (t: RadiologyTestDTO) => void;
+  onCancelStudy: (t: RadiologyTestDTO) => void;
+  onDelete: (t: RadiologyTestDTO) => void;
+}) {
+  const [detail, setDetail] = useState<RadiologyPatientDetailDTO | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<RadiologyPatientDetailDTO>(`/radiology/${test.id}/patient`)
+      .then(setDetail)
+      .catch((e: Error) => setError(e.message));
+  }, [test.id]);
+
+  const address = detail && [detail.address, detail.city, detail.state, detail.pincode].filter(Boolean).join(", ");
+  // Latest visit first — a repeat test on a later date is its own record, not
+  // an overwrite of the earlier one, so history reads newest-to-oldest.
+  const history = [...allTests].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  return (
+    <Modal open onClose={onClose} title={`Patient — ${test.patientName}`} width={640}
+      footer={<button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Close</button>}
+    >
+      <div className="flex flex-col gap-5">
+        {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error}</div>}
+        {!detail && !error && (
+          <div className="flex items-center justify-center py-10 text-[#57575f]"><Loader2 size={20} className="animate-spin" /></div>
+        )}
+        {detail && (
+          <div className="grid grid-cols-3 gap-4">
+            <DetailField label="Patient ID" value={detail.patientCode} />
+            <DetailField label="Age" value={String(detail.age)} />
+            <DetailField label="Gender" value={detail.gender} />
+            <DetailField label="Phone" value={detail.phone} />
+            <DetailField label="Email" value={detail.email} />
+            <DetailField label="Blood Group" value={detail.bloodGroup} />
+            <DetailField label="Date of Birth" value={detail.dob} />
+            <div className="col-span-2"><DetailField label="Address" value={address || null} /></div>
+            <div className="col-span-3"><DetailField label="Allergies" value={detail.allergies} /></div>
+            <div className="col-span-3"><DetailField label="Chronic Conditions" value={detail.chronicConditions} /></div>
+          </div>
+        )}
+
+        <div className="border-t border-[#f0f0f0] pt-4">
+          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">
+            All Studies ({history.length}) — latest first
+          </p>
+          <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+            {history.map(t => (
+              <div key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 border border-[#dedee1] rounded-[8px]">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[13px] font-normal text-[#11111c] truncate">{t.testName}</span>
+                  <span className="text-[11px] font-light text-[#57575f]">{formatDate(t.date)}{t.doctor && <> · {t.doctor}</>}{discountLabel(t) && <> · {discountLabel(t)}</>}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={t.status} />
+                  {t.hasReport ? (
+                    <button onClick={() => onViewReport(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+                      <Eye size={12} /> Report
+                    </button>
+                  ) : canWrite ? (
+                    <button onClick={() => onUpload(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
+                      <Upload size={12} /> Upload
+                    </button>
+                  ) : null}
+                  {canWrite && (
+                    <RowMenu actions={[
+                      { label: "Mark scan done", disabled: t.scanStatus === "Done", onClick: () => onMarkScanDone(t) },
+                      { label: "Cancel study", disabled: t.status === "Cancelled", onClick: () => onCancelStudy(t) },
+                      ...(canDelete ? [{ label: "Delete", danger: true, onClick: () => onDelete(t) }] : []),
+                    ]} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </Modal>
   );
@@ -209,86 +348,195 @@ function UploadReportModal({
 
 // ─── Scans Tab ────────────────────────────────────────────────────────────────
 
-const COLUMNS = [
-  { label: "Patient",   width: "minmax(140px,1.3fr)" },
-  { label: "Age",       width: "60px" },
-  { label: "Study",     width: "minmax(150px,1.5fr)" },
-  { label: "Scan",      width: "90px" },
-  { label: "Report",    width: "100px" },
-  { label: "Uploaded By", width: "minmax(130px,1.1fr)" },
-  { label: "Date",      width: "110px" },
-  { label: "Amount",    width: "95px", align: "right" as const },
-  { label: "Status",    width: "125px" },
-  { label: "Action",    width: "52px", align: "right" as const },
-];
 const FILTERS = [
   { id: "All", label: "All" }, { id: "Pending", label: "Pending" },
   { id: "ScanDone", label: "Scan Done" }, { id: "ReportReady", label: "Report Ready" },
 ];
-const MIN_WIDTH = 1220;
+const MIN_WIDTH = 1080;
 
-function RadiologyRow({ row, actions, onView }: { row: RadiologyTestDTO; actions: RowAction[]; onView: (t: RadiologyTestDTO) => void }) {
+/**
+ * One patient sent for imaging several times (or ordered several studies in
+ * one visit) used to read as several unrelated rows in the worklist. Group
+ * by the same (hospital, patient) pair so each patient appears once, with
+ * every study they've been sent for reachable from that one row.
+ */
+function groupByPatient(list: RadiologyTestDTO[]): RadiologyTestDTO[][] {
+  const order: string[] = [];
+  const groups = new Map<string, RadiologyTestDTO[]>();
+  for (const t of list) {
+    const key = `${t.hospitalId}:${t.patientId ?? t.patientName}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+      order.push(key);
+    }
+    groups.get(key)!.push(t);
+  }
+  return order.map((k) => groups.get(k)!);
+}
+
+function patientColumns(showHospital: boolean) {
+  return [
+    ...(showHospital ? [{ label: "Hospital", width: "minmax(140px,1.2fr)" }] : []),
+    { label: "Patient",   width: "minmax(140px,1.3fr)" },
+    { label: "Age",       width: "60px" },
+    { label: "Tests",     width: "minmax(200px,2fr)" },
+    { label: "Doctor",    width: "minmax(120px,1fr)" },
+    { label: "Latest Date", width: "110px" },
+    { label: "Discount",  width: "110px" },
+    { label: "Action",    width: "80px", align: "right" as const },
+  ];
+}
+
+const STATUS_DOT: Record<string, string> = {
+  "Pending": "bg-[#ff9000]",
+  "Scan Done": "bg-[#009598]",
+  "Report Ready": "bg-[#00955c]",
+  "Cancelled": "bg-[#ff0004]",
+};
+
+/** Compact "3 Pending · 1 Report Ready" summary of every study's status in the group. */
+function StatusSummary({ tests }: { tests: RadiologyTestDTO[] }) {
+  const counts = new Map<string, number>();
+  for (const t of tests) counts.set(t.status, (counts.get(t.status) ?? 0) + 1);
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {[...counts.entries()].map(([status, count]) => (
+        <span key={status} className="inline-flex items-center gap-1 text-[11px] font-normal text-[#57575f] whitespace-nowrap">
+          <span className={`w-[6px] h-[6px] rounded-full ${STATUS_DOT[status] ?? "bg-[#57575f]"}`} />
+          {count} {status}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PatientGroupRow({
+  tests,
+  showHospital,
+  onViewPatient,
+}: {
+  tests: RadiologyTestDTO[];
+  showHospital: boolean;
+  onViewPatient: () => void;
+}) {
+  const anchor = tests[0];
+  const doctors = [...new Set(tests.map(t => t.doctor).filter(Boolean))];
+  const latestDate = tests.reduce((max, t) => (t.date > max ? t.date : max), tests[0].date);
+  const discountedCount = tests.filter(t => t.discount > 0).length;
+  // Newest visit's tests read first, matching the patient detail modal.
+  const byRecency = [...tests].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.testName}</span>
-      <div>
-        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.scanStatus === "Done" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`}>
-          {row.scanStatus}
+      {showHospital && <span className="text-[13px] font-normal text-[#11111c] truncate">{anchor.hospitalName ?? "—"}</span>}
+      <span className="text-[13px] font-medium text-[#11111c] truncate">{anchor.patientName}</span>
+      <span className="text-[13px] font-normal text-[#57575f]">{anchor.patientAge}</span>
+      <div className="flex flex-col gap-[2px] min-w-0">
+        <span className="text-[13px] font-normal text-[#11111c] truncate">
+          {tests.length} {tests.length === 1 ? "test" : "tests"} — {byRecency.map(t => t.testName).join(", ")}
         </span>
+        <StatusSummary tests={tests} />
       </div>
-      <div>
-        {row.hasReport ? (
-          <button
-            onClick={() => onView(row)}
-            className="inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap bg-[#dffff3] text-[#00955c] hover:bg-[#c4f5e2] transition-colors"
-          >
-            <Eye size={11} /> View
-          </button>
-        ) : (
-          <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
-            {row.reportStatus}
-          </span>
-        )}
+      <span className="text-[13px] font-normal text-[#57575f] truncate">{doctors.join(", ") || "—"}</span>
+      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(latestDate)}</span>
+      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">
+        {discountedCount > 0 ? `${discountedCount} of ${tests.length} discounted` : "—"}
+      </span>
+      <div className="flex justify-end">
+        <button
+          onClick={onViewPatient}
+          className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap"
+        >
+          View
+        </button>
       </div>
-      <span className="text-[12px] font-normal text-[#57575f] truncate">{row.reportUploadedBy ?? "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
-      <div><StatusBadge status={row.status} /></div>
-      <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
 }
 
 // ─── Booking Tab ─────────────────────────────────────────────────────────────
 
+// No price here — a study's cost is set by whoever performs it (in-house or
+// the linked center it's routed to), not decided by this system.
 const COMMON_STUDIES = [
-  { name: "X-Ray Chest PA", category: "X-Ray", price: 400 },
-  { name: "X-Ray Left Femur", category: "X-Ray", price: 450 },
-  { name: "X-Ray Cervical Spine", category: "X-Ray", price: 500 },
-  { name: "Ultrasound Abdomen", category: "Ultrasound", price: 900 },
-  { name: "Ultrasound Pelvis", category: "Ultrasound", price: 950 },
-  { name: "Doppler Study — Lower Limb", category: "Ultrasound", price: 1600 },
-  { name: "CT Scan Brain", category: "CT", price: 3500 },
-  { name: "CT Scan Chest (HRCT)", category: "CT", price: 4200 },
-  { name: "MRI Brain", category: "MRI", price: 6500 },
-  { name: "MRI Knee", category: "MRI", price: 6000 },
-  { name: "MRI Lumbar Spine", category: "MRI", price: 7000 },
-  { name: "Mammography (Bilateral)", category: "Mammography", price: 2200 },
+  { name: "X-Ray Chest PA", category: "X-Ray" },
+  { name: "X-Ray Left Femur", category: "X-Ray" },
+  { name: "X-Ray Cervical Spine", category: "X-Ray" },
+  { name: "Ultrasound Abdomen", category: "Ultrasound" },
+  { name: "Ultrasound Pelvis", category: "Ultrasound" },
+  { name: "Doppler Study — Lower Limb", category: "Ultrasound" },
+  { name: "CT Scan Brain", category: "CT" },
+  { name: "CT Scan Chest (HRCT)", category: "CT" },
+  { name: "MRI Brain", category: "MRI" },
+  { name: "MRI Knee", category: "MRI" },
+  { name: "MRI Lumbar Spine", category: "MRI" },
+  { name: "Mammography (Bilateral)", category: "Mammography" },
 ];
 
-function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked: () => void }) {
+const DISCOUNT_TYPE_OPTS = [
+  { value: "amount",  label: "₹" },
+  { value: "percent", label: "%" },
+];
+
+/** Discount value + percent/₹ type, side by side — shared shape for radiology and lab booking. */
+function DiscountInput({
+  value,
+  onChange,
+  type,
+  onTypeChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  type: string;
+  onTypeChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      <input
+        type="number"
+        min={0}
+        placeholder="0"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+      />
+      <div className="w-[70px] shrink-0">
+        <FormSelect value={type} onChange={onTypeChange} options={DISCOUNT_TYPE_OPTS} />
+      </div>
+    </div>
+  );
+}
+
+function BookingView({
+  patients,
+  onBooked,
+  initialPatientId,
+  initialDoctorId,
+  initialRadiologyCenterId,
+}: {
+  patients: PatientDTO[];
+  onBooked: () => void;
+  /** Hand-off from OPD/Appointments — pre-selects the patient (and referring doctor) so the doctor doesn't re-pick them. */
+  initialPatientId?: string;
+  initialDoctorId?: string;
+  /** Destination chosen on the OPD/Appointments hand-off — defaults to In-house when absent. */
+  initialRadiologyCenterId?: string;
+}) {
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] = useState(initialPatientId ?? "");
+  const [doctorId, setDoctorId] = useState(initialDoctorId ?? "");
+  const [radiologyCenterId, setRadiologyCenterId] = useState(initialRadiologyCenterId ?? "");
+  const [discount, setDiscount] = useState("");
+  const [discountType, setDiscountType] = useState("amount");
   const { run, loading, error } = useMutation();
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: centers } = useList<{ id: number; name: string }>("/radiology/routable-centers");
 
   const filtered = COMMON_STUDIES.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
     t.category.toLowerCase().includes(search.toLowerCase())
   );
-  const total = COMMON_STUDIES.filter(t => selected.includes(t.name)).reduce((s, t) => s + t.price, 0);
 
   async function bookStudies() {
     if (!patientId || selected.length === 0) return;
@@ -300,25 +548,39 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
         patientId: Number(patientId),
         patientName: patient?.name ?? "",
         patientAge: patient?.age ?? 0,
-        tests: selected.map(name => ({
-          testName: name,
-          amount: COMMON_STUDIES.find(t => t.name === name)?.price ?? 0,
-        })),
+        doctorId: doctorId ? Number(doctorId) : undefined,
+        radiologyCenterId: radiologyCenterId ? Number(radiologyCenterId) : undefined,
+        discount: Number(discount) || 0,
+        discountType,
+        tests: selected.map(name => ({ testName: name })),
       }),
     );
     setSelected([]);
     setPatientId("");
+    setDiscount("");
+    setDiscountType("amount");
     onBooked();
   }
 
   return (
     <div className="p-5 flex flex-col gap-4" style={{ height: 580 }}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <FormRow label="Patient *">
           <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
         </FormRow>
         <FormRow label="Referring Doctor">
-          <FormInput placeholder="Doctor name or OPD reference" />
+          <FormSelect placeholder="Select doctor" value={doctorId} onChange={setDoctorId}
+            options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
+        </FormRow>
+        <FormRow label="Send To">
+          <FormSelect placeholder="In-house" value={radiologyCenterId} onChange={setRadiologyCenterId}
+            options={[
+              { value: "", label: "In-house" },
+              ...centers.map(c => ({ value: String(c.id), label: c.name })),
+            ]} />
+        </FormRow>
+        <FormRow label="Discount">
+          <DiscountInput value={discount} onChange={setDiscount} type={discountType} onTypeChange={setDiscountType} />
         </FormRow>
       </div>
 
@@ -351,11 +613,11 @@ function BookingView({ patients, onBooked }: { patients: PatientDTO[]; onBooked:
         ))}
       </div>
 
-      {/* Footer: selection total + submit */}
+      {/* Footer: selection count + submit */}
       <div className="flex items-center justify-between border-t border-[#dedee1] pt-4 shrink-0">
         <span className="text-[13px] font-normal text-[#57575f]">
           {selected.length > 0
-            ? `${selected.length} stud${selected.length > 1 ? "ies" : "y"} selected · ₹${total.toLocaleString("en-IN")}`
+            ? `${selected.length} stud${selected.length > 1 ? "ies" : "y"} selected`
             : "No studies selected"}
         </span>
         <div className="flex items-center gap-3">
@@ -394,7 +656,11 @@ function ReportsView({
         <div key={test.id} className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
           <div className="flex flex-col gap-[6px] min-w-0">
             <span className="text-[14px] font-medium text-[#11111c] truncate">{test.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}</span>
+            <span className="text-[12px] font-light text-[#57575f]">
+              {test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}
+              {test.doctor && <> · Dr. {test.doctor}</>}
+              {test.hospitalName && <> · {test.hospitalName}</>}
+            </span>
             <div className="flex items-center gap-2">
               <StatusBadge status={test.status} />
               {test.hasReport && (
@@ -426,29 +692,214 @@ function ReportsView({
   );
 }
 
+// ─── About Tab (radiology center accounts only) ────────────────────────────
+
+/**
+ * A center's own profile — most importantly its code, the one thing a
+ * hospital admin needs from them to send a link request. There was
+ * previously no page a center could see that on at all.
+ */
+function CenterAboutView() {
+  const { item: center, loading, reload } = useItem<RadiologyCenterDTO>("/radiology-centers/me");
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode() {
+    if (!center) return;
+    await navigator.clipboard.writeText(center.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (loading || !center) {
+    return <div className="p-10 text-center text-[14px] text-[#57575f]">Loading…</div>;
+  }
+
+  return (
+    <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
+      <div className="rounded-[14px] bg-[#009598] p-5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-12 h-12 rounded-[10px] bg-white/15 flex items-center justify-center shrink-0">
+            <Building2 size={22} className="text-white" strokeWidth={1.5} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-light text-white/80 uppercase tracking-wider">Your Center Code</p>
+            <p className="text-[22px] font-medium text-white tracking-wider truncate">{center.code}</p>
+            <p className="text-[12px] font-light text-white/80">Share this with a hospital so they can request a link with you.</p>
+          </div>
+        </div>
+        <button onClick={copyCode} className="flex items-center gap-2 text-[13px] font-normal text-[#009598] bg-white px-4 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors shrink-0">
+          {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Code</>}
+        </button>
+      </div>
+
+      <CenterDetailsForm center={center} onSaved={reload} />
+    </div>
+  );
+}
+
+/**
+ * Initializes its editable fields straight from `center` at mount — no
+ * effect needed, since the parent only renders this once `center` has
+ * loaded (and remounts it via `key` if the identity ever changes).
+ */
+function CenterDetailsForm({ center, onSaved }: { center: RadiologyCenterDTO; onSaved: () => void }) {
+  const { run, loading: saving, error } = useMutation();
+  const [form, setForm] = useState({
+    name: center.name, phone: center.phone, contactEmail: center.contactEmail,
+    address: center.address, city: center.city, state: center.state,
+  });
+
+  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  async function save() {
+    await run(() => api.patch("/radiology-centers/me", form));
+    onSaved();
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-[14px] font-medium text-[#11111c]">Center Details</h3>
+        <StatusBadge status={center.status} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <FormRow label="Center Name"><FormInput value={form.name} onChange={v => set("name", v)} /></FormRow>
+        <FormRow label="Phone"><FormInput value={form.phone} onChange={v => set("phone", v)} /></FormRow>
+        <FormRow label="Contact Email"><FormInput type="email" value={form.contactEmail} onChange={v => set("contactEmail", v)} /></FormRow>
+        <FormRow label="City"><FormInput value={form.city} onChange={v => set("city", v)} /></FormRow>
+        <FormRow label="State"><FormInput value={form.state} onChange={v => set("state", v)} /></FormRow>
+        <div className="col-span-2"><FormRow label="Address"><FormInput value={form.address} onChange={v => set("address", v)} /></FormRow></div>
+      </div>
+      {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2 mt-3">{error.message}</div>}
+      <button onClick={save} disabled={saving}
+        className="mt-4 text-[13px] font-normal text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        {saving ? "Saving…" : "Save Changes"}
+      </button>
+    </section>
+  );
+}
+
+// ─── Linked Hospitals Tab (radiology center accounts only) ─────────────────
+
+function LinkedHospitalsView() {
+  const { items: links, reload, loading } = useList<RadiologyLinkDTO>("/radiology-links");
+  const { run, loading: saving } = useMutation();
+
+  const pending = links.filter(l => l.status === "Pending");
+  const other = links.filter(l => l.status !== "Pending");
+
+  async function respond(id: number, decision: "accept" | "reject") {
+    await run(() => api.post(`/radiology-links/${id}/respond`, { decision }));
+    reload();
+  }
+  async function revoke(id: number) {
+    await run(() => api.post(`/radiology-links/${id}/revoke`, {}));
+    reload();
+  }
+
+  return (
+    <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 580 }}>
+      {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+
+      {pending.length > 0 && (
+        <section>
+          <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Pending Requests</h3>
+          <div className="flex flex-col gap-2">
+            {pending.map(link => (
+              <div key={link.id} className="flex items-center justify-between p-3 border border-[#ffe0a3] bg-[#fff8ea] rounded-[8px]">
+                <div className="flex flex-col">
+                  <span className="text-[13px] font-medium text-[#11111c]">{link.hospitalName}</span>
+                  <span className="text-[11px] font-light text-[#57575f]">Requested by {link.requestedBy} · {link.requestedAt}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => respond(link.id, "reject")} disabled={saving}
+                    className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[6px] rounded-full hover:bg-white transition-colors disabled:opacity-50">
+                    Reject
+                  </button>
+                  <button onClick={() => respond(link.id, "accept")} disabled={saving}
+                    className="text-[12px] font-normal text-white bg-[#009598] px-3 py-[6px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                    Accept
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Hospitals</h3>
+        {!loading && other.length === 0 && (
+          <p className="text-[13px] text-[#57575f]">No hospitals linked yet — ask a hospital admin to request a link using this center&apos;s code.</p>
+        )}
+        <div className="flex flex-col gap-2">
+          {other.map(link => (
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+              <div className="flex flex-col">
+                <span className="text-[13px] font-medium text-[#11111c]">{link.hospitalName}</span>
+                <span className="text-[11px] font-light text-[#57575f]">
+                  {link.respondedAt ? `Responded ${link.respondedAt}` : ""}
+                  {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <StatusBadge status={link.status} />
+                {link.status === "Active" && (
+                  <button onClick={() => revoke(link.id)} disabled={saving}
+                    className="text-[12px] font-normal text-[#ff0004] border border-[#ffd0d1] px-3 py-[6px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-50">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const FILTER_MAP: Record<string, string> = { "ScanDone": "Scan Done", "ReportReady": "Report Ready" };
 
-export default function RadiologyPage() {
+function RadiologyPageInner() {
   const { can, user } = useAuth();
   const isPartner = user?.role === "Radiology Partner";
+  // Independent radiology-center accounts (vs. a legacy in-house partner
+  // login tied to one hospital) get a "linked hospitals" worklist instead.
+  const isCenter = user?.radiologyCenterId != null;
   const canWrite = can("radiology", "write");
   const canBook = canWrite && can("patients"); // ordering studies needs the patient registry too
 
-  const [tab, setTab] = useState("scans");
+  // A hand-off from OPD/Appointments arrives as ?patientId=&doctorId= and
+  // should land straight on the booking form with the patient pre-picked,
+  // not on the default worklist tab.
+  const searchParams = useSearchParams();
+  const handoffPatientId = searchParams.get("patientId") ?? undefined;
+  const handoffDoctorId = searchParams.get("doctorId") ?? undefined;
+  const handoffRadiologyCenterId = searchParams.get("radiologyCenterId") ?? undefined;
+
+  const [tab, setTab] = useState(handoffPatientId ? "booking" : "scans");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [uploadFor, setUploadFor] = useState<RadiologyTestDTO | null>(null);
   const [viewing, setViewing] = useState<RadiologyTestDTO | null>(null);
+  const [viewingPatient, setViewingPatient] = useState<RadiologyTestDTO | null>(null);
   const { items: tests, reload } = useList<RadiologyTestDTO>("/radiology", { all: true });
-  const { items: patients } = useList<PatientDTO>(canBook ? "/patients" : "/radiology", { all: true });
+  // Always fetch the real shape here — switching the endpoint by canBook (which
+  // itself resolves asynchronously right after login) could hand PatientPicker
+  // leftover RadiologyTestDTO rows from the other endpoint, which have no
+  // `.name` field and crash it. Roles without patients:read simply never
+  // render BookingView, so the unused background 403 for them is harmless.
+  const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { dialog, remove, mutate } = useRowActions("radiology", reload);
 
   const TABS = [
     { id: "scans",   label: "All Studies", count: tests.length },
     ...(canBook ? [{ id: "booking", label: "New Order" }] : []),
     { id: "reports", label: "Reports",     count: tests.filter(t => t.reportStatus === "Ready").length },
+    ...(isCenter ? [{ id: "links", label: "Linked Hospitals" }, { id: "about", label: "About" }] : []),
   ];
 
   const visible = tests.filter(t => {
@@ -461,6 +912,21 @@ export default function RadiologyPage() {
   return (
     <>
       {dialog}
+      {viewingPatient && (
+        <PatientDetailModal
+          test={viewingPatient}
+          allTests={tests.filter(t => t.patientId === viewingPatient.patientId && t.hospitalId === viewingPatient.hospitalId)}
+          canWrite={canWrite}
+          canDelete={canWrite && !isPartner}
+          onClose={() => setViewingPatient(null)}
+          onUpload={setUploadFor}
+          onViewReport={setViewing}
+          onMarkScanDone={(t) => mutate(() => api.patch(`/radiology/${t.id}`, { scanStatus: "Done" }))}
+          onCancelStudy={(t) => mutate(() => api.patch(`/radiology/${t.id}`, { status: "Cancelled" }))}
+          onDelete={(t) => remove(t.id, t.testName)}
+        />
+      )}
+      {/* Rendered after the patient modal so they stack on top of it when opened from within. */}
       {uploadFor && (
         <UploadReportModal
           test={uploadFor}
@@ -490,29 +956,38 @@ export default function RadiologyPage() {
             <>
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or study..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
-              <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
+              <DataTable columns={patientColumns(isCenter)} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No studies found.</div>
-                ) : visible.map(r => (
-                  <RadiologyRow key={r.id} row={r} onView={setViewing} actions={[
-                    ...(canWrite ? [{ label: r.hasReport ? "Replace report" : "Upload report", onClick: () => setUploadFor(r) }] : []),
-                    { label: "View report", disabled: !r.hasReport, onClick: () => setViewing(r) },
-                    ...(canWrite ? [
-                      { label: "Mark scan done", disabled: r.scanStatus === "Done", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { scanStatus: "Done" })) },
-                      { label: "Cancel study", disabled: r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/radiology/${r.id}`, { status: "Cancelled" })) },
-                    ] : []),
-                    ...(canWrite && !isPartner ? [{ label: "Delete", danger: true, onClick: () => remove(r.id, r.testName) }] : []),
-                  ]} />
+                ) : groupByPatient(visible).map(group => (
+                  <PatientGroupRow
+                    key={`${group[0].hospitalId}:${group[0].patientId ?? group[0].patientName}`}
+                    tests={group}
+                    showHospital={isCenter}
+                    onViewPatient={() => setViewingPatient(group[0])}
+                  />
                 ))}
               </DataTable>
             </>
           )}
           {tab === "booking" && canBook && (
-            <BookingView patients={patients} onBooked={() => { reload(); setTab("scans"); }} />
+            <BookingView patients={patients} onBooked={() => { reload(); setTab("scans"); }}
+              initialPatientId={handoffPatientId} initialDoctorId={handoffDoctorId}
+              initialRadiologyCenterId={handoffRadiologyCenterId} />
           )}
           {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canWrite={canWrite} />}
+          {tab === "links" && isCenter && <LinkedHospitalsView />}
+          {tab === "about" && isCenter && <CenterAboutView />}
         </div>
       </div>
     </>
+  );
+}
+
+export default function RadiologyPage() {
+  return (
+    <Suspense fallback={null}>
+      <RadiologyPageInner />
+    </Suspense>
   );
 }

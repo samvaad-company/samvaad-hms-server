@@ -14,7 +14,7 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { transactional } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type AppointmentRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { validateNotPast } from "@/server/lib/field-rules";
 import { audit } from "@/server/services/audit";
@@ -22,6 +22,7 @@ import { checkInOpd } from "@/server/services/opd-service";
 import { isoDate } from "@/server/services/helpers";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -49,13 +50,15 @@ export const APPOINTMENT_LIST_CONFIG = {
 };
 
 export async function listAppointments(options: QueryOptions, actor: Session) {
-  return appointmentsRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
+  return appointmentsRepo.list(
+    scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
+  );
 }
 
-export async function getAppointment(id: number) {
-  const a = await appointmentsRepo.get(id);
-  if (!a) throw new NotFoundError("Appointment");
-  return a;
+export async function getAppointment(id: number, actor: Session) {
+  const row = await appointmentsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Appointment");
+  return toAppointmentDTO(row);
 }
 
 export async function createAppointment(input: unknown, actor: Session) {
@@ -78,6 +81,7 @@ export async function createAppointment(input: unknown, actor: Session) {
   }
 
   const row = await appointmentsRepo.create({
+    hospital_id: actor.hospitalId,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
     patient_age: patientAge,
@@ -95,7 +99,7 @@ export async function createAppointment(input: unknown, actor: Session) {
 
 export async function updateAppointment(id: number, input: unknown, actor: Session) {
   const existing = await appointmentsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Appointment");
+  assertOwnedByHospital(existing, actor, "Appointment");
   const data = validatePartial(createSchema, input);
   const patch: Record<string, unknown> = {};
   if ("patientName" in data) patch.patient_name = data.patientName;
@@ -116,8 +120,9 @@ export async function updateAppointment(id: number, input: unknown, actor: Sessi
 }
 
 export async function deleteAppointment(id: number, actor: Session) {
-  const ok = await appointmentsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Appointment");
+  const existing = await appointmentsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Appointment");
+  await appointmentsRepo.remove(id);
   await audit(actor, "delete", "appointment", id);
 }
 
@@ -131,7 +136,7 @@ export async function deleteAppointment(id: number, actor: Session) {
  */
 export async function checkInAppointment(id: number, actor: Session) {
   const appt = await appointmentsRepo.getRow(id);
-  if (!appt) throw new NotFoundError("Appointment");
+  assertOwnedByHospital(appt, actor, "Appointment");
   if (appt.status === "Cancelled") {
     throw new ConflictError("A cancelled appointment cannot be checked in");
   }

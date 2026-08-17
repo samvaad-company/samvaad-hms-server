@@ -11,8 +11,12 @@ import { TABLES } from "@/server/db/tables";
 import { buildSeed } from "@/server/db/seed";
 import { logger } from "@/server/lib/logger";
 
-// Tables inserted in dependency order so foreign keys resolve.
+// Tables inserted in dependency order so foreign keys resolve. Hospitals
+// come first — every other table's hospital_id FK points at it.
 const SEED_ORDER: string[] = [
+  TABLES.hospitals,
+  TABLES.radiologyCenters,
+  TABLES.labCenters,
   TABLES.departments,
   TABLES.doctors,
   TABLES.staff,
@@ -31,11 +35,10 @@ const SEED_ORDER: string[] = [
   TABLES.ipdAdmissions,
   TABLES.otSchedules,
   TABLES.bedTransfers,
-  TABLES.hospitalSettings,
 ];
 
 export async function seedIfEmpty(adapter: DatabaseAdapter): Promise<void> {
-  const existing = await adapter.count(TABLES.hospitalSettings);
+  const existing = await adapter.count(TABLES.hospitals);
   if (existing > 0) {
     logger.info("seed.skip", { reason: "already populated" });
     return;

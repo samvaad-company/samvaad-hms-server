@@ -4,10 +4,11 @@
  */
 import { wardsRepo, bedsRepo } from "@/server/repositories";
 import { type WardRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const schema = {
   name: { type: "string", required: true, min: 2, max: 80 },
@@ -18,11 +19,10 @@ function toWardDTO(w: WardRow) {
   return { id: w.id, name: w.name, capacity: Number(w.capacity ?? 0) };
 }
 
-export async function listWards() {
-  const { rows } = await wardsRepo.listRows({
-    unpaged: true,
-    sort: [{ column: "id", direction: "asc" }],
-  });
+export async function listWards(actor: Session) {
+  const { rows } = await wardsRepo.listRows(
+    scopeToHospital({ unpaged: true, sort: [{ column: "id", direction: "asc" }] }, actor),
+  );
   return rows.map(toWardDTO);
 }
 
@@ -30,9 +30,11 @@ export async function createWard(input: unknown, actor: Session) {
   const data = validate(schema, input);
   const existing = await wardsRepo.findRow([
     { column: "name", op: "eq", value: data.name },
+    { column: "hospital_id", op: "eq", value: actor.hospitalId },
   ]);
   if (existing) throw new ConflictError(`Ward "${data.name}" already exists`);
   const row = await wardsRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     capacity: data.capacity ?? 0,
   });
@@ -42,12 +44,13 @@ export async function createWard(input: unknown, actor: Session) {
 
 export async function updateWard(id: number, input: unknown, actor: Session) {
   const existing = await wardsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Ward");
+  assertOwnedByHospital(existing, actor, "Ward");
   const data = validatePartial(schema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data && data.name) {
     const dupe = await wardsRepo.findRow([
       { column: "name", op: "eq", value: data.name },
+      { column: "hospital_id", op: "eq", value: actor.hospitalId },
     ]);
     if (dupe && dupe.id !== id) {
       throw new ConflictError(`Ward "${data.name}" already exists`);
@@ -74,7 +77,7 @@ export async function updateWard(id: number, input: unknown, actor: Session) {
 
 export async function deleteWard(id: number, actor: Session) {
   const existing = await wardsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Ward");
+  assertOwnedByHospital(existing, actor, "Ward");
   const { rows: beds } = await bedsRepo.listRows({
     unpaged: true,
     filters: [{ column: "ward_id", op: "eq", value: id }],

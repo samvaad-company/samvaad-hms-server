@@ -5,11 +5,11 @@ import { billsRepo, patientsRepo } from "@/server/repositories";
 import { toBillDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type BillRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { computeBillTotals, displayDate, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -27,14 +27,14 @@ export const BILLING_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listBills(options: QueryOptions) {
-  return billsRepo.list(options);
+export async function listBills(options: QueryOptions, actor: Session) {
+  return billsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getBill(id: number) {
-  const b = await billsRepo.get(id);
-  if (!b) throw new NotFoundError("Bill");
-  return b;
+export async function getBill(id: number, actor: Session) {
+  const row = await billsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Bill");
+  return toBillDTO(row);
 }
 
 export async function createBill(input: unknown, actor: Session) {
@@ -46,7 +46,7 @@ export async function createBill(input: unknown, actor: Session) {
   }
   const { gst, total } = computeBillTotals(data.amount, data.discount ?? 0, data.type);
 
-  const all = await billsRepo.listRows({ unpaged: true });
+  const all = await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const billNumber = nextCode(
     all.rows.map((r) => r.bill_number),
     "INV-",
@@ -54,6 +54,7 @@ export async function createBill(input: unknown, actor: Session) {
   );
 
   const row = await billsRepo.create({
+    hospital_id: actor.hospitalId,
     bill_number: billNumber,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
@@ -71,7 +72,7 @@ export async function createBill(input: unknown, actor: Session) {
 
 export async function updateBill(id: number, input: unknown, actor: Session) {
   const existing = await billsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Bill");
+  assertOwnedByHospital(existing, actor, "Bill");
   const data = validatePartial(createSchema, input);
   const patch: Record<string, unknown> = {};
   if ("status" in data) patch.status = data.status;
@@ -92,7 +93,8 @@ export async function updateBill(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteBill(id: number, actor: Session) {
-  const ok = await billsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Bill");
+  const existing = await billsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Bill");
+  await billsRepo.remove(id);
   await audit(actor, "delete", "bill", id);
 }

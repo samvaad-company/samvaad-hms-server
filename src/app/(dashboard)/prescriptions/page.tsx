@@ -7,6 +7,7 @@ import { FileText, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { PrescriptionDTO } from "@/types/api";
@@ -60,6 +61,8 @@ function PrescriptionRow({ row, actions }: { row: Prescription; actions: RowActi
 }
 
 export default function PrescriptionsPage() {
+  const { can } = useAuth();
+  const canWrite = can("prescriptions", "write");
   const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -121,7 +124,7 @@ export default function PrescriptionsPage() {
         title="Prescriptions"
         subtitle="Create, manage, and dispense digital prescriptions for patients."
         stats={[{ icon: FileText, value: `${visible.length}`, label: "Prescriptions" }]}
-        action={{ label: "New Prescription", icon: Plus, onClick: () => router.push("/prescriptions/new") }}
+        action={canWrite ? { label: "New Prescription", icon: Plus, onClick: () => router.push("/prescriptions/new") } : undefined}
         range={range}
         onRangeChange={setRange}
       />
@@ -151,9 +154,11 @@ export default function PrescriptionsPage() {
             ) : visible.map((r) => (
               <PrescriptionRow key={r.id} row={r} actions={[
                 { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
-                { label: "Edit", onClick: () => openEdit(r) },
-                { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => void dispense(r) },
-                { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
+                ...(canWrite ? [
+                  { label: "Edit", onClick: () => openEdit(r) },
+                  { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => void dispense(r) },
+                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
+                ] : []),
               ]} />
             ))}
           </DataTable>

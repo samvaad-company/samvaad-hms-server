@@ -33,6 +33,10 @@ export interface AppConfig {
   logLevel: "debug" | "info" | "warn" | "error";
   /** Sarvam AI API key for speech-to-text scribing (null → mock mode). */
   sarvamApiKey: string | null;
+  /** Gemini API key for the AI Chat assistant (null → mock/demo mode). */
+  geminiApiKey: string | null;
+  /** Gemini model used for chat completions + tool calling. */
+  geminiModel: string;
 }
 
 function pickDriver(): DatabaseDriver {
@@ -77,6 +81,8 @@ export function getConfig(): AppConfig {
       (process.env.LOG_LEVEL as AppConfig["logLevel"]) ??
       (isProduction ? "info" : "debug"),
     sarvamApiKey: process.env.SARVAM_API_KEY ?? null,
+    geminiApiKey: process.env.GEMINI_API_KEY ?? null,
+    geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
   };
 
   return cached;

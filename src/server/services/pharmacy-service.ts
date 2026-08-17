@@ -6,11 +6,11 @@ import { pharmacyRepo } from "@/server/repositories";
 import { toPharmacyDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type PharmacyItemRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { computePharmacyStatus } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const schema = {
   name: { type: "string", required: true, min: 2, max: 160 },
@@ -28,20 +28,21 @@ export const PHARMACY_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listPharmacy(options: QueryOptions) {
-  return pharmacyRepo.list(options);
+export async function listPharmacy(options: QueryOptions, actor: Session) {
+  return pharmacyRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getPharmacyItem(id: number) {
-  const item = await pharmacyRepo.get(id);
-  if (!item) throw new NotFoundError("Pharmacy item");
-  return item;
+export async function getPharmacyItem(id: number, actor: Session) {
+  const row = await pharmacyRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Pharmacy item");
+  return toPharmacyDTO(row);
 }
 
 export async function createPharmacyItem(input: unknown, actor: Session) {
   const data = validate(schema, input);
   const status = computePharmacyStatus(data.stock, data.minStock ?? 0, data.expiryDate ?? "");
   const row = await pharmacyRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     category: data.category,
     stock: data.stock,
@@ -56,7 +57,7 @@ export async function createPharmacyItem(input: unknown, actor: Session) {
 
 export async function updatePharmacyItem(id: number, input: unknown, actor: Session) {
   const existing = await pharmacyRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Pharmacy item");
+  assertOwnedByHospital(existing, actor, "Pharmacy item");
   const data = validatePartial(schema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -79,7 +80,7 @@ export async function updatePharmacyItem(id: number, input: unknown, actor: Sess
 /** Add quantity to an item's stock and recompute its status. */
 export async function restockItem(id: number, quantity: number, actor: Session) {
   const existing = await pharmacyRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Pharmacy item");
+  assertOwnedByHospital(existing, actor, "Pharmacy item");
   const newStock = Math.max(0, existing.stock + Math.round(quantity));
   const row = await pharmacyRepo.update(id, {
     stock: newStock,
@@ -90,7 +91,8 @@ export async function restockItem(id: number, quantity: number, actor: Session) 
 }
 
 export async function deletePharmacyItem(id: number, actor: Session) {
-  const ok = await pharmacyRepo.remove(id);
-  if (!ok) throw new NotFoundError("Pharmacy item");
+  const existing = await pharmacyRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Pharmacy item");
+  await pharmacyRepo.remove(id);
   await audit(actor, "delete", "pharmacy", id);
 }

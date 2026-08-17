@@ -9,9 +9,9 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
-import type { DepartmentDTO, AdminUserDTO } from "@/types/api";
+import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Plus, Trash2, Edit2, Settings2, Save, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2 } from "lucide-react";
 
 interface HospitalSettings {
   name: string; address: string; city: string; state: string; pincode: string;
@@ -178,7 +178,7 @@ const ROLE_CLR: Record<string, string> = {
   Accountant:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
-const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner"];
+const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner","Lab Partner"];
 
 function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
   const { run, loading, error } = useMutation();
@@ -257,8 +257,8 @@ function UsersView() {
       {showForm && (
         <div className="px-5 py-4 border-b border-[#dedee1] bg-[#f6f6f6]">
           <div className="grid grid-cols-4 gap-3">
-            <FormRow label={form.role === "Radiology Partner" ? "Radiology Centre Name *" : "Full Name *"}>
-              <FormInput placeholder={form.role === "Radiology Partner" ? "e.g. Scanwell Diagnostics" : "Name"} value={form.name} onChange={v => set("name", v)} />
+            <FormRow label={form.role === "Radiology Partner" ? "Radiology Centre Name *" : form.role === "Lab Partner" ? "Lab Name *" : "Full Name *"}>
+              <FormInput placeholder={form.role === "Radiology Partner" ? "e.g. Scanwell Diagnostics" : form.role === "Lab Partner" ? "e.g. Pathcare Diagnostics" : "Name"} value={form.name} onChange={v => set("name", v)} />
             </FormRow>
             <FormRow label="Email *"><FormInput placeholder="email@hospital.com" type="email" value={form.email} onChange={v => set("email", v)} /></FormRow>
             <FormRow label="Role *">
@@ -272,6 +272,12 @@ function UsersView() {
             <p className="text-[12px] font-light text-[#57575f] mt-2">
               Partner centres get their own login and see only the Radiology worklist — reports they upload
               appear instantly in this hospital&apos;s Radiology panel.
+            </p>
+          )}
+          {form.role === "Lab Partner" && (
+            <p className="text-[12px] font-light text-[#57575f] mt-2">
+              Partner labs get their own login and see only the in-house Lab worklist — reports they upload
+              appear instantly in this hospital&apos;s Lab panel.
             </p>
           )}
           {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
@@ -319,12 +325,170 @@ function UsersView() {
   );
 }
 
+// ─── Radiology Links Tab ────────────────────────────────────────────────────
+
+const ACTIVE_LINK_STATUSES = ["Pending", "Active"];
+
+function RadiologyLinksView() {
+  const { items: links, reload, loading } = useList<RadiologyLinkDTO>("/radiology-links");
+  const { run, loading: saving, error, reset } = useMutation();
+  const [code, setCode] = useState("");
+
+  async function requestLink() {
+    if (!code.trim()) return;
+    await run(() => api.post("/radiology-links", { radiologyCenterCode: code.trim() }));
+    setCode("");
+    reload();
+  }
+
+  async function revoke(id: number) {
+    await run(() => api.post(`/radiology-links/${id}/revoke`, {}));
+    reload();
+  }
+
+  return (
+    <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-2">Link a Radiology Center</h3>
+        <p className="text-[12px] font-light text-[#57575f] mb-3">
+          Enter the center&apos;s code (shared with you by the center) to send a link request.
+          Once their admin accepts, orders can be routed there and their reports flow back here.
+        </p>
+        <div className="flex gap-2 max-w-md">
+          <input
+            value={code}
+            onChange={e => { setCode(e.target.value); reset(); }}
+            onKeyDown={e => e.key === "Enter" && requestLink()}
+            placeholder="e.g. RADC-0001"
+            className="flex-1 h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+          />
+          <button onClick={requestLink} disabled={saving || !code.trim()}
+            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-[8px] hover:bg-[#007f82] transition-colors whitespace-nowrap disabled:opacity-50">
+            <Link2 size={14} /> Request Link
+          </button>
+        </div>
+        {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
+      </section>
+
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Linked Centers</h3>
+        {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+        {!loading && links.length === 0 && (
+          <p className="text-[13px] text-[#57575f]">No radiology centers linked yet.</p>
+        )}
+        <div className="flex flex-col gap-2">
+          {links.map(link => (
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+              <div className="flex flex-col">
+                <span className="text-[13px] font-medium text-[#11111c]">{link.radiologyCenterName}</span>
+                <span className="text-[11px] font-light text-[#57575f]">
+                  Requested by {link.requestedBy} · {link.requestedAt}
+                  {link.respondedAt ? ` · Responded ${link.respondedAt}` : ""}
+                  {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <StatusBadge status={link.status} />
+                {ACTIVE_LINK_STATUSES.includes(link.status) && (
+                  <button onClick={() => revoke(link.id)} disabled={saving}
+                    className="text-[12px] font-normal text-[#ff0004] border border-[#ffd0d1] px-3 py-[6px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-50">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Lab Links Tab ──────────────────────────────────────────────────────────
+
+function LabLinksView() {
+  const { items: links, reload, loading } = useList<LabLinkDTO>("/lab-links");
+  const { run, loading: saving, error, reset } = useMutation();
+  const [code, setCode] = useState("");
+
+  async function requestLink() {
+    if (!code.trim()) return;
+    await run(() => api.post("/lab-links", { labCenterCode: code.trim() }));
+    setCode("");
+    reload();
+  }
+
+  async function revoke(id: number) {
+    await run(() => api.post(`/lab-links/${id}/revoke`, {}));
+    reload();
+  }
+
+  return (
+    <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-2">Link a Lab Center</h3>
+        <p className="text-[12px] font-light text-[#57575f] mb-3">
+          Enter the lab&apos;s code (shared with you by the lab) to send a link request.
+          Once their admin accepts, orders can be routed there and their reports flow back here.
+        </p>
+        <div className="flex gap-2 max-w-md">
+          <input
+            value={code}
+            onChange={e => { setCode(e.target.value); reset(); }}
+            onKeyDown={e => e.key === "Enter" && requestLink()}
+            placeholder="e.g. LABC-0001"
+            className="flex-1 h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+          />
+          <button onClick={requestLink} disabled={saving || !code.trim()}
+            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-[8px] hover:bg-[#007f82] transition-colors whitespace-nowrap disabled:opacity-50">
+            <Link2 size={14} /> Request Link
+          </button>
+        </div>
+        {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
+      </section>
+
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Linked Labs</h3>
+        {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+        {!loading && links.length === 0 && (
+          <p className="text-[13px] text-[#57575f]">No lab centers linked yet.</p>
+        )}
+        <div className="flex flex-col gap-2">
+          {links.map(link => (
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+              <div className="flex flex-col">
+                <span className="text-[13px] font-medium text-[#11111c]">{link.labCenterName}</span>
+                <span className="text-[11px] font-light text-[#57575f]">
+                  Requested by {link.requestedBy} · {link.requestedAt}
+                  {link.respondedAt ? ` · Responded ${link.respondedAt}` : ""}
+                  {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <StatusBadge status={link.status} />
+                {ACTIVE_LINK_STATUSES.includes(link.status) && (
+                  <button onClick={() => revoke(link.id)} disabled={saving}
+                    className="text-[12px] font-normal text-[#ff0004] border border-[#ffd0d1] px-3 py-[6px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-50">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const ALL_TABS = [
-  { id: "settings", label: "Settings" },
-  { id: "master",   label: "Master Data" },
-  { id: "users",    label: "Users" },
+  { id: "settings",        label: "Settings" },
+  { id: "master",          label: "Master Data" },
+  { id: "users",           label: "Users" },
+  { id: "radiology-links", label: "Radiology Links" },
+  { id: "lab-links",       label: "Lab Links" },
 ];
 
 export default function AdminPage() {
@@ -356,9 +520,11 @@ export default function AdminPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={activeTab} onTabChange={setTab} />
-          {activeTab === "settings" && <SettingsView />}
-          {activeTab === "master"   && <MasterDataView />}
-          {activeTab === "users"    && <UsersView />}
+          {activeTab === "settings"        && <SettingsView />}
+          {activeTab === "master"          && <MasterDataView />}
+          {activeTab === "users"           && <UsersView />}
+          {activeTab === "radiology-links" && <RadiologyLinksView />}
+          {activeTab === "lab-links"       && <LabLinksView />}
         </div>
       </div>
     </>

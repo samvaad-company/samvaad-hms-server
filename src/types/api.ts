@@ -126,12 +126,56 @@ export interface OpdRecordDTO extends OpdRecord {
 }
 
 export interface LabTestDTO extends LabTest {
+  hospitalId: number;
   orderNumber: string;
   requestedBy: string;
+  doctorId: number | null;
+  doctor: string;
   priority: string;
   collectionDate: string;
+  /** The price is the routed-to center's call, not the hospital's — only a discount is captured here. */
   discount: number;
+  discountType: "percent" | "amount";
   patientId: number | null;
+  /** Null when kept in-house; set once routed to a linked lab center. */
+  labCenterId: number | null;
+  labCenterName: string | null;
+  /** Set only when a lab-center account is viewing — its own hospital is implicit otherwise. */
+  hospitalName: string | null;
+  /** True when a report document has been uploaded (fetch it via /lab/[id]/report). */
+  hasReport: boolean;
+  reportFileName: string | null;
+  reportNote: string | null;
+  reportUploadedBy: string | null;
+  reportUploadedAt: string | null;
+}
+
+/** Fuller demographic/medical-safety detail for the patient behind one lab test — fetched via /lab/[id]/patient. */
+export interface LabPatientDetailDTO {
+  id: number;
+  name: string;
+  patientCode: string;
+  age: number;
+  gender: string;
+  phone: string;
+  email: string | null;
+  bloodGroup: string | null;
+  dob: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  allergies: string | null;
+  chronicConditions: string | null;
+}
+
+export interface LabReportFileDTO {
+  fileName: string;
+  /** data: URL containing the report document (PDF or image). */
+  dataUrl: string;
+  note: string | null;
+  uploadedBy: string | null;
+  uploadedAt: string | null;
 }
 
 export interface BillDTO extends Bill {
@@ -211,6 +255,9 @@ export interface SessionUserDTO {
   name: string;
   email: string;
   role: string;
+  hospitalId: number | null;
+  radiologyCenterId: number | null;
+  labCenterId: number | null;
   doctorId: number | null;
   permissions: Record<string, "none" | "read" | "write">;
 }
@@ -251,6 +298,7 @@ export interface BloodIssueDTO {
 export interface RadiologyTestDTO {
   orderNumber: string;
   id: number;
+  hospitalId: number;
   patientId: number | null;
   patientName: string;
   patientAge: number;
@@ -259,13 +307,42 @@ export interface RadiologyTestDTO {
   reportStatus: "Pending" | "Ready";
   date: string;
   amount: number;
+  /** The price is the routed-to center's call, not the hospital's — only a discount is captured here. */
+  discount: number;
+  discountType: "percent" | "amount";
   status: RadiologyStatus;
+  doctorId: number | null;
+  doctor: string;
+  /** Null when kept in-house; set once routed to a linked radiology center. */
+  radiologyCenterId: number | null;
+  radiologyCenterName: string | null;
+  /** Set only when a radiology-center account is viewing — its own hospital is implicit otherwise. */
+  hospitalName: string | null;
   /** True when a report document has been uploaded (fetch it via /radiology/[id]/report). */
   hasReport: boolean;
   reportFileName: string | null;
   reportNote: string | null;
   reportUploadedBy: string | null;
   reportUploadedAt: string | null;
+}
+
+/** Fuller demographic/medical-safety detail for the patient behind one radiology study — fetched via /radiology/[id]/patient. */
+export interface RadiologyPatientDetailDTO {
+  id: number;
+  name: string;
+  patientCode: string;
+  age: number;
+  gender: string;
+  phone: string;
+  email: string | null;
+  bloodGroup: string | null;
+  dob: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  allergies: string | null;
+  chronicConditions: string | null;
 }
 
 export interface RadiologyReportFileDTO {
@@ -397,6 +474,22 @@ export interface TaskDTO {
   updatedAt: string;
 }
 
+export interface ChatThreadDTO {
+  id: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessageDTO {
+  id: number;
+  threadId: number;
+  role: "user" | "assistant";
+  content: string;
+  sources: string[] | null;
+  createdAt: string;
+}
+
 export interface ScribeNoteDTO {
   id: number;
   appointmentId: number | null;
@@ -505,6 +598,60 @@ export interface DocumentDTO {
   createdAt: string;
   /** Ready-to-use download URL. */
   url: string;
+}
+
+export interface RadiologyCenterDTO {
+  id: number;
+  code: string;
+  status: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  phone: string;
+  contactEmail: string;
+}
+
+export interface LabCenterDTO {
+  id: number;
+  code: string;
+  status: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  phone: string;
+  contactEmail: string;
+}
+
+export interface RadiologyLinkDTO {
+  id: number;
+  status: string;
+  hospitalId: number;
+  hospitalName: string;
+  radiologyCenterId: number;
+  radiologyCenterName: string;
+  requestedBy: string;
+  requestedAt: string;
+  respondedBy: string | null;
+  respondedAt: string | null;
+  revokedBy: string | null;
+  revokedAt: string | null;
+}
+
+export interface LabLinkDTO {
+  id: number;
+  status: string;
+  hospitalId: number;
+  hospitalName: string;
+  labCenterId: number;
+  labCenterName: string;
+  requestedBy: string;
+  requestedAt: string;
+  respondedBy: string | null;
+  respondedAt: string | null;
+  revokedBy: string | null;
+  revokedAt: string | null;
 }
 
 export interface DashboardStatsDTO {

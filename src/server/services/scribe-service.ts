@@ -7,10 +7,10 @@ import { scribeNotesRepo } from "@/server/repositories";
 import { toScribeNoteDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type ScribeNoteRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const SCRIBE_STATUSES = ["Draft", "Saved", "Signed"] as const;
 
@@ -34,19 +34,20 @@ export const SCRIBE_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "desc" as const }],
 };
 
-export async function listScribeNotes(options: QueryOptions) {
-  return scribeNotesRepo.list(options);
+export async function listScribeNotes(options: QueryOptions, actor: Session) {
+  return scribeNotesRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getScribeNote(id: number) {
-  const n = await scribeNotesRepo.get(id);
-  if (!n) throw new NotFoundError("Scribe note");
-  return n;
+export async function getScribeNote(id: number, actor: Session) {
+  const row = await scribeNotesRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Scribe note");
+  return toScribeNoteDTO(row);
 }
 
 export async function createScribeNote(input: unknown, actor: Session) {
   const data = validate(scribeSchema, input);
   const row = await scribeNotesRepo.create({
+    hospital_id: actor.hospitalId,
     appointment_id: data.appointmentId ?? null,
     patient_id: data.patientId ?? null,
     patient_name: data.patientName,
@@ -64,7 +65,7 @@ export async function createScribeNote(input: unknown, actor: Session) {
 
 export async function updateScribeNote(id: number, input: unknown, actor: Session) {
   const existing = await scribeNotesRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Scribe note");
+  assertOwnedByHospital(existing, actor, "Scribe note");
   const data = validatePartial(scribeSchema, input);
   const patch: Record<string, unknown> = {};
   if ("transcript" in data) patch.transcript = data.transcript;
@@ -78,7 +79,8 @@ export async function updateScribeNote(id: number, input: unknown, actor: Sessio
 }
 
 export async function deleteScribeNote(id: number, actor: Session) {
-  const ok = await scribeNotesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Scribe note");
+  const existing = await scribeNotesRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Scribe note");
+  await scribeNotesRepo.remove(id);
   await audit(actor, "delete", "scribe-note", id);
 }

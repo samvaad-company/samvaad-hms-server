@@ -6,11 +6,11 @@ import { tpasRepo, tpaClaimsRepo, patientsRepo } from "@/server/repositories";
 import { toTpaDTO, toTpaClaimDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type TpaRow, type TpaClaimRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 // ── TPA master ──────────────────────────────────────────────────────────────
 
@@ -31,19 +31,20 @@ export const TPA_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listTpas(options: QueryOptions) {
-  return tpasRepo.list(options);
+export async function listTpas(options: QueryOptions, actor: Session) {
+  return tpasRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getTpa(id: number) {
-  const t = await tpasRepo.get(id);
-  if (!t) throw new NotFoundError("TPA");
-  return t;
+export async function getTpa(id: number, actor: Session) {
+  const row = await tpasRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "TPA");
+  return toTpaDTO(row);
 }
 
 export async function createTpa(input: unknown, actor: Session) {
   const data = validate(tpaSchema, input);
   const row = await tpasRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     code: data.code,
     contact_person: data.contactPerson,
@@ -58,7 +59,7 @@ export async function createTpa(input: unknown, actor: Session) {
 
 export async function updateTpa(id: number, input: unknown, actor: Session) {
   const existing = await tpasRepo.getRow(id);
-  if (!existing) throw new NotFoundError("TPA");
+  assertOwnedByHospital(existing, actor, "TPA");
   const data = validatePartial(tpaSchema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -74,8 +75,9 @@ export async function updateTpa(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteTpa(id: number, actor: Session) {
-  const ok = await tpasRepo.remove(id);
-  if (!ok) throw new NotFoundError("TPA");
+  const existing = await tpasRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "TPA");
+  await tpasRepo.remove(id);
   await audit(actor, "delete", "tpa", id);
 }
 
@@ -103,20 +105,21 @@ export const CLAIMS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listClaims(options: QueryOptions) {
-  return tpaClaimsRepo.list(options);
+export async function listClaims(options: QueryOptions, actor: Session) {
+  return tpaClaimsRepo.list(scopeToHospital(options, actor));
 }
 
 export async function createClaim(input: unknown, actor: Session) {
   const data = validate(claimSchema, input);
   const tpa = await tpasRepo.getRow(data.tpaId);
-  if (!tpa) throw new NotFoundError("TPA");
+  assertOwnedByHospital(tpa, actor, "TPA");
   let patientName = data.patientName;
   if (data.patientId) {
     const p = await patientsRepo.getRow(data.patientId);
     if (p) patientName = p.name;
   }
   const row = await tpaClaimsRepo.create({
+    hospital_id: actor.hospitalId,
     tpa_id: data.tpaId,
     tpa_name: tpa.name,
     patient_id: data.patientId ?? null,
@@ -133,7 +136,7 @@ export async function createClaim(input: unknown, actor: Session) {
 
 export async function updateClaim(id: number, input: unknown, actor: Session) {
   const existing = await tpaClaimsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Claim");
+  assertOwnedByHospital(existing, actor, "Claim");
   const data = validatePartial(claimSchema, input);
   const patch: Record<string, unknown> = {};
   if ("claimAmount" in data) patch.claim_amount = data.claimAmount;
@@ -146,7 +149,8 @@ export async function updateClaim(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteClaim(id: number, actor: Session) {
-  const ok = await tpaClaimsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Claim");
+  const existing = await tpaClaimsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Claim");
+  await tpaClaimsRepo.remove(id);
   await audit(actor, "delete", "tpa-claim", id);
 }

@@ -7,8 +7,8 @@ import { listDepartments, createDepartment } from "@/server/services/admin-servi
 
 /** Readable by any authenticated user (used by doctor/staff dropdowns). */
 export const GET = withRoute(async () => {
-  await requireSession();
-  return ok(await listDepartments());
+  const session = await requireSession();
+  return ok(await listDepartments(session));
 });
 
 export const POST = withRoute(async (req: NextRequest) => {

@@ -7,6 +7,7 @@ import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/share
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PatientDTO, DoctorDTO } from "@/types/api";
 import { Check, Loader2 } from "lucide-react";
@@ -18,6 +19,7 @@ const ANAESTHESIA = ["General (GA)","Spinal","Epidural","Local","Sedation (MAC)"
 
 export default function NewOTPage() {
   const router = useRouter();
+  const { can } = useAuth();
   useBreadcrumb("/ot", "OT", "Schedule OT");
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -45,6 +47,16 @@ export default function NewOTPage() {
       }),
     );
     router.push("/ot");
+  }
+
+  if (!can("ot", "write")) {
+    return (
+      <div className={`${tw.gutterX} pt-10`}>
+        <p className="text-[14px] font-normal text-[#57575f]">
+          You don&apos;t have permission to schedule OT procedures. <Link href="/ot" className="text-[#009598] hover:underline">Back to OT</Link>
+        </p>
+      </div>
+    );
   }
 
   return (

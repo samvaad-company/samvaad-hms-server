@@ -5,6 +5,7 @@ import { tw } from "@/lib/design-system";
 import { Pill, Plus, MoreVertical, AlertTriangle, Clock, XCircle, TrendingDown, Pencil, Download } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { parseMonthYear, parseDisplayDate, formatDate } from "@/lib/dates";
 import { downloadElement } from "@/lib/print";
 import { useRowActions } from "@/lib/api/useRowActions";
@@ -859,7 +860,7 @@ interface ReorderTarget {
   stock: number;
 }
 
-function ExpiringView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (item: ReorderTarget) => void; onRemove: (id: number, name: string) => void }) {
+function ExpiringView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (item: ReorderTarget) => void; onRemove: (id: number, name: string) => void; canWrite: boolean }) {
   const [windowId, setWindowId] = useState<(typeof EXPIRY_WINDOWS)[number]["id"]>("3m");
   const win = EXPIRY_WINDOWS.find(w => w.id === windowId)!;
   const cutoff = new Date(Date.now() + win.days * 24 * 60 * 60 * 1000);
@@ -908,12 +909,14 @@ function ExpiringView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: P
                   <span className={`text-[13px] font-normal ${expired ? "text-[#ff0004]" : daysLeft <= 30 ? "text-[#ff9000]" : "text-[#57575f]"}`}>
                     {expired ? `Expired ${item.expiryDate}` : `Expires ${item.expiryDate} · ${daysLeft} days`}
                   </span>
-                  <button
-                    onClick={() => (expired ? onRemove(item.id, item.name) : onReorder(item))}
-                    className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
-                  >
-                    {expired ? "Remove" : "Reorder"}
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => (expired ? onRemove(item.id, item.name) : onReorder(item))}
+                      className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+                    >
+                      {expired ? "Remove" : "Reorder"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -924,7 +927,7 @@ function ExpiringView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: P
   );
 }
 
-function AlertsView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (item: ReorderTarget) => void; onRemove: (id: number, name: string) => void }) {
+function AlertsView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharmacyItems: PharmacyItemDTO[]; onReorder: (item: ReorderTarget) => void; onRemove: (id: number, name: string) => void; canWrite: boolean }) {
   const lowStock  = pharmacyItems.filter(i => i.status === "Low Stock");
   const outStock  = pharmacyItems.filter(i => i.status === "Out of Stock");
   const expired   = pharmacyItems.filter(i => i.status === "Expired");
@@ -939,11 +942,13 @@ function AlertsView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: Pha
         {type === "low"    && <span className="text-[13px] font-normal text-[#ff9000]">Stock: {item.stock} / Min: {item.minStock}</span>}
         {type === "out"    && <span className="text-[13px] font-normal text-[#ff0004]">Out of stock</span>}
         {type === "expiry" && <span className="text-[13px] font-normal text-[#ff0004]">Expired: {item.expiryDate}</span>}
-        <button
-          onClick={() => (type === "expiry" ? onRemove(item.id, item.name) : onReorder(item))}
-          className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
-          {type === "expiry" ? "Remove" : "Reorder"}
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => (type === "expiry" ? onRemove(item.id, item.name) : onReorder(item))}
+            className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+            {type === "expiry" ? "Remove" : "Reorder"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -983,6 +988,8 @@ function AlertsView({ pharmacyItems, onReorder, onRemove }: { pharmacyItems: Pha
 const PHARMA_FILTER_MAP: Record<string, string> = { "InStock": "In Stock", "LowStock": "Low Stock", "OutOfStock": "Out of Stock" };
 
 export default function PharmacyPage() {
+  const { can } = useAuth();
+  const canWrite = can("pharmacy", "write");
   const [tab, setTab] = useState("inventory");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -1036,8 +1043,7 @@ export default function PharmacyPage() {
 
   const TABS = [
     { id: "inventory", label: "Inventory",   count: pharmacyItems.length },
-    { id: "purchase",  label: "Purchase" },
-    { id: "sales",     label: "Sales" },
+    ...(canWrite ? [{ id: "purchase", label: "Purchase" }, { id: "sales", label: "Sales" }] : []),
     { id: "expiring",  label: "About to Expire" },
     { id: "alerts",    label: "Alerts", count: pharmacyItems.filter(i => ["Low Stock","Out of Stock","Expired"].includes(i.status)).length },
   ];
@@ -1102,7 +1108,7 @@ export default function PharmacyPage() {
         title="Pharmacy"
         subtitle="Manage drug inventory, purchase orders, billing, and stock alerts."
         stats={[{ icon: Pill, value: `${visible.length}`, label: "Total Items" }]}
-        action={{ label: "Add Item", icon: Plus, onClick: () => setShowModal(true) }}
+        action={canWrite ? { label: "Add Item", icon: Plus, onClick: () => setShowModal(true) } : undefined}
         dateRange={false}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -1116,18 +1122,18 @@ export default function PharmacyPage() {
                 {visible.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No items found.</div>
                 ) : visible.map(r => (
-                  <InventoryRow key={r.id} row={r} actions={[
+                  <InventoryRow key={r.id} row={r} actions={canWrite ? [
                     { label: "Reorder", onClick: () => openReorder(r) },
                     { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>
           )}
-          {tab === "purchase" && <PurchaseView items={pharmacyItems} onChanged={reload} />}
-          {tab === "sales"    && <SalesView items={pharmacyItems} onChanged={reload} />}
-          {tab === "expiring" && <ExpiringView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} />}
-          {tab === "alerts"   && <AlertsView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} />}
+          {tab === "purchase" && canWrite && <PurchaseView items={pharmacyItems} onChanged={reload} />}
+          {tab === "sales"    && canWrite && <SalesView items={pharmacyItems} onChanged={reload} />}
+          {tab === "expiring" && <ExpiringView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} canWrite={canWrite} />}
+          {tab === "alerts"   && <AlertsView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} canWrite={canWrite} />}
         </div>
       </div>
     </>

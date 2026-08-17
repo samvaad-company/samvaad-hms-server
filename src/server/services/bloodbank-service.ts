@@ -22,12 +22,13 @@ import {
   type BloodIssueRow,
   type BloodStockRow,
 } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { optionalAadhaarRule } from "@/server/lib/field-rules";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
 const COMPONENTS = ["Whole Blood", "Plasma", "Platelets", "RBC"] as const;
@@ -53,19 +54,20 @@ export const DONORS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listDonors(options: QueryOptions) {
-  return bloodDonorsRepo.list(options);
+export async function listDonors(options: QueryOptions, actor: Session) {
+  return bloodDonorsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getDonor(id: number) {
-  const d = await bloodDonorsRepo.get(id);
-  if (!d) throw new NotFoundError("Donor");
-  return d;
+export async function getDonor(id: number, actor: Session) {
+  const row = await bloodDonorsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Donor");
+  return toBloodDonorDTO(row);
 }
 
 export async function createDonor(input: unknown, actor: Session) {
   const data = validate(donorSchema, input);
   const row = await bloodDonorsRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     age: data.age,
     gender: data.gender,
@@ -82,7 +84,7 @@ export async function createDonor(input: unknown, actor: Session) {
 
 export async function updateDonor(id: number, input: unknown, actor: Session) {
   const existing = await bloodDonorsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Donor");
+  assertOwnedByHospital(existing, actor, "Donor");
   const data = validatePartial(donorSchema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -100,16 +102,17 @@ export async function updateDonor(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteDonor(id: number, actor: Session) {
-  const ok = await bloodDonorsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Donor");
+  const existing = await bloodDonorsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Donor");
+  await bloodDonorsRepo.remove(id);
   await audit(actor, "delete", "blood-donor", id);
 }
 
 /** Record a donation: bumps stock and the donor's history. */
 export async function recordDonation(donorId: number, actor: Session) {
   const donor = await bloodDonorsRepo.getRow(donorId);
-  if (!donor) throw new NotFoundError("Donor");
-  await adjustStock(donor.blood_group, "Whole Blood", 1);
+  assertOwnedByHospital(donor, actor, "Donor");
+  await adjustStock(donor.blood_group, "Whole Blood", 1, actor);
   const row = await bloodDonorsRepo.update(donorId, {
     last_donation_date: displayDate(),
     total_donations: donor.total_donations + 1,
@@ -127,20 +130,21 @@ export const STOCK_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listStock(options: QueryOptions) {
-  return bloodStockRepo.list(options);
+export async function listStock(options: QueryOptions, actor: Session) {
+  return bloodStockRepo.list(scopeToHospital(options, actor));
 }
 
-async function findStockRow(bloodGroup: string, component: string) {
+async function findStockRow(bloodGroup: string, component: string, actor: Session) {
   return bloodStockRepo.findRow([
     { column: "blood_group", op: "eq", value: bloodGroup },
     { column: "component", op: "eq", value: component },
+    { column: "hospital_id", op: "eq", value: actor.hospitalId },
   ]);
 }
 
 /** Add (or subtract, with a negative delta) units for a group + component. */
-async function adjustStock(bloodGroup: string, component: string, delta: number) {
-  const existing = await findStockRow(bloodGroup, component);
+async function adjustStock(bloodGroup: string, component: string, delta: number, actor: Session) {
+  const existing = await findStockRow(bloodGroup, component, actor);
   if (existing) {
     const units = existing.units + delta;
     if (units < 0) {
@@ -154,6 +158,7 @@ async function adjustStock(bloodGroup: string, component: string, delta: number)
     throw new ConflictError(`No ${component} stock for ${bloodGroup}`);
   }
   return bloodStockRepo.create({
+    hospital_id: actor.hospitalId,
     blood_group: bloodGroup,
     component,
     units: delta,
@@ -169,7 +174,7 @@ const stockSchema = {
 /** Direct stock top-up (e.g. from an external blood bank). */
 export async function addStock(input: unknown, actor: Session) {
   const data = validate(stockSchema, input);
-  const row = await adjustStock(data.bloodGroup, data.component, data.units);
+  const row = await adjustStock(data.bloodGroup, data.component, data.units, actor);
   await audit(actor, "restock", "blood-stock", row?.id ?? 0, data);
   return toBloodStockDTO(row as BloodStockRow);
 }
@@ -193,8 +198,8 @@ export const ISSUES_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listIssues(options: QueryOptions) {
-  return bloodIssuesRepo.list(options);
+export async function listIssues(options: QueryOptions, actor: Session) {
+  return bloodIssuesRepo.list(scopeToHospital(options, actor));
 }
 
 export async function createIssue(input: unknown, actor: Session) {
@@ -210,6 +215,7 @@ export async function createIssue(input: unknown, actor: Session) {
   const stockLine = await bloodStockRepo.findRow([
     { column: "blood_group", op: "eq", value: data.bloodGroup },
     { column: "component", op: "eq", value: data.component },
+    { column: "hospital_id", op: "eq", value: actor.hospitalId },
   ]);
   if (!stockLine || stockLine.units < data.units) {
     throw new ConflictError(
@@ -222,6 +228,7 @@ export async function createIssue(input: unknown, actor: Session) {
       units: stockLine.units - data.units,
     });
     return uow.insert<BloodIssueRow>(TABLES.bloodIssues, {
+      hospital_id: actor.hospitalId,
       patient_id: data.patientId ?? null,
       patient_name: patientName,
       blood_group: data.bloodGroup,
@@ -257,7 +264,7 @@ export async function createIssue(input: unknown, actor: Session) {
 
 export async function updateIssue(id: number, input: unknown, actor: Session) {
   const existing = await bloodIssuesRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Blood issue");
+  assertOwnedByHospital(existing, actor, "Blood issue");
   const schema = {
     status: { type: "enum", required: false, values: ["Issued", "Pending", "Cancelled"] },
   } as const;
@@ -265,7 +272,7 @@ export async function updateIssue(id: number, input: unknown, actor: Session) {
   const patch: Record<string, unknown> = {};
   // Cancelling an issue returns the units to stock.
   if (data.status === "Cancelled" && existing.status !== "Cancelled") {
-    await adjustStock(existing.blood_group, existing.component, existing.units);
+    await adjustStock(existing.blood_group, existing.component, existing.units, actor);
   }
   if ("status" in data) patch.status = data.status;
   const row = await bloodIssuesRepo.update(id, patch);
@@ -274,7 +281,8 @@ export async function updateIssue(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteIssue(id: number, actor: Session) {
-  const ok = await bloodIssuesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Blood issue");
+  const existing = await bloodIssuesRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Blood issue");
+  await bloodIssuesRepo.remove(id);
   await audit(actor, "delete", "blood-issue", id);
 }

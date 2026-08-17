@@ -15,13 +15,14 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { transactional } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type IpdAdmissionRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError, BadRequestError } from "@/server/lib/errors";
+import { ConflictError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { validateNotPast } from "@/server/lib/field-rules";
 import { displayDate, isoDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const admitSchema = {
   patientId: { type: "number", required: false },
@@ -46,13 +47,15 @@ export const IPD_LIST_CONFIG = {
 };
 
 export async function listIpd(options: QueryOptions, actor: Session) {
-  return ipdRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
+  return ipdRepo.list(
+    scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
+  );
 }
 
-export async function getIpd(id: number) {
-  const r = await ipdRepo.get(id);
-  if (!r) throw new NotFoundError("Admission");
-  return r;
+export async function getIpd(id: number, actor: Session) {
+  const row = await ipdRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Admission");
+  return toIpdDTO(row);
 }
 
 export async function admitPatient(input: unknown, actor: Session) {
@@ -63,17 +66,17 @@ export async function admitPatient(input: unknown, actor: Session) {
   let patientCode = data.patientCode ?? "";
   if (data.patientId) {
     const p = await patientsRepo.getRow(data.patientId);
-    if (p) {
-      patientName = p.name;
-      patientAge = p.age;
-      patientCode = p.patient_code;
-    }
+    assertOwnedByHospital(p, actor, "Patient");
+    patientName = p.name;
+    patientAge = p.age;
+    patientCode = p.patient_code;
   }
 
   let doctorName = data.doctor ?? "";
   if (data.doctorId) {
     const d = await doctorsRepo.getRow(data.doctorId);
-    if (d) doctorName = d.name;
+    assertOwnedByHospital(d, actor, "Doctor");
+    doctorName = d.name;
   }
 
   // Resolve and occupy the bed.
@@ -83,7 +86,7 @@ export async function admitPatient(input: unknown, actor: Session) {
   const bedId = data.bedId ?? null;
   if (bedId) {
     const bed = await bedsRepo.getRow(bedId);
-    if (!bed) throw new NotFoundError("Bed");
+    assertOwnedByHospital(bed, actor, "Bed");
     if (bed.status === "Occupied") {
       throw new ConflictError(`Bed ${bed.bed_number} is already occupied`);
     }
@@ -93,7 +96,10 @@ export async function admitPatient(input: unknown, actor: Session) {
   }
 
   const wardRow = ward
-    ? await wardsRepo.findRow([{ column: "name", op: "eq", value: ward }])
+    ? await wardsRepo.findRow([
+        { column: "name", op: "eq", value: ward },
+        { column: "hospital_id", op: "eq", value: actor.hospitalId },
+      ])
     : null;
 
   // Occupying the bed and creating the admission must land together, or a bed
@@ -108,6 +114,7 @@ export async function admitPatient(input: unknown, actor: Session) {
       });
     }
     return uow.insert<IpdAdmissionRow>(TABLES.ipdAdmissions, {
+      hospital_id: actor.hospitalId,
       patient_id: data.patientId ?? null,
       patient_name: patientName,
       patient_age: patientAge,
@@ -130,7 +137,7 @@ export async function admitPatient(input: unknown, actor: Session) {
 
 export async function updateIpd(id: number, input: unknown, actor: Session) {
   const existing = await ipdRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Admission");
+  assertOwnedByHospital(existing, actor, "Admission");
   const data = validatePartial(admitSchema, input);
   const patch: Record<string, unknown> = {};
   if ("diagnosis" in data) patch.diagnosis = data.diagnosis;
@@ -149,7 +156,7 @@ export async function updateIpd(id: number, input: unknown, actor: Session) {
 /** Discharge an admission, freeing its bed. */
 export async function dischargePatient(id: number, actor: Session) {
   const admission = await ipdRepo.getRow(id);
-  if (!admission) throw new NotFoundError("Admission");
+  assertOwnedByHospital(admission, actor, "Admission");
   if (admission.status === "Discharged") {
     throw new ConflictError("Patient is already discharged");
   }
@@ -171,9 +178,9 @@ export async function dischargePatient(id: number, actor: Session) {
 /** Move a patient to a different bed, updating both beds' occupancy. */
 export async function transferBed(id: number, newBedId: number, actor: Session) {
   const admission = await ipdRepo.getRow(id);
-  if (!admission) throw new NotFoundError("Admission");
+  assertOwnedByHospital(admission, actor, "Admission");
   const target = await bedsRepo.getRow(newBedId);
-  if (!target) throw new NotFoundError("Target bed");
+  assertOwnedByHospital(target, actor, "Target bed");
   if (target.status === "Occupied") {
     throw new ConflictError(`Bed ${target.bed_number} is already occupied`);
   }
@@ -206,6 +213,7 @@ export async function transferBed(id: number, newBedId: number, actor: Session) 
     });
   });
   await bedTransfersRepo.create({
+    hospital_id: actor.hospitalId,
     patient_name: admission.patient_name,
     from_label: admission.bed ? `${admission.ward} · ${admission.bed}` : admission.ward || "—",
     to_label: `${target.ward} · ${target.bed_number}`,
@@ -219,7 +227,7 @@ export async function transferBed(id: number, newBedId: number, actor: Session) 
 
 export async function deleteIpd(id: number, actor: Session) {
   const admission = await ipdRepo.getRow(id);
-  if (!admission) throw new NotFoundError("Admission");
+  assertOwnedByHospital(admission, actor, "Admission");
   if (admission.bed_id && admission.status !== "Discharged") {
     await bedsRepo.update(admission.bed_id, {
       status: "Available",

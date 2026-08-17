@@ -9,9 +9,9 @@ export const GET = withRoute(async (
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) => {
-  await requirePermission("documents", "read");
+  const session = await requirePermission("documents", "read");
   const { id } = await ctx.params;
-  const { row, data } = await readDocument(parseId(id));
+  const { row, data } = await readDocument(parseId(id), session);
 
   return new NextResponse(new Uint8Array(data), {
     status: 200,

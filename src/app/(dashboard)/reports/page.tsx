@@ -18,10 +18,12 @@ function KpiCard({ stat }: { stat: KpiStat }) {
     <div className={`${tw.surface.card} ${tw.radius.card} flex-1 p-5 flex flex-col gap-3 border border-[#f0f0f0]`}>
       <span className="text-[13px] font-normal text-[#57575f]">{stat.label}</span>
       <span className="text-[30px] font-medium text-[#11111c] leading-9">{stat.value}</span>
-      <div className="flex items-center gap-[5px]">
-        {stat.positive ? <TrendingUp size={13} className="text-[#00955c]" /> : <TrendingDown size={13} className="text-[#ff0004]" />}
-        <span className={`text-[12px] font-normal leading-4 ${stat.positive ? "text-[#00955c]" : "text-[#ff0004]"}`}>{stat.change} vs last month</span>
-      </div>
+      {stat.change && (
+        <div className="flex items-center gap-[5px]">
+          {stat.positive ? <TrendingUp size={13} className="text-[#00955c]" /> : <TrendingDown size={13} className="text-[#ff0004]" />}
+          <span className={`text-[12px] font-normal leading-4 ${stat.positive ? "text-[#00955c]" : "text-[#ff0004]"}`}>{stat.change} vs last month</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -41,13 +43,6 @@ function BarChartRow({ label, value, max, color, suffix = "" }: { label: string;
 
 // ─── Financial Tab ────────────────────────────────────────────────────────────
 
-const FIN_KPIS: KpiStat[] = [
-  { label: "Total Revenue",     value: "₹4.8L",   change: "+14%", positive: true  },
-  { label: "OPD Revenue",       value: "₹1.2L",   change: "+8%",  positive: true  },
-  { label: "IPD Revenue",       value: "₹2.6L",   change: "+18%", positive: true  },
-  { label: "Pharmacy Revenue",  value: "₹68K",    change: "-3%",  positive: false },
-];
-
 const MONTHLY = [
   { month: "Jun", val: 340000 }, { month: "Jul", val: 395000 }, { month: "Aug", val: 362000 },
   { month: "Sep", val: 421000 }, { month: "Oct", val: 460000 }, { month: "Nov", val: 480000 },
@@ -59,7 +54,7 @@ const BY_DEPT = [
   { dept: "General Medicine",val:65000  }, { dept: "Pharmacy",  val: 68000 },
 ];
 
-function FinancialView() {
+function FinancialView({ kpis }: { kpis: KpiStat[] }) {
   const maxMonthly = Math.max(...MONTHLY.map(m => m.val));
   const maxDept    = Math.max(...BY_DEPT.map(d => d.val));
 
@@ -67,7 +62,7 @@ function FinancialView() {
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 555 }}>
       {/* KPIs */}
       <div className="flex gap-4">
-        {FIN_KPIS.map((s, i) => <KpiCard key={i} stat={s} />)}
+        {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       {/* Charts row */}
       <div className="grid grid-cols-2 gap-5">
@@ -92,13 +87,6 @@ function FinancialView() {
 
 // ─── Clinical Tab ─────────────────────────────────────────────────────────────
 
-const CLIN_KPIS: KpiStat[] = [
-  { label: "Total Patients",     value: "2,148",  change: "+9%",  positive: true  },
-  { label: "New Registrations",  value: "312",    change: "+22%", positive: true  },
-  { label: "Avg Consult Time",   value: "14 min", change: "-2 min",positive: true },
-  { label: "Readmission Rate",   value: "3.2%",   change: "-0.4%",positive: true  },
-];
-
 const TOP_DIAG = [
   { name: "Hypertension (I10)",        count: 128 },
   { name: "Type 2 Diabetes (E11)",     count: 104 },
@@ -116,12 +104,12 @@ const PATIENT_FLOW = [
   { dept: "Neurology",        opd: 150, ipd: 39 },
 ];
 
-function ClinicalView() {
+function ClinicalView({ kpis }: { kpis: KpiStat[] }) {
   const maxDiag = Math.max(...TOP_DIAG.map(d => d.count));
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 555 }}>
       <div className="flex gap-4">
-        {CLIN_KPIS.map((s, i) => <KpiCard key={i} stat={s} />)}
+        {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
         <div className="border border-[#dedee1] rounded-[10px] p-5">
@@ -158,13 +146,6 @@ function ClinicalView() {
 
 // ─── Operational Tab ─────────────────────────────────────────────────────────
 
-const OP_KPIS: KpiStat[] = [
-  { label: "Bed Occupancy",   value: "78%",    change: "+5%",  positive: true  },
-  { label: "Avg Wait Time",   value: "18 min", change: "-4 min",positive: true },
-  { label: "OT Utilisation",  value: "72%",    change: "+11%", positive: true  },
-  { label: "Discharge TAT",   value: "3.2 hrs",change: "-0.5 hr",positive: true},
-];
-
 const BED_UTIL = [
   { ward: "General Ward",  pct: 82 }, { ward: "ICU",           pct: 94 },
   { ward: "Cardiology",    pct: 71 }, { ward: "Surgery Ward",  pct: 68 },
@@ -177,12 +158,12 @@ const WAIT_TIME = [
   { dept: "Gynaecology",    mins: 19 },
 ];
 
-function OperationalView() {
+function OperationalView({ kpis }: { kpis: KpiStat[] }) {
   const maxWait = Math.max(...WAIT_TIME.map(w => w.mins));
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 555 }}>
       <div className="flex gap-4">
-        {OP_KPIS.map((s, i) => <KpiCard key={i} stat={s} />)}
+        {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
         <div className="border border-[#dedee1] rounded-[10px] p-5">
@@ -215,13 +196,6 @@ function OperationalView() {
 
 // ─── Pharmacy Reports Tab ─────────────────────────────────────────────────────
 
-const PH_KPIS: KpiStat[] = [
-  { label: "Items in Stock",   value: "142",    change: "+4",   positive: true  },
-  { label: "Low Stock Alerts", value: "8",      change: "+3",   positive: false },
-  { label: "Monthly Sales",    value: "₹68K",   change: "+12%", positive: true  },
-  { label: "Purchase Orders",  value: "₹1.8L",  change: "+7%",  positive: true  },
-];
-
 const TOP_MEDS = [
   { name: "Metformin 500mg",  sold: 480 }, { name: "Amlodipine 5mg", sold: 320 },
   { name: "Atorvastatin 10mg",sold: 290 }, { name: "Omeprazole 20mg",sold: 265 },
@@ -235,13 +209,13 @@ const PURCHASE_VS_SALES = [
   { month: "Nov", purchase: 178000, sales: 68000 },
 ];
 
-function PharmacyReportView() {
+function PharmacyReportView({ kpis }: { kpis: KpiStat[] }) {
   const maxSold = Math.max(...TOP_MEDS.map(m => m.sold));
   const maxPvS  = Math.max(...PURCHASE_VS_SALES.map(m => Math.max(m.purchase, m.sales)));
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 555 }}>
       <div className="flex gap-4">
-        {PH_KPIS.map((s, i) => <KpiCard key={i} stat={s} />)}
+        {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
         <div className="border border-[#dedee1] rounded-[10px] p-5">
@@ -322,7 +296,14 @@ const TABS = [
 
 export default function ReportsPage() {
   const [tab, setTab] = useState("financial");
-  const { item: report } = useItem<{ kpis: KpiStat[]; rows: ReportRow[] }>("/reports");
+  const { item: report } = useItem<{
+    kpis: KpiStat[];
+    financial: KpiStat[];
+    clinical: KpiStat[];
+    operational: KpiStat[];
+    pharmacy: KpiStat[];
+    rows: ReportRow[];
+  }>("/reports");
   const reportRows = report?.rows ?? [];
   const revenueKpi = report?.kpis?.find(k => k.label === "Total Revenue")?.value ?? "—";
   const docRef = useRef<HTMLDivElement>(null);
@@ -339,10 +320,10 @@ export default function ReportsPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-          {tab === "financial"   && <FinancialView />}
-          {tab === "clinical"    && <ClinicalView />}
-          {tab === "operational" && <OperationalView />}
-          {tab === "pharmacy"    && <PharmacyReportView />}
+          {tab === "financial"   && <FinancialView kpis={report?.financial ?? []} />}
+          {tab === "clinical"    && <ClinicalView kpis={report?.clinical ?? []} />}
+          {tab === "operational" && <OperationalView kpis={report?.operational ?? []} />}
+          {tab === "pharmacy"    && <PharmacyReportView kpis={report?.pharmacy ?? []} />}
         </div>
       </div>
 

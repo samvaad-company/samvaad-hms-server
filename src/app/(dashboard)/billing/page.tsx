@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { BillDTO, PatientDTO } from "@/types/api";
@@ -339,6 +340,8 @@ function LookupView({ bills }: { bills: BillDTO[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
+  const { can } = useAuth();
+  const canWrite = can("billing", "write");
   const [tab, setTab] = useState("all");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -350,7 +353,7 @@ export default function BillingPage() {
 
   const TABS = [
     { id: "all",     label: "All Bills", count: bills.length },
-    { id: "new",     label: "New Bill" },
+    ...(canWrite ? [{ id: "new", label: "New Bill" }] : []),
     { id: "lookup",  label: "Bill Lookup" },
   ];
 
@@ -372,7 +375,7 @@ export default function BillingPage() {
         title="Billing"
         subtitle="Manage patient invoices, payments, discounts, and financial records."
         stats={[{ icon: BarChart3, value: `₹${revenue.toLocaleString("en-IN")}`, label: "Revenue (Nov)" }]}
-        action={{ label: "New Bill", icon: Plus, onClick: () => setTab("new") }}
+        action={canWrite ? { label: "New Bill", icon: Plus, onClick: () => setTab("new") } : undefined}
         range={range}
         onRangeChange={setRange}
       />
@@ -389,9 +392,11 @@ export default function BillingPage() {
                 ) : visible.map(r => (
                   <BillRow key={r.id} row={r} actions={[
                     { label: "View invoice", onClick: () => router.push(`/billing/${r.id}`) },
-                    { label: "Mark Paid", disabled: r.status === "Paid", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Paid" })) },
-                    { label: "Mark Pending", disabled: r.status === "Pending", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Pending" })) },
-                    { label: "Delete", danger: true, onClick: () => remove(r.id, r.billNumber) },
+                    ...(canWrite ? [
+                      { label: "Mark Paid", disabled: r.status === "Paid", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Paid" })) },
+                      { label: "Mark Pending", disabled: r.status === "Pending", onClick: () => mutate(() => api.patch(`/billing/${r.id}`, { status: "Pending" })) },
+                      { label: "Delete", danger: true, onClick: () => remove(r.id, r.billNumber) },
+                    ] : []),
                   ]} />
                 ))}
               </DataTable>

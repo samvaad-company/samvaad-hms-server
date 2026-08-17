@@ -103,6 +103,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Departments ──────────────────────────────────────────────────────────
   const departments: Row[] = departmentsData.map((d) => ({
     id: d.id,
+    hospital_id: 1,
     name: d.name,
     head: d.head,
     extension: d.ext,
@@ -113,6 +114,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Doctors ──────────────────────────────────────────────────────────────
   const doctors: Row[] = doctorsData.map((d) => ({
     id: d.id,
+    hospital_id: 1,
     name: d.name,
     specialty: d.specialty,
     department_id: findDeptId(d.department),
@@ -128,6 +130,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Staff ────────────────────────────────────────────────────────────────
   const staff: Row[] = staffData.map((s) => ({
     id: s.id,
+    hospital_id: 1,
     name: s.name,
     role: s.role,
     department_id: findDeptId(s.department),
@@ -145,6 +148,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   const defaultHash = await hashPassword("Samvaad@123");
   const users: Row[] = adminUsers.map((u) => ({
     id: u.id,
+    hospital_id: 1,
+    radiology_center_id: null,
     name: u.name,
     email: u.email,
     password_hash: defaultHash,
@@ -160,6 +165,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Patients ─────────────────────────────────────────────────────────────
   const patients: Row[] = patientsData.map((p) => ({
     id: p.id,
+    hospital_id: 1,
     patient_code: p.patientId ?? `HMS-${String(p.id).padStart(4, "0")}`,
     name: p.name,
     age: p.age,
@@ -194,6 +200,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Appointments ─────────────────────────────────────────────────────────
   const appointments: Row[] = appointmentsData.map((a) => ({
     id: a.id,
+    hospital_id: 1,
     patient_id: findPatientByName(a.patientName)?.id ?? null,
     patient_name: a.patientName,
     patient_age: a.patientAge,
@@ -211,6 +218,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── OPD visits ───────────────────────────────────────────────────────────
   const opdVisits: Row[] = opdData.map((o) => ({
     id: o.id,
+    hospital_id: 1,
     token_number: o.tokenNumber,
     appointment_id: null,
     patient_id: findPatientByName(o.patientName)?.id ?? null,
@@ -236,6 +244,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Medicines (catalog) ──────────────────────────────────────────────────
   const medicines: Row[] = medicinesData.map((m) => ({
     id: m.id,
+    hospital_id: 1,
     name: m.name,
     generic: m.generic,
     category: m.category,
@@ -254,6 +263,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   for (const rx of prescriptionsData) {
     prescriptions.push({
       id: rx.id,
+      hospital_id: 1,
       rx_number: rx.rxNumber,
       patient_id: findPatientByName(rx.patientName)?.id ?? null,
       patient_name: rx.patientName,
@@ -287,6 +297,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Pharmacy inventory ───────────────────────────────────────────────────
   const pharmacyItems: Row[] = pharmacyData.map((p) => ({
     id: p.id,
+    hospital_id: 1,
     name: p.name,
     category: p.category,
     stock: p.stock,
@@ -301,12 +312,15 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Lab tests ────────────────────────────────────────────────────────────
   const labTests: Row[] = labData.map((l) => ({
     id: l.id,
+    hospital_id: 1,
     patient_id: findPatientByName(l.patientName)?.id ?? null,
     patient_name: l.patientName,
     patient_age: l.patientAge,
     order_number: `LAB-${String(l.id).padStart(4, "0")}`,
     test_name: l.testName,
     requested_by: "",
+    doctor_id: null,
+    doctor: "",
     priority: "Routine",
     collection_date: "",
     discount: 0,
@@ -315,6 +329,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     test_date: l.date,
     amount: l.amount,
     status: l.status,
+    lab_center_id: null,
     created_at: ts,
     updated_at: ts,
   }));
@@ -322,6 +337,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── Bills ────────────────────────────────────────────────────────────────
   const bills: Row[] = billsData.map((b) => ({
     id: b.id,
+    hospital_id: 1,
     bill_number: b.billNumber,
     patient_id: findPatientByName(b.patientName)?.id ?? null,
     patient_name: b.patientName,
@@ -340,6 +356,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   const wardNames = Array.from(new Set(bedsData.map((b) => b.ward)));
   const wards: Row[] = wardNames.map((name, i) => ({
     id: i + 1,
+    hospital_id: 1,
     name,
     capacity: bedsData.filter((b) => b.ward === name).length,
     created_at: ts,
@@ -350,6 +367,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const beds: Row[] = bedsData.map((b) => ({
     id: b.id,
+    hospital_id: 1,
     bed_number: b.bedNumber,
     ward_id: wardId(b.ward) as number | null,
     ward: b.ward,
@@ -372,6 +390,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     { patient: "Noah Carter",   from: "ICU · B-01",          to: "Cardiology · C-04",   date: "12 Nov 2025", reason: "Stable condition",     status: "Completed" },
   ].map((t, i) => ({
     id: i + 1,
+    hospital_id: 1,
     patient_name: t.patient,
     from_label: t.from,
     to_label: t.to,
@@ -385,6 +404,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── IPD admissions ───────────────────────────────────────────────────────
   const ipdAdmissions: Row[] = ipdData.map((r) => ({
     id: r.id,
+    hospital_id: 1,
     patient_id: findPatientByName(r.patientName)?.id ?? null,
     patient_name: r.patientName,
     patient_age: r.patientAge,
@@ -406,6 +426,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   // ── OT schedules ─────────────────────────────────────────────────────────
   const otSchedules: Row[] = otData.map((o) => ({
     id: o.id,
+    hospital_id: 1,
     patient_id: findPatientByName(o.patientName)?.id ?? null,
     patient_name: o.patientName,
     procedure: o.procedure,
@@ -420,10 +441,15 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     updated_at: ts,
   }));
 
-  // ── Hospital settings (singleton) ────────────────────────────────────────
-  const settings: Row[] = [
+  // ── Hospitals ────────────────────────────────────────────────────────────
+  // Hospital 1 is today's single tenant, carried over unchanged. Hospital 2
+  // is a minimal second tenant that exists only so multi-tenant isolation is
+  // actually exercisable in dev, not just correct in theory.
+  const hospitals: Row[] = [
     {
       id: 1,
+      code: "HOSP-0001",
+      status: "Active",
       name: hospitalSettings.name,
       address: hospitalSettings.address,
       city: hospitalSettings.city,
@@ -439,11 +465,190 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
       working_hours: hospitalSettings.workingHours,
       updated_at: ts,
     },
+    {
+      id: 2,
+      code: "HOSP-0002",
+      status: "Active",
+      name: "Sunrise Multispecialty Hospital",
+      address: "221 MG Road",
+      city: "Pune",
+      state: "Maharashtra",
+      pincode: "411001",
+      phone: "020-2345 6789",
+      mobile: "+91 98220 11223",
+      email: "contact@sunrisehospital.in",
+      website: "www.sunrisehospital.in",
+      gst_number: "27SUNRI1234H1Z5",
+      pan_number: "SUNRI1234H",
+      reg_number: "MH/HOSP/2019/0456",
+      working_hours: hospitalSettings.workingHours,
+      updated_at: ts,
+    },
   ];
+
+  // Second tenant's own minimal data — enough to prove list/get/create are
+  // hospital-isolated without duplicating the whole fixture set.
+  const h2Department: Row = {
+    id: 9001,
+    hospital_id: 2,
+    name: "Radiology",
+    head: "Dr. Meera Kulkarni",
+    extension: "401",
+    created_at: ts,
+    updated_at: ts,
+  };
+  const h2Doctor: Row = {
+    id: 9001,
+    hospital_id: 2,
+    name: "Dr. Meera Kulkarni",
+    specialty: "Radiologist",
+    department_id: 9001,
+    department: "Radiology",
+    phone: "+91 98765 43210",
+    experience: "12 years",
+    patients_today: 0,
+    status: "Active",
+    created_at: ts,
+    updated_at: ts,
+  };
+  const h2Patient: Row = {
+    id: 9001,
+    hospital_id: 2,
+    patient_code: "HMS2-0001",
+    name: "Aarav Deshmukh",
+    age: 34,
+    gender: "Male",
+    phone: "+91 90210 33445",
+    email: null,
+    blood_group: "B+",
+    dob: null,
+    reason: "Routine checkup",
+    doctor_id: 9001,
+    doctor: "Dr. Meera Kulkarni",
+    status: "Active",
+    visit_date: "12 Nov 2025",
+    visit_time: "10:30 AM",
+    address: null,
+    city: null,
+    state: null,
+    pincode: null,
+    allergies: null,
+    chronic_conditions: null,
+    abha_id: null,
+    emergency_name: null,
+    emergency_relation: null,
+    emergency_phone: null,
+    insurer: null,
+    policy_number: null,
+    corporate: null,
+    created_at: ts,
+    updated_at: ts,
+  };
+  const h2AdminUser: Row = {
+    id: 9001,
+    hospital_id: 2,
+    radiology_center_id: null,
+    name: "Sunrise Admin",
+    email: "admin@sunrisehospital.in",
+    password_hash: defaultHash,
+    role: "Super Admin",
+    department_id: null,
+    doctor_id: null,
+    status: "Active",
+    last_login_at: null,
+    created_at: ts,
+    updated_at: ts,
+  };
+  // One platform-level operator account, scoped to no single hospital's data.
+  const platformAdminUser: Row = {
+    id: 9000,
+    hospital_id: 1,
+    radiology_center_id: null,
+    name: "Platform Operations",
+    email: "platform-admin@samvaad.dev",
+    password_hash: defaultHash,
+    role: "Platform Admin",
+    department_id: null,
+    doctor_id: null,
+    status: "Active",
+    last_login_at: null,
+    created_at: ts,
+    updated_at: ts,
+  };
+
+  // ── Radiology centers ────────────────────────────────────────────────────
+  // An independent tenant, not owned by any hospital — its account carries
+  // radiology_center_id instead of hospital_id.
+  const radiologyCenters: Row[] = [
+    {
+      id: 1,
+      code: "RADC-0001",
+      status: "Active",
+      name: "Apex Radiology Network",
+      address: "48 Link Road",
+      city: "Mumbai",
+      state: "Maharashtra",
+      phone: "+91 22 6789 0123",
+      contact_email: "reports@apexradiology.in",
+      created_at: ts,
+      updated_at: ts,
+    },
+  ];
+  const radiologyCenterUser: Row = {
+    id: 9002,
+    hospital_id: null,
+    radiology_center_id: 1,
+    name: "Apex Radiology Network",
+    email: "admin@apexradiology.in",
+    password_hash: defaultHash,
+    role: "Radiology Partner",
+    department_id: null,
+    doctor_id: null,
+    status: "Active",
+    last_login_at: null,
+    created_at: ts,
+    updated_at: ts,
+  };
+
+  // ── Lab centers ──────────────────────────────────────────────────────────
+  // A second independent tenant type, alongside radiology centers — its
+  // account carries lab_center_id instead of hospital_id.
+  const labCenters: Row[] = [
+    {
+      id: 1,
+      code: "LABC-0001",
+      status: "Active",
+      name: "Pathcare Diagnostics",
+      address: "12 MG Road",
+      city: "Mumbai",
+      state: "Maharashtra",
+      phone: "+91 22 4567 8901",
+      contact_email: "reports@pathcarediagnostics.in",
+      created_at: ts,
+      updated_at: ts,
+    },
+  ];
+  const labCenterUser: Row = {
+    id: 9003,
+    hospital_id: null,
+    radiology_center_id: null,
+    lab_center_id: 1,
+    name: "Pathcare Diagnostics",
+    email: "admin@pathcarediagnostics.in",
+    password_hash: defaultHash,
+    role: "Lab Partner",
+    department_id: null,
+    doctor_id: null,
+    status: "Active",
+    last_login_at: null,
+    created_at: ts,
+    updated_at: ts,
+  };
 
   // ── Service modules ──────────────────────────────────────────────────────
   const bloodDonors: Row[] = bloodDonorsData.map((d) => ({
     id: d.id,
+    hospital_id: 1,
     name: d.name,
     age: d.age,
     gender: d.gender,
@@ -459,6 +664,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const bloodStock: Row[] = bloodStockData.map((s) => ({
     id: s.id,
+    hospital_id: 1,
     blood_group: s.bloodGroup,
     component: s.component,
     units: s.units,
@@ -468,6 +674,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const bloodIssues: Row[] = bloodIssuesData.map((i) => ({
     id: i.id,
+    hospital_id: 1,
     patient_id: findPatientByName(i.patientName)?.id ?? null,
     patient_name: i.patientName,
     blood_group: i.bloodGroup,
@@ -483,6 +690,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const radiologyTests: Row[] = radiologyData.map((r) => ({
     id: r.id,
+    hospital_id: 1,
     order_number: `RAD-${String(r.id).padStart(4, "0")}`,
     patient_id: findPatientByName(r.patientName)?.id ?? null,
     patient_name: r.patientName,
@@ -499,6 +707,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const ambulances: Row[] = ambulancesData.map((a) => ({
     id: a.id,
+    hospital_id: 1,
     vehicle_number: a.vehicleNumber,
     model: a.model,
     driver_name: a.driverName,
@@ -510,6 +719,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const ambulanceCalls: Row[] = ambulanceCallsData.map((c) => ({
     id: c.id,
+    hospital_id: 1,
     patient_name: c.patientName,
     phone: c.phone,
     pickup_location: c.pickupLocation,
@@ -527,6 +737,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const birthRecords: Row[] = birthRecordsData.map((b) => ({
     id: b.id,
+    hospital_id: 1,
     child_name: b.childName,
     gender: b.gender,
     birth_date: b.date,
@@ -542,6 +753,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const deathRecords: Row[] = deathRecordsData.map((d) => ({
     id: d.id,
+    hospital_id: 1,
     deceased_name: d.deceasedName,
     gender: d.gender,
     age: d.age,
@@ -557,6 +769,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const tpas: Row[] = tpasData.map((t) => ({
     id: t.id,
+    hospital_id: 1,
     name: t.name,
     code: t.code,
     contact_person: t.contactPerson,
@@ -570,6 +783,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const tpaClaims: Row[] = tpaClaimsData.map((c) => ({
     id: c.id,
+    hospital_id: 1,
     tpa_id: c.tpaId,
     tpa_name: c.tpaName,
     patient_id: findPatientByName(c.patientName)?.id ?? null,
@@ -585,6 +799,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const financeEntry = (e: (typeof financeIncomesData)[number]): Row => ({
     id: e.id,
+    hospital_id: 1,
     category: e.category,
     description: e.description,
     invoice_number: e.invoiceNumber,
@@ -598,6 +813,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const inventoryItems: Row[] = inventoryItemsData.map((i) => ({
     id: i.id,
+    hospital_id: 1,
     name: i.name,
     category: i.category,
     unit: i.unit,
@@ -611,6 +827,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const inventoryIssues: Row[] = inventoryIssuesData.map((i) => ({
     id: i.id,
+    hospital_id: 1,
     item_id: i.itemId,
     item_name: i.itemName,
     department: i.department,
@@ -624,6 +841,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const tasks: Row[] = tasksData.map((t) => ({
     id: t.id,
+    hospital_id: 1,
     title: t.title,
     description: t.description,
     goal: t.goal,
@@ -639,6 +857,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   const scribeNotes: Row[] = scribeNotesData.map((s) => ({
     id: s.id,
+    hospital_id: 1,
     appointment_id: s.appointmentId,
     patient_id: s.patientId,
     patient_name: s.patientName,
@@ -654,11 +873,15 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   }));
 
   return {
-    [TABLES.departments]: departments,
-    [TABLES.doctors]: doctors,
+    [TABLES.departments]: [...departments, h2Department],
+    [TABLES.doctors]: [...doctors, h2Doctor],
     [TABLES.staff]: staff,
-    [TABLES.users]: users,
-    [TABLES.patients]: patients,
+    [TABLES.users]: [...users, h2AdminUser, platformAdminUser, radiologyCenterUser, labCenterUser],
+    [TABLES.radiologyCenters]: radiologyCenters,
+    [TABLES.hospitalRadiologyLinks]: [],
+    [TABLES.labCenters]: labCenters,
+    [TABLES.hospitalLabLinks]: [],
+    [TABLES.patients]: [...patients, h2Patient],
     [TABLES.appointments]: appointments,
     [TABLES.opdVisits]: opdVisits,
     [TABLES.medicines]: medicines,
@@ -671,7 +894,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.beds]: beds,
     [TABLES.ipdAdmissions]: ipdAdmissions,
     [TABLES.otSchedules]: otSchedules,
-    [TABLES.hospitalSettings]: settings,
+    [TABLES.hospitals]: hospitals,
     [TABLES.auditLogs]: [],
     [TABLES.bloodDonors]: bloodDonors,
     [TABLES.bloodStock]: bloodStock,

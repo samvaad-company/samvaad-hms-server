@@ -5,11 +5,11 @@ import { otRepo, patientsRepo, doctorsRepo } from "@/server/repositories";
 import { toOtDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type OtScheduleRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -37,13 +37,15 @@ export const OT_LIST_CONFIG = {
 };
 
 export async function listOt(options: QueryOptions, actor: Session) {
-  return otRepo.list(scopeToOwnDoctor(options, actor, "surgeon_id"));
+  return otRepo.list(
+    scopeToHospital(scopeToOwnDoctor(options, actor, "surgeon_id"), actor),
+  );
 }
 
-export async function getOt(id: number) {
-  const o = await otRepo.get(id);
-  if (!o) throw new NotFoundError("OT schedule");
-  return o;
+export async function getOt(id: number, actor: Session) {
+  const row = await otRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "OT schedule");
+  return toOtDTO(row);
 }
 
 export async function scheduleOt(input: unknown, actor: Session) {
@@ -59,6 +61,7 @@ export async function scheduleOt(input: unknown, actor: Session) {
     if (d) surgeon = d.name;
   }
   const row = await otRepo.create({
+    hospital_id: actor.hospitalId,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
     procedure: data.procedure,
@@ -76,7 +79,7 @@ export async function scheduleOt(input: unknown, actor: Session) {
 
 export async function updateOt(id: number, input: unknown, actor: Session) {
   const existing = await otRepo.getRow(id);
-  if (!existing) throw new NotFoundError("OT schedule");
+  assertOwnedByHospital(existing, actor, "OT schedule");
   const data = validatePartial(createSchema, input);
   const patch: Record<string, unknown> = {};
   if ("procedure" in data) patch.procedure = data.procedure;
@@ -96,7 +99,8 @@ export async function updateOt(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteOt(id: number, actor: Session) {
-  const ok = await otRepo.remove(id);
-  if (!ok) throw new NotFoundError("OT schedule");
+  const existing = await otRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "OT schedule");
+  await otRepo.remove(id);
   await audit(actor, "delete", "ot", id);
 }

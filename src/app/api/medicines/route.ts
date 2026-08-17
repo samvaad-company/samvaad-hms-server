@@ -7,9 +7,9 @@ import { listMedicines, MEDICINE_LIST_CONFIG } from "@/server/services/admin-ser
 
 /** Medicine catalog — readable by any authenticated user (used by Rx builder). */
 export const GET = withRoute(async (req: NextRequest) => {
-  await requireSession();
+  const session = await requireSession();
   const options = parseListParams(req, MEDICINE_LIST_CONFIG);
-  const { rows, total } = await listMedicines(options);
+  const { rows, total } = await listMedicines(options, session);
   return paginated(
     rows,
     makePaginationMeta(options.page ?? 1, options.pageSize ?? rows.length, total),

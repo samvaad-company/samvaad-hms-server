@@ -17,12 +17,13 @@ import {
   type InventoryItemRow,
   type InventoryIssueRow,
 } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { type InventoryStatus } from "@/types";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const ITEM_CATEGORIES = [
   "Linen", "Consumables", "Medical Equipment", "PPE", "Surgical Supplies",
@@ -53,19 +54,20 @@ export const ITEMS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listItems(options: QueryOptions) {
-  return inventoryItemsRepo.list(options);
+export async function listItems(options: QueryOptions, actor: Session) {
+  return inventoryItemsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getItem(id: number) {
-  const i = await inventoryItemsRepo.get(id);
-  if (!i) throw new NotFoundError("Inventory item");
-  return i;
+export async function getItem(id: number, actor: Session) {
+  const row = await inventoryItemsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Inventory item");
+  return toInventoryItemDTO(row);
 }
 
 export async function createItem(input: unknown, actor: Session) {
   const data = validate(itemSchema, input);
   const row = await inventoryItemsRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     category: data.category,
     unit: data.unit,
@@ -80,7 +82,7 @@ export async function createItem(input: unknown, actor: Session) {
 
 export async function updateItem(id: number, input: unknown, actor: Session) {
   const existing = await inventoryItemsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Inventory item");
+  assertOwnedByHospital(existing, actor, "Inventory item");
   const data = validatePartial(itemSchema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -98,15 +100,16 @@ export async function updateItem(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteItem(id: number, actor: Session) {
-  const ok = await inventoryItemsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Inventory item");
+  const existing = await inventoryItemsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Inventory item");
+  await inventoryItemsRepo.remove(id);
   await audit(actor, "delete", "inventory-item", id);
 }
 
 /** Top up an item's stock. */
 export async function restockItem(id: number, input: unknown, actor: Session) {
   const existing = await inventoryItemsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Inventory item");
+  assertOwnedByHospital(existing, actor, "Inventory item");
   const data = validate(
     { quantity: { type: "number", required: true, min: 1 } } as const,
     input,
@@ -137,14 +140,14 @@ export const INVENTORY_ISSUES_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listIssues(options: QueryOptions) {
-  return inventoryIssuesRepo.list(options);
+export async function listIssues(options: QueryOptions, actor: Session) {
+  return inventoryIssuesRepo.list(scopeToHospital(options, actor));
 }
 
 export async function createIssue(input: unknown, actor: Session) {
   const data = validate(issueSchema, input);
   const item = await inventoryItemsRepo.getRow(data.itemId);
-  if (!item) throw new NotFoundError("Inventory item");
+  assertOwnedByHospital(item, actor, "Inventory item");
   if (item.stock < data.quantity) {
     throw new ConflictError(
       `Only ${item.stock} ${item.unit} of ${item.name} in stock`,
@@ -158,6 +161,7 @@ export async function createIssue(input: unknown, actor: Session) {
     status: deriveStatus(stock, item.min_stock),
   });
   return uow.insert<InventoryIssueRow>(TABLES.inventoryIssues, {
+    hospital_id: actor.hospitalId,
     item_id: item.id,
     item_name: item.name,
     department: data.department,
@@ -175,7 +179,8 @@ export async function createIssue(input: unknown, actor: Session) {
 }
 
 export async function deleteIssue(id: number, actor: Session) {
-  const ok = await inventoryIssuesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Inventory issue");
+  const existing = await inventoryIssuesRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Inventory issue");
+  await inventoryIssuesRepo.remove(id);
   await audit(actor, "delete", "inventory-issue", id);
 }

@@ -10,10 +10,10 @@ import {
 import { toDoctorDTO, toAppointmentDTO, toOpdDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type DoctorRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const schema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -45,8 +45,9 @@ export const DOCTOR_LIST_CONFIG = {
  */
 async function withLiveCounts<T extends { id: number; patientsToday: number }>(
   doctors: T[],
+  actor: Session,
 ): Promise<T[]> {
-  const { rows } = await opdRepo.listRows({ unpaged: true });
+  const { rows } = await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const counts = new Map<number, number>();
   for (const r of rows) {
     if (r.doctor_id == null) continue;
@@ -55,20 +56,20 @@ async function withLiveCounts<T extends { id: number; patientsToday: number }>(
   return doctors.map((d) => ({ ...d, patientsToday: counts.get(d.id) ?? 0 }));
 }
 
-export async function listDoctors(options: QueryOptions) {
-  const { rows, total } = await doctorsRepo.list(options);
-  return { rows: await withLiveCounts(rows), total };
+export async function listDoctors(options: QueryOptions, actor: Session) {
+  const { rows, total } = await doctorsRepo.list(scopeToHospital(options, actor));
+  return { rows: await withLiveCounts(rows, actor), total };
 }
 
-export async function getDoctor(id: number) {
-  const doc = await doctorsRepo.get(id);
-  if (!doc) throw new NotFoundError("Doctor");
-  const [withCount] = await withLiveCounts([doc]);
+export async function getDoctor(id: number, actor: Session) {
+  const row = await doctorsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Doctor");
+  const [withCount] = await withLiveCounts([toDoctorDTO(row)], actor);
   return withCount;
 }
 
-export async function getDoctorDashboard(id: number) {
-  const doctor = await getDoctor(id);
+export async function getDoctorDashboard(id: number, actor: Session) {
+  const doctor = await getDoctor(id, actor);
   const [appts, opd] = await Promise.all([
     appointmentsRepo.listRows({
       filters: [{ column: "doctor_id", op: "eq", value: id }],
@@ -96,6 +97,7 @@ export async function createDoctor(input: unknown, actor: Session) {
   const data = validate(schema, input);
   const department = await deptName(data.departmentId, data.department ?? "");
   const row = await doctorsRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     specialty: data.specialty,
     department_id: data.departmentId ?? null,
@@ -111,7 +113,7 @@ export async function createDoctor(input: unknown, actor: Session) {
 
 export async function updateDoctor(id: number, input: unknown, actor: Session) {
   const existing = await doctorsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Doctor");
+  assertOwnedByHospital(existing, actor, "Doctor");
   const data = validatePartial(schema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -129,7 +131,8 @@ export async function updateDoctor(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteDoctor(id: number, actor: Session) {
-  const ok = await doctorsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Doctor");
+  const existing = await doctorsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Doctor");
+  await doctorsRepo.remove(id);
   await audit(actor, "delete", "doctor", id);
 }

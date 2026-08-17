@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BreadcrumbProvider } from "@/lib/breadcrumb-context";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export function SidebarShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -17,6 +18,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         <div style={{ marginLeft: sidebarWidth, paddingTop: 52, transition: "margin-left 220ms ease" }}>
           {children}
         </div>
+        <ChatWidget />
       </div>
     </BreadcrumbProvider>
   );

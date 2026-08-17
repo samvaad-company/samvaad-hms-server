@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { Boxes, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { InventoryItemDTO, InventoryIssueDTO, DepartmentDTO } from "@/types/api";
@@ -83,6 +84,8 @@ function IssueRow({ row, actions }: { row: InventoryIssueDTO; actions: RowAction
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function InventoryPage() {
+  const { can } = useAuth();
+  const canWrite = can("inventory", "write");
   const [tab, setTab] = useState("items");
   const [itemFilter, setItemFilter] = useState("All");
   const [itemSearch, setItemSearch] = useState("");
@@ -216,7 +219,7 @@ export default function InventoryPage() {
         title="Inventory"
         subtitle="Track hospital supplies and equipment, and issue stock to departments."
         stats={[{ icon: Boxes, value: `${lowStock}`, label: "Items Needing Restock" }]}
-        action={{ label: tab === "issues" ? "Issue Item" : "Add Item", icon: Plus, onClick: () => setModal(tab === "issues" ? "issue" : "item") }}
+        action={canWrite ? { label: tab === "issues" ? "Issue Item" : "Add Item", icon: Plus, onClick: () => setModal(tab === "issues" ? "issue" : "item") } : undefined}
       />
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 655 }}>
@@ -226,16 +229,16 @@ export default function InventoryPage() {
             <>
               <FilterBar filters={ITEM_FILTERS} searchPlaceholder="Search by item, category, or supplier..."
                 activeFilter={itemFilter} onFilterChange={setItemFilter} searchQuery={itemSearch} onSearchChange={setItemSearch}
-                action={{ label: "Add Item", icon: Plus, onClick: () => setModal("item") }} />
+                action={canWrite ? { label: "Add Item", icon: Plus, onClick: () => setModal("item") } : undefined} />
               <DataTable columns={ITEM_COLUMNS} minWidth={1150}>
                 {visibleItems.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No items found.</div>
                 ) : visibleItems.map(i => (
-                  <ItemRow key={i.id} row={i} actions={[
+                  <ItemRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Restock", onClick: () => { setRestockTarget(i); setModal("restock"); } },
                     { label: "Issue to department", disabled: i.stock === 0, onClick: () => { setIssueForm(f => ({ ...f, itemId: String(i.id) })); setModal("issue"); } },
                     { label: "Delete", danger: true, onClick: () => itemActions.remove(i.id, i.name) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>
@@ -245,14 +248,14 @@ export default function InventoryPage() {
             <>
               <FilterBar filters={[{ id: "All", label: "All" }]} searchPlaceholder="Search by item, department, or person..."
                 activeFilter="All" onFilterChange={() => {}} searchQuery={issueSearch} onSearchChange={setIssueSearch}
-                action={{ label: "Issue Item", icon: Plus, onClick: () => setModal("issue") }} />
+                action={canWrite ? { label: "Issue Item", icon: Plus, onClick: () => setModal("issue") } : undefined} />
               <DataTable columns={ISSUE_COLUMNS} minWidth={1100}>
                 {visibleIssues.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No issues logged.</div>
                 ) : visibleIssues.map(i => (
-                  <IssueRow key={i.id} row={i} actions={[
+                  <IssueRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => issueActions.remove(i.id, `issue of ${i.itemName}`) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

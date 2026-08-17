@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { Scissors, Plus } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { OtRecordDTO, PatientDTO, DoctorDTO } from "@/types/api";
@@ -66,6 +67,8 @@ const OT_ROOMS = ["OT-1 (General Surgery)","OT-2 (Cardiac)","OT-3 (Orthopaedics)
 const FILTER_MAP: Record<string, string> = { "InProgress": "In Progress" };
 
 export default function OtPage() {
+  const { can } = useAuth();
+  const canWrite = can("ot", "write");
   const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -145,7 +148,7 @@ export default function OtPage() {
         title="Operation Theatre"
         subtitle="Schedule and track surgical procedures, OT room allocation, and surgical team assignments."
         stats={[{ icon: Scissors, value: `${visible.filter(r => r.status === "Scheduled").length}`, label: "Scheduled OTs" }]}
-        action={{ label: "Schedule OT", icon: Plus, onClick: () => setShowModal(true) }}
+        action={canWrite ? { label: "Schedule OT", icon: Plus, onClick: () => setShowModal(true) } : undefined}
       />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -162,10 +165,12 @@ export default function OtPage() {
             {visible.map((r) => (
               <OtRow key={r.id} row={r} actions={[
                 { label: "View full form", onClick: () => router.push(`/ot/${r.id}`) },
-                { label: "Start procedure", disabled: r.status !== "Scheduled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "In Progress" })) },
-                { label: "Mark completed", disabled: r.status === "Completed" || r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Completed" })) },
-                { label: "Cancel", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Cancelled" })) },
-                { label: "Delete", danger: true, onClick: () => remove(r.id, r.procedure) },
+                ...(canWrite ? [
+                  { label: "Start procedure", disabled: r.status !== "Scheduled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "In Progress" })) },
+                  { label: "Mark completed", disabled: r.status === "Completed" || r.status === "Cancelled", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Completed" })) },
+                  { label: "Cancel", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => mutate(() => api.patch(`/ot/${r.id}`, { status: "Cancelled" })) },
+                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.procedure) },
+                ] : []),
               ]} />
             ))}
           </DataTable>

@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { ArrowLeft, Printer, Download, Share2, Building2 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { printElement, downloadElement, shareDocument } from "@/lib/print";
 import type { BillDTO, PatientDTO } from "@/types/api";
@@ -36,6 +37,8 @@ const PAYMENT_MODE: Record<number, string> = {
 
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { can } = useAuth();
+  const canWrite = can("billing", "write");
   const { item: bill, loading, reload } = useItem<BillDTO>(`/billing/${id}`);
   useBreadcrumb("/billing", "Billing", bill?.billNumber ?? "Invoice");
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
@@ -178,7 +181,7 @@ export default function BillingDetailPage() {
                 <span className="text-[#11111c]">Total</span>
                 <span className="text-[#009598]">₹{net.toLocaleString("en-IN")}</span>
               </div>
-              {bill.status === "Pending" && (
+              {bill.status === "Pending" && canWrite && (
                 <button onClick={recordPayment} disabled={acting}
                   className="mt-3 w-full text-[13px] font-normal text-white bg-[#009598] py-2 rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
                   {acting ? "Recording…" : "Record Payment"}

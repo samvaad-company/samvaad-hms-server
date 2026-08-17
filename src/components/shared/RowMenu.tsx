@@ -84,6 +84,8 @@ export function RowMenu({ actions }: { actions: RowAction[] }) {
     };
   }, [open]);
 
+  if (actions.length === 0) return null;
+
   return (
     <>
       <button
@@ -93,7 +95,7 @@ export function RowMenu({ actions }: { actions: RowAction[] }) {
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors"
+        className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors pr-1"
         aria-label="Row actions"
       >
         <MoreVertical size={24} strokeWidth={1.5} />

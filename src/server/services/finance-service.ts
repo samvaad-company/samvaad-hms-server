@@ -12,12 +12,12 @@ import {
   type FinanceIncomeRow,
   type FinanceExpenseRow,
 } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { type Repository } from "@/server/repositories/base";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const INCOME_CATEGORIES = [
   "Canteen Rent", "Parking Fees", "Health Campaign", "Equipment Rental",
@@ -55,19 +55,20 @@ function makeEntryService(
   categories: readonly string[],
 ) {
   return {
-    async list(options: QueryOptions) {
-      return repo.list(options);
+    async list(options: QueryOptions, actor: Session) {
+      return repo.list(scopeToHospital(options, actor));
     },
 
-    async get(id: number) {
-      const e = await repo.get(id);
-      if (!e) throw new NotFoundError("Entry");
-      return e;
+    async get(id: number, actor: Session) {
+      const row = await repo.getRow(id);
+      assertOwnedByHospital(row, actor, "Entry");
+      return toFinanceEntryDTO(row);
     },
 
     async create(input: unknown, actor: Session) {
       const data = validate(entrySchema(categories), input);
       const row = await repo.create({
+        hospital_id: actor.hospitalId,
         category: data.category,
         description: data.description,
         invoice_number: data.invoiceNumber,
@@ -80,7 +81,7 @@ function makeEntryService(
 
     async update(id: number, input: unknown, actor: Session) {
       const existing = await repo.getRow(id);
-      if (!existing) throw new NotFoundError("Entry");
+      assertOwnedByHospital(existing, actor, "Entry");
       const data = validatePartial(entrySchema(categories), input);
       const patch: Record<string, unknown> = {};
       if ("category" in data) patch.category = data.category;
@@ -94,8 +95,9 @@ function makeEntryService(
     },
 
     async remove(id: number, actor: Session) {
-      const ok = await repo.remove(id);
-      if (!ok) throw new NotFoundError("Entry");
+      const existing = await repo.getRow(id);
+      assertOwnedByHospital(existing, actor, "Entry");
+      await repo.remove(id);
       await audit(actor, "delete", entity, id);
     },
   };

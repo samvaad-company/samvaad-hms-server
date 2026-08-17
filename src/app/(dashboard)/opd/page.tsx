@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { Activity, Plus, CheckCircle, XCircle } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
@@ -95,9 +96,64 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
 
 const STATUS_MAP: Record<string, string> = { "InConsultation": "In Consultation" };
 
+/**
+ * Sending a patient to radiology used to always default the order to
+ * "In-house" — a linked center only sees studies explicitly routed to it, so
+ * silently defaulting away from it meant the center's queue never filled up.
+ * Surface every destination (in-house + each active-linked center) as its
+ * own row action instead of one generic link.
+ */
+function sendToRadiologyActions(
+  r: OpdRecordDTO,
+  centers: { id: number; name: string }[],
+  router: ReturnType<typeof useRouter>,
+): RowAction[] {
+  const go = (radiologyCenterId?: number) =>
+    router.push(
+      `/radiology?patientId=${r.patientId}${r.doctorId ? `&doctorId=${r.doctorId}` : ""}${radiologyCenterId ? `&radiologyCenterId=${radiologyCenterId}` : ""}`,
+    );
+  if (centers.length === 0) {
+    return [{ label: "Send to Radiology", disabled: !r.patientId, onClick: () => go() }];
+  }
+  return [
+    { label: "Send to Radiology — In-house", disabled: !r.patientId, onClick: () => go() },
+    ...centers.map((c) => ({
+      label: `Send to Radiology — ${c.name}`,
+      disabled: !r.patientId,
+      onClick: () => go(c.id),
+    })),
+  ];
+}
+
+/** Same destination-choice pattern as radiology, for lab orders. */
+function sendToLabActions(
+  r: OpdRecordDTO,
+  centers: { id: number; name: string }[],
+  router: ReturnType<typeof useRouter>,
+): RowAction[] {
+  const go = (labCenterId?: number) =>
+    router.push(
+      `/lab?patientId=${r.patientId}${r.doctorId ? `&doctorId=${r.doctorId}` : ""}${labCenterId ? `&labCenterId=${labCenterId}` : ""}`,
+    );
+  if (centers.length === 0) {
+    return [{ label: "Send to Lab", disabled: !r.patientId, onClick: () => go() }];
+  }
+  return [
+    { label: "Send to Lab — In-house", disabled: !r.patientId, onClick: () => go() },
+    ...centers.map((c) => ({
+      label: `Send to Lab — ${c.name}`,
+      disabled: !r.patientId,
+      onClick: () => go(c.id),
+    })),
+  ];
+}
+
 export default function OpdPage() {
   const { can } = useAuth();
+  const router = useRouter();
   const canWrite = can("opd", "write");
+  const canOrderRadiology = can("radiology", "write");
+  const canOrderLab = can("lab", "write");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -105,6 +161,13 @@ export default function OpdPage() {
   const { items: opdRecords, reload } = useList<OpdRecordDTO>("/opd", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  // Linked radiology centers this hospital can route studies to — used to
+  // offer a destination choice on "Send to Radiology" instead of silently
+  // defaulting to in-house.
+  const { items: radiologyCenters } = useList<{ id: number; name: string }>("/radiology/routable-centers");
+  // Linked lab centers this hospital can route tests to — same purpose as
+  // radiologyCenters above, for "Send to Lab".
+  const { items: labCenters } = useList<{ id: number; name: string }>("/lab/routable-centers");
   const { run, loading, error } = useMutation();
   const { dialog, remove, mutate } = useRowActions("opd", reload);
   // Next token follows the highest existing token, not the row count, so it
@@ -304,13 +367,19 @@ export default function OpdPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.map((r) => (
-              <OpdRow key={r.id} row={r} actions={canWrite ? [
-                { label: "Edit", onClick: () => openEdit(r) },
-                { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
-                { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
-                { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },
-                { label: "Delete", danger: true, onClick: () => remove(r.id, r.tokenNumber) },
-              ] : []} />
+              <OpdRow key={r.id} row={r} actions={[
+                ...(canWrite ? [
+                  { label: "Edit", onClick: () => openEdit(r) },
+                  { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
+                  { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
+                  { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },
+                ] : []),
+                ...(canOrderRadiology ? sendToRadiologyActions(r, radiologyCenters, router) : []),
+                ...(canOrderLab ? sendToLabActions(r, labCenters, router) : []),
+                ...(canWrite ? [
+                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.tokenNumber) },
+                ] : []),
+              ]} />
             ))}
           </DataTable>
         </div>

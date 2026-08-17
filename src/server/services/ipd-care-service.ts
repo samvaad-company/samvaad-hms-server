@@ -11,11 +11,32 @@ import { ipdNotesRepo, ipdMedicationsRepo, ipdRepo } from "@/server/repositories
 import { toIpdNoteDTO, toIpdMedicationDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type IpdNoteRow, type IpdMedicationRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
+import { NotFoundError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { isoDate, displayTime } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { assertOwnedByHospital } from "@/server/services/hospital-scope";
+
+/**
+ * ipd_notes and ipd_medications carry no hospital_id of their own (they're
+ * always reached through an admission_id), so scoping means resolving the
+ * admission they belong to and checking that instead.
+ */
+async function assertAdmissionOwned(admissionId: number, actor: Session) {
+  const admission = await ipdRepo.getRow(admissionId);
+  assertOwnedByHospital(admission, actor, "Admission");
+}
+
+/** A list call must be scoped to one admission — otherwise it would span every hospital. */
+function requireAdmissionFilter(options: QueryOptions): number {
+  const raw = options.filters?.find((f) => f.column === "admission_id")?.value;
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new BadRequestError("admissionId is required");
+  }
+  return id;
+}
 
 export const NOTE_TYPES = ["Daily Note", "Doctor Round", "Diet"] as const;
 export const MEDICATION_STATUSES = ["Active", "Stopped", "Completed"] as const;
@@ -38,14 +59,14 @@ const noteSchema = {
   content: { type: "string", required: true, min: 2, max: 4000 },
 } as const;
 
-export async function listIpdNotes(options: QueryOptions) {
+export async function listIpdNotes(options: QueryOptions, actor: Session) {
+  await assertAdmissionOwned(requireAdmissionFilter(options), actor);
   return ipdNotesRepo.list(options);
 }
 
 export async function createIpdNote(input: unknown, actor: Session) {
   const data = validate(noteSchema, input);
-  const admission = await ipdRepo.getRow(data.admissionId);
-  if (!admission) throw new NotFoundError("Admission");
+  await assertAdmissionOwned(data.admissionId, actor);
 
   const row = await ipdNotesRepo.create({
     admission_id: data.admissionId,
@@ -62,6 +83,7 @@ export async function createIpdNote(input: unknown, actor: Session) {
 export async function updateIpdNote(id: number, input: unknown, actor: Session) {
   const existing = await ipdNotesRepo.getRow(id);
   if (!existing) throw new NotFoundError("Note");
+  await assertAdmissionOwned(existing.admission_id, actor);
   const data = validatePartial(noteSchema, input);
   const patch: Record<string, unknown> = {};
   if ("content" in data) patch.content = data.content;
@@ -75,8 +97,10 @@ export async function updateIpdNote(id: number, input: unknown, actor: Session) 
 }
 
 export async function deleteIpdNote(id: number, actor: Session) {
-  const ok = await ipdNotesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Note");
+  const existing = await ipdNotesRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Note");
+  await assertAdmissionOwned(existing.admission_id, actor);
+  await ipdNotesRepo.remove(id);
   await audit(actor, "delete", "ipd-note", id);
 }
 
@@ -101,14 +125,14 @@ const medSchema = {
   notes: { type: "string", required: false, max: 500, default: "" },
 } as const;
 
-export async function listIpdMedications(options: QueryOptions) {
+export async function listIpdMedications(options: QueryOptions, actor: Session) {
+  await assertAdmissionOwned(requireAdmissionFilter(options), actor);
   return ipdMedicationsRepo.list(options);
 }
 
 export async function createIpdMedication(input: unknown, actor: Session) {
   const data = validate(medSchema, input);
-  const admission = await ipdRepo.getRow(data.admissionId);
-  if (!admission) throw new NotFoundError("Admission");
+  await assertAdmissionOwned(data.admissionId, actor);
 
   const row = await ipdMedicationsRepo.create({
     admission_id: data.admissionId,
@@ -129,6 +153,7 @@ export async function createIpdMedication(input: unknown, actor: Session) {
 export async function updateIpdMedication(id: number, input: unknown, actor: Session) {
   const existing = await ipdMedicationsRepo.getRow(id);
   if (!existing) throw new NotFoundError("Medication");
+  await assertAdmissionOwned(existing.admission_id, actor);
   const data = validatePartial(medSchema, input);
   const patch: Record<string, unknown> = {};
   if ("medicineName" in data) patch.medicine_name = data.medicineName;
@@ -149,7 +174,9 @@ export async function updateIpdMedication(id: number, input: unknown, actor: Ses
 }
 
 export async function deleteIpdMedication(id: number, actor: Session) {
-  const ok = await ipdMedicationsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Medication");
+  const existing = await ipdMedicationsRepo.getRow(id);
+  if (!existing) throw new NotFoundError("Medication");
+  await assertAdmissionOwned(existing.admission_id, actor);
+  await ipdMedicationsRepo.remove(id);
   await audit(actor, "delete", "ipd-medication", id);
 }

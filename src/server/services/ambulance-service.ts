@@ -17,11 +17,12 @@ import {
   type AmbulanceRow,
   type AmbulanceCallRow,
 } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, displayTime } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 // ── Vehicles ────────────────────────────────────────────────────────────────
 
@@ -40,19 +41,20 @@ export const VEHICLES_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listVehicles(options: QueryOptions) {
-  return ambulancesRepo.list(options);
+export async function listVehicles(options: QueryOptions, actor: Session) {
+  return ambulancesRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getVehicle(id: number) {
-  const v = await ambulancesRepo.get(id);
-  if (!v) throw new NotFoundError("Ambulance");
-  return v;
+export async function getVehicle(id: number, actor: Session) {
+  const row = await ambulancesRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Ambulance");
+  return toAmbulanceDTO(row as AmbulanceRow);
 }
 
 export async function createVehicle(input: unknown, actor: Session) {
   const data = validate(vehicleSchema, input);
   const row = await ambulancesRepo.create({
+    hospital_id: actor.hospitalId,
     vehicle_number: data.vehicleNumber,
     model: data.model,
     driver_name: data.driverName,
@@ -65,7 +67,7 @@ export async function createVehicle(input: unknown, actor: Session) {
 
 export async function updateVehicle(id: number, input: unknown, actor: Session) {
   const existing = await ambulancesRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Ambulance");
+  assertOwnedByHospital(existing, actor, "Ambulance");
   const data = validatePartial(vehicleSchema, input);
   const patch: Record<string, unknown> = {};
   if ("vehicleNumber" in data) patch.vehicle_number = data.vehicleNumber;
@@ -79,8 +81,9 @@ export async function updateVehicle(id: number, input: unknown, actor: Session) 
 }
 
 export async function deleteVehicle(id: number, actor: Session) {
-  const ok = await ambulancesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Ambulance");
+  const existing = await ambulancesRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Ambulance");
+  await ambulancesRepo.remove(id);
   await audit(actor, "delete", "ambulance", id);
 }
 
@@ -102,8 +105,8 @@ export const CALLS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listCalls(options: QueryOptions) {
-  return ambulanceCallsRepo.list(options);
+export async function listCalls(options: QueryOptions, actor: Session) {
+  return ambulanceCallsRepo.list(scopeToHospital(options, actor));
 }
 
 export async function createCall(input: unknown, actor: Session) {
@@ -113,7 +116,7 @@ export async function createCall(input: unknown, actor: Session) {
   let driverName = "";
   if (data.ambulanceId) {
     const v = await ambulancesRepo.getRow(data.ambulanceId);
-    if (!v) throw new NotFoundError("Ambulance");
+    assertOwnedByHospital(v, actor, "Ambulance");
     if (v.status !== "Available") {
       throw new ConflictError(`Ambulance ${v.vehicle_number} is ${v.status}`);
     }
@@ -123,6 +126,7 @@ export async function createCall(input: unknown, actor: Session) {
   }
 
   const row = await ambulanceCallsRepo.create({
+    hospital_id: actor.hospitalId,
     patient_name: data.patientName,
     phone: data.phone,
     pickup_location: data.pickupLocation,
@@ -141,7 +145,7 @@ export async function createCall(input: unknown, actor: Session) {
 
 export async function updateCall(id: number, input: unknown, actor: Session) {
   const existing = await ambulanceCallsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Ambulance call");
+  assertOwnedByHospital(existing, actor, "Ambulance call");
   const schema = {
     status: { type: "enum", required: false, values: ["Dispatched", "Completed", "Cancelled"] },
     amount: { type: "number", required: false, min: 0 },
@@ -178,7 +182,7 @@ export async function updateCall(id: number, input: unknown, actor: Session) {
 
 export async function deleteCall(id: number, actor: Session) {
   const existing = await ambulanceCallsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Ambulance call");
+  assertOwnedByHospital(existing, actor, "Ambulance call");
   if (existing.status === "Dispatched" && existing.ambulance_id) {
     await ambulancesRepo.update(existing.ambulance_id, { status: "Available" });
   }

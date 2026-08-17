@@ -11,9 +11,10 @@ import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
+import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
 import {
   Phone, MapPin, Droplets, Calendar,
-  FileText, Upload, ShieldCheck, AlertCircle,
+  FileText, Upload, ShieldCheck, AlertCircle, ScanLine,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -163,7 +164,7 @@ function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
         <div key={t.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
           <div className="flex flex-col gap-[4px]">
             <span className="text-[14px] font-medium text-[#11111c]">{t.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{formatDate(t.date)} · ₹{t.amount}</span>
+            <span className="text-[12px] font-light text-[#57575f]">{formatDate(t.date)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${t.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{t.reportStatus}</span>
@@ -214,6 +215,7 @@ const TABS = [
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("overview");
+  const [showIdCard, setShowIdCard] = useState(false);
   const { item: patient, loading } = useItem<PatientDetail>(`/patients/${id}`);
   useBreadcrumb("/patients", "Patients", patient?.name ?? "Patient Details");
 
@@ -237,6 +239,7 @@ export default function PatientDetailPage() {
 
   return (
     <>
+      {showIdCard && <PatientIdCardModal patient={patient} onClose={() => setShowIdCard(false)} />}
       <div className={`${tw.gutterX} mb-[30px] pt-4`}>
         <div className="flex gap-5 items-start">
           {/* ── Left: Profile card ── */}
@@ -250,6 +253,12 @@ export default function PatientDetailPage() {
                 <p className="text-[12px] font-light text-[#57575f]">{patient.patientId}</p>
               </div>
               <StatusBadge status={patient.status} />
+              <button
+                onClick={() => setShowIdCard(true)}
+                className="w-full flex items-center justify-center gap-2 text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors"
+              >
+                <ScanLine size={13} /> Print ID Card
+              </button>
             </div>
 
             <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>

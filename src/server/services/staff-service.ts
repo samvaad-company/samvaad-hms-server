@@ -5,11 +5,11 @@ import { staffRepo, departmentsRepo } from "@/server/repositories";
 import { toStaffDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type StaffRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const schema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -29,14 +29,14 @@ export const STAFF_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listStaff(options: QueryOptions) {
-  return staffRepo.list(options);
+export async function listStaff(options: QueryOptions, actor: Session) {
+  return staffRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getStaff(id: number) {
-  const s = await staffRepo.get(id);
-  if (!s) throw new NotFoundError("Staff member");
-  return s;
+export async function getStaff(id: number, actor: Session) {
+  const row = await staffRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Staff member");
+  return toStaffDTO(row);
 }
 
 async function deptName(id?: number, fallback = ""): Promise<string> {
@@ -49,6 +49,7 @@ export async function createStaff(input: unknown, actor: Session) {
   const data = validate(schema, input);
   const department = await deptName(data.departmentId, data.department ?? "");
   const row = await staffRepo.create({
+    hospital_id: actor.hospitalId,
     name: data.name,
     role: data.role,
     department_id: data.departmentId ?? null,
@@ -64,7 +65,7 @@ export async function createStaff(input: unknown, actor: Session) {
 
 export async function updateStaff(id: number, input: unknown, actor: Session) {
   const existing = await staffRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Staff member");
+  assertOwnedByHospital(existing, actor, "Staff member");
   const data = validatePartial(schema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -83,7 +84,8 @@ export async function updateStaff(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteStaff(id: number, actor: Session) {
-  const ok = await staffRepo.remove(id);
-  if (!ok) throw new NotFoundError("Staff member");
+  const existing = await staffRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Staff member");
+  await staffRepo.remove(id);
   await audit(actor, "delete", "staff", id);
 }

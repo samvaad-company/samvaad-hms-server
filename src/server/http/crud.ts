@@ -21,7 +21,7 @@ export interface CollectionConfig<TDto> {
 
 export interface ItemConfig<TDto> {
   resource: Resource;
-  get?: (id: number) => Promise<TDto>;
+  get?: (id: number, actor: Session) => Promise<TDto>;
   update?: (id: number, input: unknown, actor: Session) => Promise<TDto>;
   remove?: (id: number, actor: Session) => Promise<void>;
 }
@@ -64,9 +64,9 @@ export function collectionRoute<TDto>(config: CollectionConfig<TDto>) {
 export function itemRoute<TDto>(config: ItemConfig<TDto>) {
   const GET = config.get
     ? withRoute(async (_req: NextRequest, ctx: ItemCtx): Promise<NextResponse> => {
-        await requirePermission(config.resource, "read");
+        const session = await requirePermission(config.resource, "read");
         const { id } = await ctx.params;
-        return ok(await config.get!(parseId(id)));
+        return ok(await config.get!(parseId(id), session));
       })
     : undefined;
 

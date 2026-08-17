@@ -11,6 +11,7 @@ import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { prescriptionTemplates as DEFAULT_TEMPLATES } from "@/data/medicines";
+import { requireHospitalId } from "@/server/services/hospital-scope";
 
 const DEFAULT_TEMPLATE_LABELS: Record<string, string> = {
   fever: "Fever",
@@ -26,7 +27,7 @@ const DEFAULT_TEMPLATE_LABELS: Record<string, string> = {
  * their own private copy of the standard starter set on first visit — so
  * they can rename, edit, or delete them exactly like anything else they save.
  */
-async function seedDefaultTemplates(doctorId: number): Promise<void> {
+async function seedDefaultTemplates(doctorId: number, hospitalId: number): Promise<void> {
   const { rows: meds } = await medicinesRepo.listRows({ unpaged: true });
   const byId = new Map(meds.map((m) => [m.id, m]));
 
@@ -48,6 +49,7 @@ async function seedDefaultTemplates(doctorId: number): Promise<void> {
 
     if (resolved.length === 0) continue;
     await prescriptionTemplatesRepo.create({
+      hospital_id: hospitalId,
       doctor_id: doctorId,
       name: DEFAULT_TEMPLATE_LABELS[key] ?? key,
       items: resolved,
@@ -107,7 +109,7 @@ export async function listPrescriptionTemplates(actor: Session) {
   };
   const existing = await prescriptionTemplatesRepo.list(query);
   if (existing.total > 0) return existing;
-  await seedDefaultTemplates(doctorId);
+  await seedDefaultTemplates(doctorId, requireHospitalId(actor));
   return prescriptionTemplatesRepo.list(query);
 }
 
@@ -119,6 +121,7 @@ export async function createPrescriptionTemplate(input: unknown, actor: Session)
     throw new BadRequestError("Template needs at least one medicine");
   }
   const row = await prescriptionTemplatesRepo.create({
+    hospital_id: requireHospitalId(actor),
     doctor_id: doctorId,
     name: data.name,
     items,

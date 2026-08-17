@@ -6,6 +6,7 @@ import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { printElement, downloadElement, shareDocument } from "@/lib/print";
 import { DocumentLetterhead, useHospital } from "@/components/shared/DocumentLetterhead";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
@@ -60,6 +61,8 @@ const FLAG_CLR: Record<string, string> = {
 
 export default function LabReportDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { can } = useAuth();
+  const canWrite = can("lab", "write");
   const { item: test, loading, reload } = useItem<LabTestDTO>(`/lab/${id}`);
   useBreadcrumb("/lab", "Laboratory", test?.testName ?? "Lab Report");
   const { run, loading: acting } = useMutation();
@@ -99,11 +102,11 @@ export default function LabReportDetailPage() {
                 <Printer size={14} /> Print
               </button>
             </>
-          ) : (
+          ) : canWrite ? (
             <button onClick={markReady} disabled={acting} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
               <Upload size={14} /> {acting ? "Saving…" : "Mark Report Ready"}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -130,7 +133,6 @@ export default function LabReportDetailPage() {
               { label: "Test Date",      value: formatDate(test.date) },
               { label: "Sample Status",  value: test.sampleStatus },
               { label: "Report Status",  value: test.reportStatus },
-              { label: "Amount",         value: `₹${test.amount.toLocaleString("en-IN")}` },
             ].map(f => (
               <div key={f.label}>
                 <p className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{f.label}</p>
@@ -180,9 +182,11 @@ export default function LabReportDetailPage() {
               </div>
               <p className="text-[14px] font-medium text-[#11111c]">Report not yet uploaded</p>
               <p className="text-[13px] font-light text-[#57575f]">Sample status: {test.sampleStatus}</p>
-              <button className="mt-2 bg-[#009598] text-white text-[13px] font-normal px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
-                Upload Report PDF
-              </button>
+              {canWrite && (
+                <button className="mt-2 bg-[#009598] text-white text-[13px] font-normal px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+                  Upload Report PDF
+                </button>
+              )}
             </div>
           )}
         </div>

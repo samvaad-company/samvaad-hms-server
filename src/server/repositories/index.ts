@@ -22,7 +22,11 @@ import type {
   DepartmentRow,
   MedicineRow,
   UserRow,
-  HospitalSettingsRow,
+  HospitalRow,
+  RadiologyCenterRow,
+  HospitalRadiologyLinkRow,
+  LabCenterRow,
+  HospitalLabLinkRow,
   AuditLogRow,
   BloodDonorRow,
   BloodStockRow,
@@ -39,6 +43,8 @@ import type {
   InventoryItemRow,
   InventoryIssueRow,
   TaskRow,
+  ChatThreadRow,
+  ChatMessageRow,
   DocumentRow,
   IpdNoteRow,
   StaffAttendanceRow,
@@ -80,6 +86,8 @@ import {
   toInventoryItemDTO,
   toInventoryIssueDTO,
   toTaskDTO,
+  toChatThreadDTO,
+  toChatMessageDTO,
   toDocumentDTO,
   toIpdNoteDTO,
   toStaffAttendanceDTO,
@@ -245,6 +253,14 @@ export const tasksRepo = createRepository<TaskRow, ReturnType<typeof toTaskDTO>>
   TABLES.tasks,
   toTaskDTO,
 );
+export const chatThreadsRepo = createRepository<ChatThreadRow, ReturnType<typeof toChatThreadDTO>>(
+  TABLES.chatThreads,
+  toChatThreadDTO,
+);
+export const chatMessagesRepo = createRepository<ChatMessageRow, ReturnType<typeof toChatMessageDTO>>(
+  TABLES.chatMessages,
+  toChatMessageDTO,
+);
 export const scribeNotesRepo = createRepository<ScribeNoteRow, ReturnType<typeof toScribeNoteDTO>>(
   TABLES.scribeNotes,
   toScribeNoteDTO,
@@ -267,10 +283,26 @@ export const bedTransfersRepo = createRepository<BedTransferRow, BedTransferRow>
   TABLES.bedTransfers,
   (row) => row,
 );
-export const settingsRepo = createRepository<HospitalSettingsRow, HospitalSettingsRow>(
-  TABLES.hospitalSettings,
+export const hospitalsRepo = createRepository<HospitalRow, HospitalRow>(
+  TABLES.hospitals,
   (row) => row,
 );
+export const radiologyCentersRepo = createRepository<RadiologyCenterRow, RadiologyCenterRow>(
+  TABLES.radiologyCenters,
+  (row) => row,
+);
+export const hospitalRadiologyLinksRepo = createRepository<
+  HospitalRadiologyLinkRow,
+  HospitalRadiologyLinkRow
+>(TABLES.hospitalRadiologyLinks, (row) => row);
+export const labCentersRepo = createRepository<LabCenterRow, LabCenterRow>(
+  TABLES.labCenters,
+  (row) => row,
+);
+export const hospitalLabLinksRepo = createRepository<
+  HospitalLabLinkRow,
+  HospitalLabLinkRow
+>(TABLES.hospitalLabLinks, (row) => row);
 export const auditRepo = createRepository<AuditLogRow, AuditLogRow>(
   TABLES.auditLogs,
   (row) => row,

@@ -18,6 +18,10 @@ const DEMO_ACCOUNTS = [
   { role: "IT Admin",       name: "Rahul Saxena",     email: "rahul.saxena@samvaadhospital.in" },
   { role: "Driver",         name: "Vijay Kumar",      email: "vijay.kumar@samvaadhospital.in" },
   { role: "Radiology Partner", name: "Scanwell Diagnostics", email: "reports@scanwell.in" },
+  { role: "Super Admin (Sunrise Hospital)", name: "Sunrise Admin", email: "admin@sunrisehospital.in" },
+  { role: "Platform Admin", name: "Platform Operations", email: "platform-admin@samvaad.dev" },
+  { role: "Radiology Center (Apex Radiology)", name: "Apex Radiology Network", email: "admin@apexradiology.in" },
+  { role: "Lab Center (Pathcare Diagnostics)", name: "Pathcare Diagnostics", email: "admin@pathcarediagnostics.in" },
 ];
 
 function LoginForm() {
@@ -36,8 +40,11 @@ function LoginForm() {
     setLoading(true);
     try {
       const me = await login(email, password);
-      // Partner centres have radiology-only access — land them on their worklist.
-      const fallback = me.role === "Radiology Partner" ? "/radiology" : "/home";
+      // Partner centres have single-resource access — land them on their worklist.
+      const fallback =
+        me.role === "Radiology Partner" ? "/radiology" :
+        me.role === "Lab Partner" ? "/lab" :
+        "/home";
       router.replace(params.get("next") || fallback);
     } catch (err) {
       setError(

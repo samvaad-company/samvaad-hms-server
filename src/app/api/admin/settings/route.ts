@@ -7,8 +7,8 @@ import { getSettings, updateSettings } from "@/server/services/admin-service";
 
 /** Settings are readable by any authenticated user (e.g. for bill headers). */
 export const GET = withRoute(async () => {
-  await requireSession();
-  return ok(await getSettings());
+  const session = await requireSession();
+  return ok(await getSettings(session));
 });
 
 export const PUT = withRoute(async (req: NextRequest) => {

@@ -6,7 +6,7 @@ import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
 import {
   ArrowLeft, Calendar, Clock, User, Stethoscope, FileText, Tag,
-  CheckCircle2, CalendarClock, XCircle, RotateCcw, CalendarPlus,
+  CheckCircle2, CalendarClock, XCircle, RotateCcw, CalendarPlus, ScanLine,
 } from "lucide-react";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
@@ -61,6 +61,7 @@ export default function AppointmentDetailPage() {
   const router = useRouter();
   const { can } = useAuth();
   const canWrite = can("appointments", "write");
+  const canOrderRadiology = can("radiology", "write");
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
   useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${formatDate(appt.date)}` : "Appointment");
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -171,6 +172,14 @@ export default function AppointmentDetailPage() {
         </div>
         <StatusBadge status={appt.status} />
         <div className="flex items-center gap-2">
+          {canOrderRadiology && isActive && appt.patientId && (
+            <button
+              onClick={() => router.push(`/radiology?patientId=${appt.patientId}${appt.doctorId ? `&doctorId=${appt.doctorId}` : ""}`)}
+              className={btnOutline}
+            >
+              <ScanLine size={15} /> Send to Radiology
+            </button>
+          )}
           {canWrite && isActive && (
             <>
               <button onClick={() => setStatus("Completed")} disabled={acting} className={btnPrimary}>

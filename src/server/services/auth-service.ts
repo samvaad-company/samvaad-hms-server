@@ -40,6 +40,9 @@ export async function login(
     name: matched.name,
     email: matched.email,
     role: matched.role,
+    hospitalId: matched.hospital_id ?? null,
+    radiologyCenterId: matched.radiology_center_id ?? null,
+    labCenterId: matched.lab_center_id ?? null,
     doctorId: matched.doctor_id ?? null,
   };
 }
@@ -50,6 +53,9 @@ export function sessionUser(session: Session): SessionUserDTO {
     name: session.name,
     email: session.email,
     role: session.role,
+    hospitalId: session.hospitalId,
+    radiologyCenterId: session.radiologyCenterId,
+    labCenterId: session.labCenterId,
     doctorId: session.doctorId,
     permissions: permissionsFor(session.role),
   };

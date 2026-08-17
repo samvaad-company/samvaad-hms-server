@@ -6,11 +6,11 @@ import { tasksRepo, staffRepo } from "@/server/repositories";
 import { toTaskDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type TaskRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, isoDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const TASK_STATUSES = ["To Do", "In Progress", "Blocked", "Done"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High", "Urgent"] as const;
@@ -33,14 +33,14 @@ export const TASKS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listTasks(options: QueryOptions) {
-  return tasksRepo.list(options);
+export async function listTasks(options: QueryOptions, actor: Session) {
+  return tasksRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getTask(id: number) {
-  const t = await tasksRepo.get(id);
-  if (!t) throw new NotFoundError("Task");
-  return t;
+export async function getTask(id: number, actor: Session) {
+  const row = await tasksRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Task");
+  return toTaskDTO(row);
 }
 
 async function resolveAssigneeName(
@@ -58,6 +58,7 @@ export async function createTask(input: unknown, actor: Session) {
   const data = validate(taskSchema, input);
   const assigneeName = await resolveAssigneeName(data.assigneeId, data.assigneeName);
   const row = await tasksRepo.create({
+    hospital_id: actor.hospitalId,
     title: data.title,
     description: data.description,
     goal: data.goal,
@@ -74,7 +75,7 @@ export async function createTask(input: unknown, actor: Session) {
 
 export async function updateTask(id: number, input: unknown, actor: Session) {
   const existing = await tasksRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Task");
+  assertOwnedByHospital(existing, actor, "Task");
   const data = validatePartial(taskSchema, input);
   const patch: Record<string, unknown> = {};
   if ("title" in data) patch.title = data.title;
@@ -95,7 +96,8 @@ export async function updateTask(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteTask(id: number, actor: Session) {
-  const ok = await tasksRepo.remove(id);
-  if (!ok) throw new NotFoundError("Task");
+  const existing = await tasksRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Task");
+  await tasksRepo.remove(id);
   await audit(actor, "delete", "task", id);
 }

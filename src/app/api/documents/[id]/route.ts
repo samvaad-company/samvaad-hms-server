@@ -7,6 +7,6 @@ import { toDocumentDTO } from "@/server/repositories/mappers";
 
 export const { GET, DELETE } = itemRoute({
   resource: "documents",
-  get: async (id) => toDocumentDTO(await getDocumentRow(id)),
+  get: async (id, actor) => toDocumentDTO(await getDocumentRow(id, actor)),
   remove: deleteDocument,
 });

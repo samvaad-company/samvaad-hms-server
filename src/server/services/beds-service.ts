@@ -11,11 +11,12 @@ import {
 import { toBedDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { type BedRow, type BedTransferRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError, BadRequestError } from "@/server/lib/errors";
+import { ConflictError, BadRequestError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const schema = {
   bedNumber: { type: "string", required: true, max: 20 },
@@ -39,15 +40,20 @@ export const BEDS_LIST_CONFIG = {
   ],
 };
 
-export async function listBeds(options: QueryOptions) {
-  return bedsRepo.list(options);
+export async function listBeds(options: QueryOptions, actor: Session) {
+  return bedsRepo.list(scopeToHospital(options, actor));
 }
 
 /** Beds grouped by ward, with occupancy summary — drives the wards board. */
-export async function listBedsByWard() {
+export async function listBedsByWard(actor: Session) {
   const [beds, wards] = await Promise.all([
-    bedsRepo.listRows({ unpaged: true, sort: [{ column: "bed_number", direction: "asc" }] }),
-    wardsRepo.listRows({ unpaged: true }),
+    bedsRepo.listRows(
+      scopeToHospital(
+        { unpaged: true, sort: [{ column: "bed_number", direction: "asc" }] },
+        actor,
+      ),
+    ),
+    wardsRepo.listRows(scopeToHospital({ unpaged: true }, actor)),
   ]);
 
   const groups = new Map<string, BedRow[]>();
@@ -69,20 +75,24 @@ export async function listBedsByWard() {
   });
 }
 
-export async function getBed(id: number) {
-  const b = await bedsRepo.get(id);
-  if (!b) throw new NotFoundError("Bed");
-  return b;
+export async function getBed(id: number, actor: Session) {
+  const row = await bedsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Bed");
+  return toBedDTO(row);
 }
 
 export async function createBed(input: unknown, actor: Session) {
   const data = validate(schema, input);
   let wardId: number | null = data.wardId ?? null;
   if (!wardId) {
-    const ward = await wardsRepo.findRow([{ column: "name", op: "eq", value: data.ward }]);
+    const ward = await wardsRepo.findRow([
+      { column: "name", op: "eq", value: data.ward },
+      { column: "hospital_id", op: "eq", value: actor.hospitalId },
+    ]);
     wardId = ward?.id ?? null;
   }
   const row = await bedsRepo.create({
+    hospital_id: actor.hospitalId,
     bed_number: data.bedNumber,
     ward_id: wardId,
     ward: data.ward,
@@ -97,7 +107,7 @@ export async function createBed(input: unknown, actor: Session) {
 
 export async function updateBed(id: number, input: unknown, actor: Session) {
   const existing = await bedsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Bed");
+  assertOwnedByHospital(existing, actor, "Bed");
   const data = validatePartial(schema, input);
   const patch: Record<string, unknown> = {};
   if ("bedNumber" in data) patch.bed_number = data.bedNumber;
@@ -123,7 +133,7 @@ export async function updateBed(id: number, input: unknown, actor: Session) {
 
 export async function deleteBed(id: number, actor: Session) {
   const existing = await bedsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Bed");
+  assertOwnedByHospital(existing, actor, "Bed");
   if (existing.status === "Occupied") {
     throw new ConflictError("Discharge the patient before deleting an occupied bed");
   }
@@ -149,7 +159,7 @@ async function activeAdmissionForBed(bedId: number) {
 /** Put a patient in a free bed directly from the beds board. */
 export async function assignBed(id: number, input: unknown, actor: Session) {
   const bed = await bedsRepo.getRow(id);
-  if (!bed) throw new NotFoundError("Bed");
+  assertOwnedByHospital(bed, actor, "Bed");
   if (bed.status === "Occupied") {
     throw new ConflictError(`Bed ${bed.bed_number} is already occupied`);
   }
@@ -163,7 +173,7 @@ export async function assignBed(id: number, input: unknown, actor: Session) {
   let patientCode = "";
   if (data.patientId) {
     const p = await patientsRepo.getRow(data.patientId);
-    if (!p) throw new NotFoundError("Patient");
+    assertOwnedByHospital(p, actor, "Patient");
     patientId = p.id;
     patientName = p.name;
     patientCode = p.patient_code;
@@ -185,7 +195,7 @@ export async function assignBed(id: number, input: unknown, actor: Session) {
 /** Free an occupied bed; discharges the linked IPD admission if one exists. */
 export async function releaseBed(id: number, actor: Session) {
   const bed = await bedsRepo.getRow(id);
-  if (!bed) throw new NotFoundError("Bed");
+  assertOwnedByHospital(bed, actor, "Bed");
   if (bed.status !== "Occupied") {
     throw new ConflictError(`Bed ${bed.bed_number} is not occupied`);
   }
@@ -216,7 +226,7 @@ const transferSchema = {
 export async function transferBedOccupant(id: number, input: unknown, actor: Session) {
   const data = validate(transferSchema, input);
   const source = await bedsRepo.getRow(id);
-  if (!source) throw new NotFoundError("Bed");
+  assertOwnedByHospital(source, actor, "Bed");
   if (source.status !== "Occupied") {
     throw new ConflictError(`Bed ${source.bed_number} has no occupant to transfer`);
   }
@@ -224,7 +234,7 @@ export async function transferBedOccupant(id: number, input: unknown, actor: Ses
     throw new BadRequestError("Patient is already in that bed");
   }
   const target = await bedsRepo.getRow(data.toBedId);
-  if (!target) throw new NotFoundError("Target bed");
+  assertOwnedByHospital(target, actor, "Target bed");
   if (target.status === "Occupied") {
     throw new ConflictError(`Bed ${target.bed_number} is already occupied`);
   }
@@ -257,6 +267,7 @@ export async function transferBedOccupant(id: number, input: unknown, actor: Ses
   }
 
   await bedTransfersRepo.create({
+    hospital_id: actor.hospitalId,
     patient_name: source.patient_name ?? "Unknown",
     from_label: `${source.ward} · ${source.bed_number}`,
     to_label: `${target.ward} · ${target.bed_number}`,
@@ -269,11 +280,10 @@ export async function transferBedOccupant(id: number, input: unknown, actor: Ses
   return toBedDTO((await bedsRepo.getRow(target.id)) as BedRow);
 }
 
-export async function listBedTransfers() {
-  const { rows } = await bedTransfersRepo.listRows({
-    unpaged: true,
-    sort: [{ column: "id", direction: "desc" }],
-  });
+export async function listBedTransfers(actor: Session) {
+  const { rows } = await bedTransfersRepo.listRows(
+    scopeToHospital({ unpaged: true, sort: [{ column: "id", direction: "desc" }] }, actor),
+  );
   return rows.map((t: BedTransferRow) => ({
     id: t.id,
     patientName: t.patient_name,

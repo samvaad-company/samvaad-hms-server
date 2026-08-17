@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   House,
   ClipboardList,
+  Sparkles,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { type Resource } from "@/server/auth/rbac";
@@ -57,6 +58,7 @@ const groups: NavGroup[] = [
     label: "Overview",
     items: [
       { href: "/home",               label: "Home",              icon: House },
+      { href: "/chat",                label: "AI Chat",           icon: Sparkles,    resource: "chat" },
     ],
   },
   {

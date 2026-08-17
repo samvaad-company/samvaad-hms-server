@@ -1,37 +1,141 @@
 /**
  * Lab service — test orders and sample/report lifecycle transitions.
+ *
+ * A test is either kept in-house (lab_center_id null — the default, and the
+ * only mode before this) or routed to a lab center the hospital has an
+ * Active link with (see hospital-lab-links-service). Once routed, the test
+ * becomes a shared record: the ordering hospital and the receiving center
+ * can both view it and act on sample/report status, but only the hospital
+ * that created the order can delete it.
  */
-import { labRepo, patientsRepo } from "@/server/repositories";
+import {
+  labRepo,
+  patientsRepo,
+  doctorsRepo,
+  hospitalsRepo,
+  labCentersRepo,
+  hospitalLabLinksRepo,
+} from "@/server/repositories";
 import { toLabDTO } from "@/server/repositories/mappers";
 import { type QueryOptions } from "@/server/db/adapter";
 import { transactional, type UnitOfWork } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type LabTestRow } from "@/server/db/tables";
-import { NotFoundError, BadRequestError } from "@/server/lib/errors";
+import { NotFoundError, BadRequestError, ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { validateNotPast } from "@/server/lib/field-rules";
-import { displayDate, isoDate, nextCode } from "@/server/services/helpers";
+import { displayDate, displayTime, isoDate, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
-import { scopeToOwnPatients } from "@/server/services/doctor-scope";
+import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, requireHospitalId } from "@/server/services/hospital-scope";
 import { type LabStatus } from "@/types";
+import {
+  type LabPatientDetailDTO,
+  type LabReportFileDTO,
+  type LabTestDTO,
+} from "@/types/api";
 
 export const LAB_PRIORITIES = ["Routine", "Urgent", "STAT"] as const;
+export const LAB_DISCOUNT_TYPES = ["percent", "amount"] as const;
+
+// ── Dual (hospital or lab-center) ownership ─────────────────────────────────
+
+function isLabOwner(row: LabTestRow, actor: Session): boolean {
+  if (actor.role === "Platform Admin") return true;
+  if (actor.hospitalId != null) return row.hospital_id === actor.hospitalId;
+  if (actor.labCenterId != null) return row.lab_center_id === actor.labCenterId;
+  return false;
+}
+
+function assertLabAccessible(
+  row: LabTestRow | null | undefined,
+  actor: Session,
+  what = "Lab test",
+): asserts row is LabTestRow {
+  if (!row || !isLabOwner(row, actor)) throw new NotFoundError(what);
+}
+
+/** Only the ordering hospital may delete — a center can act on a test, not erase it. */
+function assertHospitalOwner(
+  row: LabTestRow | null | undefined,
+  actor: Session,
+  what = "Lab test",
+): asserts row is LabTestRow {
+  if (!row) throw new NotFoundError(what);
+  if (actor.role === "Platform Admin") return;
+  if (row.hospital_id !== actor.hospitalId) throw new NotFoundError(what);
+}
+
+function scopeLabList(options: QueryOptions, actor: Session): QueryOptions {
+  if (actor.role === "Platform Admin") return options;
+  if (actor.hospitalId != null) {
+    const scoped = scopeToHospital(options, actor);
+    // The hospital's own in-house lab desk works its own queue only — a test
+    // routed out to a linked center belongs to that center's worklist, not
+    // this one. Every other hospital role (doctors, admins, reception) keeps
+    // the full picture regardless of where a test ends up, since they need
+    // oversight of their patients' care either way.
+    if (actor.role === "Lab Partner") {
+      return {
+        ...scoped,
+        filters: [...(scoped.filters ?? []), { column: "lab_center_id", op: "is", value: null }],
+      };
+    }
+    return scoped;
+  }
+  if (actor.labCenterId != null) {
+    return {
+      ...options,
+      filters: [
+        ...(options.filters ?? []),
+        { column: "lab_center_id", op: "eq", value: actor.labCenterId },
+      ],
+    };
+  }
+  // Neither a hospital nor a lab-center account — nothing to see.
+  return { ...options, filters: [...(options.filters ?? []), { column: "id", op: "eq", value: -1 }] };
+}
+
+/** Join in the hospital/center display names a plain row → DTO mapper can't fetch. */
+async function enrichLab(rows: LabTestRow[]): Promise<LabTestDTO[]> {
+  const hospitalIds = [...new Set(rows.map((r) => r.hospital_id))];
+  const centerIds = [...new Set(rows.map((r) => r.lab_center_id).filter((v): v is number => v != null))];
+  const [hospitals, centers] = await Promise.all([
+    Promise.all(hospitalIds.map((id) => hospitalsRepo.getRow(id))),
+    Promise.all(centerIds.map((id) => labCentersRepo.getRow(id))),
+  ]);
+  const hospitalName = new Map(hospitals.filter((h) => h != null).map((h) => [h.id, h.name]));
+  const centerName = new Map(centers.filter((c) => c != null).map((c) => [c.id, c.name]));
+
+  return rows.map((r) => ({
+    ...toLabDTO(r),
+    hospitalName: hospitalName.get(r.hospital_id) ?? null,
+    labCenterName: r.lab_center_id != null ? (centerName.get(r.lab_center_id) ?? null) : null,
+  }));
+}
 
 const createSchema = {
   patientId: { type: "number", required: false },
   patientName: { type: "string", required: true, min: 2, max: 120 },
   patientAge: { type: "number", required: false, min: 0, max: 200, default: 0 },
   testName: { type: "string", required: true, min: 2, max: 160 },
+  // The test's price is the routed-to center's call, not the hospital's —
+  // only a discount the doctor grants is captured here, not a fixed amount.
   amount: { type: "number", required: false, min: 0, default: 0 },
   discount: { type: "number", required: false, min: 0, default: 0 },
+  discountType: { type: "enum", required: false, values: LAB_DISCOUNT_TYPES, default: "amount" },
   requestedBy: { type: "string", required: false, max: 120, default: "" },
+  doctorId: { type: "number", required: false },
+  doctor: { type: "string", required: false, max: 120, default: "" },
   priority: { type: "enum", required: false, values: LAB_PRIORITIES, default: "Routine" },
   // Samples cannot be scheduled for a date that has already passed.
   collectionDate: {
     type: "string", required: false, max: 40, default: "",
     custom: validateNotPast("collection date"),
   },
+  /** Route the test to a linked center instead of keeping it in-house. */
+  labCenterId: { type: "number", required: false },
 } as const;
 
 export const LAB_LIST_CONFIG = {
@@ -42,25 +146,80 @@ export const LAB_LIST_CONFIG = {
 };
 
 export async function listLab(options: QueryOptions, actor: Session) {
-  return labRepo.list(await scopeToOwnPatients(options, actor));
+  // Scope a Doctor actor to tests they personally referred (their own
+  // `doctor_id` on the row), matching every other doctor-owned resource,
+  // rather than indirectly via the patient's assigned doctor.
+  const scoped = scopeLabList(scopeToOwnDoctor(options, actor, "doctor_id"), actor);
+  const { rows, total } = await labRepo.listRows(scoped);
+  return { rows: await enrichLab(rows), total };
 }
 
-export async function getLab(id: number) {
-  const t = await labRepo.get(id);
-  if (!t) throw new NotFoundError("Lab test");
-  return t;
+export async function getLab(id: number, actor: Session) {
+  const row = await labRepo.getRow(id);
+  assertLabAccessible(row, actor, "Lab test");
+  const [enriched] = await enrichLab([row]);
+  return enriched;
+}
+
+/**
+ * Fuller patient detail for one test — a referred-in patient's own hospital
+ * chart is otherwise off-limits to a lab-center account (no `patients`
+ * permission), but the demographics behind a test routed to them is fair
+ * game since the test itself already grants access.
+ */
+export async function getLabPatientDetail(
+  id: number,
+  actor: Session,
+): Promise<LabPatientDetailDTO> {
+  const row = await labRepo.getRow(id);
+  assertLabAccessible(row, actor, "Lab test");
+  if (!row.patient_id) throw new NotFoundError("Patient");
+  const patient = await patientsRepo.getRow(row.patient_id);
+  if (!patient || patient.hospital_id !== row.hospital_id) throw new NotFoundError("Patient");
+  return {
+    id: patient.id,
+    name: patient.name,
+    patientCode: patient.patient_code,
+    age: patient.age,
+    gender: patient.gender,
+    phone: patient.phone,
+    email: patient.email,
+    bloodGroup: patient.blood_group,
+    dob: patient.dob,
+    address: patient.address,
+    city: patient.city,
+    state: patient.state,
+    pincode: patient.pincode,
+    allergies: patient.allergies,
+    chronicConditions: patient.chronic_conditions,
+  };
+}
+
+/** Centers an actor's own hospital can route new orders to. */
+export async function listRoutableCenters(actor: Session) {
+  const hospitalId = requireHospitalId(actor);
+  const { rows } = await hospitalLabLinksRepo.listRows({
+    unpaged: true,
+    filters: [
+      { column: "hospital_id", op: "eq", value: hospitalId },
+      { column: "status", op: "eq", value: "Active" },
+    ],
+  });
+  const centers = await Promise.all(rows.map((r) => labCentersRepo.getRow(r.lab_center_id)));
+  return centers.filter((c) => c != null).map((c) => ({ id: c.id, name: c.name }));
 }
 
 /** Next order number, shared by every test booked in one go. */
-async function nextOrderNumber(): Promise<string> {
-  const { rows } = await labRepo.listRows({ unpaged: true });
+async function nextOrderNumber(actor: Session): Promise<string> {
+  const { rows } = await labRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   return nextCode(rows.map((r) => r.order_number ?? ""), "LAB-", 4);
 }
 
 export async function createLab(input: unknown, actor: Session, uow?: UnitOfWork) {
   const data = validate(createSchema, input);
+  const hospitalId = requireHospitalId(actor);
   const orderNumber =
-    (input as { orderNumber?: string })?.orderNumber || (await nextOrderNumber());
+    (input as { orderNumber?: string })?.orderNumber || (await nextOrderNumber(actor));
 
   let patientName = data.patientName;
   let patientAge = data.patientAge ?? 0;
@@ -71,16 +230,37 @@ export async function createLab(input: unknown, actor: Session, uow?: UnitOfWork
       patientAge = p.age;
     }
   }
+
+  let doctorName = data.doctor ?? "";
+  if (data.doctorId) {
+    const d = await doctorsRepo.getRow(data.doctorId);
+    if (d && d.hospital_id === hospitalId) doctorName = d.name;
+  }
+
+  let labCenterId: number | null = null;
+  if (data.labCenterId) {
+    const link = await hospitalLabLinksRepo.findRow([
+      { column: "hospital_id", op: "eq", value: hospitalId },
+      { column: "lab_center_id", op: "eq", value: data.labCenterId },
+      { column: "status", op: "eq", value: "Active" },
+    ]);
+    if (!link) throw new ConflictError("Not linked to this lab center");
+    labCenterId = data.labCenterId;
+  }
+
   const create = uow
     ? (v: Record<string, unknown>) => uow.insert<LabTestRow>(TABLES.labTests, v)
     : (v: Record<string, unknown>) => labRepo.create(v);
   const row = await create({
+    hospital_id: hospitalId,
     order_number: orderNumber,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
     patient_age: patientAge,
     test_name: data.testName,
     requested_by: data.requestedBy,
+    doctor_id: data.doctorId ?? null,
+    doctor: doctorName,
     priority: data.priority,
     sample_status: "Pending",
     report_status: "Pending",
@@ -88,10 +268,13 @@ export async function createLab(input: unknown, actor: Session, uow?: UnitOfWork
     collection_date: isoDate(data.collectionDate),
     amount: data.amount,
     discount: data.discount,
+    discount_type: data.discountType,
     status: "Pending",
+    lab_center_id: labCenterId,
   });
-  await audit(actor, "create", "lab", row.id, { orderNumber });
-  return toLabDTO(row as LabTestRow);
+  await audit(actor, "create", "lab", row.id, { orderNumber, labCenterId });
+  const [enriched] = await enrichLab([row as LabTestRow]);
+  return enriched;
 }
 
 /**
@@ -108,7 +291,7 @@ export async function createLabOrder(input: unknown, actor: Session) {
     throw new BadRequestError("Select at least one test");
   }
 
-  const orderNumber = await nextOrderNumber();
+  const orderNumber = await nextOrderNumber(actor);
   // The whole order lands or none of it does — a failure partway through
   // previously left a half-booked order behind.
   const created = await transactional("lab.order", async (uow) => {
@@ -136,13 +319,14 @@ function deriveStatus(sample: string, report: string): LabStatus {
 
 export async function updateLab(id: number, input: unknown, actor: Session) {
   const existing = await labRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Lab test");
+  assertLabAccessible(existing, actor, "Lab test");
 
   const schema = {
     sampleStatus: { type: "enum", required: false, values: ["Pending", "Collected"] },
     reportStatus: { type: "enum", required: false, values: ["Pending", "Ready"] },
     amount: { type: "number", required: false, min: 0 },
     discount: { type: "number", required: false, min: 0 },
+    discountType: { type: "enum", required: false, values: LAB_DISCOUNT_TYPES },
     priority: { type: "enum", required: false, values: LAB_PRIORITIES },
     status: {
       type: "enum",
@@ -157,6 +341,7 @@ export async function updateLab(id: number, input: unknown, actor: Session) {
   if ("reportStatus" in data) patch.report_status = data.reportStatus;
   if ("amount" in data) patch.amount = data.amount;
   if ("discount" in data) patch.discount = data.discount;
+  if ("discountType" in data) patch.discount_type = data.discountType;
   if ("priority" in data) patch.priority = data.priority;
 
   const sample = (patch.sample_status as string) ?? existing.sample_status;
@@ -166,11 +351,78 @@ export async function updateLab(id: number, input: unknown, actor: Session) {
 
   const row = await labRepo.update(id, patch);
   await audit(actor, "update", "lab", id, patch);
-  return toLabDTO(row as LabTestRow);
+  const [enriched] = await enrichLab([row as LabTestRow]);
+  return enriched;
 }
 
 export async function deleteLab(id: number, actor: Session) {
-  const ok = await labRepo.remove(id);
-  if (!ok) throw new NotFoundError("Lab test");
+  const existing = await labRepo.getRow(id);
+  assertHospitalOwner(existing, actor, "Lab test");
+  await labRepo.remove(id);
   await audit(actor, "delete", "lab", id);
+}
+
+// ── Report documents ─────────────────────────────────────────────────────────
+
+/** ~7 MB of base64 ≈ 5 MB file — a sane cap for PDFs / scan images. */
+const MAX_REPORT_DATAURL_CHARS = 7_000_000;
+const ALLOWED_MIME = /^data:(application\/pdf|image\/(png|jpe?g|webp));base64,/;
+
+/**
+ * Attach an uploaded report document (PDF or image, sent as a data URL) to a
+ * test. Marks the sample collected and the report ready, and records who
+ * uploaded it — for a linked center that is the center's own login, so the
+ * ordering hospital sees the source at a glance.
+ */
+export async function uploadLabReport(
+  id: number,
+  input: unknown,
+  actor: Session,
+) {
+  const existing = await labRepo.getRow(id);
+  assertLabAccessible(existing, actor, "Lab test");
+
+  const body = (input ?? {}) as { fileName?: string; dataUrl?: string; note?: string };
+  const fileName = String(body.fileName ?? "").trim();
+  const dataUrl = String(body.dataUrl ?? "");
+  const note = String(body.note ?? "").trim();
+
+  if (!fileName) throw new BadRequestError("fileName is required");
+  if (!ALLOWED_MIME.test(dataUrl)) {
+    throw new BadRequestError("Report must be a PDF, PNG, JPEG, or WebP file");
+  }
+  if (dataUrl.length > MAX_REPORT_DATAURL_CHARS) {
+    throw new BadRequestError("Report file is too large (max ~5 MB)");
+  }
+
+  const row = await labRepo.update(id, {
+    report_file: dataUrl,
+    report_file_name: fileName,
+    report_note: note || null,
+    report_uploaded_by: actor.name,
+    report_uploaded_at: `${displayDate()}, ${displayTime()}`,
+    sample_status: "Collected",
+    report_status: "Ready",
+    status: "Report Ready",
+  });
+  await audit(actor, "upload-report", "lab", id, { fileName });
+  const [enriched] = await enrichLab([row as LabTestRow]);
+  return enriched;
+}
+
+/** Fetch the uploaded report document for viewing/downloading. */
+export async function getLabReportFile(
+  id: number,
+  actor: Session,
+): Promise<LabReportFileDTO> {
+  const row = await labRepo.getRow(id);
+  assertLabAccessible(row, actor, "Lab test");
+  if (!row.report_file) throw new NotFoundError("Report document");
+  return {
+    fileName: row.report_file_name ?? "report",
+    dataUrl: row.report_file,
+    note: row.report_note ?? null,
+    uploadedBy: row.report_uploaded_by ?? null,
+    uploadedAt: row.report_uploaded_at ?? null,
+  };
 }

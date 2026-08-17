@@ -5,6 +5,6 @@ import { listBedsByWard } from "@/server/services/beds-service";
 
 /** Beds grouped by ward with occupancy summary — drives the wards board. */
 export const GET = withRoute(async () => {
-  await requirePermission("beds", "read");
-  return ok(await listBedsByWard());
+  const session = await requirePermission("beds", "read");
+  return ok(await listBedsByWard(session));
 });

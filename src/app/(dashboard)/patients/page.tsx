@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
 import { inDateRange, type DateRangeId } from "@/lib/dates";
 import type { Patient } from "@/types";
 import Link from "next/link";
@@ -96,6 +97,7 @@ export default function PatientsPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRangeId>("all");
+  const [idCardFor, setIdCardFor] = useState<PatientDTO | null>(null);
   const { items: patients, loading, reload } = useList<PatientDTO>("/patients", { all: true });
   const { dialog, remove } = useRowActions("patients", reload);
 
@@ -109,6 +111,7 @@ export default function PatientsPage() {
   return (
     <>
       {dialog}
+      {idCardFor && <PatientIdCardModal patient={idCardFor} onClose={() => setIdCardFor(null)} />}
       <PageHeader
         title="Patients"
         subtitle="Manage your patient records, review visit history, and track ongoing treatments — all in one place."
@@ -140,6 +143,7 @@ export default function PatientsPage() {
                   patient={p}
                   actions={[
                     { label: "View details", onClick: () => router.push(`/patients/${p.id}`) },
+                    { label: "Print ID Card", onClick: () => setIdCardFor(p) },
                     ...(canWrite ? [{ label: "Delete", danger: true, onClick: () => remove(p.id, p.name) }] : []),
                   ]}
                 />

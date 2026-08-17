@@ -3,7 +3,7 @@
  * permissions, and the medicine catalog.
  */
 import {
-  settingsRepo,
+  hospitalsRepo,
   departmentsRepo,
   usersRepo,
   medicinesRepo,
@@ -15,16 +15,17 @@ import {
 } from "@/server/repositories/mappers";
 import { hashPassword } from "@/server/auth/password";
 import { ROLE_PERMISSIONS, RESOURCES } from "@/server/auth/rbac";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { NotFoundError, ConflictError, ForbiddenError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { type QueryOptions } from "@/server/db/adapter";
+import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/server/services/hospital-scope";
 
 // ── Hospital settings ────────────────────────────────────────────────────────
 
-export async function getSettings() {
-  const row = await settingsRepo.getRow(1);
+export async function getSettings(actor: Session) {
+  const row = await hospitalsRepo.getRow(requireHospitalId(actor));
   if (!row) throw new NotFoundError("Hospital settings");
   return {
     name: row.name,
@@ -81,9 +82,10 @@ export async function updateSettings(input: unknown, actor: Session) {
   if ((input as { workingHours?: unknown }).workingHours) {
     patch.working_hours = (input as { workingHours: unknown }).workingHours;
   }
-  await settingsRepo.update(1, patch);
-  await audit(actor, "update", "settings", 1, patch);
-  return getSettings();
+  const hospitalId = requireHospitalId(actor);
+  await hospitalsRepo.update(hospitalId, patch);
+  await audit(actor, "update", "settings", hospitalId, patch);
+  return getSettings(actor);
 }
 
 // ── Departments ──────────────────────────────────────────────────────────────
@@ -94,14 +96,17 @@ const deptSchema = {
   ext: { type: "string", required: false, max: 12, default: "" },
 } as const;
 
-export async function listDepartments() {
-  const { rows } = await departmentsRepo.listRows({ unpaged: true });
+export async function listDepartments(actor: Session) {
+  const { rows } = await departmentsRepo.listRows(
+    scopeToHospital({ unpaged: true }, actor),
+  );
   return rows.map(toDepartmentDTO);
 }
 
 export async function createDepartment(input: unknown, actor: Session) {
   const data = validate(deptSchema, input);
   const row = await departmentsRepo.create({
+    hospital_id: requireHospitalId(actor),
     name: data.name,
     head: data.head,
     extension: data.ext,
@@ -112,7 +117,7 @@ export async function createDepartment(input: unknown, actor: Session) {
 
 export async function updateDepartment(id: number, input: unknown, actor: Session) {
   const existing = await departmentsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Department");
+  assertOwnedByHospital(existing, actor, "Department");
   const data = validatePartial(deptSchema, input);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
@@ -124,8 +129,9 @@ export async function updateDepartment(id: number, input: unknown, actor: Sessio
 }
 
 export async function deleteDepartment(id: number, actor: Session) {
-  const ok = await departmentsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Department");
+  const existing = await departmentsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Department");
+  await departmentsRepo.remove(id);
   await audit(actor, "delete", "department", id);
 }
 
@@ -137,10 +143,14 @@ async function deptNameFor(id: number | null): Promise<string | null> {
   return d?.name ?? null;
 }
 
-export async function listUsers() {
-  const { rows } = await usersRepo.listRows({ unpaged: true });
+export async function listUsers(actor: Session) {
+  const { rows } = await usersRepo.listRows(
+    scopeToHospital({ unpaged: true }, actor),
+  );
+  const visible =
+    actor.role === "Platform Admin" ? rows : rows.filter((u) => u.role !== "Platform Admin");
   const result = [];
-  for (const u of rows) {
+  for (const u of visible) {
     result.push(toAdminUserDTO(u, await deptNameFor(u.department_id)));
   }
   return result;
@@ -155,14 +165,29 @@ const userCreateSchema = {
   status: { type: "enum", required: false, values: ["Active", "Inactive"], default: "Active" },
 } as const;
 
+/**
+ * "Platform Admin" bypasses hospital scoping entirely (see hospital-scope.ts)
+ * — only an existing platform admin may grant it, or any hospital admin
+ * could mint themselves cross-hospital access through the ordinary user form.
+ */
+function assertMayGrantRole(role: string, actor: Session): void {
+  if (role === "Platform Admin" && actor.role !== "Platform Admin") {
+    throw new ForbiddenError("Only a platform admin can grant the Platform Admin role");
+  }
+}
+
 export async function createUser(input: unknown, actor: Session) {
   const data = validate(userCreateSchema, input);
+  assertMayGrantRole(data.role, actor);
   const existing = await usersRepo.findRow([
     { column: "email", op: "eq", value: data.email.toLowerCase() },
   ]);
   if (existing) throw new ConflictError("A user with that email already exists");
 
   const row = await usersRepo.create({
+    hospital_id: requireHospitalId(actor),
+    radiology_center_id: null,
+    lab_center_id: null,
     name: data.name,
     email: data.email.toLowerCase(),
     password_hash: await hashPassword(data.password),
@@ -185,8 +210,12 @@ const userUpdateSchema = {
 
 export async function updateUser(id: number, input: unknown, actor: Session) {
   const existing = await usersRepo.getRow(id);
-  if (!existing) throw new NotFoundError("User");
+  assertOwnedByHospital(existing, actor, "User");
+  if (existing.role === "Platform Admin" && actor.role !== "Platform Admin") {
+    throw new NotFoundError("User");
+  }
   const data = validatePartial(userUpdateSchema, input);
+  if ("role" in data && data.role) assertMayGrantRole(data.role, actor);
   const patch: Record<string, unknown> = {};
   if ("name" in data) patch.name = data.name;
   if ("role" in data) patch.role = data.role;
@@ -204,8 +233,12 @@ export async function deleteUser(id: number, actor: Session) {
   if (id === actor.userId) {
     throw new ConflictError("You cannot delete your own account");
   }
-  const ok = await usersRepo.remove(id);
-  if (!ok) throw new NotFoundError("User");
+  const existing = await usersRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "User");
+  if (existing.role === "Platform Admin" && actor.role !== "Platform Admin") {
+    throw new NotFoundError("User");
+  }
+  await usersRepo.remove(id);
   await audit(actor, "delete", "user", id);
 }
 
@@ -229,7 +262,7 @@ export const MEDICINE_LIST_CONFIG = {
   defaultSort: [{ column: "name" as const, direction: "asc" as const }],
 };
 
-export async function listMedicines(options: QueryOptions) {
-  const { rows, total } = await medicinesRepo.listRows(options);
+export async function listMedicines(options: QueryOptions, actor: Session) {
+  const { rows, total } = await medicinesRepo.listRows(scopeToHospital(options, actor));
   return { rows: rows.map(toMedicineDTO), total };
 }

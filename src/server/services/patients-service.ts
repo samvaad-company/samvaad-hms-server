@@ -6,11 +6,22 @@ import {
   prescriptionsRepo,
   labRepo,
   doctorsRepo,
+  appointmentsRepo,
+  opdRepo,
+  billsRepo,
+  radiologyRepo,
+  ipdRepo,
+  otRepo,
+  bedsRepo,
+  bloodIssuesRepo,
+  tpaClaimsRepo,
+  pharmacySalesRepo,
+  scribeNotesRepo,
 } from "@/server/repositories";
 import { toPatientDTO } from "@/server/repositories/mappers";
-import { type QueryOptions } from "@/server/db/adapter";
+import { type QueryOptions, type Row } from "@/server/db/adapter";
 import { type PatientRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
+import { type Repository } from "@/server/repositories/base";
 import { validate, validatePartial } from "@/server/lib/validation";
 import {
   ageFromDob,
@@ -22,6 +33,7 @@ import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { toPrescriptionDTO, toLabDTO } from "@/server/repositories/mappers";
 import { mobileRule, dobRule, optionalMobileRule } from "@/server/lib/field-rules";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 const createSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -65,18 +77,18 @@ export const PATIENT_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listPatients(options: QueryOptions) {
-  return patientsRepo.list(options);
+export async function listPatients(options: QueryOptions, actor: Session) {
+  return patientsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getPatient(id: number) {
-  const patient = await patientsRepo.get(id);
-  if (!patient) throw new NotFoundError("Patient");
-  return patient;
+export async function getPatient(id: number, actor: Session) {
+  const row = await patientsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Patient");
+  return toPatientDTO(row);
 }
 
-export async function getPatientDetail(id: number) {
-  const patient = await getPatient(id);
+export async function getPatientDetail(id: number, actor: Session) {
+  const patient = await getPatient(id, actor);
   const [rxRows, labRows] = await Promise.all([
     prescriptionsRepo.listRows({
       filters: [{ column: "patient_id", op: "eq", value: id }],
@@ -94,16 +106,50 @@ export async function getPatientDetail(id: number) {
   };
 }
 
-async function resolveDoctor(doctorId?: number): Promise<string> {
+async function resolveDoctor(doctorId: number | undefined, actor: Session): Promise<string> {
   if (!doctorId) return "";
   const doc = await doctorsRepo.getRow(doctorId);
-  return doc?.name ?? "";
+  if (!doc || doc.hospital_id !== actor.hospitalId) return "";
+  return doc.name;
+}
+
+/**
+ * Tables that denormalize `patient_name` alongside `patient_id`. Renaming a
+ * patient must cascade into every one of them, or modules keep showing the
+ * name as it was on the day the record was created.
+ */
+const PATIENT_NAME_CASCADE_REPOS: Repository<Row, unknown>[] = [
+  appointmentsRepo,
+  opdRepo,
+  prescriptionsRepo,
+  labRepo,
+  billsRepo,
+  radiologyRepo,
+  ipdRepo,
+  otRepo,
+  bedsRepo,
+  bloodIssuesRepo,
+  tpaClaimsRepo,
+  pharmacySalesRepo,
+  scribeNotesRepo,
+];
+
+async function cascadePatientName(patientId: number, name: string): Promise<void> {
+  await Promise.all(
+    PATIENT_NAME_CASCADE_REPOS.map(async (repo) => {
+      const { rows } = await repo.listRows({
+        filters: [{ column: "patient_id", op: "eq", value: patientId }],
+        unpaged: true,
+      });
+      await Promise.all(rows.map((row) => repo.update(row.id, { patient_name: name })));
+    }),
+  );
 }
 
 export async function createPatient(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
 
-  const existing = await patientsRepo.listRows({ unpaged: true });
+  const existing = await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const code = nextCode(
     existing.rows.map((r) => r.patient_code),
     "HMS-",
@@ -111,9 +157,10 @@ export async function createPatient(input: unknown, actor: Session) {
   );
 
   const age = data.age ?? (data.dob ? ageFromDob(String(data.dob)) : 0);
-  const doctorName = await resolveDoctor(data.doctorId);
+  const doctorName = await resolveDoctor(data.doctorId, actor);
 
   const row = await patientsRepo.create({
+    hospital_id: actor.hospitalId,
     patient_code: code,
     name: data.name,
     age,
@@ -149,7 +196,7 @@ export async function createPatient(input: unknown, actor: Session) {
 
 export async function updatePatient(id: number, input: unknown, actor: Session) {
   const existing = await patientsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Patient");
+  assertOwnedByHospital(existing, actor, "Patient");
   const data = validatePartial(createSchema, input);
 
   const patch: Record<string, unknown> = {};
@@ -183,16 +230,20 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
   if ("dob" in data && data.dob) patch.age = ageFromDob(String(data.dob));
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;
-    patch.doctor = await resolveDoctor(data.doctorId as number | undefined);
+    patch.doctor = await resolveDoctor(data.doctorId as number | undefined, actor);
   }
 
   const row = await patientsRepo.update(id, patch);
+  if (typeof patch.name === "string" && patch.name !== existing.name) {
+    await cascadePatientName(id, patch.name);
+  }
   await audit(actor, "update", "patient", id, patch);
   return toPatientDTO(row as PatientRow);
 }
 
 export async function deletePatient(id: number, actor: Session) {
-  const ok = await patientsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Patient");
+  const existing = await patientsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Patient");
+  await patientsRepo.remove(id);
   await audit(actor, "delete", "patient", id);
 }

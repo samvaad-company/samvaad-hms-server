@@ -36,6 +36,7 @@ import { displayDate, nextCode, isoDate } from "@/server/services/helpers";
 import { computePharmacyStatus } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const PO_STATUSES = ["Pending", "Received", "Cancelled"] as const;
 export const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Insurance"] as const;
@@ -55,8 +56,8 @@ const poSchema = {
   notes: { type: "string", required: false, max: 500, default: "" },
 } as const;
 
-export async function listPurchaseOrders(options: QueryOptions) {
-  const { rows, total } = await purchaseOrdersRepo.listRows(options);
+export async function listPurchaseOrders(options: QueryOptions, actor: Session) {
+  const { rows, total } = await purchaseOrdersRepo.listRows(scopeToHospital(options, actor));
   const withItems = await Promise.all(
     rows.map(async (r) => toPurchaseOrderDTO(r, await poItems(r.id))),
   );
@@ -71,9 +72,9 @@ async function poItems(id: number): Promise<PurchaseOrderItemRow[]> {
   return rows;
 }
 
-export async function getPurchaseOrder(id: number) {
+export async function getPurchaseOrder(id: number, actor: Session) {
   const row = await purchaseOrdersRepo.getRow(id);
-  if (!row) throw new NotFoundError("Purchase order");
+  assertOwnedByHospital(row, actor, "Purchase order");
   return toPurchaseOrderDTO(row, await poItems(id));
 }
 
@@ -88,7 +89,9 @@ export async function createPurchaseOrder(input: unknown, actor: Session) {
     throw new BadRequestError("Add at least one medicine with a quantity");
   }
 
-  const { rows: existing } = await purchaseOrdersRepo.listRows({ unpaged: true });
+  const { rows: existing } = await purchaseOrdersRepo.listRows(
+    scopeToHospital({ unpaged: true }, actor),
+  );
   const poNumber = nextCode(existing.map((r) => r.po_number), "PO-", 4);
 
   const total = lines.reduce(
@@ -97,6 +100,7 @@ export async function createPurchaseOrder(input: unknown, actor: Session) {
   );
 
   const row = await purchaseOrdersRepo.create({
+    hospital_id: actor.hospitalId,
     po_number: poNumber,
     supplier: data.supplier,
     order_date: displayDate(),
@@ -124,7 +128,7 @@ export async function createPurchaseOrder(input: unknown, actor: Session) {
 /** Receiving a PO adds its quantities to pharmacy stock. */
 export async function receivePurchaseOrder(id: number, actor: Session) {
   const row = await purchaseOrdersRepo.getRow(id);
-  if (!row) throw new NotFoundError("Purchase order");
+  assertOwnedByHospital(row, actor, "Purchase order");
   if (row.status === "Received") {
     throw new ConflictError("This purchase order has already been received");
   }
@@ -138,12 +142,14 @@ export async function receivePurchaseOrder(id: number, actor: Session) {
 
   await transactional("pharmacy.receivePO", async (uow) => {
   for (const item of items) {
+    const byId = item.pharmacy_item_id
+      ? await pharmacyRepo.getRow(item.pharmacy_item_id)
+      : null;
     const stock =
-      (item.pharmacy_item_id
-        ? await pharmacyRepo.getRow(item.pharmacy_item_id)
-        : null) ??
+      (byId && byId.hospital_id === actor.hospitalId ? byId : null) ??
       (await pharmacyRepo.findRow([
         { column: "name", op: "eq", value: item.medicine_name },
+        { column: "hospital_id", op: "eq", value: actor.hospitalId },
       ]));
 
     if (!stock) {
@@ -173,8 +179,9 @@ export async function updatePurchaseOrderStatus(id: number, status: string, acto
     throw new BadRequestError(`status must be one of: ${PO_STATUSES.join(", ")}`);
   }
   if (status === "Received") return receivePurchaseOrder(id, actor);
+  const existing = await purchaseOrdersRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Purchase order");
   const row = await purchaseOrdersRepo.update(id, { status });
-  if (!row) throw new NotFoundError("Purchase order");
   await audit(actor, "update", "purchase-order", id, { status });
   return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
 }
@@ -191,7 +198,7 @@ const poEditSchema = {
  */
 export async function updatePurchaseOrder(id: number, input: unknown, actor: Session) {
   const existing = await purchaseOrdersRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Purchase order");
+  assertOwnedByHospital(existing, actor, "Purchase order");
   if (existing.status !== "Pending") {
     throw new ConflictError("Only a pending purchase order can be edited");
   }
@@ -233,10 +240,11 @@ export async function updatePurchaseOrder(id: number, input: unknown, actor: Ses
 }
 
 export async function deletePurchaseOrder(id: number, actor: Session) {
+  const existing = await purchaseOrdersRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Purchase order");
   const items = await poItems(id);
   for (const i of items) await purchaseOrderItemsRepo.remove(i.id);
-  const ok = await purchaseOrdersRepo.remove(id);
-  if (!ok) throw new NotFoundError("Purchase order");
+  await purchaseOrdersRepo.remove(id);
   await audit(actor, "delete", "purchase-order", id);
 }
 
@@ -257,8 +265,8 @@ async function saleItems(id: number): Promise<PharmacySaleItemRow[]> {
   return rows;
 }
 
-export async function listSales(options: QueryOptions) {
-  const { rows, total } = await pharmacySalesRepo.listRows(options);
+export async function listSales(options: QueryOptions, actor: Session) {
+  const { rows, total } = await pharmacySalesRepo.listRows(scopeToHospital(options, actor));
   const withItems = await Promise.all(
     rows.map(async (r) => toPharmacySaleDTO(r, await saleItems(r.id))),
   );
@@ -292,10 +300,12 @@ export async function createSale(input: unknown, actor: Session) {
   // Resolve every line and check availability before mutating anything.
   const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number }[] = [];
   for (const l of lines) {
+    const byId = l.pharmacyItemId ? await pharmacyRepo.getRow(l.pharmacyItemId) : null;
     const stock =
-      (l.pharmacyItemId ? await pharmacyRepo.getRow(l.pharmacyItemId) : null) ??
+      (byId && byId.hospital_id === actor.hospitalId ? byId : null) ??
       (await pharmacyRepo.findRow([
         { column: "name", op: "eq", value: l.medicineName },
+        { column: "hospital_id", op: "eq", value: actor.hospitalId },
       ]));
     if (!stock) {
       throw new BadRequestError(`"${l.medicineName}" is not in pharmacy inventory`);
@@ -319,15 +329,18 @@ export async function createSale(input: unknown, actor: Session) {
   const discount = Number(data.discount ?? 0);
   const total = Math.max(0, subtotal - discount);
 
-  const { rows: existing } = await pharmacySalesRepo.listRows({ unpaged: true });
+  const { rows: existing } = await pharmacySalesRepo.listRows(
+    scopeToHospital({ unpaged: true }, actor),
+  );
   const saleNumber = nextCode(existing.map((r) => r.sale_number), "SALE-", 4);
-  const { rows: bills } = await billsRepo.listRows({ unpaged: true });
+  const { rows: bills } = await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const billNumber = nextCode(bills.map((b) => b.bill_number), "INV-", 8);
 
   // Sale, line items, stock levels and the bill must land together — a partial
   // write here would decrement stock for a sale that was never recorded.
   const saleId = await transactional("pharmacy.sale", async (uow) => {
     const sale = await uow.insert<PharmacySaleRow>(TABLES.pharmacySales, {
+      hospital_id: actor.hospitalId,
       sale_number: saleNumber,
       patient_id: data.patientId ?? null,
       patient_name: patientName,
@@ -360,6 +373,7 @@ export async function createSale(input: unknown, actor: Session) {
 
     // Raise the corresponding bill so pharmacy revenue shows up in Billing.
     const bill = await uow.insert<BillRow>(TABLES.bills, {
+      hospital_id: actor.hospitalId,
       bill_number: billNumber,
       patient_id: data.patientId ?? null,
       patient_name: patientName,
@@ -380,10 +394,10 @@ export async function createSale(input: unknown, actor: Session) {
   return toPharmacySaleDTO(finalRow as PharmacySaleRow, await saleItems(saleId));
 }
 
-export async function getSale(id: number) {
+export async function getSale(id: number, actor: Session) {
   const row = await pharmacySalesRepo.getRow(id);
-  if (!row) throw new NotFoundError("Sale");
-  return toPharmacySaleDTO(row as PharmacySaleRow, await saleItems(id));
+  assertOwnedByHospital(row, actor, "Sale");
+  return toPharmacySaleDTO(row, await saleItems(id));
 }
 
 const saleEditSchema = {
@@ -400,7 +414,7 @@ const saleEditSchema = {
  */
 export async function updateSale(id: number, input: unknown, actor: Session) {
   const existing = await pharmacySalesRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Sale");
+  assertOwnedByHospital(existing, actor, "Sale");
 
   const data = validatePartial(saleEditSchema, input);
   const patch: Record<string, unknown> = {};
@@ -425,9 +439,10 @@ export async function updateSale(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteSale(id: number, actor: Session) {
+  const existing = await pharmacySalesRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Sale");
   const items = await saleItems(id);
   for (const i of items) await pharmacySaleItemsRepo.remove(i.id);
-  const ok = await pharmacySalesRepo.remove(id);
-  if (!ok) throw new NotFoundError("Sale");
+  await pharmacySalesRepo.remove(id);
   await audit(actor, "delete", "pharmacy-sale", id);
 }

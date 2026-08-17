@@ -119,10 +119,12 @@ export function EmptyRow({ text }: { text: string }) {
  * record by name and lists their open tasks, newest first.
  */
 export function MyTasksCard() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const { items: staff } = useList<StaffDTO>("/staff", { all: true });
   const { items: tasks, reload } = useList<TaskDTO>("/tasks", { all: true });
   const { run } = useMutation();
+
+  if (!can("tasks")) return null;
 
   const me = staff.find((s) => s.name === user?.name);
   const mine = tasks

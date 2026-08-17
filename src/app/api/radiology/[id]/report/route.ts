@@ -14,7 +14,7 @@ export const POST = actionRoute("radiology", "write", async (req, ctx, session) 
 });
 
 /** Fetch the uploaded report document for viewing / downloading. */
-export const GET = actionRoute("radiology", "read", async (_req, ctx) => {
+export const GET = actionRoute("radiology", "read", async (_req, ctx, session) => {
   const { id } = await ctx.params;
-  return ok(await getRadiologyReportFile(parseId(id)));
+  return ok(await getRadiologyReportFile(parseId(id), session));
 });

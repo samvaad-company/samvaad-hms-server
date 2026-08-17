@@ -4,6 +4,6 @@ import { requirePermission } from "@/server/auth/server";
 import { getReports } from "@/server/services/reports-service";
 
 export const GET = withRoute(async () => {
-  await requirePermission("reports", "read");
-  return ok(await getReports());
+  const session = await requirePermission("reports", "read");
+  return ok(await getReports(session));
 });

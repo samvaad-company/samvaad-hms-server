@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/dates";
 import { Wallet, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { FinanceEntryDTO } from "@/types/api";
@@ -49,6 +50,8 @@ function EntryRow({ row, amountClass, actions }: { row: FinanceEntryDTO; amountC
 }
 
 export default function FinancePage() {
+  const { can } = useAuth();
+  const canWrite = can("finance", "write");
   const [tab, setTab] = useState("income");
   const [incomeFilter, setIncomeFilter] = useState("All");
   const [incomeSearch, setIncomeSearch] = useState("");
@@ -135,7 +138,7 @@ export default function FinancePage() {
         title="Income & Expense"
         subtitle="Track non-clinical hospital income and operating expenses by category."
         stats={[{ icon: Wallet, value: `₹${net.toLocaleString("en-IN")}`, label: "Net Position" }]}
-        action={{ label: tab === "expenses" ? "Add Expense" : "Add Income", icon: Plus, onClick: () => setModal(tab === "expenses" ? "expense" : "income") }}
+        action={canWrite ? { label: tab === "expenses" ? "Add Expense" : "Add Income", icon: Plus, onClick: () => setModal(tab === "expenses" ? "expense" : "income") } : undefined}
       />
 
       <div className={`${tw.gutterX} mb-5 grid grid-cols-2 gap-4`}>
@@ -165,14 +168,14 @@ export default function FinancePage() {
                 searchPlaceholder="Search income entries..."
                 activeFilter={incomeFilter} onFilterChange={setIncomeFilter}
                 searchQuery={incomeSearch} onSearchChange={setIncomeSearch}
-                action={{ label: "Add Income", icon: Plus, onClick: () => setModal("income") }} />
+                action={canWrite ? { label: "Add Income", icon: Plus, onClick: () => setModal("income") } : undefined} />
               <DataTable columns={COLUMNS} minWidth={1050}>
                 {visibleIncomes.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No income entries.</div>
                 ) : visibleIncomes.map(e => (
-                  <EntryRow key={e.id} row={e} amountClass="text-[#00955c]" actions={[
+                  <EntryRow key={e.id} row={e} amountClass="text-[#00955c]" actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => incomeActions.remove(e.id, e.description) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>
@@ -184,14 +187,14 @@ export default function FinancePage() {
                 searchPlaceholder="Search expense entries..."
                 activeFilter={expenseFilter} onFilterChange={setExpenseFilter}
                 searchQuery={expenseSearch} onSearchChange={setExpenseSearch}
-                action={{ label: "Add Expense", icon: Plus, onClick: () => setModal("expense") }} />
+                action={canWrite ? { label: "Add Expense", icon: Plus, onClick: () => setModal("expense") } : undefined} />
               <DataTable columns={COLUMNS} minWidth={1050}>
                 {visibleExpenses.length === 0 ? (
                   <div className="py-16 text-center text-[14px] text-[#57575f]">No expense entries.</div>
                 ) : visibleExpenses.map(e => (
-                  <EntryRow key={e.id} row={e} amountClass="text-[#ff0004]" actions={[
+                  <EntryRow key={e.id} row={e} amountClass="text-[#ff0004]" actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => expenseActions.remove(e.id, e.description) },
-                  ]} />
+                  ] : []} />
                 ))}
               </DataTable>
             </>

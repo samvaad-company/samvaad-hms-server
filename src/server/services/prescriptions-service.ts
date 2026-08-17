@@ -14,12 +14,13 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { transactional } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type PrescriptionRow, type PrescriptionItemRow } from "@/server/db/tables";
-import { NotFoundError, ConflictError } from "@/server/lib/errors";
+import { ConflictError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { computePharmacyStatus, displayDate } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 interface ItemInput {
   medicineId?: number;
@@ -48,7 +49,9 @@ export const RX_LIST_CONFIG = {
 };
 
 export async function listPrescriptions(options: QueryOptions, actor: Session) {
-  return prescriptionsRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
+  return prescriptionsRepo.list(
+    scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
+  );
 }
 
 async function loadItems(prescriptionId: number): Promise<PrescriptionItemRow[]> {
@@ -59,9 +62,9 @@ async function loadItems(prescriptionId: number): Promise<PrescriptionItemRow[]>
   return res.rows;
 }
 
-export async function getPrescription(id: number) {
+export async function getPrescription(id: number, actor: Session) {
   const row = await prescriptionsRepo.getRow(id);
-  if (!row) throw new NotFoundError("Prescription");
+  assertOwnedByHospital(row, actor, "Prescription");
   const items = await loadItems(id);
   return toPrescriptionDTO(row, items);
 }
@@ -87,11 +90,12 @@ export async function createPrescription(input: unknown, actor: Session) {
     if (d) doctorName = d.name;
   }
 
-  const all = await prescriptionsRepo.listRows({ unpaged: true });
+  const all = await prescriptionsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const seq = all.rows.length + 1;
   const rxNumber = `RX-${displayDate().replace(/\s/g, "")}-${String(seq).padStart(3, "0")}`;
 
   const header = await prescriptionsRepo.create({
+    hospital_id: actor.hospitalId,
     rx_number: rxNumber,
     patient_id: data.patientId ?? null,
     patient_name: patientName,
@@ -125,7 +129,7 @@ export async function createPrescription(input: unknown, actor: Session) {
 
 export async function updatePrescription(id: number, input: unknown, actor: Session) {
   const existing = await prescriptionsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Prescription");
+  assertOwnedByHospital(existing, actor, "Prescription");
   const data = validatePartial(headerSchema, input);
   const patch: Record<string, unknown> = {};
   if ("diagnosis" in data) patch.diagnosis = data.diagnosis;
@@ -179,7 +183,7 @@ export function unitsFor(frequency: string, duration: string): number {
  */
 export async function dispensePrescription(id: number, actor: Session) {
   const rx = await prescriptionsRepo.getRow(id);
-  if (!rx) throw new NotFoundError("Prescription");
+  assertOwnedByHospital(rx, actor, "Prescription");
   if (rx.status === "Dispensed") {
     throw new ConflictError("Prescription is already dispensed");
   }
@@ -190,7 +194,7 @@ export async function dispensePrescription(id: number, actor: Session) {
   const shortStocked: { name: string; needed: number; available: number }[] = [];
 
   // Load stock once so fuzzy matching doesn't need a query per candidate.
-  const { rows: stock } = await pharmacyRepo.listRows({ unpaged: true });
+  const { rows: stock } = await pharmacyRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const byKey = new Map<string, (typeof stock)[number]>();
   for (const s of stock) {
     const k = medicineKey(s.name);
@@ -235,9 +239,10 @@ export async function dispensePrescription(id: number, actor: Session) {
 }
 
 export async function deletePrescription(id: number, actor: Session) {
+  const existing = await prescriptionsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Prescription");
   const items = await loadItems(id);
   for (const it of items) await prescriptionItemsRepo.remove(it.id);
-  const ok = await prescriptionsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Prescription");
+  await prescriptionsRepo.remove(id);
   await audit(actor, "delete", "prescription", id);
 }

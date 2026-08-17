@@ -26,7 +26,11 @@ export const TABLES = {
   beds: "beds",
   ipdAdmissions: "ipd_admissions",
   otSchedules: "ot_schedules",
-  hospitalSettings: "hospital_settings",
+  hospitals: "hospitals",
+  radiologyCenters: "radiology_centers",
+  hospitalRadiologyLinks: "hospital_radiology_links",
+  labCenters: "lab_centers",
+  hospitalLabLinks: "hospital_lab_links",
   auditLogs: "audit_logs",
   bloodDonors: "blood_donors",
   bloodStock: "blood_stock",
@@ -54,6 +58,8 @@ export const TABLES = {
   pharmacySaleItems: "pharmacy_sale_items",
   bedTransfers: "bed_transfers",
   prescriptionTemplates: "prescription_templates",
+  chatThreads: "chat_threads",
+  chatMessages: "chat_messages",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -62,6 +68,10 @@ export type TableName = (typeof TABLES)[keyof typeof TABLES];
 
 export interface UserRow extends Row {
   id: number;
+  /** Exactly one of hospital_id / radiology_center_id / lab_center_id is set — see chk_users_one_tenant. */
+  hospital_id: number | null;
+  radiology_center_id: number | null;
+  lab_center_id: number | null;
   name: string;
   email: string;
   password_hash: string;
@@ -76,6 +86,7 @@ export interface UserRow extends Row {
 
 export interface DepartmentRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   head: string;
   extension: string;
@@ -85,6 +96,7 @@ export interface DepartmentRow extends Row {
 
 export interface DoctorRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   specialty: string;
   department_id: number | null;
@@ -99,6 +111,7 @@ export interface DoctorRow extends Row {
 
 export interface StaffRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   role: string;
   department_id: number | null;
@@ -113,6 +126,7 @@ export interface StaffRow extends Row {
 
 export interface PatientRow extends Row {
   id: number;
+  hospital_id: number;
   patient_code: string;
   name: string;
   age: number;
@@ -146,6 +160,7 @@ export interface PatientRow extends Row {
 
 export interface AppointmentRow extends Row {
   id: number;
+  hospital_id: number;
   patient_id: number | null;
   patient_name: string;
   patient_age: number;
@@ -162,6 +177,7 @@ export interface AppointmentRow extends Row {
 
 export interface OpdVisitRow extends Row {
   id: number;
+  hospital_id: number;
   token_number: string;
   /** Set when the visit was created by checking in a booked appointment. */
   appointment_id: number | null;
@@ -188,6 +204,7 @@ export interface OpdVisitRow extends Row {
 
 export interface MedicineRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   generic: string;
   category: string;
@@ -201,6 +218,7 @@ export interface MedicineRow extends Row {
 
 export interface PrescriptionRow extends Row {
   id: number;
+  hospital_id: number;
   rx_number: string;
   patient_id: number | null;
   patient_name: string;
@@ -229,6 +247,7 @@ export interface PrescriptionItemRow extends Row {
 
 export interface PharmacyItemRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   category: string;
   stock: number;
@@ -242,6 +261,7 @@ export interface PharmacyItemRow extends Row {
 
 export interface LabTestRow extends Row {
   id: number;
+  hospital_id: number;
   /** Tests booked together share one order number (LAB-0001). */
   order_number: string;
   patient_id: number | null;
@@ -249,20 +269,34 @@ export interface LabTestRow extends Row {
   patient_age: number;
   test_name: string;
   requested_by: string;
+  doctor_id: number | null;
+  doctor: string;
   priority: string;
   sample_status: string;
   report_status: string;
   test_date: string;
   collection_date: string;
   amount: number;
+  /** The price itself is the routed-to center's call, not the hospital's — only a discount is captured here. */
   discount: number;
+  /** "percent" | "amount" — how `discount` should be read. */
+  discount_type: string;
   status: string;
+  /** Null keeps the test in-house; set once routed to a linked lab center. */
+  lab_center_id: number | null;
+  /** Uploaded report document as a data URL (PDF/image), when present. */
+  report_file: string | null;
+  report_file_name: string | null;
+  report_note: string | null;
+  report_uploaded_by: string | null;
+  report_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface BillRow extends Row {
   id: number;
+  hospital_id: number;
   bill_number: string;
   patient_id: number | null;
   patient_name: string;
@@ -279,6 +313,7 @@ export interface BillRow extends Row {
 
 export interface WardRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   capacity: number;
   created_at: string;
@@ -287,6 +322,7 @@ export interface WardRow extends Row {
 
 export interface BedTransferRow extends Row {
   id: number;
+  hospital_id: number;
   patient_name: string;
   from_label: string;
   to_label: string;
@@ -299,6 +335,7 @@ export interface BedTransferRow extends Row {
 
 export interface BedRow extends Row {
   id: number;
+  hospital_id: number;
   bed_number: string;
   ward_id: number | null;
   ward: string;
@@ -312,6 +349,7 @@ export interface BedRow extends Row {
 
 export interface IpdAdmissionRow extends Row {
   id: number;
+  hospital_id: number;
   patient_id: number | null;
   patient_name: string;
   patient_age: number;
@@ -332,6 +370,7 @@ export interface IpdAdmissionRow extends Row {
 
 export interface OtScheduleRow extends Row {
   id: number;
+  hospital_id: number;
   patient_id: number | null;
   patient_name: string;
   procedure: string;
@@ -346,8 +385,11 @@ export interface OtScheduleRow extends Row {
   updated_at: string;
 }
 
-export interface HospitalSettingsRow extends Row {
+/** A hospital tenant. Doubles as its own settings/letterhead record. */
+export interface HospitalRow extends Row {
   id: number;
+  code: string;
+  status: string;
   name: string;
   address: string;
   city: string;
@@ -364,8 +406,79 @@ export interface HospitalSettingsRow extends Row {
   updated_at: string;
 }
 
+/**
+ * A radiology center tenant — independent of any hospital, so it can (once
+ * linked, see Phase 3) serve more than one.
+ */
+export interface RadiologyCenterRow extends Row {
+  id: number;
+  code: string;
+  status: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  phone: string;
+  contact_email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A hospital's request to route radiology work to a center, and the center's answer. */
+export interface HospitalRadiologyLinkRow extends Row {
+  id: number;
+  hospital_id: number;
+  radiology_center_id: number;
+  /** "Pending" | "Active" | "Rejected" | "Revoked" */
+  status: string;
+  requested_by: string;
+  requested_at: string;
+  responded_by: string;
+  responded_at: string;
+  revoked_by: string;
+  revoked_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A lab center tenant — independent of any hospital, so it can (once linked)
+ * serve more than one. Mirrors RadiologyCenterRow exactly.
+ */
+export interface LabCenterRow extends Row {
+  id: number;
+  code: string;
+  status: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  phone: string;
+  contact_email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A hospital's request to route lab work to a center, and the center's answer. */
+export interface HospitalLabLinkRow extends Row {
+  id: number;
+  hospital_id: number;
+  lab_center_id: number;
+  /** "Pending" | "Active" | "Rejected" | "Revoked" */
+  status: string;
+  requested_by: string;
+  requested_at: string;
+  responded_by: string;
+  responded_at: string;
+  revoked_by: string;
+  revoked_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditLogRow extends Row {
   id: number;
+  hospital_id: number;
   actor_id: number | null;
   actor_name: string;
   action: string;
@@ -377,6 +490,7 @@ export interface AuditLogRow extends Row {
 
 export interface BloodDonorRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   age: number;
   gender: string;
@@ -392,6 +506,7 @@ export interface BloodDonorRow extends Row {
 
 export interface BloodStockRow extends Row {
   id: number;
+  hospital_id: number;
   blood_group: string;
   component: string;
   units: number;
@@ -401,6 +516,7 @@ export interface BloodStockRow extends Row {
 
 export interface BloodIssueRow extends Row {
   id: number;
+  hospital_id: number;
   patient_id: number | null;
   patient_name: string;
   blood_group: string;
@@ -416,6 +532,7 @@ export interface BloodIssueRow extends Row {
 
 export interface RadiologyTestRow extends Row {
   id: number;
+  hospital_id: number;
   /** Studies ordered together share one order number (RAD-0001). */
   order_number: string;
   patient_id: number | null;
@@ -426,7 +543,15 @@ export interface RadiologyTestRow extends Row {
   report_status: string;
   test_date: string;
   amount: number;
+  /** The price itself is the routed-to center's call, not the hospital's — only a discount is captured here. */
+  discount: number;
+  /** "percent" | "amount" — how `discount` should be read. */
+  discount_type: string;
   status: string;
+  doctor_id: number | null;
+  doctor: string;
+  /** Null keeps the study in-house; set once routed to a linked center. */
+  radiology_center_id: number | null;
   /** Uploaded report document as a data URL (PDF/image), when present. */
   report_file: string | null;
   report_file_name: string | null;
@@ -439,6 +564,7 @@ export interface RadiologyTestRow extends Row {
 
 export interface AmbulanceRow extends Row {
   id: number;
+  hospital_id: number;
   vehicle_number: string;
   model: string;
   driver_name: string;
@@ -450,6 +576,7 @@ export interface AmbulanceRow extends Row {
 
 export interface AmbulanceCallRow extends Row {
   id: number;
+  hospital_id: number;
   patient_name: string;
   phone: string;
   pickup_location: string;
@@ -467,6 +594,7 @@ export interface AmbulanceCallRow extends Row {
 
 export interface BirthRecordRow extends Row {
   id: number;
+  hospital_id: number;
   child_name: string;
   gender: string;
   birth_date: string;
@@ -482,6 +610,7 @@ export interface BirthRecordRow extends Row {
 
 export interface DeathRecordRow extends Row {
   id: number;
+  hospital_id: number;
   deceased_name: string;
   gender: string;
   age: number;
@@ -497,6 +626,7 @@ export interface DeathRecordRow extends Row {
 
 export interface TpaRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   code: string;
   contact_person: string;
@@ -510,6 +640,7 @@ export interface TpaRow extends Row {
 
 export interface TpaClaimRow extends Row {
   id: number;
+  hospital_id: number;
   tpa_id: number | null;
   tpa_name: string;
   patient_id: number | null;
@@ -525,6 +656,7 @@ export interface TpaClaimRow extends Row {
 
 export interface FinanceIncomeRow extends Row {
   id: number;
+  hospital_id: number;
   category: string;
   description: string;
   invoice_number: string;
@@ -536,6 +668,7 @@ export interface FinanceIncomeRow extends Row {
 
 export interface FinanceExpenseRow extends Row {
   id: number;
+  hospital_id: number;
   category: string;
   description: string;
   invoice_number: string;
@@ -547,6 +680,7 @@ export interface FinanceExpenseRow extends Row {
 
 export interface InventoryItemRow extends Row {
   id: number;
+  hospital_id: number;
   name: string;
   category: string;
   unit: string;
@@ -560,6 +694,7 @@ export interface InventoryItemRow extends Row {
 
 export interface InventoryIssueRow extends Row {
   id: number;
+  hospital_id: number;
   item_id: number | null;
   item_name: string;
   department: string;
@@ -573,6 +708,7 @@ export interface InventoryIssueRow extends Row {
 
 export interface TaskRow extends Row {
   id: number;
+  hospital_id: number;
   title: string;
   description: string;
   goal: string;
@@ -586,8 +722,29 @@ export interface TaskRow extends Row {
   updated_at: string;
 }
 
+export interface ChatThreadRow extends Row {
+  id: number;
+  hospital_id: number | null;
+  radiology_center_id: number | null;
+  lab_center_id: number | null;
+  user_id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessageRow extends Row {
+  id: number;
+  thread_id: number;
+  role: string;
+  content: string;
+  sources: string[] | null;
+  created_at: string;
+}
+
 export interface PurchaseOrderRow extends Row {
   id: number;
+  hospital_id: number;
   po_number: string;
   supplier: string;
   order_date: string;
@@ -612,6 +769,7 @@ export interface PurchaseOrderItemRow extends Row {
 
 export interface PharmacySaleRow extends Row {
   id: number;
+  hospital_id: number;
   sale_number: string;
   patient_id: number | null;
   patient_name: string;
@@ -641,6 +799,7 @@ export interface PharmacySaleItemRow extends Row {
 
 export interface StaffAttendanceRow extends Row {
   id: number;
+  hospital_id: number;
   staff_id: number;
   staff_name: string;
   work_date: string;
@@ -686,6 +845,7 @@ export interface IpdMedicationRow extends Row {
 
 export interface DocumentRow extends Row {
   id: number;
+  hospital_id: number;
   /** What the file is attached to, e.g. "patient" | "lab" | "donor". */
   owner_type: string;
   owner_id: number;
@@ -701,6 +861,7 @@ export interface DocumentRow extends Row {
 
 export interface ScribeNoteRow extends Row {
   id: number;
+  hospital_id: number;
   appointment_id: number | null;
   patient_id: number | null;
   patient_name: string;
@@ -721,6 +882,7 @@ export interface ScribeNoteRow extends Row {
  */
 export interface PrescriptionTemplateRow extends Row {
   id: number;
+  hospital_id: number;
   doctor_id: number;
   name: string;
   /** Array of { medicineName, dosage, frequency, duration, instructions }. */

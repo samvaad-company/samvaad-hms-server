@@ -9,9 +9,9 @@ import {
 } from "@/server/services/attendance-service";
 
 export const GET = withRoute(async (req: NextRequest) => {
-  await requirePermission("staff", "read");
+  const session = await requirePermission("staff", "read");
   const options = parseListParams(req, ATTENDANCE_LIST_CONFIG);
-  const { rows, total } = await listAttendance(options);
+  const { rows, total } = await listAttendance(options, session);
   return paginated(
     rows,
     makePaginationMeta(options.page ?? 1, options.pageSize ?? rows.length, total),

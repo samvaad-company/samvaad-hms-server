@@ -8,12 +8,12 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { type UnitOfWork } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type OpdVisitRow } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayTime, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const OPD_PRIORITIES = ["Normal", "Urgent", "Emergency"] as const;
 
@@ -64,13 +64,15 @@ export const OPD_LIST_CONFIG = {
 };
 
 export async function listOpd(options: QueryOptions, actor: Session) {
-  return opdRepo.list(scopeToOwnDoctor(options, actor, "doctor_id"));
+  return opdRepo.list(
+    scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
+  );
 }
 
-export async function getOpd(id: number) {
-  const o = await opdRepo.get(id);
-  if (!o) throw new NotFoundError("OPD visit");
-  return o;
+export async function getOpd(id: number, actor: Session) {
+  const row = await opdRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "OPD visit");
+  return toOpdDTO(row);
 }
 
 /**
@@ -102,7 +104,7 @@ export async function checkInOpd(
     if (d) doctorName = d.name;
   }
 
-  const all = await opdRepo.listRows({ unpaged: true });
+  const all = await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const token = nextCode(
     all.rows.map((r) => r.token_number),
     "T-",
@@ -114,6 +116,7 @@ export async function checkInOpd(
     : (values: Record<string, unknown>) => opdRepo.create(values);
 
   const row = await create({
+    hospital_id: actor.hospitalId,
     token_number: token,
     appointment_id: data.appointmentId ?? null,
     patient_id: data.patientId ?? null,
@@ -140,7 +143,7 @@ export async function checkInOpd(
 
 export async function updateOpd(id: number, input: unknown, actor: Session) {
   const existing = await opdRepo.getRow(id);
-  if (!existing) throw new NotFoundError("OPD visit");
+  assertOwnedByHospital(existing, actor, "OPD visit");
   const data = validatePartial(updateSchema, input);
   const patch: Record<string, unknown> = {};
   if ("status" in data) {
@@ -170,18 +173,19 @@ export async function updateOpd(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteOpd(id: number, actor: Session) {
-  const ok = await opdRepo.remove(id);
-  if (!ok) throw new NotFoundError("OPD visit");
+  const existing = await opdRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "OPD visit");
+  await opdRepo.remove(id);
   await audit(actor, "delete", "opd", id);
-  await renumberTokens();
+  await renumberTokens(actor);
 }
 
 /**
  * Re-sequence tokens so the queue stays contiguous after a deletion
  * (T-001, T-002, … with no gaps). Ordered by check-in, i.e. row id.
  */
-async function renumberTokens(): Promise<void> {
-  const { rows } = await opdRepo.listRows({ unpaged: true });
+async function renumberTokens(actor: Session): Promise<void> {
+  const { rows } = await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
   const ordered = [...rows].sort((a, b) => a.id - b.id);
   for (let i = 0; i < ordered.length; i += 1) {
     const expected = `T-${String(i + 1).padStart(3, "0")}`;

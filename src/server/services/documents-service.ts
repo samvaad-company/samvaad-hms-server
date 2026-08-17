@@ -11,6 +11,7 @@ import { NotFoundError, BadRequestError } from "@/server/lib/errors";
 import { getStorage } from "@/server/storage";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 export const OWNER_TYPES = ["patient", "lab", "radiology", "donor", "staff"] as const;
 export type OwnerType = (typeof OWNER_TYPES)[number];
@@ -33,13 +34,13 @@ export const DOCUMENTS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "desc" as const }],
 };
 
-export async function listDocuments(options: QueryOptions) {
-  return documentsRepo.list(options);
+export async function listDocuments(options: QueryOptions, actor: Session) {
+  return documentsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getDocumentRow(id: number): Promise<DocumentRow> {
+export async function getDocumentRow(id: number, actor: Session): Promise<DocumentRow> {
   const row = await documentsRepo.getRow(id);
-  if (!row) throw new NotFoundError("Document");
+  assertOwnedByHospital(row, actor, "Document");
   return row;
 }
 
@@ -86,6 +87,7 @@ export async function uploadDocument(
   });
 
   const row = await documentsRepo.create({
+    hospital_id: actor.hospitalId,
     owner_type: ownerType,
     owner_id: ownerId,
     category: input.category?.trim() || "General",
@@ -105,15 +107,15 @@ export async function uploadDocument(
 }
 
 /** Fetch the binary contents for download. */
-export async function readDocument(id: number) {
-  const row = await getDocumentRow(id);
+export async function readDocument(id: number, actor: Session) {
+  const row = await getDocumentRow(id, actor);
   const data = await getStorage().get(row.storage_key);
   if (!data) throw new NotFoundError("Document file");
   return { row, data };
 }
 
 export async function deleteDocument(id: number, actor: Session) {
-  const row = await getDocumentRow(id);
+  const row = await getDocumentRow(id, actor);
   await getStorage().remove(row.storage_key);
   await documentsRepo.remove(id);
   await audit(actor, "delete", "document", id);

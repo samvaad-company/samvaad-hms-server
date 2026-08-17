@@ -11,11 +11,11 @@ import {
   type BirthRecordRow,
   type DeathRecordRow,
 } from "@/server/db/tables";
-import { NotFoundError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, displayTime } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
+import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
 
 // ── Births ──────────────────────────────────────────────────────────────────
 
@@ -38,19 +38,20 @@ export const BIRTHS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listBirths(options: QueryOptions) {
-  return birthRecordsRepo.list(options);
+export async function listBirths(options: QueryOptions, actor: Session) {
+  return birthRecordsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getBirth(id: number) {
-  const r = await birthRecordsRepo.get(id);
-  if (!r) throw new NotFoundError("Birth record");
-  return r;
+export async function getBirth(id: number, actor: Session) {
+  const row = await birthRecordsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Birth record");
+  return toBirthRecordDTO(row);
 }
 
 export async function createBirth(input: unknown, actor: Session) {
   const data = validate(birthSchema, input);
   const row = await birthRecordsRepo.create({
+    hospital_id: actor.hospitalId,
     child_name: data.childName,
     gender: data.gender,
     birth_date: data.date || displayDate(),
@@ -67,7 +68,7 @@ export async function createBirth(input: unknown, actor: Session) {
 
 export async function updateBirth(id: number, input: unknown, actor: Session) {
   const existing = await birthRecordsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Birth record");
+  assertOwnedByHospital(existing, actor, "Birth record");
   const data = validatePartial(birthSchema, input);
   const patch: Record<string, unknown> = {};
   if ("childName" in data) patch.child_name = data.childName;
@@ -85,8 +86,9 @@ export async function updateBirth(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteBirth(id: number, actor: Session) {
-  const ok = await birthRecordsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Birth record");
+  const existing = await birthRecordsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Birth record");
+  await birthRecordsRepo.remove(id);
   await audit(actor, "delete", "birth-record", id);
 }
 
@@ -111,19 +113,20 @@ export const DEATHS_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-export async function listDeaths(options: QueryOptions) {
-  return deathRecordsRepo.list(options);
+export async function listDeaths(options: QueryOptions, actor: Session) {
+  return deathRecordsRepo.list(scopeToHospital(options, actor));
 }
 
-export async function getDeath(id: number) {
-  const r = await deathRecordsRepo.get(id);
-  if (!r) throw new NotFoundError("Death record");
-  return r;
+export async function getDeath(id: number, actor: Session) {
+  const row = await deathRecordsRepo.getRow(id);
+  assertOwnedByHospital(row, actor, "Death record");
+  return toDeathRecordDTO(row);
 }
 
 export async function createDeath(input: unknown, actor: Session) {
   const data = validate(deathSchema, input);
   const row = await deathRecordsRepo.create({
+    hospital_id: actor.hospitalId,
     deceased_name: data.deceasedName,
     gender: data.gender,
     age: data.age,
@@ -140,7 +143,7 @@ export async function createDeath(input: unknown, actor: Session) {
 
 export async function updateDeath(id: number, input: unknown, actor: Session) {
   const existing = await deathRecordsRepo.getRow(id);
-  if (!existing) throw new NotFoundError("Death record");
+  assertOwnedByHospital(existing, actor, "Death record");
   const data = validatePartial(deathSchema, input);
   const patch: Record<string, unknown> = {};
   if ("deceasedName" in data) patch.deceased_name = data.deceasedName;
@@ -158,7 +161,8 @@ export async function updateDeath(id: number, input: unknown, actor: Session) {
 }
 
 export async function deleteDeath(id: number, actor: Session) {
-  const ok = await deathRecordsRepo.remove(id);
-  if (!ok) throw new NotFoundError("Death record");
+  const existing = await deathRecordsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Death record");
+  await deathRecordsRepo.remove(id);
   await audit(actor, "delete", "death-record", id);
 }
