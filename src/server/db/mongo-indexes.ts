@@ -61,7 +61,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.documents]: ["hospital_id", "owner_type", "owner_id", "category"],
   [TABLES.tasks]: ["hospital_id", "status", "priority", "assignee_id"],
   [TABLES.chatThreads]: ["user_id", "updated_at"],
-  [TABLES.chatMessages]: ["thread_id", "created_at"],
+  [TABLES.chatMessages]: ["thread_id", "created_at", "patient_id"],
   [TABLES.scribeNotes]: ["hospital_id", "appointment_id", "patient_id", "doctor_id", "status"],
   [TABLES.prescriptionTemplates]: ["hospital_id", "doctor_id"],
 };

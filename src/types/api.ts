@@ -171,8 +171,8 @@ export interface LabPatientDetailDTO {
 
 export interface LabReportFileDTO {
   fileName: string;
-  /** data: URL containing the report document (PDF or image). */
-  dataUrl: string;
+  /** Firebase Storage download URL for the report document (PDF or image). */
+  fileUrl: string;
   note: string | null;
   uploadedBy: string | null;
   uploadedAt: string | null;
@@ -347,8 +347,8 @@ export interface RadiologyPatientDetailDTO {
 
 export interface RadiologyReportFileDTO {
   fileName: string;
-  /** data: URL containing the report document (PDF or image). */
-  dataUrl: string;
+  /** Firebase Storage download URL for the report document (PDF or image). */
+  fileUrl: string;
   note: string | null;
   uploadedBy: string | null;
   uploadedAt: string | null;
@@ -487,6 +487,8 @@ export interface ChatMessageDTO {
   role: "user" | "assistant";
   content: string;
   sources: string[] | null;
+  /** The patient this reply resolved to, if any — powers a "View patient" link. */
+  patientId: number | null;
   createdAt: string;
 }
 

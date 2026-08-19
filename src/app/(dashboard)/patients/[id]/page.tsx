@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { parseDisplayDate, formatDate } from "@/lib/dates";
-import type { PatientDTO, PrescriptionDTO, LabTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
+import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
@@ -21,6 +22,7 @@ import Link from "next/link";
 type PatientDetail = PatientDTO & {
   prescriptions: PrescriptionDTO[];
   labTests: LabTestDTO[];
+  radiologyTests: RadiologyTestDTO[];
 };
 
 // ─── Vaccination history (not yet captured in the database) ───────────────────
@@ -65,6 +67,7 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
   const TYPE_CLR: Record<string, string> = {
     "OPD Visit":     "bg-[#d6eaff] text-[#007cff]",
     "Lab Test":      "bg-[#e8f7f7] text-[#009598]",
+    "Radiology":     "bg-[#ffe9d6] text-[#ff8a00]",
     "Prescription":  "bg-[#dffff3] text-[#00955c]",
     "Appointment":   "bg-[#ede9ff] text-[#6b4eff]",
   };
@@ -90,7 +93,13 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
     })),
     ...patient.labTests.map(t => ({
       date: t.date, type: "Lab Test",
-      description: t.testName,
+      description: t.labCenterName ? `${t.testName} · ${t.labCenterName}` : t.testName,
+      doctor: patient.doctor, status: t.status,
+      sort: parseDisplayDate(t.date)?.getTime() ?? 0,
+    })),
+    ...patient.radiologyTests.map(t => ({
+      date: t.date, type: "Radiology",
+      description: t.radiologyCenterName ? `${t.testName} · ${t.radiologyCenterName}` : t.testName,
       doctor: patient.doctor, status: t.status,
       sort: parseDisplayDate(t.date)?.getTime() ?? 0,
     })),
@@ -156,25 +165,132 @@ function PrescriptionsTab({ rxList }: { rxList: PrescriptionDTO[] }) {
   );
 }
 
-function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
+// ─── Lab / Radiology reports (shared shape, split in-house vs third-party) ───
+
+interface ReportItem {
+  id: number;
+  testName: string;
+  date: string;
+  reportStatus: string;
+  status: string;
+  /** Null when kept in-house; the routed-to center's name once routed out. */
+  centerName: string | null;
+  /** e.g. /lab/{id}/report — returns { fileUrl } for the uploaded document. */
+  reportEndpoint: string;
+}
+
+/** Opens the uploaded report document itself in a new tab — not an in-app page. */
+function ReportRow({ item }: { item: ReportItem }) {
+  const [opening, setOpening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function viewReport() {
+    setOpening(true);
+    setError(null);
+    // Open the tab synchronously, in the same tick as the click, so popup
+    // blockers still treat it as user-initiated — window.open() called
+    // after the await below would otherwise get silently blocked. Deliberately
+    // NOT passing the "noopener" feature here: requesting it makes window.open
+    // return null (no reference given back either way), which would leave
+    // this blank tab with nothing to navigate. Strip the opener reference by
+    // hand instead, once we actually have the window.
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
+    try {
+      const file = await api.get<{ fileUrl: string }>(item.reportEndpoint);
+      if (tab) tab.location.href = file.fileUrl;
+      else window.open(file.fileUrl, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      tab?.close();
+      setError(e instanceof Error ? e.message : "Could not open report");
+    } finally {
+      setOpening(false);
+    }
+  }
+
   return (
-    <div className="p-5 flex flex-col gap-3">
-      {tests.length === 0 && <p className="text-[13px] font-light text-[#57575f]">No lab tests on record.</p>}
-      {tests.map(t => (
-        <div key={t.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
-          <div className="flex flex-col gap-[4px]">
-            <span className="text-[14px] font-medium text-[#11111c]">{t.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">{formatDate(t.date)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${t.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{t.reportStatus}</span>
-            <StatusBadge status={t.status} />
-            {t.reportStatus === "Ready" && (
-              <Link href={`/lab/${t.id}`} className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">View</Link>
-            )}
-          </div>
-        </div>
-      ))}
+    <div className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
+      <div className="flex flex-col gap-[4px]">
+        <span className="text-[14px] font-medium text-[#11111c]">{item.testName}</span>
+        <span className="text-[12px] font-light text-[#57575f]">
+          {formatDate(item.date)}{item.centerName && <> · {item.centerName}</>}
+        </span>
+        {error && <span className="text-[11px] font-normal text-[#ff0004]">{error}</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex px-[8px] py-[4px] rounded-full text-[11px] font-normal ${item.reportStatus === "Ready" ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>{item.reportStatus}</span>
+        <StatusBadge status={item.status} />
+        {item.reportStatus === "Ready" && (
+          <button
+            onClick={viewReport}
+            disabled={opening}
+            className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap disabled:opacity-50"
+          >
+            {opening ? "Opening…" : "View"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReportGroup({ title, items }: { title: string; items: ReportItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{title} ({items.length})</span>
+      <div className="flex flex-col gap-2">
+        {items.map(item => <ReportRow key={item.id} item={item} />)}
+      </div>
+    </div>
+  );
+}
+
+/** Splits into two clearly separate lists — in-house tests vs. ones routed to a third-party center. */
+function ReportsSection({ items, emptyText }: { items: ReportItem[]; emptyText: string }) {
+  if (items.length === 0) {
+    return <p className="text-[13px] font-light text-[#57575f]">{emptyText}</p>;
+  }
+  const inHouse = items.filter(i => !i.centerName);
+  const thirdParty = items.filter(i => i.centerName);
+  return (
+    <div className="flex flex-col gap-5">
+      <ReportGroup title="In-house" items={inHouse} />
+      <ReportGroup title="Third-Party" items={thirdParty} />
+    </div>
+  );
+}
+
+function LabReportsTab({ tests }: { tests: LabTestDTO[] }) {
+  const items: ReportItem[] = tests.map(t => ({
+    id: t.id,
+    testName: t.testName,
+    date: t.date,
+    reportStatus: t.reportStatus,
+    status: t.status,
+    centerName: t.labCenterName,
+    reportEndpoint: `/lab/${t.id}/report`,
+  }));
+  return (
+    <div className="p-5">
+      <ReportsSection items={items} emptyText="No lab tests on record." />
+    </div>
+  );
+}
+
+function RadiologyReportsTab({ tests }: { tests: RadiologyTestDTO[] }) {
+  const items: ReportItem[] = tests.map(t => ({
+    id: t.id,
+    testName: t.testName,
+    date: t.date,
+    reportStatus: t.reportStatus,
+    status: t.status,
+    centerName: t.radiologyCenterName,
+    reportEndpoint: `/radiology/${t.id}/report`,
+  }));
+  return (
+    <div className="p-5">
+      <ReportsSection items={items} emptyText="No radiology studies on record." />
     </div>
   );
 }
@@ -208,6 +324,7 @@ const TABS = [
   { id: "overview",      label: "Overview" },
   { id: "prescriptions", label: "Prescriptions" },
   { id: "lab",           label: "Lab Reports" },
+  { id: "radiology",     label: "Radiology Reports" },
   { id: "documents",     label: "Documents" },
   { id: "vaccinations",  label: "Vaccinations" },
 ];
@@ -320,6 +437,7 @@ export default function PatientDetailPage() {
             {tab === "overview"      && <OverviewTab patient={patient} />}
             {tab === "prescriptions" && <PrescriptionsTab rxList={patient.prescriptions} />}
             {tab === "lab"           && <LabReportsTab tests={patient.labTests} />}
+            {tab === "radiology"     && <RadiologyReportsTab tests={patient.radiologyTests} />}
             {tab === "documents"     && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}
             {tab === "vaccinations"  && <VaccinationsTab patientId={patient.id} />}
           </div>

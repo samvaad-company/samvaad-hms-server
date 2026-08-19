@@ -43,6 +43,8 @@ export interface ChatToolArgs {
   search?: string;
   status?: string;
   limit?: number;
+  /** Exact numeric patient id (the `id` field from a prior query_patients result). */
+  patientId?: number;
 }
 
 export interface ChatDomain {
@@ -50,6 +52,8 @@ export interface ChatDomain {
   /** Omitted = always available (matches the underlying endpoint's own gate, e.g. dashboard summary). */
   resource?: Resource;
   description: string;
+  /** True if this domain's rows carry a patient_id and can be filtered by ChatToolArgs.patientId. */
+  patientScoped?: boolean;
   run: (args: ChatToolArgs, actor: Session) => Promise<unknown>;
 }
 
@@ -61,17 +65,26 @@ function makeListDomain(
   description: string,
   searchColumns: string[],
   list: (options: QueryOptions, actor: Session) => Promise<{ rows: unknown[]; total: number }>,
+  /** Column patientId filters against — "patient_id" for most domains, "id" for the patients domain itself. Omit if this domain has no patient link at all. */
+  patientIdColumn?: string,
 ): ChatDomain {
   return {
     name,
     resource,
     description,
+    patientScoped: Boolean(patientIdColumn),
     async run(args, actor) {
+      const filters = [
+        ...(args.status ? [{ column: "status", op: "eq" as const, value: args.status }] : []),
+        ...(patientIdColumn && args.patientId != null
+          ? [{ column: patientIdColumn, op: "eq" as const, value: args.patientId }]
+          : []),
+      ];
       const options: QueryOptions = {
         page: 1,
         pageSize: Math.min(args.limit ?? MAX_ROWS, MAX_ROWS),
         ...(args.search ? { search: { columns: searchColumns, term: args.search } } : {}),
-        ...(args.status ? { filters: [{ column: "status", op: "eq" as const, value: args.status }] } : {}),
+        ...(filters.length ? { filters } : {}),
       };
       const { rows, total } = await list(options, actor);
       return { total, rows };
@@ -79,33 +92,47 @@ function makeListDomain(
   };
 }
 
-const searchAndStatusParams = {
-  type: "OBJECT" as const,
-  properties: {
-    search: { type: "STRING", description: "Free-text search (name, id, reason, etc.)" },
-    status: { type: "STRING", description: "Exact status to filter by, if the user mentioned one" },
-    limit: { type: "NUMBER", description: "Max rows to return (default 25, max 25)" },
-  },
-};
+function toolParams(patientScoped: boolean) {
+  return {
+    type: "OBJECT" as const,
+    properties: {
+      ...(patientScoped
+        ? {
+            patientId: {
+              type: "NUMBER",
+              description:
+                "Exact patient id (the numeric `id` field from a prior query_patients call), NOT their " +
+                "patient code like \"HMS-0019\" and not their name. Once you've resolved which patient the " +
+                "user means, always filter by this instead of `search` — searching lab/radiology/appointments/" +
+                "etc. by name or code is unreliable and can miss real records.",
+            },
+          }
+        : {}),
+      search: { type: "STRING", description: "Free-text search (name, id, reason, etc.) — only when you don't already have a resolved patientId to filter by." },
+      status: { type: "STRING", description: "Exact status to filter by, if the user mentioned one" },
+      limit: { type: "NUMBER", description: "Max rows to return (default 25, max 25)" },
+    },
+  };
+}
 
 export const CHAT_DOMAINS: ChatDomain[] = [
-  makeListDomain("query_patients", "patients", "Search/list patients registered at this hospital.", PATIENT_LIST_CONFIG.searchColumns, listPatients),
-  makeListDomain("query_appointments", "appointments", "Search/list appointments.", APPOINTMENT_LIST_CONFIG.searchColumns, listAppointments),
-  makeListDomain("query_opd", "opd", "Search/list OPD (outpatient) visits/queue.", OPD_LIST_CONFIG.searchColumns, listOpd),
-  makeListDomain("query_prescriptions", "prescriptions", "Search/list prescriptions.", RX_LIST_CONFIG.searchColumns, listPrescriptions),
+  makeListDomain("query_patients", "patients", "Search/list patients registered at this hospital.", PATIENT_LIST_CONFIG.searchColumns, listPatients, "id"),
+  makeListDomain("query_appointments", "appointments", "Search/list appointments.", APPOINTMENT_LIST_CONFIG.searchColumns, listAppointments, "patient_id"),
+  makeListDomain("query_opd", "opd", "Search/list OPD (outpatient) visits/queue.", OPD_LIST_CONFIG.searchColumns, listOpd, "patient_id"),
+  makeListDomain("query_prescriptions", "prescriptions", "Search/list prescriptions.", RX_LIST_CONFIG.searchColumns, listPrescriptions, "patient_id"),
   makeListDomain("query_pharmacy", "pharmacy", "Search/list pharmacy stock items.", PHARMACY_LIST_CONFIG.searchColumns, listPharmacy),
-  makeListDomain("query_lab", "lab", "Search/list lab test orders (in-house and routed to partner labs).", LAB_LIST_CONFIG.searchColumns, listLab),
-  makeListDomain("query_radiology", "radiology", "Search/list radiology studies (in-house and routed to partner centers).", RADIOLOGY_LIST_CONFIG.searchColumns, listRadiology),
-  makeListDomain("query_ipd", "ipd", "Search/list IPD (in-patient) admissions.", IPD_LIST_CONFIG.searchColumns, listIpd),
-  makeListDomain("query_ot", "ot", "Search/list operation theatre schedules.", OT_LIST_CONFIG.searchColumns, listOt),
-  makeListDomain("query_beds", "beds", "Search/list beds and their occupancy status.", BEDS_LIST_CONFIG.searchColumns, listBeds),
-  makeListDomain("query_billing", "billing", "Search/list patient bills.", BILLING_LIST_CONFIG.searchColumns, listBills),
+  makeListDomain("query_lab", "lab", "Search/list lab test orders (in-house and routed to partner labs).", LAB_LIST_CONFIG.searchColumns, listLab, "patient_id"),
+  makeListDomain("query_radiology", "radiology", "Search/list radiology studies (in-house and routed to partner centers).", RADIOLOGY_LIST_CONFIG.searchColumns, listRadiology, "patient_id"),
+  makeListDomain("query_ipd", "ipd", "Search/list IPD (in-patient) admissions.", IPD_LIST_CONFIG.searchColumns, listIpd, "patient_id"),
+  makeListDomain("query_ot", "ot", "Search/list operation theatre schedules.", OT_LIST_CONFIG.searchColumns, listOt, "patient_id"),
+  makeListDomain("query_beds", "beds", "Search/list beds and their occupancy status.", BEDS_LIST_CONFIG.searchColumns, listBeds, "patient_id"),
+  makeListDomain("query_billing", "billing", "Search/list patient bills.", BILLING_LIST_CONFIG.searchColumns, listBills, "patient_id"),
   makeListDomain("query_staff", "staff", "Search/list hospital staff.", STAFF_LIST_CONFIG.searchColumns, listStaff),
   makeListDomain("query_inventory", "inventory", "Search/list inventory items and stock levels.", ITEMS_LIST_CONFIG.searchColumns, listItems),
   makeListDomain("query_tasks", "tasks", "Search/list the staff task board.", TASKS_LIST_CONFIG.searchColumns, listTasks),
   makeListDomain("query_ambulance_calls", "ambulance", "Search/list ambulance call logs.", CALLS_LIST_CONFIG.searchColumns, listCalls),
   makeListDomain("query_blood_stock", "bloodbank", "Search/list blood bank stock by group/component.", STOCK_LIST_CONFIG.searchColumns, listStock),
-  makeListDomain("query_tpa_claims", "tpa", "Search/list TPA/insurance claims.", CLAIMS_LIST_CONFIG.searchColumns, listClaims),
+  makeListDomain("query_tpa_claims", "tpa", "Search/list TPA/insurance claims.", CLAIMS_LIST_CONFIG.searchColumns, listClaims, "patient_id"),
   makeListDomain("query_documents", "documents", "Search/list uploaded documents.", DOCUMENTS_LIST_CONFIG.searchColumns, listDocuments),
   makeListDomain("query_finance_income", "finance", "Search/list finance income entries.", ["category", "description", "invoice_number"], incomeService.list),
   makeListDomain("query_finance_expense", "finance", "Search/list finance expense entries.", ["category", "description", "invoice_number"], expenseService.list),
@@ -131,7 +158,7 @@ export function buildToolsForActor(actor: Session): ToolDeclaration[] {
   return availableDomains(actor).map((d) => ({
     name: d.name,
     description: d.description,
-    parameters: d.name.startsWith("query_") ? searchAndStatusParams : { type: "OBJECT" as const, properties: {} },
+    parameters: d.name.startsWith("query_") ? toolParams(Boolean(d.patientScoped)) : { type: "OBJECT" as const, properties: {} },
   }));
 }
 

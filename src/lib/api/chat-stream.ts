@@ -6,7 +6,7 @@
 export interface ChatStreamHandlers {
   onTool?: (name: string) => void;
   onTextDelta: (delta: string) => void;
-  onDone?: (messageId: number) => void;
+  onDone?: (messageId: number, patientId: number | null) => void;
   onError?: (message: string) => void;
 }
 
@@ -59,7 +59,7 @@ export async function sendChatMessage(
         const parsed = JSON.parse(data);
         if (event === "text") handlers.onTextDelta(parsed.delta ?? "");
         else if (event === "tool") handlers.onTool?.(parsed.name ?? "");
-        else if (event === "done") handlers.onDone?.(parsed.messageId);
+        else if (event === "done") handlers.onDone?.(parsed.messageId, parsed.patientId ?? null);
       } catch {
         // Ignore malformed frames rather than breaking the stream.
       }

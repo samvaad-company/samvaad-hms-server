@@ -21,13 +21,14 @@ import { type QueryOptions } from "@/server/db/adapter";
 import { transactional, type UnitOfWork } from "@/server/db/unit-of-work";
 import { TABLES } from "@/server/db/tables";
 import { type RadiologyTestRow } from "@/server/db/tables";
-import { NotFoundError, BadRequestError, ConflictError } from "@/server/lib/errors";
+import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from "@/server/lib/errors";
 import { validate, validatePartial } from "@/server/lib/validation";
 import { displayDate, displayTime, nextCode } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
 import { scopeToOwnDoctor } from "@/server/services/doctor-scope";
 import { scopeToHospital, requireHospitalId } from "@/server/services/hospital-scope";
+import { canUploadReports } from "@/lib/report-upload-roles";
 import { type RadiologyStatus } from "@/types";
 import {
   type RadiologyPatientDetailDTO,
@@ -94,7 +95,7 @@ function scopeRadiologyList(options: QueryOptions, actor: Session): QueryOptions
 }
 
 /** Join in the hospital/center display names a plain row → DTO mapper can't fetch. */
-async function enrichRadiology(rows: RadiologyTestRow[]): Promise<RadiologyTestDTO[]> {
+export async function enrichRadiology(rows: RadiologyTestRow[]): Promise<RadiologyTestDTO[]> {
   const hospitalIds = [...new Set(rows.map((r) => r.hospital_id))];
   const centerIds = [...new Set(rows.map((r) => r.radiology_center_id).filter((v): v is number => v != null))];
   const [hospitals, centers] = await Promise.all([
@@ -351,38 +352,43 @@ export async function deleteRadiology(id: number, actor: Session) {
 // ── Report documents ─────────────────────────────────────────────────────────
 
 /** ~7 MB of base64 ≈ 5 MB file — a sane cap for PDFs / scan images. */
-const MAX_REPORT_DATAURL_CHARS = 7_000_000;
-const ALLOWED_MIME = /^data:(application\/pdf|image\/(png|jpe?g|webp));base64,/;
+const FIREBASE_STORAGE_URL = /^https:\/\/(firebasestorage\.googleapis\.com|storage\.googleapis\.com)\//;
 
 /**
- * Attach an uploaded report document (PDF or image, sent as a data URL) to a
- * study. Marks the scan done and the report ready, and records who uploaded it
- * — for a linked center that is the center's own login, so the ordering
- * hospital sees the source at a glance.
+ * Attach a report document to a study. The file itself was already uploaded
+ * straight from the browser to Firebase Storage (see uploadReportFile in
+ * lib/firebase/client.ts) — this just records the resulting download URL, so
+ * only the roles Storage Security Rules actually let upload can get this far
+ * with a real URL. Re-checked here too, server-side, since a URL could in
+ * principle be submitted directly without going through Storage at all.
+ * Marks the scan done and the report ready, and records who uploaded it — for
+ * a linked center that is the center's own login, so the ordering hospital
+ * sees the source at a glance.
  */
 export async function uploadRadiologyReport(
   id: number,
   input: unknown,
   actor: Session,
 ) {
+  if (!canUploadReports(actor.role)) {
+    throw new ForbiddenError("Only lab/radiology report handlers can upload reports");
+  }
+
   const existing = await radiologyRepo.getRow(id);
   assertRadiologyAccessible(existing, actor, "Radiology test");
 
-  const body = (input ?? {}) as { fileName?: string; dataUrl?: string; note?: string };
+  const body = (input ?? {}) as { fileName?: string; fileUrl?: string; note?: string };
   const fileName = String(body.fileName ?? "").trim();
-  const dataUrl = String(body.dataUrl ?? "");
+  const fileUrl = String(body.fileUrl ?? "").trim();
   const note = String(body.note ?? "").trim();
 
   if (!fileName) throw new BadRequestError("fileName is required");
-  if (!ALLOWED_MIME.test(dataUrl)) {
-    throw new BadRequestError("Report must be a PDF, PNG, JPEG, or WebP file");
-  }
-  if (dataUrl.length > MAX_REPORT_DATAURL_CHARS) {
-    throw new BadRequestError("Report file is too large (max ~5 MB)");
+  if (!FIREBASE_STORAGE_URL.test(fileUrl)) {
+    throw new BadRequestError("fileUrl must be a Firebase Storage download URL");
   }
 
   const row = await radiologyRepo.update(id, {
-    report_file: dataUrl,
+    report_file: fileUrl,
     report_file_name: fileName,
     report_note: note || null,
     report_uploaded_by: actor.name,
@@ -396,7 +402,7 @@ export async function uploadRadiologyReport(
   return enriched;
 }
 
-/** Fetch the uploaded report document for viewing/downloading. */
+/** Fetch the uploaded report document's URL for viewing/downloading. */
 export async function getRadiologyReportFile(
   id: number,
   actor: Session,
@@ -406,7 +412,7 @@ export async function getRadiologyReportFile(
   if (!row.report_file) throw new NotFoundError("Report document");
   return {
     fileName: row.report_file_name ?? "report",
-    dataUrl: row.report_file,
+    fileUrl: row.report_file,
     note: row.report_note ?? null,
     uploadedBy: row.report_uploaded_by ?? null,
     uploadedAt: row.report_uploaded_at ?? null,

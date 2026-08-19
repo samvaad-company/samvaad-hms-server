@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
@@ -8,6 +8,8 @@ import { ScanLine, Plus, Upload, Eye, FileText, Loader2, Download, Copy, Check, 
 import { useList, useMutation, useItem } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { uploadReportFile, isFirebaseClientConfigured } from "@/lib/firebase/client";
+import { canUploadReports } from "@/lib/report-upload-roles";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu } from "@/components/shared/RowMenu";
 import type {
@@ -48,17 +50,7 @@ function ReportViewerModal({
       .catch((e: Error) => setError(e.message));
   }, [test.id]);
 
-  // Blob URL renders more reliably in an <iframe> than a raw data: URL (PDFs).
-  const blobUrl = useMemo(() => {
-    if (!file) return null;
-    const [meta, b64] = file.dataUrl.split(",");
-    const mime = meta.slice(5).replace(";base64", "");
-    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    return URL.createObjectURL(new Blob([bytes], { type: mime }));
-  }, [file]);
-  useEffect(() => () => { if (blobUrl) URL.revokeObjectURL(blobUrl); }, [blobUrl]);
-
-  const isPdf = file?.dataUrl.startsWith("data:application/pdf");
+  const isPdf = file?.fileName.toLowerCase().endsWith(".pdf");
 
   return (
     <Modal
@@ -68,10 +60,12 @@ function ReportViewerModal({
       width={760}
       footer={
         <>
-          {blobUrl && file && (
+          {file && (
             <a
-              href={blobUrl}
+              href={file.fileUrl}
               download={file.fileName}
+              target="_blank"
+              rel="noreferrer"
               className="flex items-center gap-2 text-[13px] font-normal text-[#009598] border border-[#009598] px-5 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors"
             >
               <Download size={14} /> Download
@@ -100,12 +94,12 @@ function ReportViewerModal({
             <Loader2 size={20} className="animate-spin" />
           </div>
         )}
-        {blobUrl && (
+        {file && (
           isPdf ? (
-            <iframe src={blobUrl} title="Report document" className="w-full rounded-[8px] border border-[#dedee1]" style={{ height: 480 }} />
+            <iframe src={file.fileUrl} title="Report document" className="w-full rounded-[8px] border border-[#dedee1]" style={{ height: 480 }} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={blobUrl} alt="Report document" className="w-full rounded-[8px] border border-[#dedee1] object-contain" style={{ maxHeight: 480 }} />
+            <img src={file.fileUrl} alt="Report document" className="w-full rounded-[8px] border border-[#dedee1] object-contain" style={{ maxHeight: 480 }} />
           )
         )}
       </div>
@@ -145,6 +139,7 @@ function PatientDetailModal({
   test,
   allTests,
   canWrite,
+  canUpload,
   canDelete,
   onClose,
   onUpload,
@@ -157,6 +152,8 @@ function PatientDetailModal({
   /** Every study for this same patient at this same hospital, newest first. */
   allTests: RadiologyTestDTO[];
   canWrite: boolean;
+  /** Narrower than canWrite — only lab/radiology report handlers may upload. */
+  canUpload: boolean;
   canDelete: boolean;
   onClose: () => void;
   onUpload: (t: RadiologyTestDTO) => void;
@@ -221,7 +218,7 @@ function PatientDetailModal({
                     <button onClick={() => onViewReport(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
                       <Eye size={12} /> Report
                     </button>
-                  ) : canWrite ? (
+                  ) : canUpload ? (
                     <button onClick={() => onUpload(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
                       <Upload size={12} /> Upload
                     </button>
@@ -245,6 +242,11 @@ function PatientDetailModal({
 
 // ─── Upload modal ─────────────────────────────────────────────────────────────
 
+/** Keeps a file name safe as a Firebase Storage path segment. */
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
 function UploadReportModal({
   test,
   onClose,
@@ -257,30 +259,44 @@ function UploadReportModal({
   const { run, loading, error } = useMutation();
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
-  const [readError, setReadError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [stage, setStage] = useState<"idle" | "storage" | "saving">("idle");
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function upload() {
     if (!file) return;
-    setReadError(null);
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("Could not read file"));
-      reader.readAsDataURL(file);
-    }).catch((e: Error) => {
-      setReadError(e.message);
+    setUploadError(null);
+
+    if (!isFirebaseClientConfigured()) {
+      setUploadError("Firebase Storage isn't configured yet — ask your admin to add the Firebase config.");
+      return;
+    }
+
+    // Path-scoped by patient ID so reports are easy to find/audit in the
+    // Firebase console: reports/radiology/{patientId}/{studyId}-{fileName}.
+    const path = `reports/radiology/${test.patientId}/${test.id}-${sanitizeFileName(file.name)}`;
+    setStage("storage");
+    const fileUrl = await uploadReportFile(path, file).catch((e: Error) => {
+      setUploadError(e.message || "Upload to Firebase Storage failed");
       return null;
     });
-    if (!dataUrl) return;
+    setStage("idle");
+    if (!fileUrl) return;
 
-    await run(() =>
-      api.post(`/radiology/${test.id}/report`, {
-        fileName: file.name,
-        dataUrl,
-        note,
-      }),
-    );
+    setStage("saving");
+    try {
+      await run(() =>
+        api.post(`/radiology/${test.id}/report`, {
+          fileName: file.name,
+          fileUrl,
+          note,
+        }),
+      );
+    } catch {
+      setStage("idle");
+      return;
+    }
+    setStage("idle");
     onUploaded();
     onClose();
   }
@@ -296,11 +312,11 @@ function UploadReportModal({
           <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
           <button
             onClick={upload}
-            disabled={loading || !file}
+            disabled={stage !== "idle" || loading || !file}
             className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {loading ? "Uploading…" : "Upload Report"}
+            {stage !== "idle" || loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            {stage === "storage" ? "Uploading…" : stage === "saving" ? "Saving…" : "Upload Report"}
           </button>
         </>
       }
@@ -336,9 +352,9 @@ function UploadReportModal({
           <FormTextarea placeholder="Key findings, impression, or remarks for the treating doctor…" rows={3} value={note} onChange={setNote} />
         </FormRow>
 
-        {(error || readError) && (
+        {(error || uploadError) && (
           <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">
-            {readError ?? error?.message}
+            {uploadError ?? error?.message}
           </div>
         )}
       </div>
@@ -638,12 +654,13 @@ function ReportsView({
   tests,
   onUpload,
   onView,
-  canWrite,
+  canUpload,
 }: {
   tests: RadiologyTestDTO[];
   onUpload: (test: RadiologyTestDTO) => void;
   onView: (test: RadiologyTestDTO) => void;
-  canWrite: boolean;
+  /** Narrower than radiology "write" — only lab/radiology report handlers may upload. */
+  canUpload: boolean;
 }) {
   if (tests.length === 0) {
     return (
@@ -678,7 +695,7 @@ function ReportsView({
               <button onClick={() => onView(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
                 <Eye size={13} /> View
               </button>
-            ) : canWrite ? (
+            ) : canUpload ? (
               <button onClick={() => onUpload(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
                 <Upload size={13} /> Upload
               </button>
@@ -871,6 +888,7 @@ function RadiologyPageInner() {
   const isCenter = user?.radiologyCenterId != null;
   const canWrite = can("radiology", "write");
   const canBook = canWrite && can("patients"); // ordering studies needs the patient registry too
+  const canUploadReport = canUploadReports(user?.role);
 
   // A hand-off from OPD/Appointments arrives as ?patientId=&doctorId= and
   // should land straight on the booking form with the patient pre-picked,
@@ -917,6 +935,7 @@ function RadiologyPageInner() {
           test={viewingPatient}
           allTests={tests.filter(t => t.patientId === viewingPatient.patientId && t.hospitalId === viewingPatient.hospitalId)}
           canWrite={canWrite}
+          canUpload={canUploadReport}
           canDelete={canWrite && !isPartner}
           onClose={() => setViewingPatient(null)}
           onUpload={setUploadFor}
@@ -975,7 +994,7 @@ function RadiologyPageInner() {
               initialPatientId={handoffPatientId} initialDoctorId={handoffDoctorId}
               initialRadiologyCenterId={handoffRadiologyCenterId} />
           )}
-          {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canWrite={canWrite} />}
+          {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canUpload={canUploadReport} />}
           {tab === "links" && isCenter && <LinkedHospitalsView />}
           {tab === "about" && isCenter && <CenterAboutView />}
         </div>

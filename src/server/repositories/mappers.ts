@@ -756,6 +756,7 @@ export function toChatMessageDTO(r: ChatMessageRow): ChatMessageDTO {
     role: r.role as "user" | "assistant",
     content: r.content,
     sources: r.sources,
+    patientId: r.patient_id ?? null,
     createdAt: r.created_at,
   };
 }

@@ -739,6 +739,8 @@ export interface ChatMessageRow extends Row {
   role: string;
   content: string;
   sources: string[] | null;
+  /** The patient this reply resolved to, if any — powers a "View patient" link. */
+  patient_id: number | null;
   created_at: string;
 }
 

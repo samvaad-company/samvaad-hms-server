@@ -1,0 +1,36 @@
+// Firebase Storage Security Rules for Samvaad HMS report uploads.
+//
+// This is the actual access-control boundary — not the frontend, and not
+// this app's own RBAC. Anyone with a Firebase project API key can call the
+// Storage REST API directly, so "only show the upload button to certain
+// roles" in the UI would be purely cosmetic without rules like these.
+//
+// request.auth.token.canUploadReports is a custom claim minted server-side
+// (see src/server/services/firebase-admin.ts) when a signed-in user
+// exchanges their app session for a Firebase sign-in — the browser can
+// never set or forge this claim itself.
+//
+// Deploy: Firebase Console → Storage → Rules → paste this in and Publish,
+// or `firebase deploy --only storage` with the Firebase CLI.
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /reports/{allPaths=**} {
+      // Every signed-in user can view reports.
+      allow read: if request.auth != null;
+
+      // Only Lab Technician / Lab Partner / Radiology Partner / Super Admin
+      // (see canUploadReports() in firebase-admin.ts) may upload, and only
+      // files up to 25MB.
+      allow write: if request.auth != null
+                   && request.auth.token.canUploadReports == true
+                   && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // Deny everything outside /reports by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

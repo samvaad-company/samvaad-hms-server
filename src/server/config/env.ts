@@ -37,6 +37,8 @@ export interface AppConfig {
   geminiApiKey: string | null;
   /** Gemini model used for chat completions + tool calling. */
   geminiModel: string;
+  /** Firebase Admin service-account credentials (null → Storage token minting disabled). */
+  firebaseAdmin: { projectId: string; clientEmail: string; privateKey: string } | null;
 }
 
 function pickDriver(): DatabaseDriver {
@@ -82,10 +84,24 @@ export function getConfig(): AppConfig {
       (isProduction ? "info" : "debug"),
     sarvamApiKey: process.env.SARVAM_API_KEY ?? null,
     geminiApiKey: process.env.GEMINI_API_KEY ?? null,
-    geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
+    geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
+    firebaseAdmin: readFirebaseAdminConfig(),
   };
 
   return cached;
+}
+
+/**
+ * Firebase writes the service-account private key with literal "\n"
+ * sequences when pasted into a single-line .env value — turn those back
+ * into real newlines, or `firebase-admin` fails to parse the PEM.
+ */
+function readFirebaseAdminConfig(): AppConfig["firebaseAdmin"] {
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const rawKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  if (!projectId || !clientEmail || !rawKey) return null;
+  return { projectId, clientEmail, privateKey: rawKey.replace(/\\n/g, "\n") };
 }
 
 /** Test/HMR helper to force re-read of env. */

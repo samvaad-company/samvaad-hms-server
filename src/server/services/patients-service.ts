@@ -31,9 +31,11 @@ import {
 } from "@/server/services/helpers";
 import { audit } from "@/server/services/audit";
 import { type Session } from "@/server/auth/session";
-import { toPrescriptionDTO, toLabDTO } from "@/server/repositories/mappers";
+import { toPrescriptionDTO } from "@/server/repositories/mappers";
 import { mobileRule, dobRule, optionalMobileRule } from "@/server/lib/field-rules";
 import { scopeToHospital, assertOwnedByHospital } from "@/server/services/hospital-scope";
+import { enrichLab } from "@/server/services/lab-service";
+import { enrichRadiology } from "@/server/services/radiology-service";
 
 const createSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -89,7 +91,7 @@ export async function getPatient(id: number, actor: Session) {
 
 export async function getPatientDetail(id: number, actor: Session) {
   const patient = await getPatient(id, actor);
-  const [rxRows, labRows] = await Promise.all([
+  const [rxRows, labRows, radiologyRows] = await Promise.all([
     prescriptionsRepo.listRows({
       filters: [{ column: "patient_id", op: "eq", value: id }],
       unpaged: true,
@@ -98,11 +100,20 @@ export async function getPatientDetail(id: number, actor: Session) {
       filters: [{ column: "patient_id", op: "eq", value: id }],
       unpaged: true,
     }),
+    radiologyRepo.listRows({
+      filters: [{ column: "patient_id", op: "eq", value: id }],
+      unpaged: true,
+    }),
+  ]);
+  const [labTests, radiologyTests] = await Promise.all([
+    enrichLab(labRows.rows),
+    enrichRadiology(radiologyRows.rows),
   ]);
   return {
     ...patient,
     prescriptions: rxRows.rows.map((r) => toPrescriptionDTO(r)),
-    labTests: labRows.rows.map(toLabDTO),
+    labTests,
+    radiologyTests,
   };
 }
 

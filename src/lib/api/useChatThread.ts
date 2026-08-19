@@ -33,7 +33,7 @@ export function useChatThread() {
     try {
       const data = await api.get<{ thread: ChatThreadDTO; messages: ChatMessageDTO[] }>(`/chat/threads/${id}`);
       setThreadId(data.thread.id);
-      setMessages(data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources })));
+      setMessages(data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources, patientId: m.patientId })));
     } finally {
       setLoadingThread(false);
     }
@@ -101,10 +101,10 @@ export function useChatThread() {
         setToolStatus(null);
         setStreamText(acc);
       },
-      onDone: (messageId) => {
+      onDone: (messageId, patientId) => {
         setMessages((prev) => [
           ...prev,
-          { id: messageId, role: "assistant", content: acc, sources: usedSources.size ? Array.from(usedSources) : null },
+          { id: messageId, role: "assistant", content: acc, sources: usedSources.size ? Array.from(usedSources) : null, patientId },
         ]);
         setStreamText(undefined);
         setToolStatus(null);
