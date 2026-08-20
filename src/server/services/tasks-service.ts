@@ -28,7 +28,7 @@ const taskSchema = {
 
 export const TASKS_LIST_CONFIG = {
   searchColumns: ["title", "description", "goal", "assignee_name"],
-  filterable: ["status", "priority", "assignee_id"],
+  filterable: ["status", "priority", "assignee_id", "assignee_name"],
   sortable: ["due_date", "priority", "status", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };

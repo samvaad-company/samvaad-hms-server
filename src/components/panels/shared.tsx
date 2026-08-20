@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { formatDate } from "@/lib/dates";
-import type { TaskDTO, StaffDTO } from "@/types/api";
+import type { TaskDTO } from "@/types/api";
 
 export interface PanelStat {
   icon: LucideIcon;
@@ -115,21 +115,22 @@ export function EmptyRow({ text }: { text: string }) {
  * Tasks assigned to the signed-in user, for the role home panels.
  *
  * The task board was only reachable from its own page, so staff had no view of
- * what had been assigned to them. This matches the session user to a staff
- * record by name and lists their open tasks, newest first.
+ * what had been assigned to them. Tasks store the assignee's name directly
+ * (denormalized from the staff record at assignment time), so this filters
+ * server-side by exact name match rather than pulling every staff row and
+ * every task in the hospital just to find the handful assigned to this user.
  */
 export function MyTasksCard() {
   const { user, can } = useAuth();
-  const { items: staff } = useList<StaffDTO>("/staff", { all: true });
-  const { items: tasks, reload } = useList<TaskDTO>("/tasks", { all: true });
+  const { items: tasks, reload } = useList<TaskDTO>(
+    user?.name ? "/tasks" : null,
+    user?.name ? { all: true, assignee_name: user.name } : undefined,
+  );
   const { run } = useMutation();
 
   if (!can("tasks")) return null;
 
-  const me = staff.find((s) => s.name === user?.name);
-  const mine = tasks
-    .filter((t) => (me ? t.assigneeId === me.id : t.assigneeName === user?.name))
-    .filter((t) => t.status !== "Done");
+  const mine = tasks.filter((t) => t.status !== "Done");
 
   const advance = async (id: number, status: string) => {
     await run(() => api.patch(`/tasks/${id}`, { status }));
