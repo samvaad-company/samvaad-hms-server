@@ -56,12 +56,14 @@ const COLUMNS = [
 ];
 const MIN_WIDTH = 1320;
 
-const FILTERS = [
-  { id: "All",       label: "All" },
-  { id: "Today",     label: "Today (350)" },
-  { id: "Completed", label: "Completed (670)" },
-  { id: "Cancelled", label: "Cancelled (110)" },
-];
+const FILTER_IDS = ["All", "Today", "Completed", "Cancelled"] as const;
+
+function buildFilters(patients: PatientDTO[]) {
+  return FILTER_IDS.map((id) => ({
+    id,
+    label: id === "All" ? "All" : `${id} (${patients.filter((p) => p.status === id).length})`,
+  }));
+}
 
 // ─── Row Component ────────────────────────────────────────────────────────────
 
@@ -124,7 +126,7 @@ export default function PatientsPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
           <FilterBar
-            filters={FILTERS}
+            filters={buildFilters(patients)}
             searchPlaceholder="Search by patient name, ID, or visit reason..."
             activeFilter={filter}
             onFilterChange={setFilter}
