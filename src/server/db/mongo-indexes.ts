@@ -68,19 +68,16 @@ const SECONDARY: Record<string, string[]> = {
 
 export async function ensureIndexes(db: Db): Promise<void> {
   const collections = Object.values(TABLES);
-  let created = 0;
 
-  for (const name of collections) {
+  const jobs = collections.flatMap((name) => {
     const col = db.collection(name);
-    // The application treats `id` as the primary key, so it must be unique.
-    await col.createIndex({ id: 1 }, { unique: true, name: "uniq_id" });
-    created += 1;
+    return [
+      // The application treats `id` as the primary key, so it must be unique.
+      col.createIndex({ id: 1 }, { unique: true, name: "uniq_id" }),
+      ...(SECONDARY[name] ?? []).map((field) => col.createIndex({ [field]: 1 }, { name: `idx_${field}` })),
+    ];
+  });
 
-    for (const field of SECONDARY[name] ?? []) {
-      await col.createIndex({ [field]: 1 }, { name: `idx_${field}` });
-      created += 1;
-    }
-  }
-
-  logger.info("mongo.indexes_ready", { collections: collections.length, indexes: created });
+  await Promise.all(jobs);
+  logger.info("mongo.indexes_ready", { collections: collections.length, indexes: jobs.length });
 }

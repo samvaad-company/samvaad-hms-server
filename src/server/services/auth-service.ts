@@ -6,6 +6,7 @@ import { verifyPassword } from "@/server/auth/password";
 import { permissionsFor } from "@/server/auth/rbac";
 import { type Session } from "@/server/auth/session";
 import { UnauthorizedError } from "@/server/lib/errors";
+import { logger } from "@/server/lib/logger";
 import { displayDate, displayTime } from "@/server/services/helpers";
 import { type SessionUserDTO } from "@/types/api";
 
@@ -31,9 +32,10 @@ export async function login(
   const valid = await verifyPassword(password, matched.password_hash);
   if (!valid) throw new UnauthorizedError("Invalid email or password");
 
-  await usersRepo.update(matched.id, {
-    last_login_at: `${displayDate()}, ${displayTime()}`,
-  });
+  // Fire-and-forget: this shouldn't add a round trip to the critical login path.
+  usersRepo
+    .update(matched.id, { last_login_at: `${displayDate()}, ${displayTime()}` })
+    .catch((err) => logger.warn("auth.last_login_update_failed", { error: err instanceof Error ? err.message : String(err) }));
 
   return {
     userId: matched.id,

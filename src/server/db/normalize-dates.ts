@@ -39,32 +39,35 @@ const DATE_COLUMNS: Record<string, string[]> = {
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function normalizeStoredDates(adapter: DatabaseAdapter): Promise<void> {
-  let converted = 0;
-
-  for (const [table, columns] of Object.entries(DATE_COLUMNS)) {
-    let rows: Row[] = [];
-    try {
-      ({ rows } = await adapter.list<Row>(table, { unpaged: true }));
-    } catch {
-      continue; // table may not exist on this backend yet
-    }
-
-    for (const row of rows) {
-      const patch: Record<string, unknown> = {};
-      for (const col of columns) {
-        const value = row[col];
-        if (typeof value !== "string" || value === "" || ISO.test(value)) continue;
-        const iso = isoDate(value);
-        // Leave anything unparseable (e.g. "Mar 2027") exactly as it is.
-        if (iso) patch[col] = iso;
-      }
-      if (Object.keys(patch).length > 0) {
-        await adapter.update(table, row.id, patch);
-        converted += 1;
-      }
-    }
+async function normalizeTable(adapter: DatabaseAdapter, table: string, columns: string[]): Promise<number> {
+  let rows: Row[] = [];
+  try {
+    ({ rows } = await adapter.list<Row>(table, { unpaged: true }));
+  } catch {
+    return 0; // table may not exist on this backend yet
   }
+
+  const updates = rows.flatMap((row) => {
+    const patch: Record<string, unknown> = {};
+    for (const col of columns) {
+      const value = row[col];
+      if (typeof value !== "string" || value === "" || ISO.test(value)) continue;
+      const iso = isoDate(value);
+      // Leave anything unparseable (e.g. "Mar 2027") exactly as it is.
+      if (iso) patch[col] = iso;
+    }
+    return Object.keys(patch).length > 0 ? [adapter.update(table, row.id, patch)] : [];
+  });
+
+  await Promise.all(updates);
+  return updates.length;
+}
+
+export async function normalizeStoredDates(adapter: DatabaseAdapter): Promise<void> {
+  const counts = await Promise.all(
+    Object.entries(DATE_COLUMNS).map(([table, columns]) => normalizeTable(adapter, table, columns)),
+  );
+  const converted = counts.reduce((sum, n) => sum + n, 0);
 
   if (converted > 0) logger.info("dates.normalized", { rows: converted });
 }
