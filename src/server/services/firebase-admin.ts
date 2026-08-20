@@ -35,21 +35,29 @@ async function getAdminAuth() {
   const cfg = getConfig().firebaseAdmin;
   if (!cfg) return null;
 
-  if (!globalThis.__samvaadFirebaseAdminApp) {
-    const { initializeApp, cert, getApps } = await import("firebase-admin/app");
-    globalThis.__samvaadFirebaseAdminApp =
-      getApps()[0] ??
-      initializeApp({
-        credential: cert({
-          projectId: cfg.projectId,
-          clientEmail: cfg.clientEmail,
-          privateKey: cfg.privateKey,
-        }),
-      });
-  }
+  try {
+    if (!globalThis.__samvaadFirebaseAdminApp) {
+      const { initializeApp, cert, getApps } = await import("firebase-admin/app");
+      globalThis.__samvaadFirebaseAdminApp =
+        getApps()[0] ??
+        initializeApp({
+          credential: cert({
+            projectId: cfg.projectId,
+            clientEmail: cfg.clientEmail,
+            privateKey: cfg.privateKey,
+          }),
+        });
+    }
 
-  const { getAuth } = await import("firebase-admin/auth");
-  return getAuth(globalThis.__samvaadFirebaseAdminApp as never);
+    const { getAuth } = await import("firebase-admin/auth");
+    return getAuth(globalThis.__samvaadFirebaseAdminApp as never);
+  } catch (err) {
+    // Malformed/invalid service-account credentials (bad private key
+    // formatting, project mismatch, etc.) throw here synchronously — catch
+    // so callers get a clean "not configured" instead of an uncaught 500.
+    logger.warn("firebase.admin.init.error", { error: err instanceof Error ? err.message : String(err) });
+    return null;
+  }
 }
 
 /**
