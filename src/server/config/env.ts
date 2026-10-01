@@ -31,11 +31,9 @@ export interface AppConfig {
   isProduction: boolean;
   /** Minimum log level to emit. */
   logLevel: "debug" | "info" | "warn" | "error";
-  /** Sarvam AI API key for speech-to-text scribing (null → mock mode). */
-  sarvamApiKey: string | null;
-  /** Gemini API key for the AI Chat assistant (null → mock/demo mode). */
+  /** Gemini API key for the AI Chat assistant and consultation scribe (null → mock/demo mode). */
   geminiApiKey: string | null;
-  /** Gemini model used for chat completions + tool calling. */
+  /** Gemini model used for chat completions, tool calling, and scribing. */
   geminiModel: string;
   /** Firebase Admin service-account credentials (null → Storage token minting disabled). */
   firebaseAdmin: { projectId: string; clientEmail: string; privateKey: string } | null;
@@ -82,7 +80,6 @@ export function getConfig(): AppConfig {
     logLevel:
       (process.env.LOG_LEVEL as AppConfig["logLevel"]) ??
       (isProduction ? "info" : "debug"),
-    sarvamApiKey: process.env.SARVAM_API_KEY ?? null,
     geminiApiKey: process.env.GEMINI_API_KEY ?? null,
     geminiModel: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
     firebaseAdmin: readFirebaseAdminConfig(),

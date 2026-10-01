@@ -3,11 +3,11 @@
 /**
  * Client-side audio conditioning for the consultation scribe.
  *
- * Browsers record `audio/webm; codecs=opus`, but Sarvam's speech-to-text API
- * expects WAV/MP3, and its synchronous endpoint caps each clip at ~30s. This
- * module decodes the recording, downmixes to 16 kHz mono, and slices it into
- * WAV chunks that Sarvam accepts — so full multi-minute consultations transcribe
- * reliably instead of silently falling back to the demo transcript.
+ * Browsers record `audio/webm; codecs=opus`; this module decodes the
+ * recording, downmixes to 16 kHz mono WAV, and slices it into ≤28s chunks.
+ * Gemini itself has no such length limit, but chunking keeps the transcript
+ * streaming in live as the doctor talks (rather than waiting for the whole
+ * recording to finish) and keeps each request's inline payload small.
  */
 
 const TARGET_RATE = 16000;

@@ -1,7 +1,7 @@
 /**
  * Scribe service — stores AI-assisted consultation notes captured while the
  * patient is with the doctor. Transcription and brief generation are handled by
- * the Sarvam integration (see sarvam.ts); this service persists the results.
+ * the Gemini integration (see gemini-scribe.ts); this service persists the results.
  */
 import { scribeNotesRepo } from "@/server/repositories";
 import { toScribeNoteDTO } from "@/server/repositories/mappers";

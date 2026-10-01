@@ -2,7 +2,7 @@
 
 /**
  * AI consultation scribe. While the patient is with the doctor, records the
- * dictation, transcribes it via Sarvam AI (mock fallback in demo mode), lets the
+ * dictation, transcribes it via Gemini (mock fallback in demo mode), lets the
  * doctor edit, generate a structured SOAP brief, and save it against the
  * appointment.
  */
@@ -37,7 +37,7 @@ export function ScribePanel({
   const notes = allNotes.filter((n) => n.appointmentId === appointmentId);
   const { run, loading: saving } = useMutation();
   const { item: status } = useItem<{ live: boolean }>("/scribe/status");
-  const sarvamLive = status?.live ?? false;
+  const geminiLive = status?.live ?? false;
 
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -102,7 +102,8 @@ export function ScribePanel({
     setTranscribing(true);
     setError(null);
     try {
-      // Sarvam needs WAV and caps each clip at ~30s, so convert and split first.
+      // Convert to WAV and split into ≤28s chunks so the transcript streams
+      // in live instead of waiting for the whole recording to finish.
       const { chunks, durationSec, raw } = await toWavChunks(blob);
       setChunkCount(chunks.length);
 
@@ -133,7 +134,7 @@ export function ScribePanel({
       setMock(json.data.mock);
       if (json.data.reason === "api-error") {
         setError(
-          `${json.data.detail ?? "Sarvam could not process this recording."} Nothing was added — please re-record or type the notes below.`,
+          `${json.data.detail ?? "Gemini could not process this recording."} Nothing was added — please re-record or type the notes below.`,
         );
       }
       durationRef.current = durationSec || duration;
@@ -155,7 +156,7 @@ export function ScribePanel({
       setBrief(data.brief);
       if (data.reason === "api-error") {
         setError(
-          `Sarvam could not generate the brief, so a basic summary was used. ${data.detail ?? ""}`.trim(),
+          `Gemini could not generate the brief, so a basic summary was used. ${data.detail ?? ""}`.trim(),
         );
       }
     } catch {
@@ -205,8 +206,8 @@ export function ScribePanel({
           <div>
             <div className="text-[14px] font-medium text-[#11111c]">AI Consultation Scribe</div>
             <div className="text-[11px] font-light text-[#57575f] flex items-center gap-[6px]">
-              Powered by Sarvam AI
-              {sarvamLive ? (
+              Powered by Gemini AI
+              {geminiLive ? (
                 <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#dffff3] text-[#00955c] font-medium">
                   Live
                 </span>
@@ -215,7 +216,7 @@ export function ScribePanel({
                   Demo mode
                 </span>
               )}
-              {mock && sarvamLive && (
+              {mock && geminiLive && (
                 <span className="text-[#ff9000]">· sample text inserted</span>
               )}
               <span className="text-[#57575f]">· speak any Indian language</span>
@@ -241,7 +242,7 @@ export function ScribePanel({
       {transcribing && (
         <div className="flex items-center gap-2 mb-3 text-[12px] text-[#57575f]">
           <Loader2 size={13} className="animate-spin" />
-          Transcribing with Sarvam…
+          Transcribing with Gemini…
           {chunkCount > 1 && <span>({chunkCount} segments)</span>}
         </div>
       )}

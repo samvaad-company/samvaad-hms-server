@@ -1,17 +1,17 @@
 /**
- * Speech-to-text for consultation scribing.
+ * Speech-to-text for consultation scribing, via Gemini.
  *
  * Accepts one or more audio clips in the multipart field "audio" (the client
- * splits long recordings into ≤30s WAV chunks, since Sarvam's synchronous STT
- * endpoint rejects longer clips). Chunks are transcribed in order and stitched
- * back into a single transcript.
+ * splits long recordings into ≤28s WAV chunks so the transcript keeps
+ * streaming in live as the doctor talks). Chunks are transcribed in order
+ * and stitched back into a single transcript.
  */
 import { type NextRequest } from "next/server";
 import { withRoute } from "@/server/http/handler";
 import { ok } from "@/server/http/response";
 import { BadRequestError } from "@/server/lib/errors";
 import { requirePermission } from "@/server/auth/server";
-import { transcribe, type FallbackReason } from "@/server/services/sarvam";
+import { transcribe, type FallbackReason } from "@/server/services/gemini-scribe";
 
 export const POST = withRoute(async (req: NextRequest) => {
   await requirePermission("scribe", "write");

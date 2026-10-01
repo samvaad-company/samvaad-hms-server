@@ -6,7 +6,7 @@
  * lookup(s) it needs before answering. When GEMINI_API_KEY is not configured
  * the module runs in MOCK mode and yields a single explanatory text chunk, so
  * the chat UI is fully usable/demoable with zero setup — mirroring the
- * mock/live fallback convention already used by sarvam.ts.
+ * mock/live fallback convention also used by gemini-scribe.ts.
  */
 import { getConfig } from "@/server/config/env";
 import { logger } from "@/server/lib/logger";
