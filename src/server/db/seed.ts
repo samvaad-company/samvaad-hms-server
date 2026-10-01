@@ -486,6 +486,60 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     },
   ];
 
+  // ── Platform billing ─────────────────────────────────────────────────────
+  // A platform admin's own invoices to each hospital tenant for their
+  // subscription — separate from a hospital's own patient billing.
+  const platformBills: Row[] = [
+    {
+      id: 1,
+      bill_number: "PB-00001",
+      hospital_id: 1,
+      hospital_name: hospitalSettings.name,
+      period: "October 2025",
+      amount: 25000,
+      gst: 2250,
+      total: 27250,
+      status: "Paid",
+      issued_date: "2025-10-01",
+      due_date: "2025-10-10",
+      notes: "Monthly platform subscription",
+      created_at: ts,
+      updated_at: ts,
+    },
+    {
+      id: 2,
+      bill_number: "PB-00002",
+      hospital_id: 1,
+      hospital_name: hospitalSettings.name,
+      period: "November 2025",
+      amount: 25000,
+      gst: 2250,
+      total: 27250,
+      status: "Pending",
+      issued_date: "2025-11-01",
+      due_date: "2025-11-10",
+      notes: "Monthly platform subscription",
+      created_at: ts,
+      updated_at: ts,
+    },
+    {
+      id: 3,
+      bill_number: "PB-00003",
+      hospital_id: 2,
+      hospital_name: "Sunrise Multispecialty Hospital",
+      period: "September 2025",
+      amount: 18000,
+      gst: 1620,
+      total: 19620,
+      status: "Overdue",
+      issued_date: "2025-09-01",
+      due_date: "2025-09-10",
+      notes: "Monthly platform subscription",
+      created_at: ts,
+      updated_at: ts,
+    },
+  ];
+
   // Second tenant's own minimal data — enough to prove list/get/create are
   // hospital-isolated without duplicating the whole fixture set.
   const h2Department: Row = {
@@ -895,6 +949,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.ipdAdmissions]: ipdAdmissions,
     [TABLES.otSchedules]: otSchedules,
     [TABLES.hospitals]: hospitals,
+    [TABLES.platformBills]: platformBills,
     [TABLES.auditLogs]: [],
     [TABLES.bloodDonors]: bloodDonors,
     [TABLES.bloodStock]: bloodStock,

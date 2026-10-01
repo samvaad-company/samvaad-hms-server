@@ -1,7 +1,7 @@
 /**
  * Authentication service: credential verification and session-user assembly.
  */
-import { usersRepo } from "@/server/repositories";
+import { usersRepo, hospitalsRepo } from "@/server/repositories";
 import { verifyPassword } from "@/server/auth/password";
 import { permissionsFor } from "@/server/auth/rbac";
 import { type Session } from "@/server/auth/session";
@@ -27,6 +27,19 @@ export async function login(
 
   if (matched.status !== "Active") {
     throw new UnauthorizedError("This account is inactive");
+  }
+
+  // A hospital's own staff are locked out while their tenant is paused or
+  // removed by a platform admin, even if their individual account is Active.
+  if (matched.hospital_id != null) {
+    const hospital = await hospitalsRepo.getRow(matched.hospital_id);
+    if (hospital && hospital.status !== "Active") {
+      throw new UnauthorizedError(
+        hospital.status === "Paused"
+          ? "This hospital's account is paused. Contact your platform administrator."
+          : "This hospital's account is no longer active.",
+      );
+    }
   }
 
   const valid = await verifyPassword(password, matched.password_hash);

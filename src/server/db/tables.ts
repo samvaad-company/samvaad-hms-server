@@ -31,6 +31,7 @@ export const TABLES = {
   hospitalRadiologyLinks: "hospital_radiology_links",
   labCenters: "lab_centers",
   hospitalLabLinks: "hospital_lab_links",
+  platformBills: "platform_bills",
   auditLogs: "audit_logs",
   bloodDonors: "blood_donors",
   bloodStock: "blood_stock",
@@ -472,6 +473,25 @@ export interface HospitalLabLinkRow extends Row {
   responded_at: string;
   revoked_by: string;
   revoked_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A platform-admin invoice billing a hospital tenant for its Samvaad HMS subscription/usage. */
+export interface PlatformBillRow extends Row {
+  id: number;
+  bill_number: string;
+  hospital_id: number;
+  hospital_name: string;
+  period: string;
+  amount: number;
+  gst: number;
+  total: number;
+  /** "Pending" | "Paid" | "Overdue" */
+  status: string;
+  issued_date: string;
+  due_date: string;
+  notes: string;
   created_at: string;
   updated_at: string;
 }

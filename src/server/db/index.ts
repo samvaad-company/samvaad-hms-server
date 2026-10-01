@@ -10,7 +10,7 @@ import { type DatabaseAdapter } from "@/server/db/adapter";
 import { MemoryAdapter } from "@/server/db/memory-adapter";
 import { SupabaseAdapter } from "@/server/db/supabase-adapter";
 import { MongoAdapter } from "@/server/db/mongo-adapter";
-import { ensureIndexes } from "@/server/db/mongo-indexes";
+import { ensureIndexes, reconcileCounters } from "@/server/db/mongo-indexes";
 import { buildSeed } from "@/server/db/seed";
 import { seedIfEmpty } from "@/server/db/seed-runner";
 import { normalizeStoredDates } from "@/server/db/normalize-dates";
@@ -23,7 +23,10 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // Bump this whenever SECONDARY (mongo-indexes.ts) or DATE_COLUMNS
 // (normalize-dates.ts) changes, so the next cold start re-runs maintenance
 // once and then goes back to skipping it.
-const MONGO_SCHEMA_VERSION = 1;
+// v2: added reconcileCounters — catches up the `counters` collection to each
+// table's real max id, fixing E11000 collisions on tables whose rows
+// predate (or otherwise bypassed) the counter-bump logic.
+const MONGO_SCHEMA_VERSION = 2;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {
@@ -41,6 +44,8 @@ async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
 
     // Indexes are Mongo's equivalent of the SQL migrations; idempotent.
     await ensureIndexes(db);
+    // Catch the id counters up to reality before anything else inserts.
+    await reconcileCounters(db);
     // Populate sample data the first time only (empty database).
     if (process.env.MONGODB_AUTO_SEED !== "false") {
       try {

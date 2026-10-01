@@ -27,6 +27,7 @@ import type {
   HospitalRadiologyLinkRow,
   LabCenterRow,
   HospitalLabLinkRow,
+  PlatformBillRow,
   AuditLogRow,
   BloodDonorRow,
   BloodStockRow,
@@ -303,6 +304,10 @@ export const hospitalLabLinksRepo = createRepository<
   HospitalLabLinkRow,
   HospitalLabLinkRow
 >(TABLES.hospitalLabLinks, (row) => row);
+export const platformBillsRepo = createRepository<PlatformBillRow, PlatformBillRow>(
+  TABLES.platformBills,
+  (row) => row,
+);
 export const auditRepo = createRepository<AuditLogRow, AuditLogRow>(
   TABLES.auditLogs,
   (row) => row,

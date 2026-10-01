@@ -28,7 +28,7 @@ import { getConfig } from "@/server/config/env";
 import { AppError } from "@/server/lib/errors";
 import { logger } from "@/server/lib/logger";
 
-const COUNTERS = "counters";
+export const COUNTERS = "counters";
 
 /** Escape a user-supplied string so it is matched literally inside a regex. */
 function escapeRegex(value: string): string {

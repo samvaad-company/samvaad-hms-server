@@ -8,8 +8,9 @@
  *
  * Safe to run repeatedly — `createIndex` is idempotent.
  */
-import { type Db } from "mongodb";
+import { type Db, type Document } from "mongodb";
 import { TABLES } from "@/server/db/tables";
+import { COUNTERS } from "@/server/db/mongo-adapter";
 import { logger } from "@/server/lib/logger";
 
 /** Secondary indexes per collection, beyond the unique `id` index. */
@@ -31,6 +32,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.pharmacyItems]: ["hospital_id", "status", "category", "name"],
   [TABLES.labTests]: ["hospital_id", "status", "patient_id", "report_status", "order_number", "priority", "doctor_id", "lab_center_id"],
   [TABLES.bills]: ["hospital_id", "status", "type", "patient_id", "bill_number"],
+  [TABLES.platformBills]: ["hospital_id", "status", "bill_number"],
   [TABLES.wards]: ["hospital_id"],
   [TABLES.beds]: ["hospital_id", "status", "ward_id", "ward"],
   [TABLES.ipdAdmissions]: ["hospital_id", "status", "patient_id", "doctor_id", "bed_id"],
@@ -80,4 +82,37 @@ export async function ensureIndexes(db: Db): Promise<void> {
 
   await Promise.all(jobs);
   logger.info("mongo.indexes_ready", { collections: collections.length, indexes: jobs.length });
+}
+
+/**
+ * Catch the `counters` collection up to the real max `id` already stored in
+ * each collection. Needed because rows inserted outside `MongoAdapter.insert`
+ * — e.g. a one-off script, or a collection seeded before the counter-bump
+ * logic existed — never advance the counter, so the next API-driven insert
+ * for that table collides with an existing id (`E11000 duplicate key`).
+ * Idempotent and safe to re-run: only ever raises a counter, never lowers one.
+ */
+export async function reconcileCounters(db: Db): Promise<void> {
+  const collections = Object.values(TABLES);
+  const counters = db.collection(COUNTERS);
+
+  const jobs = collections.map(async (name) => {
+    const [top] = await db.collection(name).find().sort({ id: -1 }).limit(1).toArray();
+    const maxId = typeof top?.id === "number" ? top.id : 0;
+    if (maxId <= 0) return;
+
+    await counters.updateOne(
+      { _id: name as unknown as Document["_id"], seq: { $lt: maxId } },
+      { $set: { seq: maxId } },
+      { upsert: false },
+    );
+    await counters.updateOne(
+      { _id: name as unknown as Document["_id"] },
+      { $setOnInsert: { seq: maxId } },
+      { upsert: true },
+    );
+  });
+
+  await Promise.all(jobs);
+  logger.info("mongo.counters_reconciled", { collections: collections.length });
 }
