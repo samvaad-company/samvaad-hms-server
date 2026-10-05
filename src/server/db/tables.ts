@@ -73,6 +73,8 @@ export interface UserRow extends Row {
   hospital_id: number | null;
   radiology_center_id: number | null;
   lab_center_id: number | null;
+  /** The staff record this login belongs to; lets the attendance app punch the right person. */
+  staff_id?: number | null;
   name: string;
   email: string;
   password_hash: string;
@@ -404,6 +406,10 @@ export interface HospitalRow extends Row {
   pan_number: string;
   reg_number: string;
   working_hours: unknown;
+  /** Attendance geofence centre and radius; unset until an admin configures it. */
+  latitude?: number | null;
+  longitude?: number | null;
+  geofence_radius_m?: number | null;
   updated_at: string;
 }
 
@@ -831,6 +837,18 @@ export interface StaffAttendanceRow extends Row {
   minutes: number;
   status: string;
   note: string;
+  /** "manual" (punched by an admin) or "qr" (staff scanned the reception QR). */
+  method?: string;
+  /** Exact ISO instants — the display strings above lose the date and timezone. */
+  punch_in_at?: string | null;
+  punch_out_at?: string | null;
+  /** GPS fix and metres from the hospital at each QR scan. */
+  in_lat?: number | null;
+  in_lng?: number | null;
+  in_distance_m?: number | null;
+  out_lat?: number | null;
+  out_lng?: number | null;
+  out_distance_m?: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -6,6 +6,7 @@ import {
   hospitalsRepo,
   departmentsRepo,
   usersRepo,
+  staffRepo,
   medicinesRepo,
 } from "@/server/repositories";
 import {
@@ -41,6 +42,9 @@ export async function getSettings(actor: Session) {
     panNumber: row.pan_number,
     regNumber: row.reg_number,
     workingHours: row.working_hours,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
+    geofenceRadiusM: row.geofence_radius_m ?? 150,
   };
 }
 
@@ -57,6 +61,9 @@ const settingsSchema = {
   gstNumber: { type: "string", required: false, max: 40 },
   panNumber: { type: "string", required: false, max: 20 },
   regNumber: { type: "string", required: false, max: 40 },
+  latitude: { type: "number", required: false, min: -90, max: 90 },
+  longitude: { type: "number", required: false, min: -180, max: 180 },
+  geofenceRadiusM: { type: "number", required: false, min: 20, max: 5000 },
 } as const;
 
 export async function updateSettings(input: unknown, actor: Session) {
@@ -74,6 +81,9 @@ export async function updateSettings(input: unknown, actor: Session) {
     gstNumber: "gst_number",
     panNumber: "pan_number",
     regNumber: "reg_number",
+    latitude: "latitude",
+    longitude: "longitude",
+    geofenceRadiusM: "geofence_radius_m",
   };
   const patch: Record<string, unknown> = {};
   for (const [key, col] of Object.entries(map)) {
@@ -162,6 +172,7 @@ const userCreateSchema = {
   password: { type: "string", required: true, min: 6, max: 100 },
   role: { type: "string", required: true, max: 60 },
   departmentId: { type: "number", required: false },
+  staffId: { type: "number", required: false },
   status: { type: "enum", required: false, values: ["Active", "Inactive"], default: "Active" },
 } as const;
 
@@ -174,6 +185,14 @@ function assertMayGrantRole(role: string, actor: Session): void {
   if (role === "Platform Admin" && actor.role !== "Platform Admin") {
     throw new ForbiddenError("Only a platform admin can grant the Platform Admin role");
   }
+}
+
+/** A staff link must point at a staff member of the actor's own hospital. */
+async function resolveStaffLink(staffId: number | undefined, actor: Session): Promise<number | null> {
+  if (!staffId) return null;
+  const staff = await staffRepo.getRow(staffId);
+  assertOwnedByHospital(staff, actor, "Staff member");
+  return staff.id;
 }
 
 export async function createUser(input: unknown, actor: Session) {
@@ -193,6 +212,7 @@ export async function createUser(input: unknown, actor: Session) {
     password_hash: await hashPassword(data.password),
     role: data.role,
     department_id: data.departmentId ?? null,
+    staff_id: await resolveStaffLink(data.staffId, actor),
     status: data.status,
     last_login_at: null,
   });
@@ -204,6 +224,7 @@ const userUpdateSchema = {
   name: { type: "string", required: false, min: 2, max: 120 },
   role: { type: "string", required: false, max: 60 },
   departmentId: { type: "number", required: false },
+  staffId: { type: "number", required: false },
   status: { type: "enum", required: false, values: ["Active", "Inactive"] },
   password: { type: "string", required: false, min: 6, max: 100 },
 } as const;
@@ -221,6 +242,7 @@ export async function updateUser(id: number, input: unknown, actor: Session) {
   if ("role" in data) patch.role = data.role;
   if ("status" in data) patch.status = data.status;
   if ("departmentId" in data) patch.department_id = data.departmentId ?? null;
+  if ("staffId" in data) patch.staff_id = await resolveStaffLink(data.staffId, actor);
   if ("password" in data && data.password) {
     patch.password_hash = await hashPassword(String(data.password));
   }

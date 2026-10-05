@@ -77,6 +77,38 @@ async function sign(data: string): Promise<string> {
   return toBase64Url(new Uint8Array(sig));
 }
 
+/**
+ * Short-lived signed payloads for things that aren't a login session (e.g.
+ * the attendance QR). The `purpose` is mixed into the signature, so a token
+ * minted for one purpose — or a session token — can never verify as another.
+ */
+export async function signPayload(
+  purpose: string,
+  payload: Record<string, unknown>,
+  ttlSeconds: number,
+): Promise<{ token: string; expiresAt: number }> {
+  const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const encoded = toBase64Url(encoder.encode(JSON.stringify({ ...payload, exp: expiresAt })));
+  return { token: `${encoded}.${await sign(`${purpose}:${encoded}`)}`, expiresAt };
+}
+
+export async function verifyPayload<T extends Record<string, unknown>>(
+  purpose: string,
+  token: string | undefined | null,
+): Promise<(T & { exp: number }) | null> {
+  if (!token) return null;
+  const [encoded, sig] = token.split(".");
+  if (!encoded || !sig) return null;
+  if ((await sign(`${purpose}:${encoded}`)) !== sig) return null;
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))) as T & { exp: number };
+    if (typeof payload.exp !== "number" || payload.exp < Date.now() / 1000) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export async function createToken(
   session: Session,
   maxAgeSeconds?: number,

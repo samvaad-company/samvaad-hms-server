@@ -6,17 +6,19 @@
  */
 import { useItem } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
-import type { DashboardStatsDTO } from "@/types/api";
+import type { DashboardStatsDTO, AttendanceTodayDTO } from "@/types/api";
 import {
   Users, Calendar, Clock, BedDouble, LayoutGrid, Receipt,
   Pill, FlaskConical, IndianRupee, Stethoscope, BarChart3, Settings2,
 } from "lucide-react";
+import Link from "next/link";
 import { tw } from "@/lib/design-system";
 import { PanelHeader, StatRow, QuickLinks, MyTasksCard } from "./shared";
 
 export function AdminPanel() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const { item: stats } = useItem<DashboardStatsDTO>("/dashboard");
+  const { item: att } = useItem<AttendanceTodayDTO>(can("staff") ? "/staff/attendance/today" : null);
 
   const n = (v?: number) => String(v ?? 0);
 
@@ -39,6 +41,45 @@ export function AdminPanel() {
         { icon: FlaskConical, label: "Pending Labs",   value: n(stats?.pendingLabs),   color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
       ]} />
 
+      {att && (
+        <div className={`${tw.gutterX} mb-[30px]`}>
+          <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-[15px] font-medium text-[#11111c]">Staff attendance today</h3>
+                <p className="text-[12px] text-[#57575f]">{att.present} of {att.totalStaff} checked in</p>
+              </div>
+              <Link href="/attendance" className="text-[13px] text-[#009598] hover:underline">View all →</Link>
+            </div>
+            <div className="h-[8px] rounded-full bg-[#f0f0f0] overflow-hidden mb-4">
+              <div className="h-full bg-[#00955c]" style={{ width: `${att.totalStaff ? Math.round((att.present / att.totalStaff) * 100) : 0}%` }} />
+            </div>
+            <div className="flex flex-wrap gap-x-8 gap-y-3">
+              {[
+                { l: "Present", v: att.present, c: "text-[#00955c]" },
+                { l: "Checked out", v: att.checkedOut, c: "text-[#57575f]" },
+                { l: "Not in yet", v: att.notIn, c: "text-[#ff0004]" },
+                { l: "On leave", v: att.onLeave, c: "text-[#ff9000]" },
+                { l: "Via QR", v: att.viaQr, c: "text-[#009598]" },
+              ].map((s) => (
+                <div key={s.l}>
+                  <div className={`text-[20px] font-medium leading-none ${s.c}`}>{s.v}</div>
+                  <div className="text-[11px] text-[#57575f] mt-1">{s.l}</div>
+                </div>
+              ))}
+            </div>
+            {att.recent.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[#f0f0f0] text-[12px] text-[#57575f] flex flex-wrap gap-x-5 gap-y-1">
+                {att.recent.map((r) => (
+                  <span key={`${r.staffId}-${r.punchIn}`}>
+                    <b className="text-[#11111c] font-medium">{r.staffName}</b> · {r.punchIn}{r.method === "qr" ? " · QR" : ""}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className="max-w-[720px]">
           <QuickLinks links={[

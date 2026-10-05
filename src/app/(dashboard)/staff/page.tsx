@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
-import { formatDate, todayIso } from "@/lib/dates";
+import { formatDate } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { Users2, Plus, Phone, Mail } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
@@ -10,7 +10,8 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { StaffDTO, StaffAttendanceDTO } from "@/types/api";
+import type { StaffDTO } from "@/types/api";
+import { AttendanceBoard } from "@/components/attendance/AttendanceBoard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -130,129 +131,6 @@ function AccessControlView() {
   );
 }
 
-// ─── Attendance ───────────────────────────────────────────────────────────────
-
-const ATTENDANCE_DATA = [
-  { name: "Maya Sharma",      role: "Head Nurse",       date: "13 Nov",  in: "7:58 AM",  out: "4:05 PM", hours: "8:07", shift: "Morning", status: "Present" },
-  { name: "Arjun Mehta",      role: "Lab Technician",   date: "13 Nov",  in: "8:02 AM",  out: "4:00 PM", hours: "7:58", shift: "Morning", status: "Present" },
-  { name: "Priya Nair",       role: "Receptionist",     date: "13 Nov",  in: "9:05 AM",  out: "5:10 PM", hours: "8:05", shift: "Morning", status: "Present" },
-  { name: "Kavita Reddy",     role: "Pharmacist",       date: "13 Nov",  in: "—",        out: "—",       hours: "—",    shift: "Morning", status: "Absent"  },
-  { name: "Suresh Kumar",     role: "Ward Boy",         date: "13 Nov",  in: "7:45 AM",  out: "3:50 PM", hours: "8:05", shift: "Morning", status: "Present" },
-  { name: "Deepika Joshi",    role: "Staff Nurse",      date: "13 Nov",  in: "2:55 PM",  out: "10:58 PM",hours: "8:03", shift: "Evening", status: "Present" },
-  { name: "Rohit Sinha",      role: "Admin Staff",      date: "13 Nov",  in: "9:10 AM",  out: "—",       hours: "—",    shift: "Morning", status: "Leave"   },
-  { name: "Lakshmi Pillai",   role: "Dietitian",        date: "13 Nov",  in: "10:03 AM", out: "6:00 PM", hours: "7:57", shift: "General", status: "Present" },
-  { name: "Vinod Chandra",    role: "Security Guard",   date: "13 Nov",  in: "8:00 AM",  out: "8:00 PM", hours: "12:00",shift: "Day",    status: "Present" },
-  { name: "Asha Kumari",      role: "Cleaning Staff",   date: "13 Nov",  in: "6:00 AM",  out: "2:00 PM", hours: "8:00", shift: "Morning", status: "Present" },
-];
-
-const ATT_STATUS_CLR: Record<string, string> = {
-  Present: "bg-[#dffff3] text-[#00955c]",
-  Absent:  "bg-[#ffe9e9] text-[#ff0004]",
-  Leave:   "bg-[#fff2e0] text-[#ff9000]",
-  Late:    "bg-[#f0f0f0] text-[#57575f]",
-};
-
-function AttendanceView({ staff, canWrite }: { staff: StaffDTO[]; canWrite: boolean }) {
-  const [date, setDate] = useState(todayIso());
-  const { items: records, reload } = useList<StaffAttendanceDTO>("/staff/attendance", {
-    all: true, work_date: date,
-  });
-  const { run, loading } = useMutation();
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const byStaff = new Map(records.map(r => [r.staffId, r]));
-  const isToday = date === todayIso();
-
-  async function punch(staffId: number, action: "in" | "out") {
-    setNotice(null);
-    try {
-      await run(() => api.post("/staff/attendance/punch", { staffId, action }));
-      reload();
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not record the punch.");
-    }
-  }
-
-  const present = records.filter(r => r.status === "Present").length;
-  const onLeave = staff.filter(s => s.status === "On Leave").length;
-  const absent = Math.max(0, staff.length - present - onLeave);
-
-  const hhmm = (mins: number) =>
-    mins > 0 ? `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m` : "—";
-
-  return (
-    <div className="flex flex-col" style={{ height: 555 }}>
-      {/* Date bar */}
-      <div className="flex items-center gap-4 px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1]">
-        <input
-          type="date"
-          value={date}
-          max={todayIso()}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-[34px] bg-white border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
-        />
-        <div className="flex items-center gap-5 ml-4">
-          {[
-            { l: "Present", v: present, c: "text-[#00955c]" },
-            { l: "Absent", v: absent, c: "text-[#ff0004]" },
-            { l: "On Leave", v: onLeave, c: "text-[#ff9000]" },
-          ].map(s => (
-            <div key={s.l} className="flex items-center gap-2">
-              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{s.l}</span>
-              <span className={`text-[18px] font-medium leading-none ${s.c}`}>{s.v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {notice && (
-        <div className="mx-5 mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{notice}</div>
-      )}
-
-      {/* Roster */}
-      <div className="overflow-y-auto flex-1">
-        <div className="grid items-center px-5 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
-          style={{ gridTemplateColumns: "1.6fr 1.2fr 110px 110px 110px 200px" }}>
-          <span>Staff Member</span><span>Role</span><span>Punch In</span>
-          <span>Punch Out</span><span>Hours</span><span>Action</span>
-        </div>
-        {staff.map(m => {
-          const rec = byStaff.get(m.id);
-          return (
-            <div key={m.id} className="grid items-center px-5 h-[56px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors"
-              style={{ gridTemplateColumns: "1.6fr 1.2fr 110px 110px 110px 200px" }}>
-              <span className="text-[13px] font-medium text-[#11111c] truncate">{m.name}</span>
-              <span className="text-[13px] text-[#57575f] truncate">{m.role}</span>
-              <span className="text-[13px] text-[#11111c]">{rec?.punchIn || "—"}</span>
-              <span className="text-[13px] text-[#11111c]">{rec?.punchOut || "—"}</span>
-              <span className="text-[13px] text-[#57575f]">{hhmm(rec?.minutes ?? 0)}</span>
-              <div className="flex items-center gap-2">
-                {!isToday || !canWrite ? (
-                  <span className="text-[12px] text-[#57575f]">
-                    {rec ? "Recorded" : "No record"}
-                  </span>
-                ) : !rec ? (
-                  <button onClick={() => punch(m.id, "in")} disabled={loading}
-                    className="text-[12px] text-white bg-[#009598] px-3 py-[5px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
-                    Punch In
-                  </button>
-                ) : !rec.punchOut ? (
-                  <button onClick={() => punch(m.id, "out")} disabled={loading}
-                    className="text-[12px] text-[#ff9000] border border-[#ff9000] px-3 py-[5px] rounded-full hover:bg-[#fff2e0] transition-colors disabled:opacity-50">
-                    Punch Out
-                  </button>
-                ) : (
-                  <span className="text-[12px] text-[#00955c]">Shift complete</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const STAFF_FILTER_MAP: Record<string, string> = { "OnLeave": "On Leave" };
@@ -355,7 +233,7 @@ export default function StaffPage() {
             </>
           )}
           {tab === "access"     && <AccessControlView />}
-          {tab === "attendance" && <AttendanceView staff={staffMembers} canWrite={canWrite} />}
+          {tab === "attendance" && <AttendanceBoard canWrite={canWrite} />}
         </div>
       </div>
     </>

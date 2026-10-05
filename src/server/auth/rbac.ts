@@ -32,7 +32,8 @@ export type Resource =
   | "tasks"
   | "scribe"
   | "documents"
-  | "chat";
+  | "chat"
+  | "attendance";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -63,6 +64,7 @@ export const RESOURCES: Resource[] = [
   "scribe",
   "documents",
   "chat",
+  "attendance",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -106,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Super Admin": ALL_WRITE,
   "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
+    attendance: "none",
     opd: "write",
     prescriptions: "write",
     patients: "write",
@@ -145,6 +148,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     ambulance: "read",
     tpa: "read",
     bloodbank: "read",
+    attendance: "write",
   }),
   "Billing Exec": withOverrides(NONE, {
     patients: "read",

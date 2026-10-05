@@ -29,6 +29,8 @@ import {
   House,
   ClipboardList,
   Sparkles,
+  QrCode,
+  CalendarCheck,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { type Resource } from "@/server/auth/rbac";
@@ -61,6 +63,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/home",               label: "Home",              icon: House },
       { href: "/chat",                label: "AI Chat",           icon: Sparkles,    resource: "chat" },
+      { href: "/attendance-kiosk",    label: "Attendance QR",     icon: QrCode,      resource: "attendance" },
     ],
   },
   {
@@ -112,6 +115,7 @@ const groups: NavGroup[] = [
     label: "Admin",
     items: [
       { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff", hiddenForRoles: ["Head Nurse"] },
+      { href: "/attendance",    label: "Attendance",    icon: CalendarCheck, resource: "staff", hiddenForRoles: ["Head Nurse"] },
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin" },
     ],
   },

@@ -246,6 +246,8 @@ export interface AdminUserDTO {
   role: string;
   department: string | null;
   departmentId: number | null;
+  /** The staff record this login punches attendance as. */
+  staffId: number | null;
   status: string;
   lastLogin: string;
 }
@@ -562,6 +564,71 @@ export interface StaffAttendanceDTO {
   minutes: number;
   status: string;
   note: string;
+  /** "qr" when the staff member scanned in themselves, else "manual". */
+  method: string;
+  inDistanceM: number | null;
+  outDistanceM: number | null;
+}
+
+export type AttendanceDayStatus = "Present" | "No punch-out" | "In progress" | "Absent" | "Not in yet" | "On Leave";
+
+export interface AttendanceDayCellDTO {
+  status: AttendanceDayStatus;
+  punchIn: string;
+  punchOut: string;
+  minutes: number;
+  method: string;
+  inDistanceM: number | null;
+  outDistanceM: number | null;
+}
+
+export interface AttendanceSummaryStaffDTO {
+  staffId: number;
+  name: string;
+  role: string;
+  department: string;
+  joinDate: string;
+  staffStatus: string;
+  presentDays: number;
+  absentDays: number;
+  totalMinutes: number;
+  /** Keyed by day of month ("1".."31"); days with nothing to show are absent from the map. */
+  days: Record<string, AttendanceDayCellDTO>;
+}
+
+export interface AttendanceSummaryDTO {
+  month: string;
+  today: string;
+  daysInMonth: number;
+  staff: AttendanceSummaryStaffDTO[];
+}
+
+export interface AttendancePunchEventDTO {
+  id: string;
+  staffId: number;
+  staffName: string;
+  date: string;
+  type: "in" | "out";
+  time: string;
+  method: string;
+  distanceM: number | null;
+}
+
+export interface AttendanceHistoryDTO {
+  from: string;
+  to: string;
+  events: AttendancePunchEventDTO[];
+}
+
+export interface AttendanceTodayDTO {
+  date: string;
+  totalStaff: number;
+  present: number;
+  checkedOut: number;
+  onLeave: number;
+  notIn: number;
+  viaQr: number;
+  recent: { staffId: number; staffName: string; punchIn: string; punchOut: string; method: string }[];
 }
 
 export interface IpdNoteDTO {

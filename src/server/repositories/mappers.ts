@@ -677,6 +677,9 @@ export function toStaffAttendanceDTO(r: StaffAttendanceRow): StaffAttendanceDTO 
     minutes: r.minutes,
     status: r.status,
     note: r.note,
+    method: r.method ?? "manual",
+    inDistanceM: r.in_distance_m ?? null,
+    outDistanceM: r.out_distance_m ?? null,
   };
 }
 
@@ -790,6 +793,7 @@ export function toAdminUserDTO(
     role: r.role,
     department: departmentName,
     departmentId: r.department_id,
+    staffId: r.staff_id ?? null,
     status: r.status,
     lastLogin: r.last_login_at ?? "Never",
   };

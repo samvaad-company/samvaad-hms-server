@@ -9,14 +9,15 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
-import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO } from "@/types/api";
+import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO, StaffDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2, LocateFixed } from "lucide-react";
 
 interface HospitalSettings {
   name: string; address: string; city: string; state: string; pincode: string;
   phone: string; mobile: string; email: string; website: string;
   gstNumber: string; panNumber: string; regNumber: string;
+  latitude: number | null; longitude: number | null; geofenceRadiusM: number;
 }
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
@@ -33,6 +34,22 @@ function SettingsView() {
 
   const set = (k: keyof HospitalSettings, v: string) =>
     setForm(prev => (prev ? { ...prev, [k]: v } : prev));
+  const [geoMsg, setGeoMsg] = useState("");
+  const setNum = (k: "latitude" | "longitude", v: string) =>
+    setForm(prev => (prev ? { ...prev, [k]: v === "" ? null : Number(v) } : prev));
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { setGeoMsg("This browser can't share its location."); return; }
+    setGeoMsg("Getting location…");
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setForm(prev => (prev ? { ...prev, latitude: Number(pos.coords.latitude.toFixed(6)), longitude: Number(pos.coords.longitude.toFixed(6)) } : prev));
+        setGeoMsg(`Filled in (accurate to about ${Math.round(pos.coords.accuracy)} m) — remember to save.`);
+      },
+      err => setGeoMsg(err.code === err.PERMISSION_DENIED ? "Location permission was denied." : "Couldn't get your location."),
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  }
 
   async function save() {
     if (!form) return;
@@ -61,7 +78,7 @@ function SettingsView() {
         <div className="grid grid-cols-2 gap-4">
           {FIELDS.map(f => (
             <FormRow key={f.key} label={f.label}>
-              <FormInput value={form[f.key]} placeholder={f.ph} onChange={v => set(f.key, v)} />
+              <FormInput value={String(form[f.key] ?? "")} placeholder={f.ph} onChange={v => set(f.key, v)} />
             </FormRow>
           ))}
           <div className="col-span-2">
@@ -69,6 +86,35 @@ function SettingsView() {
               <FormInput value={form.address} placeholder="Full address" onChange={v => set("address", v)} />
             </FormRow>
           </div>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-[14px] font-medium text-[#11111c] mb-1">Attendance geofence</h3>
+        <p className="text-[12px] font-light text-[#57575f] mb-4">
+          Staff can only mark attendance from the attendance app while their phone is inside this radius.
+          Stand at the reception desk and tap &ldquo;Use my current location&rdquo; to fill it in.
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <FormRow label="Latitude">
+            <FormInput type="number" placeholder="e.g. 19.0760" value={form.latitude?.toString() ?? ""}
+              onChange={v => setNum("latitude", v)} />
+          </FormRow>
+          <FormRow label="Longitude">
+            <FormInput type="number" placeholder="e.g. 72.8777" value={form.longitude?.toString() ?? ""}
+              onChange={v => setNum("longitude", v)} />
+          </FormRow>
+          <FormRow label="Radius (metres)" hint="20 – 5000">
+            <FormInput type="number" value={form.geofenceRadiusM?.toString() ?? ""}
+              onChange={v => setForm(prev => (prev ? { ...prev, geofenceRadiusM: Number(v) || 150 } : prev))} />
+          </FormRow>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <button type="button" onClick={useMyLocation}
+            className="flex items-center gap-2 text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors">
+            <LocateFixed size={14} /> Use my current location
+          </button>
+          {geoMsg && <span className="text-[12px] text-[#57575f]">{geoMsg}</span>}
         </div>
       </section>
 
@@ -217,6 +263,47 @@ function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClo
   );
 }
 
+function LinkStaffModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
+  const { items: staff } = useList<StaffDTO>("/staff", { all: true });
+  const { run, loading, error } = useMutation();
+  const [staffId, setStaffId] = useState(user.staffId ? String(user.staffId) : "");
+
+  async function save() {
+    await run(() => api.patch(`/admin/users/${user.id}`, { staffId: staffId ? Number(staffId) : 0 }));
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Link staff record — ${user.name}`}
+      width={460}
+      footer={
+        <>
+          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={save} disabled={loading}
+            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? "Saving…" : "Save Link"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] font-light text-[#57575f]">
+          The attendance app records punches against this staff member whenever {user.name} scans in.
+        </p>
+        <FormRow label="Staff member">
+          <FormSelect value={staffId} onChange={setStaffId}
+            options={[{ value: "", label: "Not linked" }, ...staff.map(s => ({ value: String(s.id), label: `${s.name} — ${s.role}` }))]} />
+        </FormRow>
+        {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+      </div>
+    </Modal>
+  );
+}
+
 function UsersView() {
   const { items: adminUsers, reload } = useList<AdminUserDTO>("/admin/users");
   const { items: departments } = useList<DepartmentDTO>("/departments");
@@ -224,6 +311,7 @@ function UsersView() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
   const [changingRole, setChangingRole] = useState<AdminUserDTO | null>(null);
+  const [linkingStaff, setLinkingStaff] = useState<AdminUserDTO | null>(null);
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -301,6 +389,7 @@ function UsersView() {
         {adminUsers.map(u => {
           const actions: RowAction[] = [
             { label: "Change Role", onClick: () => setChangingRole(u) },
+            { label: u.staffId ? "Change linked staff" : "Link staff record", onClick: () => setLinkingStaff(u) },
           ];
           return (
             <div key={u.id} className="relative flex items-center h-[60px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 980 }}>
@@ -320,6 +409,9 @@ function UsersView() {
 
       {changingRole && (
         <ChangeRoleModal user={changingRole} onClose={() => setChangingRole(null)} onSaved={reload} />
+      )}
+      {linkingStaff && (
+        <LinkStaffModal user={linkingStaff} onClose={() => setLinkingStaff(null)} onSaved={reload} />
       )}
     </div>
   );
