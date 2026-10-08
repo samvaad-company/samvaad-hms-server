@@ -48,7 +48,7 @@ export interface Appointment {
   doctor: string;
   date: string;
   time: string;
-  type: "Walk-in" | "Booked";
+  type: "Walk-in" | "Booked" | "Tele-consult";
   reason: string;
   status: AppointmentStatus;
 }

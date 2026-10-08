@@ -27,8 +27,8 @@ The application runs on an in-memory database by default. To switch to Supabase
 
 ## How the abstraction works
 
-All data access goes through `DatabaseAdapter` (`src/server/db/adapter.ts`).
-`src/server/db/index.ts` selects the implementation from environment variables:
+All data access goes through `DatabaseAdapter` (`server/src/db/adapter.ts`).
+`server/src/db/index.ts` selects the implementation from environment variables:
 
 - `MemoryAdapter` — in-process store, seeded from `src/data/*`.
 - `SupabaseAdapter` — talks to Supabase's PostgREST API over `fetch`.

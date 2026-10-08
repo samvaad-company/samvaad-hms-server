@@ -14,9 +14,9 @@ data tied to a single encounter, not a patient-level field.
 | Piece | File |
 |---|---|
 | Type definition | `src/types/index.ts` (`Vitals` interface) |
-| DB columns | `src/server/db/tables.ts` (`OpdVisitRow`) |
-| Validation + derivation logic | `src/server/services/opd-service.ts` |
-| DB row → DTO mapping | `src/server/repositories/mappers.ts` (`toOpdDTO`) |
+| DB columns | `server/src/db/tables.ts` (`OpdVisitRow`) |
+| Validation + derivation logic | `server/src/services/opd-service.ts` |
+| DB row → DTO mapping | `server/src/repositories/mappers.ts` (`toOpdDTO`) |
 | Form UI + display formatter | `src/app/(dashboard)/opd/page.tsx` |
 | Read-only consumers (badge only) | `src/app/(dashboard)/appointments/page.tsx`, `src/app/(dashboard)/doctors/dashboard/page.tsx`, `src/components/panels/NursePanel.tsx` |
 

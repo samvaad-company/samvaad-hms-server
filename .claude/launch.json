@@ -4,9 +4,24 @@
     {
       "name": "samvaadhms",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3005,
       "autoPort": true
+    },
+    {
+      "name": "samvaad-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "server",
+        "run",
+        "dev"
+      ],
+      "port": 4000,
+      "autoPort": false
     }
   ]
 }

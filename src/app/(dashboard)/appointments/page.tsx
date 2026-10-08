@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
-import { Calendar, Plus, Download, MonitorPlay } from "lucide-react";
+import { Calendar, Plus, Download, MonitorPlay, Video } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
@@ -28,7 +28,7 @@ const COLUMNS = [
   { label: "Doctor",   width: "minmax(140px,1.3fr)" },
   { label: "Date",     width: "110px" },
   { label: "Time",     width: "90px" },
-  { label: "Type",     width: "100px" },
+  { label: "Type",     width: "120px" },
   { label: "Reason",   width: "minmax(150px,1.6fr)" },
   { label: "Status",   width: "120px" },
   { label: "Action",   width: "52px", align: "right" as const },
@@ -49,7 +49,10 @@ function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction
       <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.time}</span>
       <div>
-        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
+        <span className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${
+          row.type === "Booked" ? "bg-[#d6eaff] text-[#007cff]" : row.type === "Tele-consult" ? "bg-[#ede7ff] text-[#6a4cff]" : "bg-[#f0f0f0] text-[#57575f]"
+        }`}>
+          {row.type === "Tele-consult" && <Video size={11} />}
           {row.type}
         </span>
       </div>
@@ -361,6 +364,7 @@ export default function AppointmentsPage() {
                 ) : visible.map(r => (
                   <AppointmentRow key={r.id} row={r} actions={[
                     { label: "View details", onClick: () => router.push(`/appointments/${r.id}`) },
+                    ...(r.type === "Tele-consult" && r.videoUrl ? [{ label: "Join video call", onClick: () => window.open(r.videoUrl!, "_blank", "noopener,noreferrer") }] : []),
                     ...(canWrite ? [
                       { label: "Check in to OPD", disabled: r.status === "Cancelled" || r.status === "Completed", onClick: () => void checkIn(r) },
                       { label: "Mark Completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/appointments/${r.id}`, { status: "Completed" })) },

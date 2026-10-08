@@ -32,7 +32,7 @@ import type {
   TaskStatus,
   TaskPriority,
   ScribeStatus,
-} from "@/types";
+} from "./index";
 
 export interface PaginationMeta {
   page: number;
@@ -113,11 +113,119 @@ export interface PrescriptionTemplateDTO {
 
 export interface DoctorDTO extends Doctor {
   departmentId: number | null;
+  /** How many patients this doctor sees per hour, and the resulting minutes per patient. */
+  patientsPerHour: number;
+  slotMinutes: number;
+  /** The doctor takes video consultations (needs the hospital's switch on as well) and the weekly hours reserved for them. */
+  videoEnabled: boolean;
+  videoHours: { day: string; start: string; end: string }[];
+}
+
+export interface DoctorScheduleDTO {
+  doctorId: number;
+  doctorName: string;
+  patientsPerHour: number;
+  slotMinutes: number;
+  patientsPerHourOptions: number[];
+  videoEnabled: boolean;
+  videoHours: { day: string; start: string; end: string }[];
+  /** The hospital's switch (Admin → Settings): when false the doctor can't take video whatever their own setting says. */
+  hospitalVideoEnabled: boolean;
+  /** Video is really on for this doctor: their switch AND the hospital's. */
+  videoActive: boolean;
+  warnings: string[];
+}
+
+export interface SlotsDTO {
+  mode: "in_person" | "video";
+  isOpen: boolean;
+  closedReason: string | null;
+  doctorName: string;
+  patientsPerHour: number;
+  slotMinutes: number;
+  /** open: can be booked · booked: that exact time is taken · full: the hour's places are used up. */
+  slots: { value: string; label: string; status: "open" | "booked" | "full" }[];
+  hours: { label: string; booked: number; capacity: number; full: boolean }[];
+  note: string;
 }
 
 export interface AppointmentDTO extends Appointment {
   patientId: number | null;
   doctorId: number | null;
+  /** Tele-consult only: the join link, once created (Google Meet or pasted by staff). */
+  videoUrl: string | null;
+  videoProvider: string | null;
+  /** Tele-consult only: why the Meet link couldn't be created automatically. */
+  meetError: string | null;
+  /** Tele-consult only: who can join the Meet room without being let in (OPEN | TRUSTED | RESTRICTED), or "calendar-default" (invited guests only). */
+  meetAccess: string | null;
+  /** How many times the appointment has been moved, and what it was before the last move. */
+  rescheduleCount: number;
+  rescheduledFrom: string | null;
+  /** Tele-consult only: set when the room doesn't have the access type the hospital chose, so a patient may not be able to join. */
+  meetWarning: string | null;
+  consultAmount: number | null;
+  paymentStatus: string | null;
+  /** Tele-consult only: the gateway payment id (or staff receipt) and order id that paid for this appointment. */
+  paymentId: string | null;
+  orderId: string | null;
+}
+
+export interface TeleconsultSlotsDTO {
+  isOpen: boolean;
+  closedReason: string | null;
+  slots: { value: string; label: string }[];
+}
+
+export interface TeleconsultBookingLinkDTO {
+  token: string;
+  path: string;
+  expiresAt: number;
+  patientName: string;
+  patientPhone: string;
+}
+
+export interface TeleconsultPaymentDTO {
+  id: number;
+  patientName: string;
+  doctorName: string;
+  date: string;
+  time: string;
+  amount: number;
+  currency: string;
+  /** razorpay | mock | cash | upi | card | waived | free */
+  mode: string;
+  /** portal | link | staff */
+  source: string;
+  status: "Paid" | "Refunded" | "Waived" | "Free" | "Awaiting payment" | "Expired" | "Slot lost" | "Cancelled" | "Failed";
+  patientId: number;
+  doctorId: number;
+  /** card / upi / netbanking … when the gateway told us. */
+  method: string | null;
+  /** What recorded the payment: verify (patient's confirmation), webhook, sweep or staff. */
+  recordedVia: string | null;
+  signatureVerified: boolean | null;
+  paymentId: string | null;
+  orderId: string | null;
+  paidAt: string | null;
+  refundReference: string | null;
+  refundedAt: string | null;
+  appointmentId: number | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface TeleconsultPaymentsDTO {
+  items: TeleconsultPaymentDTO[];
+  totals: { collected: number; refunded: number; net: number; count: number };
+}
+
+export interface TeleconsultConfigDTO {
+  enabled: boolean;
+  price: number | null;
+  currency: string;
+  gatewayMode: "razorpay" | "mock" | "off";
+  google: { configured: boolean; connected: boolean; needsReconnect: boolean; meetAccessControl: boolean; lastError: string | null; accountEmail: string };
 }
 
 export interface OpdRecordDTO extends OpdRecord {

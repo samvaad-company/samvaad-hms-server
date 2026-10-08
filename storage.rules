@@ -6,7 +6,7 @@
 // roles" in the UI would be purely cosmetic without rules like these.
 //
 // request.auth.token.canUploadReports is a custom claim minted server-side
-// (see src/server/services/firebase-admin.ts) when a signed-in user
+// (see server/src/services/firebase-admin.ts) when a signed-in user
 // exchanges their app session for a Firebase sign-in — the browser can
 // never set or forge this claim itself.
 //

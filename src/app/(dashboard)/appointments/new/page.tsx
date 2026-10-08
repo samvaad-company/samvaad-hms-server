@@ -12,7 +12,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import Link from "next/link";
 import type { PatientDTO, DoctorDTO } from "@/types/api";
-import { Check, Clock, Loader2, UserPlus, Users } from "lucide-react";
+import { Check, Loader2, UserPlus, Users } from "lucide-react";
+import { SlotPicker } from "@/components/scheduling/SlotPicker";
 import { todayIso } from "@/lib/validators";
 
 const STEPS = ["Patient", "Doctor & Slot", "Confirm"];
@@ -25,29 +26,7 @@ const GENDER_OPTS = [
   { value: "Female", label: "Female" },
   { value: "Other", label: "Other" },
 ];
-const SLOTS = ["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM"];
-
 type PatientMode = "existing" | "new";
-
-/** Parse a "9:00 AM" / "12:30 PM" slot label into a Date on the given yyyy-mm-dd day, in local time. */
-function parseSlotDateTime(dateStr: string, label: string): Date {
-  const match = label.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
-  if (!match) return new Date(NaN);
-  const [, hh, mm, period] = match;
-  let hours = Number(hh) % 12;
-  if (period.toUpperCase() === "PM") hours += 12;
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d, hours, Number(mm), 0, 0);
-}
-
-/** A slot is bookable when its date is today-or-later, and — for today — its time hasn't already passed. */
-function isSlotAvailable(dateStr: string, label: string): boolean {
-  if (!dateStr) return false;
-  const today = todayIso();
-  if (dateStr > today) return true;
-  if (dateStr < today) return false;
-  return parseSlotDateTime(dateStr, label).getTime() > Date.now();
-}
 
 export default function NewAppointmentPage() {
   const router = useRouter();
@@ -63,18 +42,22 @@ export default function NewAppointmentPage() {
   const [newPatient, setNewPatient] = useState({ name: "", mobile: "", dob: "", gender: "" });
   const [doctorId, setDoctorId] = useState("");
   const [date, setDate] = useState("");
-  const [slot, setSlot] = useState("");
+  const [slot, setSlot] = useState("");       // "HH:mm" from the doctor's open slots
+  const [slotLabel, setSlotLabel] = useState("");
   const [type, setType] = useState("Booked");
+  const [slotsKey, setSlotsKey] = useState(0);
   const [reason, setReason] = useState("");
 
   const setNP = (k: keyof typeof newPatient, v: string) =>
     setNewPatient(prev => ({ ...prev, [k]: v }));
 
-  /** Changing the date can invalidate an already-picked slot (e.g. moving to today past that time). */
-  function handleDateChange(v: string) {
-    setDate(v);
-    if (slot && !isSlotAvailable(v, slot)) setSlot("");
-  }
+  /** A different doctor, day or kind of visit means different open times, so the picked one no longer applies. */
+  const pickSlot = (value: string, label: string) => { setSlot(value); setSlotLabel(label); };
+  const clearSlot = () => { setSlot(""); setSlotLabel(""); };
+  const handleDateChange = (v: string) => { setDate(v); clearSlot(); };
+  const handleDoctorChange = (v: string) => { setDoctorId(v); clearSlot(); };
+  const handleTypeChange = (v: string) => { setType(v); clearSlot(); };
+  const isWalkIn = type === "Walk-in";
 
   const patient = patients.find(p => String(p.id) === patientId);
   const doctor = doctors.find(d => String(d.id) === doctorId);
@@ -84,7 +67,7 @@ export default function NewAppointmentPage() {
   );
   const step1Valid = mode === "existing" ? Boolean(patientId) : newPatientValid;
   const dateValid = Boolean(date) && date >= todayIso();
-  const step2Valid = Boolean(doctorId && date && slot) && dateValid;
+  const step2Valid = Boolean(doctorId && date && (slot || isWalkIn)) && dateValid;
   const stepValid = step === 1 ? step1Valid : step === 2 ? step2Valid : true;
   const stepHint =
     step === 1 && !step1Valid
@@ -101,6 +84,7 @@ export default function NewAppointmentPage() {
 
   async function submit() {
     await run(async () => {
+      setSlotsKey(k => k + 1); // if this fails because the time just went, the list refreshes behind the message
       let pid = Number(patientId);
       let pname = patient?.name ?? "";
       let page = patient?.age ?? 0;
@@ -125,7 +109,8 @@ export default function NewAppointmentPage() {
         patientAge: page,
         doctorId: Number(doctorId),
         date,
-        time: slot,
+        // Walk-ins are seen on arrival, not at a booked time.
+        time: isWalkIn ? new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : slotLabel,
         type,
         reason,
         status: "Upcoming",
@@ -257,38 +242,24 @@ export default function NewAppointmentPage() {
                     <SearchSelect
                       placeholder="Search doctor…"
                       value={doctorId}
-                      onChange={setDoctorId}
-                      options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
+                      onChange={handleDoctorChange}
+                      options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: `${d.specialty} · ${d.patientsPerHour}/hr` }))}
                     />
                   </FormRow>
                   <FormRow label="Date *" error={date && !dateValid ? "Cannot be in the past" : undefined}>
                     <FormInput type="date" value={date} onChange={handleDateChange} min={todayIso()} error={Boolean(date) && !dateValid} />
                   </FormRow>
                   <FormRow label="Type">
-                    <FormSelect placeholder="Select type" options={APPT_TYPES} value={type} onChange={setType} />
+                    <FormSelect placeholder="Select type" options={APPT_TYPES} value={type} onChange={handleTypeChange} />
                   </FormRow>
                 </div>
 
-                {doctorId && date && (
-                  <div>
-                    <p className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider mb-3">Available Slots</p>
-                    <div className="flex flex-wrap gap-2">
-                      {SLOTS.map((t) => {
-                        const avail = isSlotAvailable(date, t);
-                        const active = slot === t;
-                        return (
-                          <button key={t} disabled={!avail} onClick={() => setSlot(t)}
-                            className={`flex items-center gap-1 px-4 py-[7px] rounded-full text-[13px] font-normal border transition-colors ${
-                              !avail ? "border-[#dedee1] text-[#57575f] opacity-40 cursor-not-allowed"
-                                : active ? "bg-[#009598] text-white border-[#009598]"
-                                : "border-[#dedee1] text-[#57575f] hover:border-[#009598] hover:text-[#009598]"
-                            }`}>
-                            <Clock size={12} /> {t}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                {isWalkIn ? (
+                  <p className="text-[13px] font-light text-[#57575f] bg-[#f6f6f6] rounded-[8px] px-4 py-3">
+                    A walk-in is seen on arrival, so it doesn&apos;t take a booked time. It still counts towards the doctor&apos;s patients for that hour.
+                  </p>
+                ) : (
+                  <SlotPicker doctorId={doctorId} date={date} mode="in_person" value={slot} onChange={pickSlot} refreshKey={slotsKey} />
                 )}
               </div>
             )}
@@ -309,7 +280,7 @@ export default function NewAppointmentPage() {
                       { l: "Doctor",    v: doctor?.name ?? "—" },
                       { l: "Specialty", v: doctor?.specialty ?? "—" },
                       { l: "Date",      v: date || "—" },
-                      { l: "Time Slot", v: slot || "—" },
+                      { l: "Time Slot", v: isWalkIn ? "On arrival" : slotLabel || "—" },
                       { l: "Type",      v: type },
                       { l: "Reason",    v: reason || "—" },
                     ].map(f => (

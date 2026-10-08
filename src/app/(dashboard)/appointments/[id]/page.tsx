@@ -17,23 +17,13 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { ScribePanel } from "@/components/scribe/ScribePanel";
 import { Modal } from "@/components/shared/Modal";
+import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SlotPicker } from "@/components/scheduling/SlotPicker";
 import Link from "next/link";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const SLOTS = [
-  "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM",
-  "12:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
-  "5:00 PM", "5:30 PM", "6:00 PM",
-];
-
-/** Display string ("8 Nov 2025") → <input type=date> value (yyyy-mm-dd). */
-function toInputDate(display: string): string {
-  const d = new Date(display);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 /** <input type=date> value → display string matching the rest of the app. */
 function toDisplayDate(input: string): string {
   if (!input) return "";
@@ -59,7 +49,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: s
 export default function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const canWrite = can("appointments", "write");
   const canOrderRadiology = can("radiology", "write");
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
@@ -71,7 +61,9 @@ export default function AppointmentDetailPage() {
 
   const [modal, setModal] = useState<null | "reschedule" | "followup">(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [form, setForm] = useState({ date: "", time: "", doctorId: "", reason: "" });
+  const [form, setForm] = useState({ date: "", time: "", timeLabel: "", doctorId: "", reason: "" });
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [slotsKey, setSlotsKey] = useState(0);
   const setF = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   const setStatus = (status: string) =>
@@ -95,58 +87,80 @@ export default function AppointmentDetailPage() {
 
   const isActive = appt.status === "Upcoming" || appt.status === "Today";
   const doctorOptions = doctors.map(d => ({ value: String(d.id), label: d.name }));
-  const timeOptions = (SLOTS.includes(form.time) || !form.time ? SLOTS : [form.time, ...SLOTS])
-    .map(t => ({ value: t, label: t }));
+  const isVideo = appt.type === "Tele-consult";
+  // Reception/admin, the appointment's own doctor, and — for video consultations — the tele-caller may move it.
+  const canMove = canWrite || (user?.role === "Doctor" && user.doctorId != null && user.doctorId === appt.doctorId) || (isVideo && can("teleconsult", "write"));
 
   function openReschedule() {
     setForm({
-      date: toInputDate(appt!.date),
-      time: appt!.time,
+      date: "",
+      time: "",
+      timeLabel: "",
       doctorId: String(appt!.doctorId ?? doctor?.id ?? ""),
       reason: appt!.reason,
     });
+    setMoveError(null);
     setModal("reschedule");
   }
   function openFollowup() {
     setForm({
       date: "",
       time: "",
+      timeLabel: "",
       doctorId: String(appt!.doctorId ?? doctor?.id ?? ""),
       reason: `Follow-up: ${appt!.reason}`,
     });
+    setMoveError(null);
     setModal("followup");
   }
 
   async function saveReschedule() {
-    await run(() =>
-      api.patch(`/appointments/${id}`, {
-        date: toDisplayDate(form.date) || appt!.date,
-        time: form.time || appt!.time,
-        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
-        // Bringing a closed appointment back onto the calendar re-opens it.
-        status: appt!.status === "Completed" || appt!.status === "Cancelled" ? "Upcoming" : appt!.status,
-      }),
-    );
-    setModal(null);
-    reload();
+    setMoveError(null);
+    try {
+      if (isActive) {
+        // Same doctor and kind of visit, to one of that doctor's open times; the server applies the doctor's rules.
+        await run(() => api.post(`/appointments/${id}/reschedule`, { date: form.date, time: form.time }));
+      } else {
+        // Bringing a closed appointment back onto the calendar re-opens it (still checked against the doctor's schedule).
+        await run(() =>
+          api.patch(`/appointments/${id}`, {
+            date: toDisplayDate(form.date),
+            time: form.timeLabel,
+            doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+            status: "Upcoming",
+          }),
+        );
+      }
+      setModal(null);
+      reload();
+    } catch (e) {
+      setMoveError(e instanceof Error ? e.message : "Couldn't reschedule.");
+      setSlotsKey(k => k + 1);
+    }
   }
 
   async function createFollowup() {
-    const created = await run(() =>
-      api.post<AppointmentDTO>("/appointments", {
-        patientId: appt!.patientId ?? patientRec?.id ?? undefined,
-        patientName: appt!.patientName,
-        patientAge: appt!.patientAge,
-        doctorId: form.doctorId ? Number(form.doctorId) : undefined,
-        date: toDisplayDate(form.date),
-        time: form.time,
-        type: "Booked",
-        reason: form.reason,
-        status: "Upcoming",
-      }),
-    );
-    setModal(null);
-    if (created?.id) router.push(`/appointments/${created.id}`);
+    setMoveError(null);
+    try {
+      const created = await run(() =>
+        api.post<AppointmentDTO>("/appointments", {
+          patientId: appt!.patientId ?? patientRec?.id ?? undefined,
+          patientName: appt!.patientName,
+          patientAge: appt!.patientAge,
+          doctorId: form.doctorId ? Number(form.doctorId) : undefined,
+          date: toDisplayDate(form.date),
+          time: form.timeLabel,
+          type: "Booked",
+          reason: form.reason,
+          status: "Upcoming",
+        }),
+      );
+      setModal(null);
+      if (created?.id) router.push(`/appointments/${created.id}`);
+    } catch (e) {
+      setMoveError(e instanceof Error ? e.message : "Couldn't book the follow-up.");
+      setSlotsKey(k => k + 1);
+    }
   }
 
   async function doCancel() {
@@ -181,17 +195,19 @@ export default function AppointmentDetailPage() {
             </button>
           )}
           {canWrite && isActive && (
-            <>
-              <button onClick={() => setStatus("Completed")} disabled={acting} className={btnPrimary}>
-                <CheckCircle2 size={15} /> Mark Completed
-              </button>
-              <button onClick={openReschedule} disabled={acting} className={btnOutline}>
-                <CalendarClock size={15} /> Reschedule
-              </button>
-              <button onClick={() => setConfirmCancel(true)} disabled={acting} className={btnDanger}>
-                <XCircle size={15} /> Cancel
-              </button>
-            </>
+            <button onClick={() => setStatus("Completed")} disabled={acting} className={btnPrimary}>
+              <CheckCircle2 size={15} /> Mark Completed
+            </button>
+          )}
+          {canMove && isActive && (
+            <button onClick={openReschedule} disabled={acting} className={btnOutline}>
+              <CalendarClock size={15} /> Reschedule
+            </button>
+          )}
+          {canWrite && isActive && (
+            <button onClick={() => setConfirmCancel(true)} disabled={acting} className={btnDanger}>
+              <XCircle size={15} /> Cancel
+            </button>
           )}
           {canWrite && appt.status === "Completed" && (
             <>
@@ -229,7 +245,7 @@ export default function AppointmentDetailPage() {
             </div>
             <InfoRow icon={Stethoscope} label="Doctor"       value={appt.doctor} />
             <InfoRow icon={Calendar}    label="Date"         value={formatDate(appt.date)} />
-            <InfoRow icon={Clock}       label="Time"         value={appt.time} />
+            <InfoRow icon={Clock}       label="Time"         value={appt.rescheduleCount > 0 ? `${appt.time} · rescheduled ${appt.rescheduleCount}×${appt.rescheduledFrom ? ` (was ${appt.rescheduledFrom})` : ""}` : appt.time} />
             <InfoRow icon={Tag}         label="Type"         value={appt.type} />
             <div className="py-3">
               <div className="flex items-start gap-3">
@@ -243,6 +259,27 @@ export default function AppointmentDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Video consultation */}
+          {appt.type === "Tele-consult" && (
+            <div className={`${tw.surface.card} ${tw.radius.card} p-6`}>
+              <div className="text-[14px] font-medium text-[#11111c] mb-1">Video Consultation</div>
+              <p className="text-[12px] font-light text-[#57575f] mb-4">
+                {appt.consultAmount != null ? `Fee ₹${appt.consultAmount.toLocaleString("en-IN")}` : "Fee —"}
+                {appt.paymentStatus ? ` · ${appt.paymentStatus}` : ""}
+                {appt.meetError && !appt.videoUrl ? ` · ${appt.meetError}` : ""}
+                {appt.meetAccess && appt.videoUrl ? ` · Join access: ${({ OPEN: "anyone with the link", TRUSTED: "ask to join", RESTRICTED: "invitees only", "calendar-default": "invited guests only (Google default)" } as Record<string, string>)[appt.meetAccess] ?? appt.meetAccess}` : ""}
+              </p>
+              {(appt.paymentId || appt.orderId) && (
+                <p className="text-[11px] font-light text-[#57575f] mb-4 break-all">
+                  {appt.paymentId && <>Payment <span className="text-[#11111c]">{appt.paymentId}</span></>}
+                  {appt.paymentId && appt.orderId && " · "}
+                  {appt.orderId && <>Order <span className="text-[#11111c]">{appt.orderId}</span></>}
+                </p>
+              )}
+              <ConsultLinkActions appt={appt} canWrite={can("teleconsult", "write")} onChanged={reload} />
+            </div>
+          )}
 
           {/* Related prescription */}
           {relatedRx && (
@@ -345,14 +382,28 @@ export default function AppointmentDetailPage() {
             <span className="text-[#57575f]"> — currently {formatDate(appt.date)} at {appt.time}</span>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormRow label="Date *"><FormInput type="date" value={form.date} onChange={v => setF("date", v)} /></FormRow>
-          <FormRow label="Time Slot *"><FormSelect placeholder="Select slot" value={form.time} onChange={v => setF("time", v)} options={timeOptions} /></FormRow>
-          <FormRow label="Doctor"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => setF("doctorId", v)} options={doctorOptions} /></FormRow>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <FormRow label="Date *"><FormInput type="date" value={form.date} min={new Date().toLocaleDateString("en-CA")} onChange={v => { setF("date", v); setF("time", ""); setF("timeLabel", ""); }} /></FormRow>
+          {modal === "followup" ? (
+            <FormRow label="Doctor"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => { setF("doctorId", v); setF("time", ""); setF("timeLabel", ""); }} options={doctorOptions} /></FormRow>
+          ) : (
+            <FormRow label="Doctor"><p className="h-[42px] flex items-center text-[14px] text-[#11111c]">{appt.doctor}</p></FormRow>
+          )}
           {modal === "followup" && (
-            <FormRow label="Reason"><FormInput placeholder="Reason for follow-up" value={form.reason} onChange={v => setF("reason", v)} /></FormRow>
+            <div className="col-span-2"><FormRow label="Reason"><FormInput placeholder="Reason for follow-up" value={form.reason} onChange={v => setF("reason", v)} /></FormRow></div>
           )}
         </div>
+        <SlotPicker
+          doctorId={modal === "followup" ? form.doctorId : appt.doctorId}
+          date={form.date}
+          mode={modal === "followup" ? "in_person" : isVideo ? "video" : "in_person"}
+          value={form.time}
+          onChange={(v, label) => { setF("time", v); setF("timeLabel", label); }}
+          excludeAppointmentId={modal === "reschedule" ? appt.id : undefined}
+          refreshKey={slotsKey}
+          label={isVideo && modal === "reschedule" ? "Video consultation times" : "Available times"}
+        />
+        {moveError && <p className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{moveError}</p>}
       </Modal>
 
       {/* Cancel confirmation */}

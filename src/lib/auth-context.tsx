@@ -51,7 +51,8 @@ export function AuthProvider({
   }, []);
 
   useEffect(() => {
-    if (!initialUser) void refresh();
+    // The patient booking page is public and never reads the user, so don't ask who is logged in there.
+    if (!initialUser && !window.location.pathname.startsWith("/book-video")) void refresh();
   }, [initialUser, refresh]);
 
   const login = useCallback(async (email: string, password: string) => {

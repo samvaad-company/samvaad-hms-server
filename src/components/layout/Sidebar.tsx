@@ -31,9 +31,10 @@ import {
   Sparkles,
   QrCode,
   CalendarCheck,
+  CalendarClock,
+  Video,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
-import { type Resource } from "@/server/auth/rbac";
 import { useAuth } from "@/lib/auth-context";
 import Image from "next/image";
 import logo from "../../../public/favicon.svg";
@@ -43,13 +44,15 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   /** RBAC resource gating this item; omit for always-visible items. */
-  resource?: Resource;
+  resource?: string;
   /**
    * Roles that have API-level access to `resource` for some other purpose
    * (e.g. populating a picker elsewhere) but shouldn't see this as its own
    * nav destination.
    */
   hiddenForRoles?: string[];
+  /** Show only to these roles (a personal page that isn't a permission on a shared resource). */
+  onlyForRoles?: string[];
 }
 
 interface NavGroup {
@@ -73,12 +76,14 @@ const groups: NavGroup[] = [
       { href: "/patients",           label: "Patients",          icon: Users,           resource: "patients" },
       { href: "/doctors",            label: "Doctors",           icon: Stethoscope,     resource: "doctors" },
       { href: "/prescriptions",      label: "Prescriptions",     icon: FileText,        resource: "prescriptions" },
+      { href: "/my-schedule",        label: "My Schedule",       icon: CalendarClock,   onlyForRoles: ["Doctor"] },
     ],
   },
   {
     label: "Operations",
     items: [
       { href: "/appointments",  label: "Appointments",  icon: Calendar,     resource: "appointments" },
+      { href: "/teleconsult",   label: "Video Consults", icon: Video,       resource: "teleconsult" },
       { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy" },
       { href: "/lab",           label: "Lab",           icon: FlaskConical, resource: "lab" },
       { href: "/radiology",     label: "Radiology",     icon: ScanLine,     resource: "radiology" },
@@ -138,7 +143,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       items: group.items.filter(
         (item) =>
           (!item.resource || (user ? can(item.resource) : false)) &&
-          !item.hiddenForRoles?.includes(user?.role ?? ""),
+          !item.hiddenForRoles?.includes(user?.role ?? "") &&
+          (!item.onlyForRoles || item.onlyForRoles.includes(user?.role ?? "")),
       ),
     }))
     .filter((group) => group.items.length > 0);

@@ -9,9 +9,9 @@ import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { DoctorDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { DoctorScheduleEditor } from "@/components/scheduling/DoctorScheduleEditor";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const SHIFTS = ["Morning (9 AM – 1 PM)", "Evening (4 PM – 8 PM)"];
 
 function StatCard({ icon: Icon, value, label, color }: { icon: typeof Users; value: string; label: string; color: string }) {
   return (
@@ -28,32 +28,10 @@ function StatCard({ icon: Icon, value, label, color }: { icon: typeof Users; val
 }
 
 function ScheduleTab({ doctorId }: { doctorId: number }) {
-  return (
-    <div className="p-6">
-      <div className="grid gap-3" style={{ gridTemplateColumns: "120px repeat(6, 1fr)" }}>
-        <div />
-        {DAYS.map(d => (
-          <div key={d} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider text-center py-2">{d}</div>
-        ))}
-        {SHIFTS.map((shift, si) => (
-          <>
-            <div key={shift} className="text-[12px] font-normal text-[#57575f] flex items-center py-3">{shift}</div>
-            {DAYS.map((day, di) => {
-              const isOff = day === "Sat" && si === 1;
-              const isLeave = doctorId === 7 || doctorId === 8;
-              return (
-                <div key={day + si} className={`rounded-[8px] p-3 text-center text-[11px] font-medium ${
-                  isLeave ? "bg-[#ffe9e9] text-[#ff0004]" : isOff ? "bg-[#f2f3f3] text-[#57575f]" : "bg-[#e8f7f7] text-[#009598]"
-                }`}>
-                  {isLeave ? "On Leave" : isOff ? "Off" : si === 0 ? "9–1 PM" : "4–8 PM"}
-                </div>
-              );
-            })}
-          </>
-        ))}
-      </div>
-    </div>
-  );
+  const { user, can } = useAuth();
+  // The doctor themselves, or an administrator, may change it; everyone else just sees it.
+  const canEdit = (user?.role === "Doctor" && user.doctorId === doctorId) || can("doctors", "write");
+  return <DoctorScheduleEditor doctorId={doctorId} canEdit={canEdit} />;
 }
 
 function TodayPatientsTab({ doctorName, queue }: { doctorName: string; queue: OpdRecordDTO[] }) {

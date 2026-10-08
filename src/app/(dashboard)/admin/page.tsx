@@ -9,20 +9,135 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
-import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO, StaffDTO } from "@/types/api";
+import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO, StaffDTO, TeleconsultConfigDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2, LocateFixed } from "lucide-react";
+import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2, LocateFixed, Video } from "lucide-react";
 
 interface HospitalSettings {
   name: string; address: string; city: string; state: string; pincode: string;
   phone: string; mobile: string; email: string; website: string;
   gstNumber: string; panNumber: string; regNumber: string;
   latitude: number | null; longitude: number | null; geofenceRadiusM: number;
+  teleconsultEnabled: boolean; teleconsultPrice: number | null; teleconsultMeetAccess: "OPEN" | "TRUSTED" | "RESTRICTED";
+}
+
+// ─── Video consultations (tele-consult) ───────────────────────────────────────
+
+const GOOGLE_NOTICE: Record<string, { text: string; ok: boolean }> = {
+  connected: { text: "Google account connected — new video consultations will get a Meet link automatically.", ok: true },
+  denied:    { text: "Google sign-in was cancelled, so nothing was connected.", ok: false },
+  error:     { text: "Couldn't finish connecting Google. Try again, and make sure you approve calendar access.", ok: false },
+  scope:     { text: "Google was connected WITHOUT calendar access, so it wasn't saved. Click Connect Google again and leave the \"See, edit, share, and permanently delete calendars\" / Calendar permission ticked on Google's screen.", ok: false },
+};
+
+function TeleconsultSettings({
+  form, setForm, canEdit,
+}: {
+  form: HospitalSettings;
+  setForm: React.Dispatch<React.SetStateAction<HospitalSettings | null>>;
+  canEdit: boolean;
+}) {
+  const { item: cfg, reload } = useItem<TeleconsultConfigDTO>("/teleconsult/config");
+  const { run, loading } = useMutation();
+  const [notice] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const result = new URLSearchParams(window.location.search).get("google");
+    return result ? GOOGLE_NOTICE[result] ?? null : null;
+  });
+
+  const google = cfg?.google;
+  return (
+    <section>
+      <h3 className="text-[14px] font-medium text-[#11111c] mb-1 flex items-center gap-2"><Video size={15} /> Video consultations</h3>
+      <p className="text-[12px] font-light text-[#57575f] mb-4">
+        Patients book a paid video consultation from the patient app. The fee below is what they are charged — it is
+        decided here, never by the app. {canEdit ? "" : "Only a Super Admin can change the fee or switch this on or off."}
+      </p>
+      <div className="grid grid-cols-3 gap-4 items-end">
+        <FormRow label="Consultation fee (₹)" hint="Charged per video consultation">
+          <FormInput type="number" placeholder="e.g. 500" value={form.teleconsultPrice?.toString() ?? ""}
+            onChange={v => canEdit && setForm(prev => (prev ? { ...prev, teleconsultPrice: v === "" ? null : Math.max(0, Number(v)) } : prev))} />
+        </FormRow>
+        <label className={`flex items-center gap-3 h-[40px] ${canEdit ? "cursor-pointer" : "opacity-60"}`}>
+          <button type="button" role="switch" aria-checked={form.teleconsultEnabled} disabled={!canEdit}
+            onClick={() => setForm(prev => (prev ? { ...prev, teleconsultEnabled: !prev.teleconsultEnabled } : prev))}
+            className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${form.teleconsultEnabled ? "bg-[#009598]" : "bg-[#dedee1]"}`}>
+            <span className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all ${form.teleconsultEnabled ? "left-[21px]" : "left-[3px]"}`} />
+          </button>
+          <span className="text-[13px] text-[#11111c]">{form.teleconsultEnabled ? "Accepting bookings" : "Switched off"}</span>
+        </label>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <FormRow label="Who can join the video call" hint={
+          form.teleconsultMeetAccess === "OPEN" ? "Anyone with the patient's link joins straight away — works whatever Google account (or none) the patient uses."
+          : form.teleconsultMeetAccess === "TRUSTED" ? "People in your Google organization and invited guests join directly; everyone else (e.g. a patient) has to ask to join and be let in by someone in your organization."
+          : "Only invited guests join directly; everyone else has to ask to join and be let in by the host account."
+        }>
+          <FormSelect value={form.teleconsultMeetAccess ?? "OPEN"} disabled={!canEdit}
+            onChange={v => canEdit && setForm(prev => (prev ? { ...prev, teleconsultMeetAccess: v as HospitalSettings["teleconsultMeetAccess"] } : prev))}
+            options={[
+              { value: "OPEN", label: "Anyone with the link" },
+              { value: "TRUSTED", label: "Ask to join (organization & invitees skip)" },
+              { value: "RESTRICTED", label: "Invitees only, others ask to join" },
+            ]} />
+        </FormRow>
+      </div>
+      {google?.configured && google.connected && !google.meetAccessControl && (
+        <p className="mt-3 text-[12px] text-[#ff9000] bg-[#fff2e0] rounded-[8px] px-3 py-2">
+          This Google connection was made before call-access control existed, so calls use Google&apos;s default (invited guests only) and patients may see
+          &ldquo;You can&apos;t join this video call&rdquo;. Click Reconnect below, keep every permission ticked, and make sure the <b>Google Meet REST API</b> is enabled in your Google Cloud project.
+        </p>
+      )}
+
+      <div className="mt-4 border border-[#dedee1] rounded-[10px] p-4 flex items-center gap-4 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium text-[#11111c]">Google Meet</p>
+          <p className="text-[12px] font-light text-[#57575f]">
+            {!google ? "Checking…"
+              : !google.configured ? "Google isn't set up on this server yet — add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Until then, staff can paste a link by hand."
+              : google.needsReconnect ? `Google needs to be reconnected${google.accountEmail ? ` (${google.accountEmail})` : ""}: ${google.lastError ?? "access was revoked or never granted"}.`
+              : google.connected ? `Connected${google.accountEmail ? ` as ${google.accountEmail}` : ""}. Meet links are created on this account's calendar.`
+              : "Not connected. Connect the Google account that should host the Meet links."}
+          </p>
+        </div>
+        {google?.configured && google.connected && !google.needsReconnect && !google.meetAccessControl && (
+          <a href="/api/teleconsult/google/connect"
+            className="text-[13px] text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+            Reconnect Google
+          </a>
+        )}
+        {google?.configured && (google.connected && !google.needsReconnect ? (
+          <button type="button" disabled={loading}
+            onClick={async () => { await run(() => api.post("/teleconsult/google/disconnect")); reload(); }}
+            className="text-[13px] text-[#ff0004] border border-[#ff0004] px-4 py-[7px] rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-60">
+            Disconnect
+          </button>
+        ) : (
+          <a href="/api/teleconsult/google/connect"
+            className="text-[13px] text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+            {google.needsReconnect ? "Reconnect Google" : "Connect Google"}
+          </a>
+        ))}
+      </div>
+      {notice && (
+        <p className={`mt-3 text-[12px] rounded-[8px] px-3 py-2 ${notice.ok ? "text-[#00955c] bg-[#dffff3]" : "text-[#ff0004] bg-[#ffe9e9]"}`}>{notice.text}</p>
+      )}
+      {cfg && cfg.gatewayMode !== "razorpay" && (
+        <p className="mt-3 text-[12px] text-[#ff9000] bg-[#fff2e0] rounded-[8px] px-3 py-2">
+          {cfg.gatewayMode === "mock"
+            ? "Payments run on a mock gateway (development only). Add Razorpay keys to take real payments."
+            : "Online payments aren't configured on this server — patients can't pay until Razorpay keys are added."}
+        </p>
+      )}
+    </section>
+  );
 }
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 
 function SettingsView() {
+  const { user, can } = useAuth();
   const { item: settings } = useItem<HospitalSettings>("/admin/settings");
   const { run, loading } = useMutation();
   const [form, setForm] = useState<HospitalSettings | null>(null);
@@ -117,6 +232,10 @@ function SettingsView() {
           {geoMsg && <span className="text-[12px] text-[#57575f]">{geoMsg}</span>}
         </div>
       </section>
+
+      {can("teleconsult", "read") && (
+        <TeleconsultSettings form={form} setForm={setForm} canEdit={user?.role === "Super Admin" || user?.role === "Platform Admin"} />
+      )}
 
       <div className="flex justify-end items-center gap-3">
         {saved && <span className="text-[13px] text-[#00955c]">Saved ✓</span>}
@@ -224,7 +343,7 @@ const ROLE_CLR: Record<string, string> = {
   Accountant:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
-const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner","Lab Partner"];
+const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Tele Caller","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner","Lab Partner"];
 
 function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
   const { run, loading, error } = useMutation();

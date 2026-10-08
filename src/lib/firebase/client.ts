@@ -7,7 +7,7 @@
  * Firebase Storage. Access is still gated by role, but not by anything this
  * module checks: it's enforced by Storage Security Rules (storage.rules)
  * reading a `canUploadReports` claim that only our server can mint (see
- * /api/firebase/token + src/server/services/firebase-admin.ts). This module
+ * /api/firebase/token + server/src/services/firebase-admin.ts). This module
  * just signs the browser into Firebase using that server-issued token.
  */
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";

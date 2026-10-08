@@ -14,14 +14,19 @@ import {
   FlaskConical, ScanLine, AlertCircle,
 } from "lucide-react";
 import { tw } from "@/lib/design-system";
+import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
+import { useItem } from "@/lib/api/hooks";
+import type { DoctorScheduleDTO } from "@/types/api";
+import Link from "next/link";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
 export function DoctorPanel() {
   const { user } = useAuth();
   const doctorId = user?.doctorId ?? null;
+  const { item: schedule } = useItem<DoctorScheduleDTO>(user?.doctorId ? `/doctors/${user.doctorId}/schedule` : null);
 
   const { items: queue, reload } = useList<OpdRecordDTO>("/opd", { all: true });
-  const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  const { items: appointments, reload: reloadAppointments } = useList<AppointmentDTO>("/appointments", { all: true });
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { run } = useMutation();
   const advance = (opdId: number, status: string) =>
@@ -36,6 +41,9 @@ export function DoctorPanel() {
   const waiting = myQueue.filter(r => r.status === "Waiting");
   const completed = myQueue.filter(r => r.status === "Completed").length;
   const upcoming = myAppointments.filter(a => a.status === "Today" || a.status === "Upcoming");
+  const videoConsults = myAppointments
+    .filter(a => a.type === "Tele-consult" && (a.status === "Today" || a.status === "Upcoming"))
+    .sort((a, b) => a.date.localeCompare(b.date));
   const pendingRx = myPrescriptions.filter(p => p.status === "Pending" || p.status === "Draft").length;
 
   return (
@@ -65,6 +73,39 @@ export function DoctorPanel() {
         { icon: Calendar,    label: "My Appointments",  value: String(upcoming.length),     color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
         { icon: FileText,    label: "Pending Rx",       value: String(pendingRx),           color: "text-[#009598]", bg: "bg-[#e8f7f7]" },
       ]} />
+
+      {schedule && (
+        <div className={`${tw.gutterX} mb-5`}>
+          <div className={`${tw.surface.card} ${tw.radius.card} px-5 py-4 flex items-center justify-between gap-4 flex-wrap`}>
+            <div className="text-[13px] text-[#11111c]">
+              <b className="font-medium">{schedule.patientsPerHour} patient{schedule.patientsPerHour === 1 ? "" : "s"} per hour</b>
+              <span className="text-[#57575f]"> · one every {schedule.slotMinutes} min · </span>
+              {schedule.videoActive
+                ? <span className="text-[#00955c]">Video consultations on ({schedule.videoHours.length} window{schedule.videoHours.length === 1 ? "" : "s"})</span>
+                : <span className="text-[#57575f]">{schedule.hospitalVideoEnabled ? "Video consultations off" : "Video consultations not enabled by the hospital"}</span>}
+            </div>
+            <Link href="/my-schedule" className="text-[13px] text-[#009598] hover:underline">Edit my schedule →</Link>
+          </div>
+        </div>
+      )}
+
+      {videoConsults.length > 0 && (
+        <div className={`${tw.gutterX} mb-5`}>
+          <WorklistCard title="Video Consultations" action={{ label: "All video consults", href: "/teleconsult" }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 260 }}>
+              {videoConsults.map(a => (
+                <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa] transition-colors">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
+                    <span className="text-[11px] font-light text-[#57575f] truncate">{a.date} · {a.time}{a.reason ? ` · ${a.reason}` : ""}</span>
+                  </div>
+                  <ConsultLinkActions appt={a} canWrite onChanged={reloadAppointments} />
+                </div>
+              ))}
+            </div>
+          </WorklistCard>
+        </div>
+      )}
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className="flex gap-5 items-start">

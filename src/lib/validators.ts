@@ -1,8 +1,8 @@
 /**
  * Client-side form validators. Mirrors the rules enforced server-side in
- * `@/server/lib/field-rules` so invalid input is caught inline before the
+ * `server/src/lib/field-rules` so invalid input is caught inline before the
  * API round-trip rejects it — kept as a separate, client-safe copy since
- * pages under `src/app` shouldn't pull in `@/server/*`.
+ * pages under `src/app` shouldn't pull in server code.
  */
 
 /** Digits only, ignoring spaces, dashes, brackets and a +91 / 0 prefix. */

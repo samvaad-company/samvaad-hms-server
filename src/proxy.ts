@@ -1,43 +1,26 @@
 /**
- * Proxy (formerly "middleware") — runs before routes render.
+ * Proxy (formerly "middleware") — runs before pages render.
  *
- * Enforces authentication globally: unauthenticated page requests redirect to
- * /login; unauthenticated API requests get a 401 JSON response. Verification
- * uses Web Crypto so it runs in the Edge runtime.
+ * A light gate on page navigation: no session cookie → redirect to /login.
+ * It only checks the cookie is present; the API server owns the session secret
+ * and verifies the token on every request, and the client bounces to /login on
+ * any 401, so an expired or tampered cookie can't reach data.
+ *
+ * `/api/*` is excluded from the matcher below on purpose: next.config.ts rewrites it
+ * straight to the API server, and keeping this proxy off those requests means their
+ * bodies (audio, documents) stream through untouched instead of being buffered.
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyToken } from "@/server/auth/session";
-import { getConfig } from "@/server/config/env";
 
-/** Paths that never require authentication. */
-const PUBLIC_PATHS = ["/login"];
-const PUBLIC_API = ["/api/auth/login", "/api/health"];
+const COOKIE = process.env.SESSION_COOKIE_NAME ?? "samvaad_session";
 
-function isPublic(pathname: string): boolean {
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")))
-    return true;
-  if (PUBLIC_API.some((p) => pathname === p)) return true;
-  return false;
-}
-
-export async function proxy(request: NextRequest): Promise<NextResponse> {
+export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
-
-  const cfg = getConfig();
-  const token = request.cookies.get(cfg.sessionCookieName)?.value;
-  const session = await verifyToken(token);
-
-  if (session) return NextResponse.next();
-
-  // Unauthenticated.
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Authentication required" } },
-      { status: 401 },
-    );
-  }
+  if (pathname === "/login" || pathname.startsWith("/login/")) return NextResponse.next();
+  // Patients open this from a link a tele-caller sent; the link's signed token is the credential.
+  if (pathname.startsWith("/book-video/")) return NextResponse.next();
+  if (request.cookies.get(COOKIE)?.value) return NextResponse.next();
 
   const loginUrl = new URL("/login", request.url);
   if (pathname !== "/") loginUrl.searchParams.set("next", pathname);
@@ -45,6 +28,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // Run on everything except Next internals and static assets.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  // Run on page requests only: not /api, Next internals or static assets.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
