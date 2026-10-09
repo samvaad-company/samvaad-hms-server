@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { ArrowLeft, Phone, Mail, Calendar, Clock, Star, Users, TrendingUp, Award } from "lucide-react";
+import { ArrowLeft, Pencil, Phone, Mail, Calendar, Clock, Star, Users, TrendingUp, Award } from "lucide-react";
 import { useItem, useList } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { DoctorDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
 import { DoctorScheduleEditor } from "@/components/scheduling/DoctorScheduleEditor";
 
 
@@ -97,10 +98,12 @@ const TABS = ["Schedule", "Today's Patients", "Performance"] as const;
 
 export default function DoctorDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { item: doc, loading } = useItem<DoctorDTO>(`/doctors/${id}`);
+  const { item: doc, loading, reload } = useItem<DoctorDTO>(`/doctors/${id}`);
   useBreadcrumb("/doctors", "Doctors", doc?.name ?? "Doctor Profile");
   const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true });
   const { items: queue } = useList<OpdRecordDTO>("/opd", { all: true });
+  const { can } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<typeof TABS[number]>("Schedule");
 
   if (loading) {
@@ -128,8 +131,14 @@ export default function DoctorDetailPage() {
           <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Doctor Profile</div>
           <div className="text-[17px] font-medium text-[#11111c] leading-tight">{doc.name}</div>
         </div>
+        {can("doctors", "write") && (
+          <button onClick={() => setEditOpen(true)} className="flex items-center gap-2 text-[13px] font-normal text-[#11111c] border border-[#dedee1] px-4 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+            <Pencil size={14} strokeWidth={1.5} /> Edit details
+          </button>
+        )}
         <StatusBadge status={doc.status} />
       </div>
+      <DoctorFormModal open={editOpen} doctor={doc} onClose={() => setEditOpen(false)} onSaved={reload} />
 
       <div className={`${tw.gutterX} py-6 flex gap-6 items-start`}>
         {/* Left profile card */}

@@ -50,6 +50,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const id = decodeURIComponent(path.replace(/^\//, "").split("?")[0]);
     if (method === "POST") {
       const b = JSON.parse(String(init?.body)) as FakeEvent;
+      // The real API only accepts base32hex ids (0-9, a-v), 5-1024 characters.
+      if (!/^[0-9a-v]{5,1024}$/.test(b.id)) return json({ error: { message: "Invalid resource id value." } }, 400);
       if (g.events.has(b.id)) return json({ error: { message: "exists" } }, 409);
       g.events.set(b.id, b);
       return json(b);

@@ -810,6 +810,7 @@ export function toAdminUserDTO(
     department: departmentName,
     departmentId: r.department_id,
     staffId: r.staff_id ?? null,
+    doctorId: r.doctor_id ?? null,
     status: r.status,
     lastLogin: r.last_login_at ?? "Never",
   };

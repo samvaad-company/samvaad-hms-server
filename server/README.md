@@ -33,6 +33,7 @@ web app forwards to it. The web app finds it through `API_URL` (default `http://
 | `npm run seed:platform-admin` | one-off: create the Platform Admin login in an existing database |
 | `npm run verify:atomicity` | proves multi-table writes roll back together |
 | `npm run test:scheduling` | tests of doctor schedules: patients per hour, video vs in-person hours, rescheduling; `-- 6` repeats it |
+| `npm run test:profile` | tests of editing details: admin edits a doctor, and "My profile" for every role |
 | `npm run test:payments` | end-to-end tests of the tele-consult payment flow (fake Razorpay/Google, in-memory DB); `-- 6` repeats it |
 
 Scripts load `server/.env` (Node's `--env-file`).

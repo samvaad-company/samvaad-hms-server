@@ -7,6 +7,7 @@ import {
   departmentsRepo,
   usersRepo,
   staffRepo,
+  doctorsRepo,
   medicinesRepo,
 } from "@/repositories";
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/repositories/mappers";
 import { hashPassword } from "@/auth/password";
 import { ROLE_PERMISSIONS, RESOURCES } from "@/auth/rbac";
-import { NotFoundError, ConflictError, ForbiddenError } from "@/lib/errors";
+import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
@@ -199,6 +200,7 @@ const userCreateSchema = {
   role: { type: "string", required: true, max: 60 },
   departmentId: { type: "number", required: false },
   staffId: { type: "number", required: false },
+  doctorId: { type: "number", required: false },
   status: { type: "enum", required: false, values: ["Active", "Inactive"], default: "Active" },
 } as const;
 
@@ -221,6 +223,20 @@ async function resolveStaffLink(staffId: number | undefined, actor: Session): Pr
   return staff.id;
 }
 
+/**
+ * A "Doctor" login points at one doctor record of the actor's hospital (that is what gives them My Schedule and
+ * their own appointments). Only one login per doctor; other roles can't carry the link. 0/absent clears it.
+ */
+async function resolveDoctorLink(doctorId: number | undefined, role: string, actor: Session, selfUserId?: number): Promise<number | null> {
+  if (!doctorId) return null;
+  if (role !== "Doctor") throw new BadRequestError("Only a user with the Doctor role can be linked to a doctor record");
+  const doctor = await doctorsRepo.getRow(doctorId);
+  assertOwnedByHospital(doctor, actor, "Doctor");
+  const taken = await usersRepo.findRow([{ column: "doctor_id", op: "eq", value: doctorId }]);
+  if (taken && taken.id !== selfUserId) throw new ConflictError(`${doctor.name} already has a login (${taken.email})`);
+  return doctor.id;
+}
+
 export async function createUser(input: unknown, actor: Session) {
   const data = validate(userCreateSchema, input);
   assertMayGrantRole(data.role, actor);
@@ -239,6 +255,7 @@ export async function createUser(input: unknown, actor: Session) {
     role: data.role,
     department_id: data.departmentId ?? null,
     staff_id: await resolveStaffLink(data.staffId, actor),
+    doctor_id: await resolveDoctorLink(data.doctorId, data.role, actor),
     status: data.status,
     last_login_at: null,
   });
@@ -251,6 +268,7 @@ const userUpdateSchema = {
   role: { type: "string", required: false, max: 60 },
   departmentId: { type: "number", required: false },
   staffId: { type: "number", required: false },
+  doctorId: { type: "number", required: false },
   status: { type: "enum", required: false, values: ["Active", "Inactive"] },
   password: { type: "string", required: false, min: 6, max: 100 },
 } as const;
@@ -269,6 +287,9 @@ export async function updateUser(id: number, input: unknown, actor: Session) {
   if ("status" in data) patch.status = data.status;
   if ("departmentId" in data) patch.department_id = data.departmentId ?? null;
   if ("staffId" in data) patch.staff_id = await resolveStaffLink(data.staffId, actor);
+  const newRole = ("role" in data && data.role ? data.role : existing.role) as string;
+  if ("doctorId" in data) patch.doctor_id = await resolveDoctorLink(data.doctorId, newRole, actor, id);
+  else if (newRole !== "Doctor" && existing.doctor_id != null) patch.doctor_id = null; // moved away from Doctor: drop the link
   if ("password" in data && data.password) {
     patch.password_hash = await hashPassword(String(data.password));
   }

@@ -356,6 +356,8 @@ export interface AdminUserDTO {
   departmentId: number | null;
   /** The staff record this login punches attendance as. */
   staffId: number | null;
+  /** The doctor record this login belongs to (Doctor role only). */
+  doctorId: number | null;
   status: string;
   lastLogin: string;
 }

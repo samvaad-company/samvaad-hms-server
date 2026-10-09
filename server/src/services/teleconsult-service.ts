@@ -340,7 +340,7 @@ export async function ensureMeetLink(appointmentId: number, opts: { replace?: bo
     const hospital = await hospitalsRepo.getRow(hospitalId);
     const access = MEET_ACCESS_VALUES.includes(hospital?.teleconsult_meet_access as MeetAccess) ? (hospital!.teleconsult_meet_access as MeetAccess) : "OPEN";
     const start = zonedInstant(appt.appointment_date, minutes);
-    // Hex digits are valid in a calendar event id (0-9, a-v) and unique per call, however close together two replacements are.
+    // Google event ids may only use 0-9 and a-v (base32hex) — 'r' separates, hex digits are within range — and are unique per call, however close together two replacements are.
     const nonce = randomBytes(5).toString("hex");
     const meet = await createMeetLink(hospitalId, {
       summary: `Video consultation — ${appt.patient_name} with ${appt.doctor}`,
@@ -351,7 +351,7 @@ export async function ensureMeetLink(appointmentId: number, opts: { replace?: bo
       attendees: [...new Set([booking?.patient_email ?? patient?.email ?? "", appt.doctor_id ? await doctorEmail(appt.doctor_id, hospitalId) : ""].map((e) => e.trim().toLowerCase()).filter(Boolean))],
       requestId: `samvaad-tc-${appt.id}${opts.replace ? `-${nonce}` : ""}`,
       // A replacement needs a calendar event of its own; the original stays where it is.
-      eventId: opts.replace ? `samvaadtc${appt.id}x${nonce}` : `samvaadtc${appt.id}`,
+      eventId: opts.replace ? `samvaadtc${appt.id}r${nonce}` : `samvaadtc${appt.id}`,
       access,
     });
     // Re-read before writing: staff may have pasted a link while Google was thinking.
@@ -638,7 +638,12 @@ async function loadOwnConsult(id: number, actor: Session): Promise<AppointmentRo
   const appt = await appointmentsRepo.getRow(id);
   assertOwnedByHospital(appt, actor, "Appointment");
   if (appt.type !== TELECONSULT_TYPE) throw new BadRequestError("That isn't a video consultation");
-  if (actor.role === "Doctor" && actor.doctorId !== appt.doctor_id) throw new NotFoundError("Appointment");
+  if (actor.role === "Doctor") {
+    if (actor.doctorId == null) {
+      throw new ForbiddenError("Your login isn't linked to a doctor record, so you can't manage video consultations. Ask an administrator to link it (Admin → Users).");
+    }
+    if (actor.doctorId !== appt.doctor_id) throw new NotFoundError("Appointment");
+  }
   return appt;
 }
 

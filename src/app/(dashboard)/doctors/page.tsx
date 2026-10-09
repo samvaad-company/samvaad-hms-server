@@ -4,7 +4,7 @@ import { useState } from "react";
 import { tw } from "@/lib/design-system";
 import { useRouter } from "next/navigation";
 import { Stethoscope, Plus, Phone } from "lucide-react";
-import { useList, useMutation } from "@/lib/api/hooks";
+import { useList } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
@@ -14,8 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
-import { Modal } from "@/components/shared/Modal";
-import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
 import Link from "next/link";
 import type { Doctor } from "@/types";
 
@@ -58,10 +57,6 @@ function DoctorRow({ row, actions }: { row: Doctor; actions: RowAction[] }) {
   );
 }
 
-const SPECIALTY_OPTS = ["General Physician","Paediatrician","Cardiologist","Neurologist","Orthopaedic Surgeon","Dermatologist","Gastroenterologist","Endocrinologist","Pulmonologist","Physiotherapist"].map(s => ({ value: s, label: s }));
-const DEPT_OPTS = ["OPD","Paediatrics","Cardiology","Neurology","Ortho","Skin","Surgery","Internal Med","Respiratory","Rehab"].map(d => ({ value: d, label: d }));
-const STATUS_OPTS = [{ value: "Active", label: "Active" }, { value: "In OPD", label: "In OPD" }, { value: "On Leave", label: "On Leave" }];
-
 export default function DoctorsPage() {
   const { can, user } = useAuth();
   const canWrite = can("doctors", "write");
@@ -70,29 +65,10 @@ export default function DoctorsPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<DoctorDTO | null>(null);
   const router = useRouter();
   const { items: doctors, reload } = useList<DoctorDTO>("/doctors", { all: true });
-  const { run, loading, error } = useMutation();
   const { dialog, remove, mutate } = useRowActions("doctors", reload);
-
-  const [form, setForm] = useState({ name: "", specialty: "", department: "", phone: "", experience: "", status: "Active" });
-  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
-
-  async function addDoctor() {
-    await run(() =>
-      api.post("/doctors", {
-        name: form.name,
-        specialty: form.specialty,
-        department: form.department,
-        phone: form.phone,
-        experience: form.experience,
-        status: form.status,
-      }),
-    );
-    setForm({ name: "", specialty: "", department: "", phone: "", experience: "", status: "Active" });
-    setShowModal(false);
-    reload();
-  }
 
   const visible = doctors.filter(d => {
     const matchF = filter === "All" || d.status === (FILTER_MAP[filter] ?? filter);
@@ -104,27 +80,12 @@ export default function DoctorsPage() {
   return (
     <>
       {dialog}
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Doctor"
-        footer={
-          <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <button onClick={addDoctor} disabled={loading || !form.name}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
-              {loading ? "Adding…" : "Add Doctor"}
-            </button>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2"><FormRow label="Full Name *"><FormInput placeholder="Dr. First Last" value={form.name} onChange={v => set("name", v)} /></FormRow></div>
-          <FormRow label="Specialty *"><FormSelect placeholder="Select specialty" value={form.specialty} onChange={v => set("specialty", v)} options={SPECIALTY_OPTS} /></FormRow>
-          <FormRow label="Department *"><FormSelect placeholder="Select dept" value={form.department} onChange={v => set("department", v)} options={DEPT_OPTS} /></FormRow>
-          <FormRow label="Phone *"><FormInput placeholder="+91 XXXXX XXXXX" type="tel" value={form.phone} onChange={v => set("phone", v)} /></FormRow>
-          <FormRow label="Experience"><FormInput placeholder="e.g. 10 yrs" value={form.experience} onChange={v => set("experience", v)} /></FormRow>
-          <FormRow label="Status"><FormSelect placeholder="Select status" value={form.status} onChange={v => set("status", v)} options={STATUS_OPTS} /></FormRow>
-          {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
-        </div>
-      </Modal>
+      <DoctorFormModal
+        open={showModal || !!editing}
+        doctor={editing}
+        onClose={() => { setShowModal(false); setEditing(null); }}
+        onSaved={reload}
+      />
 
       <PageHeader
         title="Doctors"
@@ -152,6 +113,7 @@ export default function DoctorsPage() {
                 { label: "View details", onClick: () => router.push(`/doctors/${r.id}`) },
                 ...(showOpenDashboard ? [{ label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) }] : []),
                 ...(canWrite ? [
+                  { label: "Edit details", onClick: () => setEditing(r) },
                   { label: "Mark Active", disabled: r.status === "Active", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "Active" })) },
                   { label: "Mark In OPD", disabled: r.status === "In OPD", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "In OPD" })) },
                   { label: "Mark On Leave", disabled: r.status === "On Leave", onClick: () => mutate(() => api.patch(`/doctors/${r.id}`, { status: "On Leave" })) },

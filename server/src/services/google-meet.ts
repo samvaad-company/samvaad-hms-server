@@ -332,7 +332,10 @@ export async function createMeetLink(hospitalId: number, req: MeetRequest): Prom
       spaceUrl = await createSpace(token, req.access);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      warning = `Couldn't set who can join the call (${reason}); Google's default applies — only invited guests can join without asking.`;
+      warning = /not available to the user/i.test(reason)
+        // Google only lets some accounts (Workspace) choose who can join; personal accounts get its default.
+        ? "This Google account can't choose who may join a call (Google only allows that on Workspace accounts). The link works: patients can join once the doctor admits them, or if their email is invited."
+        : `Couldn't set who can join the call (${reason}); Google's default applies — only invited guests can join without asking.`;
       logger.warn("google.meet.space_failed", { hospitalId, reason });
     }
   } else {

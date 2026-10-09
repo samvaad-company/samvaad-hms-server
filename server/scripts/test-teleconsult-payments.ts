@@ -157,6 +157,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as {
         id: string; location?: string; attendees?: { email: string }[]; conferenceData?: unknown; extendedProperties?: { private?: Record<string, string> };
       };
+      // The real API only accepts base32hex ids (0-9, a-v), 5-1024 characters.
+      if (!/^[0-9a-v]{5,1024}$/.test(body.id)) return json({ error: { message: "Invalid resource id value." } }, 400);
       if (g.events.has(body.id)) return json({ error: { message: "The requested identifier already exists." } }, 409);
       g.events.set(body.id, {
         id: body.id,

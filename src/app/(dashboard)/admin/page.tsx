@@ -9,7 +9,7 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
-import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO, StaffDTO, TeleconsultConfigDTO } from "@/types/api";
+import type { DepartmentDTO, AdminUserDTO, RadiologyLinkDTO, LabLinkDTO, StaffDTO, TeleconsultConfigDTO, DoctorDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Plus, Trash2, Edit2, Settings2, Save, Loader2, Link2, LocateFixed, Video } from "lucide-react";
 
@@ -343,6 +343,13 @@ const ROLE_CLR: Record<string, string> = {
   Accountant:    "bg-[#f0f0f0] text-[#57575f]",
 };
 
+/** A readable random password (no look-alike characters) for the admin to hand over. */
+function generatePassword(): string {
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return Array.from(bytes, b => chars[b % chars.length]).join("") + "#7";
+}
+
 const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Tele Caller","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner","Lab Partner"];
 
 function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
@@ -423,16 +430,111 @@ function LinkStaffModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClos
   );
 }
 
+function ResetPasswordModal({ user, onClose }: { user: AdminUserDTO; onClose: () => void }) {
+  const { run, loading, error } = useMutation();
+  const [password, setPassword] = useState("");
+  const [done, setDone] = useState(false);
+
+  async function save() {
+    await run(() => api.patch(`/admin/users/${user.id}`, { password }));
+    setDone(true);
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Reset password — ${user.name}`}
+      width={440}
+      footer={
+        <>
+          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">{done ? "Close" : "Cancel"}</button>
+          {!done && (
+            <button onClick={save} disabled={loading || password.length < 6}
+              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              {loading ? "Saving…" : "Set password"}
+            </button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] font-light text-[#57575f]">
+          Their old password stops working straight away. Share the new one with {user.name} — nothing is emailed.
+        </p>
+        <FormRow label="New password" hint="At least 6 characters.">
+          <div className="flex gap-2">
+            <FormInput value={password} onChange={setPassword} placeholder="New password" />
+            <button type="button" onClick={() => setPassword(generatePassword())} className="shrink-0 text-[12px] text-[#009598] border border-[#dedee1] px-3 rounded-[8px] hover:bg-[#f6f6f6]">Generate</button>
+          </div>
+        </FormRow>
+        {done && <div className="text-[13px] text-[#007f4f] bg-[#e6f6ee] rounded-[8px] px-3 py-2">Password updated.</div>}
+        {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+      </div>
+    </Modal>
+  );
+}
+
+function LinkDoctorModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
+  const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
+  const { items: users } = useList<AdminUserDTO>("/admin/users");
+  const { run, loading, error } = useMutation();
+  const [doctorId, setDoctorId] = useState(user.doctorId ? String(user.doctorId) : "");
+  const taken = new Set(users.filter(u => u.doctorId && u.id !== user.id).map(u => u.doctorId));
+
+  async function save() {
+    await run(() => api.patch(`/admin/users/${user.id}`, { doctorId: doctorId ? Number(doctorId) : 0 }));
+    onSaved();
+    onClose();
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Linked doctor — ${user.name}`}
+      width={460}
+      footer={
+        <>
+          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={save} disabled={loading}
+            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            {loading ? "Saving…" : "Save Link"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] font-light text-[#57575f]">
+          Links this login to a doctor record, so {user.name} gets their own schedule, appointments and profile.
+        </p>
+        <FormRow label="Doctor">
+          <FormSelect value={doctorId} onChange={setDoctorId}
+            options={[{ value: "", label: "Not linked" }, ...doctors.filter(d => !taken.has(d.id)).map(d => ({ value: String(d.id), label: `${d.name} — ${d.specialty}` }))]} />
+        </FormRow>
+        {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
+      </div>
+    </Modal>
+  );
+}
+
 function UsersView() {
   const { items: adminUsers, reload } = useList<AdminUserDTO>("/admin/users");
   const { items: departments } = useList<DepartmentDTO>("/departments");
   const { run, loading, error } = useMutation();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
+  const { items: staffList } = useList<StaffDTO>("/staff", { all: true });
+  const { items: doctorList } = useList<DoctorDTO>("/doctors", { all: true });
+  const EMPTY_FORM = { name: "", email: "", password: "", role: "", departmentId: "", staffId: "", doctorId: "" };
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState<AdminUserDTO | null>(null);
+  const [linkingDoctor, setLinkingDoctor] = useState<AdminUserDTO | null>(null);
   const [changingRole, setChangingRole] = useState<AdminUserDTO | null>(null);
   const [linkingStaff, setLinkingStaff] = useState<AdminUserDTO | null>(null);
 
   const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const linkedDoctorIds = new Set(adminUsers.map(u => u.doctorId).filter(Boolean));
 
   async function createUser() {
     await run(() =>
@@ -442,9 +544,12 @@ function UsersView() {
         password: form.password,
         role: form.role,
         departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+        staffId: form.staffId ? Number(form.staffId) : undefined,
+        doctorId: form.role === "Doctor" && form.doctorId ? Number(form.doctorId) : undefined,
       }),
     );
-    setForm({ name: "", email: "", password: "Samvaad@123", role: "", departmentId: "" });
+    setCreated({ email: form.email, password: form.password });
+    setForm(EMPTY_FORM);
     setShowForm(false);
     reload();
   }
@@ -454,7 +559,7 @@ function UsersView() {
       {/* Action bar */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-[#dedee1]">
         <span className="text-[13px] font-normal text-[#57575f]">{adminUsers.length} users total</span>
-        <button onClick={() => setShowForm(v => !v)}
+        <button onClick={() => { setCreated(null); setShowForm(v => !v); }}
           className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
           <Plus size={14} /> Add User
         </button>
@@ -475,6 +580,24 @@ function UsersView() {
               <FormSelect placeholder="Select dept" value={form.departmentId} onChange={v => set("departmentId", v)} options={departments.map(d => ({ value: String(d.id), label: d.name }))} />
             </FormRow>
           </div>
+          <div className="grid grid-cols-4 gap-3 mt-3">
+            <FormRow label="Password *" hint="At least 6 characters. You give it to them — nothing is emailed.">
+              <div className="flex gap-2">
+                <FormInput placeholder="Set a password" value={form.password} onChange={v => set("password", v)} />
+                <button type="button" onClick={() => set("password", generatePassword())} className="shrink-0 text-[12px] text-[#009598] border border-[#dedee1] px-3 rounded-[8px] hover:bg-white">Generate</button>
+              </div>
+            </FormRow>
+            <FormRow label="Staff record" hint="For attendance punches.">
+              <FormSelect placeholder="Not linked" value={form.staffId} onChange={v => set("staffId", v)}
+                options={[{ value: "", label: "Not linked" }, ...staffList.map(st => ({ value: String(st.id), label: `${st.name} — ${st.role}` }))]} />
+            </FormRow>
+            {form.role === "Doctor" && (
+              <FormRow label="Linked doctor" hint="Gives them their own schedule and appointments.">
+                <FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => set("doctorId", v)}
+                  options={[{ value: "", label: "Not linked" }, ...doctorList.filter(d => !linkedDoctorIds.has(d.id)).map(d => ({ value: String(d.id), label: `${d.name} — ${d.specialty}` }))]} />
+              </FormRow>
+            )}
+          </div>
           {form.role === "Radiology Partner" && (
             <p className="text-[12px] font-light text-[#57575f] mt-2">
               Partner centres get their own login and see only the Radiology worklist — reports they upload
@@ -489,12 +612,19 @@ function UsersView() {
           )}
           {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
           <div className="flex gap-2 mt-3">
-            <button onClick={createUser} disabled={loading || !form.name || !form.email || !form.role}
+            <button onClick={createUser} disabled={loading || !form.name || !form.email || !form.role || form.password.length < 6}
               className="text-[12px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
               {loading ? "Creating…" : "Create User"}
             </button>
             <button onClick={() => setShowForm(false)} className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-white transition-colors">Cancel</button>
           </div>
+        </div>
+      )}
+
+      {created && (
+        <div className="px-5 py-3 border-b border-[#dedee1] bg-[#e6f6ee] text-[13px] text-[#11111c] flex items-center justify-between gap-3">
+          <span>User created. Share these with them — no email is sent: <b>{created.email}</b> / <b className="font-mono">{created.password}</b></span>
+          <button onClick={() => setCreated(null)} className="text-[12px] text-[#57575f] hover:text-[#11111c]">Dismiss</button>
         </div>
       )}
 
@@ -508,7 +638,9 @@ function UsersView() {
         {adminUsers.map(u => {
           const actions: RowAction[] = [
             { label: "Change Role", onClick: () => setChangingRole(u) },
+            { label: "Reset password", onClick: () => setResetting(u) },
             { label: u.staffId ? "Change linked staff" : "Link staff record", onClick: () => setLinkingStaff(u) },
+            ...(u.role === "Doctor" ? [{ label: u.doctorId ? "Change linked doctor" : "Link doctor record", onClick: () => setLinkingDoctor(u) }] : []),
           ];
           return (
             <div key={u.id} className="relative flex items-center h-[60px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 980 }}>
@@ -528,6 +660,10 @@ function UsersView() {
 
       {changingRole && (
         <ChangeRoleModal user={changingRole} onClose={() => setChangingRole(null)} onSaved={reload} />
+      )}
+      {resetting && <ResetPasswordModal user={resetting} onClose={() => setResetting(null)} />}
+      {linkingDoctor && (
+        <LinkDoctorModal user={linkingDoctor} onClose={() => setLinkingDoctor(null)} onSaved={reload} />
       )}
       {linkingStaff && (
         <LinkStaffModal user={linkingStaff} onClose={() => setLinkingStaff(null)} onSaved={reload} />

@@ -6,11 +6,13 @@ import {
   appointmentsRepo,
   opdRepo,
   departmentsRepo,
+  usersRepo,
 } from "@/repositories";
 import { toDoctorDTO, toAppointmentDTO, toOpdDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { type DoctorRow } from "@/db/tables";
 import { validate, validatePartial } from "@/lib/validation";
+import { ValidationError } from "@/lib/errors";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
@@ -111,23 +113,59 @@ export async function createDoctor(input: unknown, actor: Session) {
   return toDoctorDTO(row as DoctorRow);
 }
 
+/** Appointments and OPD visits carry the doctor's name; keep them in step when the name changes. */
+async function propagateDoctorName(id: number, name: string): Promise<void> {
+  for (const repo of [appointmentsRepo, opdRepo] as const) {
+    const { rows } = await repo.listRows({ filters: [{ column: "doctor_id", op: "eq", value: id }], unpaged: true });
+    for (const r of rows) if (r.doctor !== name) await repo.update(r.id, { doctor: name });
+  }
+  const login = await usersRepo.findRow([{ column: "doctor_id", op: "eq", value: id }]);
+  if (login && login.name !== name) await usersRepo.update(login.id, { name });
+}
+
+/** Apply a validated partial edit to a doctor record, keeping the denormalised names consistent. */
+async function applyDoctorEdit(existing: DoctorRow, input: unknown, allowed: readonly string[], actor: Session) {
+  const data = validatePartial(schema, input);
+  const patch: Record<string, unknown> = {};
+  // validatePartial skips blanks, so a cleared name would silently do nothing — say so instead.
+  const rawName = (input as Record<string, unknown> | null)?.name;
+  if (allowed.includes("name") && typeof rawName === "string" && !rawName.trim()) {
+    throw new ValidationError([{ field: "name", message: "is required" }]);
+  }
+  if (allowed.includes("name") && data.name) patch.name = data.name;
+  if (allowed.includes("specialty") && "specialty" in data) patch.specialty = data.specialty;
+  if (allowed.includes("phone") && "phone" in data) patch.phone = data.phone;
+  if (allowed.includes("experience") && "experience" in data) patch.experience = data.experience;
+  if (allowed.includes("status") && "status" in data) patch.status = data.status;
+  if (allowed.includes("department")) {
+    if ("departmentId" in data) {
+      patch.department_id = data.departmentId ?? null;
+      patch.department = await deptName(data.departmentId as number | undefined, existing.department);
+    } else if ("department" in data) {
+      patch.department = data.department;
+    }
+  }
+  const row = (await doctorsRepo.update(existing.id, patch)) as DoctorRow;
+  if (typeof patch.name === "string" && patch.name !== existing.name) await propagateDoctorName(existing.id, patch.name);
+  await audit(actor, "update", "doctor", existing.id, patch);
+  return row;
+}
+
+const ADMIN_EDITABLE = ["name", "specialty", "department", "phone", "experience", "status"] as const;
+/** What a doctor may change on their own record — not their department. */
+export const SELF_EDITABLE = ["name", "specialty", "phone", "experience", "status"] as const;
+
 export async function updateDoctor(id: number, input: unknown, actor: Session) {
   const existing = await doctorsRepo.getRow(id);
   assertOwnedByHospital(existing, actor, "Doctor");
-  const data = validatePartial(schema, input);
-  const patch: Record<string, unknown> = {};
-  if ("name" in data) patch.name = data.name;
-  if ("specialty" in data) patch.specialty = data.specialty;
-  if ("phone" in data) patch.phone = data.phone;
-  if ("experience" in data) patch.experience = data.experience;
-  if ("status" in data) patch.status = data.status;
-  if ("departmentId" in data) {
-    patch.department_id = data.departmentId ?? null;
-    patch.department = await deptName(data.departmentId as number | undefined, existing.department);
-  }
-  const row = await doctorsRepo.update(id, patch);
-  await audit(actor, "update", "doctor", id, patch);
-  return toDoctorDTO(row as DoctorRow);
+  return toDoctorDTO(await applyDoctorEdit(existing, input, ADMIN_EDITABLE, actor));
+}
+
+/** A doctor edits their own record (called from the profile endpoint). */
+export async function updateOwnDoctorRecord(doctorId: number, input: unknown, actor: Session) {
+  const existing = await doctorsRepo.getRow(doctorId);
+  assertOwnedByHospital(existing, actor, "Doctor");
+  return toDoctorDTO(await applyDoctorEdit(existing, input, SELF_EDITABLE, actor));
 }
 
 export async function deleteDoctor(id: number, actor: Session) {
