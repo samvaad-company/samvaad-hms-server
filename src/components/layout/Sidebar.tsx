@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -131,7 +132,7 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { user, can } = useAuth();
 
@@ -248,4 +249,4 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
     </aside>
   );
-}
+});

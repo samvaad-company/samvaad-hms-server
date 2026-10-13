@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2 } from "lucide-react";
@@ -193,7 +193,7 @@ function GlobalSearch() {
   );
 }
 
-export function TopBar({ sidebarLeft }: TopBarProps) {
+export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -283,4 +283,4 @@ export function TopBar({ sidebarLeft }: TopBarProps) {
       </div>
     </div>
   );
-}
+});

@@ -47,6 +47,17 @@ function buildQuery(params?: QueryParams): string {
   return s ? `?${s}` : "";
 }
 
+/**
+ * Called after any successful write (POST/PUT/PATCH/DELETE) so the data cache can
+ * refresh what the write may have changed. Set once by the store provider.
+ */
+let mutationListener: (() => void) | null = null;
+export function setMutationListener(fn: (() => void) | null): void {
+  mutationListener = fn;
+}
+/** Writes that don't change hospital data, so they don't need to refresh the cache. */
+const NO_REFRESH = /^\/(auth\/(login|logout)|chat|scribe)(\/|$)/;
+
 async function request<T>(
   method: string,
   path: string,
@@ -59,7 +70,10 @@ async function request<T>(
     credentials: "same-origin",
   });
 
-  if (res.status === 204) return undefined;
+  if (res.status === 204) {
+    if (method !== "GET" && !NO_REFRESH.test(path)) mutationListener?.();
+    return undefined;
+  }
 
   let json: unknown = null;
   const text = await res.text();
@@ -89,6 +103,7 @@ async function request<T>(
     );
   }
 
+  if (method !== "GET" && !NO_REFRESH.test(path)) mutationListener?.();
   return json;
 }
 

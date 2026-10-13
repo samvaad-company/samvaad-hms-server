@@ -106,3 +106,9 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+
+/* Progress bar shown while the app loads data it has not fetched before. */
+@keyframes hms-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

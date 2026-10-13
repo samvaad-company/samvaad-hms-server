@@ -1,41 +1,31 @@
 "use client";
 
 /**
- * Data-fetching hooks built on the typed API client, backed by SWR for
- * caching + request dedup: two components (or two mounts of the same page
- * via navigation) asking for the same path+params share one cached result
- * instead of each firing its own fetch, and switching back to an
- * already-visited page shows the cached data instantly while revalidating
- * in the background. `path: null` skips the fetch entirely — for data that
- * depends on something not loaded yet (e.g. the signed-in user's name).
+ * Data hooks backed by the Redux API cache (src/store).
+ *
+ *  - First visit: nothing is cached yet, so `loading` is true until the response
+ *    arrives (pages show their loader; the shell shows a page loader).
+ *  - Every later visit: the last data comes straight from the store (`loading`
+ *    stays false) while a background request refreshes it; the store is only
+ *    touched if the response actually differs, so unchanged screens don't re-render.
+ *  - After any save, every mounted query refreshes itself.
+ *
+ * `path: null` skips the request, for data that depends on something not loaded yet.
  */
-import { useCallback, useState } from "react";
-import useSWR from "swr";
-import { api, ApiClientError, type QueryParams } from "@/lib/api/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiClientError, type QueryParams } from "@/lib/api/client";
 import type { PaginationMeta } from "@/types/api";
+import { useAppDispatch, useAppSelector } from "@/store";
+import { fetchQuery, queryKey, type Query } from "@/store/thunks";
+import type { StoredError } from "@/store/cacheSlice";
 
 export interface ListState<T> {
   items: T[];
   meta: PaginationMeta | null;
+  /** True only while there is nothing to show yet (the first load). Cached data never reports loading. */
   loading: boolean;
   error: ApiClientError | null;
   reload: () => void;
-}
-
-export function useList<T>(path: string | null, params?: QueryParams): ListState<T> {
-  const key = path ? ([path, params ?? {}] as const) : null;
-  const { data, error, isLoading, mutate } = useSWR(
-    key,
-    ([p, prms]) => api.list<T>(p, prms),
-  );
-
-  return {
-    items: data?.data ?? [],
-    meta: data?.meta ?? null,
-    loading: isLoading,
-    error: (error as ApiClientError) ?? null,
-    reload: () => void mutate(),
-  };
 }
 
 export interface ItemState<T> {
@@ -45,15 +35,59 @@ export interface ItemState<T> {
   reload: () => void;
 }
 
-export function useItem<T>(path: string | null): ItemState<T> {
-  const { data, error, isLoading, mutate } = useSWR(path, (p: string) => api.get<T>(p));
+// One shared empty array, so "no data yet" is the same reference every render.
+const NO_ITEMS: never[] = [];
 
-  return {
-    item: data ?? null,
-    loading: isLoading,
-    error: (error as ApiClientError) ?? null,
-    reload: () => void mutate(),
-  };
+const toError = (e: StoredError | null | undefined): ApiClientError | null =>
+  e ? new ApiClientError(e.status, e.code, e.message, e.details) : null;
+
+/**
+ * The shared engine: subscribes to just the pieces of one cache entry, and keeps it fresh.
+ * Each selector returns a stable value, so the component re-renders only when what it shows changes.
+ */
+function useQuery(q: Query | null) {
+  const dispatch = useAppDispatch();
+  const key = q?.key ?? "";
+  const data = useAppSelector((s) => s.apiCache.entries[key]?.data);
+  const meta = useAppSelector((s) => s.apiCache.entries[key]?.meta ?? null);
+  const storedError = useAppSelector((s) => s.apiCache.entries[key]?.error);
+  const loaded = useAppSelector((s) => s.apiCache.entries[key]?.loadedAt != null);
+  const epoch = useAppSelector((s) => s.apiCache.epoch);
+
+  // Refresh on mount, when the key changes, and whenever something was saved (epoch bump).
+  // `q` is re-created each render, so the effect is keyed on the stable string instead.
+  const { kind, path } = q ?? { kind: "item" as const, path: "" };
+  const paramsJson = q?.params ? JSON.stringify(q.params) : "";
+  useEffect(() => {
+    if (!key) return;
+    const params = paramsJson ? (JSON.parse(paramsJson) as QueryParams) : undefined;
+    void dispatch(fetchQuery({ key, kind, path, params }));
+  }, [dispatch, key, kind, path, paramsJson, epoch]);
+
+  const reload = useCallback(() => {
+    if (!key) return;
+    const params = paramsJson ? (JSON.parse(paramsJson) as QueryParams) : undefined;
+    void dispatch(fetchQuery({ key, kind, path, params }, { force: true }));
+  }, [dispatch, key, kind, path, paramsJson]);
+
+  const error = useMemo(() => toError(storedError), [storedError]);
+  return { data, meta, loaded, error, reload, active: !!key };
+}
+
+export function useList<T>(path: string | null, params?: QueryParams): ListState<T> {
+  const q = path ? { key: queryKey(path, params), kind: "list" as const, path, params } : null;
+  const { data, meta, loaded, error, reload, active } = useQuery(q);
+  const items = (data as T[] | undefined) ?? (NO_ITEMS as T[]);
+  const loading = active && !loaded && !error;
+  return useMemo(() => ({ items, meta, loading, error, reload }), [items, meta, loading, error, reload]);
+}
+
+export function useItem<T>(path: string | null): ItemState<T> {
+  const q = path ? { key: queryKey(path), kind: "item" as const, path } : null;
+  const { data, loaded, error, reload, active } = useQuery(q);
+  const item = (data as T | undefined) ?? null;
+  const loading = active && !loaded && !error;
+  return useMemo(() => ({ item, loading, error, reload }), [item, loading, error, reload]);
 }
 
 export interface MutationState {
@@ -84,5 +118,5 @@ export function useMutation(): MutationState & {
 
   const reset = useCallback(() => setError(null), []);
 
-  return { loading, error, run, reset };
+  return useMemo(() => ({ loading, error, run, reset }), [loading, error, run, reset]);
 }
