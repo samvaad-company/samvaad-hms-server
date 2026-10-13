@@ -18,7 +18,11 @@ interface MyProfile {
 }
 
 /** "My profile": every signed-in user edits their own details here (role, email and status stay with admins). */
-export function MyProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MyProfileModal(props: { open: boolean; onClose: () => void }) {
+  return props.open ? <MyProfile {...props} /> : null; // mounted only while open, so it starts clean each time
+}
+
+function MyProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { refresh } = useAuth();
   const { run, loading, error } = useMutation();
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -29,15 +33,11 @@ export function MyProfileModal({ open, onClose }: { open: boolean; onClose: () =
   const isDoctor = profile?.specialty !== undefined;
 
   useEffect(() => {
-    if (!open) return;
-    setSaved(false);
-    setMismatch(false);
-    setPw({ current: "", next: "", confirm: "" });
     api.get<MyProfile>("/auth/profile").then((p) => {
       setProfile(p);
       setForm({ name: p.name, phone: p.phone ?? "", specialty: p.specialty ?? "", experience: p.experience ?? "" });
     }).catch(() => setProfile(null));
-  }, [open]);
+  }, []);
 
   async function save() {
     setSaved(false);
@@ -83,7 +83,7 @@ export function MyProfileModal({ open, onClose }: { open: boolean; onClose: () =
           <FormRow label="New password" hint="At least 6 characters."><FormInput type="password" value={pw.next} onChange={(v) => setPw((p) => ({ ...p, next: v }))} /></FormRow>
           <FormRow label="Confirm new password"><FormInput type="password" error={mismatch} value={pw.confirm} onChange={(v) => setPw((p) => ({ ...p, confirm: v }))} /></FormRow>
 
-          {mismatch && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">The new passwords don't match.</div>}
+          {mismatch && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">The new passwords don&apos;t match.</div>}
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
           {saved && !error && <div className="col-span-2 text-[13px] text-[#007f4f] bg-[#e6f6ee] rounded-[8px] px-3 py-2">Saved.</div>}
         </div>

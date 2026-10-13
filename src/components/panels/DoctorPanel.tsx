@@ -11,12 +11,14 @@ import type { OpdRecordDTO, AppointmentDTO, PrescriptionDTO } from "@/types/api"
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
   Users, Clock, CheckCircle, FileText, Calendar,
-  FlaskConical, ScanLine, AlertCircle,
+  FlaskConical, ScanLine, AlertCircle, CalendarClock,
 } from "lucide-react";
 import { tw } from "@/lib/design-system";
+import { RescheduleModal } from "@/components/scheduling/RescheduleModal";
 import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
 import { useItem } from "@/lib/api/hooks";
 import type { DoctorScheduleDTO } from "@/types/api";
+import { useState } from "react";
 import Link from "next/link";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
 
@@ -29,6 +31,7 @@ export function DoctorPanel() {
   const { items: appointments, reload: reloadAppointments } = useList<AppointmentDTO>("/appointments", { all: true });
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { run } = useMutation();
+  const [moving, setMoving] = useState<AppointmentDTO | null>(null);
   const advance = (opdId: number, status: string) =>
     run(() => api.patch(`/opd/${opdId}`, { status })).then(reload);
 
@@ -53,6 +56,8 @@ export function DoctorPanel() {
         subtitle={`Doctor Panel · ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}`}
         badge="OPD Live"
       />
+
+      {moving && <RescheduleModal appt={moving} open onClose={() => setMoving(null)} onMoved={reloadAppointments} />}
 
       {!linked && (
         <div className={`${tw.gutterX} mb-5`}>
@@ -99,7 +104,13 @@ export function DoctorPanel() {
                     <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
                     <span className="text-[11px] font-light text-[#57575f] truncate">{a.date} · {a.time}{a.reason ? ` · ${a.reason}` : ""}</span>
                   </div>
-                  <ConsultLinkActions appt={a} canWrite onChanged={reloadAppointments} />
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button type="button" onClick={() => setMoving(a)}
+                      className="inline-flex items-center gap-[5px] text-[12px] text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors cursor-pointer">
+                      <CalendarClock size={13} /> Reschedule
+                    </button>
+                    <ConsultLinkActions appt={a} canWrite onChanged={reloadAppointments} />
+                  </div>
                 </div>
               ))}
             </div>

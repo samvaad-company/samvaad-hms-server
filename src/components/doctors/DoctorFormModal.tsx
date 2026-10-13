@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { useMutation } from "@/lib/api/hooks";
 import { Modal } from "@/components/shared/Modal";
@@ -17,8 +17,17 @@ const withCurrent = (list: string[], current?: string) =>
 
 const EMPTY = { name: "", specialty: "", department: "", phone: "", experience: "", status: "Active" };
 
-/** Add a doctor, or edit one when `doctor` is given. */
-export function DoctorFormModal({
+/** Add a doctor, or edit one when `doctor` is given. The form only exists while open, so it always starts from the saved details. */
+export function DoctorFormModal(props: {
+  open: boolean;
+  doctor?: DoctorDTO | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  return props.open ? <DoctorForm key={props.doctor?.id ?? "new"} {...props} /> : null;
+}
+
+function DoctorForm({
   open,
   doctor,
   onClose,
@@ -31,16 +40,10 @@ export function DoctorFormModal({
 }) {
   const editing = !!doctor;
   const { run, loading, error } = useMutation();
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm] = useState(() => doctor
+    ? { name: doctor.name, specialty: doctor.specialty, department: doctor.department, phone: doctor.phone, experience: doctor.experience, status: doctor.status }
+    : EMPTY);
   const set = (k: keyof typeof EMPTY, v: string) => setForm((prev) => ({ ...prev, [k]: v }));
-
-  // Start from the doctor's saved details each time the dialog opens.
-  useEffect(() => {
-    if (!open) return;
-    setForm(doctor
-      ? { name: doctor.name, specialty: doctor.specialty, department: doctor.department, phone: doctor.phone, experience: doctor.experience, status: doctor.status }
-      : EMPTY);
-  }, [open, doctor]);
 
   async function save() {
     await run(() => (doctor ? api.patch(`/doctors/${doctor.id}`, form) : api.post("/doctors", form)));
