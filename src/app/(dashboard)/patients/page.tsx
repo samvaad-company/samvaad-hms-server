@@ -1,159 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { tw, iconSize } from "@/lib/design-system";
-import { User, Phone, Plus } from "lucide-react";
+import Link from "next/link";
+import { Users } from "lucide-react";
 import { useList } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
-import { useRowActions } from "@/lib/api/useRowActions";
-import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { PatientDTO } from "@/types/api";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { DataTable } from "@/components/shared/DataTable";
-import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
-import { inDateRange, type DateRangeId } from "@/lib/dates";
-import type { Patient } from "@/types";
-import Link from "next/link";
 
-// ─── Gender Icons ─────────────────────────────────────────────────────────────
-
-function MaleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="6.5" cy="9.5" r="3.5" stroke="#11111C" strokeWidth="1.2" />
-      <path d="M9.5 6.5L13 3" stroke="#11111C" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M10.5 3H13V5.5" stroke="#11111C" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function FemaleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="5.5" r="3.5" stroke="#11111C" strokeWidth="1.2" />
-      <path d="M8 9V14" stroke="#11111C" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M5.5 11.5H10.5" stroke="#11111C" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// ─── Column Definitions ───────────────────────────────────────────────────────
-
-const COLUMNS = [
-  { label: "Patient Name", width: "minmax(150px,1.4fr)" },
-  { label: "Age",          width: "64px" },
-  { label: "Phone Number", width: "150px" },
-  { label: "Gender",       width: "100px" },
-  { label: "Reason",       width: "minmax(150px,1.6fr)" },
-  { label: "Doctor",       width: "minmax(140px,1.3fr)" },
-  { label: "Status",       width: "120px" },
-  { label: "Date",         width: "110px" },
-  { label: "Time",         width: "90px" },
-  { label: "Action",       width: "52px", align: "right" as const },
-];
-const MIN_WIDTH = 1320;
-
-const FILTER_IDS = ["All", "Today", "Completed", "Cancelled"] as const;
-
-function buildFilters(patients: PatientDTO[]) {
-  return FILTER_IDS.map((id) => ({
-    id,
-    label: id === "All" ? "All" : `${id} (${patients.filter((p) => p.status === id).length})`,
-  }));
-}
-
-// ─── Row Component ────────────────────────────────────────────────────────────
-
-function PatientRow({ patient, actions }: { patient: Patient; actions: RowAction[] }) {
-  return (
-    <Link href={`/patients/${patient.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{patient.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{patient.age}</span>
-      <div className="flex items-center gap-[5px] min-w-0">
-        <Phone size={iconSize.sm} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.phone}</span>
-      </div>
-      <div className="flex items-center gap-[6px] min-w-0">
-        {patient.gender === "Male" ? <MaleIcon /> : <FemaleIcon />}
-        <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.gender}</span>
-      </div>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.reason}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{patient.doctor}</span>
-      <div><StatusBadge status={patient.status} /></div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{patient.date}</span>
-      <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{patient.time}</span>
-      <div className="flex justify-end"><RowMenu actions={actions} /></div>
-    </Link>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function PatientsPage() {
+/**
+ * /patients: on a tablet or wider screen, open the first patient (alphabetically) so the right side is never
+ * empty; on a phone-width screen the list is the page. The list itself lives in layout.tsx.
+ */
+export default function PatientsIndexPage() {
   const router = useRouter();
   const { can } = useAuth();
-  const canWrite = can("patients", "write");
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [range, setRange] = useState<DateRangeId>("all");
-  const [idCardFor, setIdCardFor] = useState<PatientDTO | null>(null);
-  const { items: patients, loading, reload } = useList<PatientDTO>("/patients", { all: true });
-  const { dialog, remove } = useRowActions("patients", reload);
+  const { items: patients, loading } = useList<PatientDTO>("/patients", { all: true });
+  const first = patients.length ? patients.reduce((a, b) => (a.name.localeCompare(b.name) <= 0 ? a : b)) : null;
 
-  const visible = patients.filter(p => {
-    const matchF = filter === "All" || p.status === filter;
-    const q = search.toLowerCase();
-    const matchS = !q || p.name.toLowerCase().includes(q) || (p.patientId ?? "").toLowerCase().includes(q) || p.doctor.toLowerCase().includes(q) || p.reason.toLowerCase().includes(q);
-    return matchF && matchS && inDateRange(p.date, range);
-  });
+  useEffect(() => {
+    if (first && window.matchMedia("(min-width: 768px)").matches) router.replace(`/patients/${first.id}`);
+  }, [first, router]);
 
+  if (loading || first) return null;
   return (
-    <>
-      {dialog}
-      {idCardFor && <PatientIdCardModal patient={idCardFor} onClose={() => setIdCardFor(null)} />}
-      <PageHeader
-        title="Patients"
-        subtitle="Manage your patient records, review visit history, and track ongoing treatments — all in one place."
-        stats={[{ icon: User, value: `${visible.length}`, label: "Matching Patients" }]}
-        action={canWrite ? { label: "Add Patient", icon: Plus, onClick: () => router.push("/patients/new") } : undefined}
-        range={range}
-        onRangeChange={setRange}
-      />
-
-      <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
-          <FilterBar
-            filters={buildFilters(patients)}
-            searchPlaceholder="Search by patient name, ID, or visit reason..."
-            activeFilter={filter}
-            onFilterChange={setFilter}
-            searchQuery={search}
-            onSearchChange={setSearch}
-          />
-          <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {loading && patients.length === 0 ? (
-              <div className="py-16 text-center text-[14px] text-[#57575f]">Loading patients…</div>
-            ) : visible.length === 0 ? (
-              <div className="py-16 text-center text-[14px] text-[#57575f]">No patients found.</div>
-            ) : (
-              visible.map((p) => (
-                <PatientRow
-                  key={p.id}
-                  patient={p}
-                  actions={[
-                    { label: "View details", onClick: () => router.push(`/patients/${p.id}`) },
-                    { label: "Print ID Card", onClick: () => setIdCardFor(p) },
-                    ...(canWrite ? [{ label: "Delete", danger: true, onClick: () => remove(p.id, p.name) }] : []),
-                  ]}
-                />
-              ))
-            )}
-          </DataTable>
-        </div>
-      </div>
-    </>
+    <div className="h-full flex flex-col items-center justify-center gap-3 text-[#57575f]">
+      <Users size={40} strokeWidth={1} className="opacity-30" />
+      <p className="text-[14px]">No patients yet.</p>
+      {can("patients", "write") && (
+        <Link href="/patients/new" className="text-[13px] text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82]">Register the first patient</Link>
+      )}
+    </div>
   );
 }

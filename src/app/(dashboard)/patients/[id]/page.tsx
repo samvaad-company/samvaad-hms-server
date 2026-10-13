@@ -1,21 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
-import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { parseDisplayDate, formatDate } from "@/lib/dates";
 import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
-import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
 import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
 import {
-  Phone, MapPin, Droplets, Calendar,
-  FileText, Upload, ShieldCheck, AlertCircle, ScanLine,
+  AlertCircle, Check, ChevronDown, ChevronLeft, Copy, IdCard, ShieldCheck, Phone,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -56,7 +53,7 @@ interface TimelineEvent {
  * Builds the visit timeline from the patient's real records — appointments,
  * OPD visits, prescriptions and lab tests — newest first.
  */
-function OverviewTab({ patient }: { patient: PatientDetail }) {
+function VisitsTab({ patient }: { patient: PatientDetail }) {
   const { items: appointments } = useList<AppointmentDTO>("/appointments", {
     all: true, patient_id: patient.id,
   });
@@ -318,129 +315,332 @@ function VaccinationsTab({ patientId }: { patientId: number }) {
   );
 }
 
+// ─── Header, tabs, overview ───────────────────────────────────────────────────
+
+/** Registration forms often store "none" / "NKDA" when there is nothing to record — that isn't an allergy or condition. */
+const NOTHING = /^(none|nil|no|na|n\/a|nkda|nka|-|—)\.?$/i;
+const recorded = (items: string[] | undefined) => (items ?? []).filter(i => i.trim() && !NOTHING.test(i.trim()));
+
+/** "45y 10mo" from a date of birth; falls back to the stored age. */
+function ageLabel(dob: string | null, age: number, now: number): string {
+  const d = dob ? new Date(dob) : null;
+  if (!d || Number.isNaN(d.getTime())) return `${age} yrs`;
+  const n = new Date(now);
+  let months = (n.getFullYear() - d.getFullYear()) * 12 + (n.getMonth() - d.getMonth());
+  if (n.getDate() < d.getDate()) months--;
+  if (months < 0) return `${age} yrs`;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return y > 0 ? `${y}y${m ? ` ${m}mo` : ""}` : `${m}mo`;
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={async () => {
+        try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1400); } catch { /* clipboard unavailable */ }
+      }}
+      className="text-[#57575f] hover:text-[#11111c] transition-colors cursor-pointer"
+    >
+      {done ? <Check size={13} className="text-[#00955c]" /> : <Copy size={13} strokeWidth={1.5} />}
+    </button>
+  );
+}
+
+function Field({ label, value, wide }: { label: string; value?: string | null; wide?: boolean }) {
+  return (
+    <div className={`flex flex-col gap-[2px] ${wide ? "col-span-2" : ""}`}>
+      <span className="text-[12px] font-light text-[#57575f]">{label}</span>
+      <span className="text-[14px] font-normal text-[#11111c] break-words">{value && value.trim() ? value : "—"}</span>
+    </div>
+  );
+}
+
+const DAY = 86_400_000;
+const shortDay = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="flex flex-col gap-[2px] min-w-[110px]">
+      <span className="text-[12px] font-light text-[#57575f]">{label}</span>
+      <span className="text-[15px] font-medium text-[#11111c]">{value}</span>
+      {sub && <span className="text-[11px] font-light text-[#57575f]">{sub}</span>}
+    </div>
+  );
+}
+
+/** Visit counts and dates, worked out from the patient's own appointments. */
+function EngagementCard({ appointments, now }: { appointments: AppointmentDTO[]; now: number }) {
+  const stats = useMemo(() => {
+    const today = new Date(now).toLocaleDateString("en-CA");
+    const yearAgo = new Date(now - 365 * DAY).toLocaleDateString("en-CA");
+    const done = appointments.filter(a => a.status === "Completed").sort((a, b) => a.date.localeCompare(b.date));
+    const upcoming = appointments
+      .filter(a => (a.status === "Upcoming" || a.status === "Today") && a.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const lastYear = appointments.filter(a => a.date >= yearAgo && a.date <= today);
+    const cancelled = lastYear.filter(a => a.status === "Cancelled").length;
+    const last = done[done.length - 1];
+    return {
+      visits: done.length,
+      visitsLastYear: done.filter(a => a.date >= yearAgo).length,
+      last, first: done[0], upcoming, cancelled, lastYearTotal: lastYear.length,
+      active: done.some(a => a.date >= yearAgo) || upcoming.length > 0,
+      daysAgo: last ? Math.max(0, Math.round((new Date(`${today}T00:00:00`).getTime() - new Date(`${last.date}T00:00:00`).getTime()) / DAY)) : null,
+    };
+  }, [appointments, now]);
+
+  return (
+    <div className="border border-[#dedee1] rounded-[12px] overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f0f0f0]">
+        <span className="text-[14px] font-medium text-[#11111c]">Engagement</span>
+        <span className={`inline-flex px-2 py-[2px] rounded-full text-[11px] font-normal ${stats.active ? "bg-[#dffff3] text-[#00955c]" : "bg-[#f0f0f0] text-[#57575f]"}`}>
+          {stats.active ? "Active" : "Inactive"}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-x-8 gap-y-4 px-4 py-4">
+        <Stat label="Visits" value={String(stats.visits)} sub={`${stats.visitsLastYear} in the last 12 months`} />
+        <Stat label="Last visit" value={stats.last ? formatDate(stats.last.date) : "—"} sub={stats.daysAgo != null ? (stats.daysAgo === 0 ? "today" : `${stats.daysAgo} day${stats.daysAgo === 1 ? "" : "s"} ago`) : undefined} />
+        <Stat label="First visit" value={stats.first ? formatDate(stats.first.date) : "—"} />
+        <Stat label="Cancelled (12 months)" value={`${stats.cancelled} of ${stats.lastYearTotal}`} />
+        <Stat label="Next booking" value={stats.upcoming[0] ? formatDate(stats.upcoming[0].date) : "—"} sub={stats.upcoming[0] ? `${stats.upcoming[0].time} · ${stats.upcoming[0].doctor}` : undefined} />
+      </div>
+      {stats.upcoming.length > 0 && (
+        <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-[#f0f0f0] bg-[#fafafa]">
+          {stats.upcoming.slice(0, 4).map(a => (
+            <Link key={a.id} href={`/appointments/${a.id}`}
+              className="inline-flex px-3 py-[4px] rounded-[8px] border border-[#b6e8cf] bg-[#effcf5] text-[12px] font-normal text-[#00955c] hover:bg-[#dffff3] transition-colors">
+              {shortDay(a.date)} · {a.time} · {a.doctor}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverviewTab({ patient, now }: { patient: PatientDetail; now: number }) {
+  const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true, patient_id: patient.id });
+  const address = [patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ");
+  const emergency = [patient.emergencyName, patient.emergencyRelation && `(${patient.emergencyRelation})`, patient.emergencyPhone].filter(Boolean).join(" ");
+  const insurance = [patient.insurer, patient.policyNumber && `Policy ${patient.policyNumber}`].filter(Boolean).join(" · ");
+
+  return (
+    <div className="p-5 flex flex-col gap-5">
+      <EngagementCard appointments={appointments} now={now} />
+      <div className="grid grid-cols-2 gap-x-10 gap-y-5 px-1">
+        <Field label="Date of birth" value={patient.dob ? formatDate(patient.dob) : null} />
+        <Field label="Gender" value={patient.gender} />
+        <Field label="Mobile" value={patient.phone} />
+        <Field label="Email" value={patient.email} />
+        <Field label="Blood group" value={patient.bloodGroup} />
+        <div className="flex flex-col gap-[2px]">
+          <span className="text-[12px] font-light text-[#57575f]">ABHA ID</span>
+          <AbhaBadge abhaId={patient.abhaId} variant="inline" />
+        </div>
+        <Field label="Address" value={address} wide />
+        <Field label="Emergency contact" value={emergency} />
+        <Field label="Insurance" value={insurance} />
+        <Field label="Corporate" value={patient.corporate} />
+        <Field label="Chronic conditions" value={recorded(patient.chronicConditions).join(", ")} />
+      </div>
+    </div>
+  );
+}
+
+function MedicalHistoryTab({ patient }: { patient: PatientDetail }) {
+  const allergies = recorded(patient.allergies);
+  const chronic = recorded(patient.chronicConditions);
+  return (
+    <div className="flex flex-col">
+      <div className="p-5 grid grid-cols-2 gap-5 border-b border-[#f0f0f0]">
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle size={14} className="text-[#ff0004]" strokeWidth={1.5} />
+            <p className="text-[12px] font-medium text-[#ff0004] uppercase tracking-wider">Allergies</p>
+          </div>
+          {allergies.length === 0 ? <p className="text-[13px] font-light text-[#57575f]">No known allergies</p> : (
+            <div className="flex flex-wrap gap-1">
+              {allergies.map(a => <span key={a} className="inline-flex px-[8px] py-[4px] bg-[#ffe9e9] text-[#ff0004] rounded-full text-[12px]">{a}</span>)}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck size={14} className="text-[#009598]" strokeWidth={1.5} />
+            <p className="text-[12px] font-medium text-[#009598] uppercase tracking-wider">Chronic conditions</p>
+          </div>
+          {chronic.length === 0 ? <p className="text-[13px] font-light text-[#57575f]">No chronic conditions</p> : (
+            <div className="flex flex-wrap gap-1">
+              {chronic.map(c => <span key={c} className="inline-flex px-[8px] py-[4px] bg-[#e8f7f7] text-[#009598] rounded-full text-[12px]">{c}</span>)}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="px-5 pt-4 text-[12px] font-medium text-[#57575f] uppercase tracking-wider">Prescriptions</div>
+      <PrescriptionsTab rxList={patient.prescriptions} />
+    </div>
+  );
+}
+
+function VitalsTab({ patientId }: { patientId: number }) {
+  const { items: visits } = useList<OpdRecordDTO>("/opd", { all: true, patient_id: patientId });
+  const withVitals = visits.filter(v => v.vitalsRecorded).sort((a, b) => b.id - a.id);
+  if (withVitals.length === 0) {
+    return <p className="p-5 text-[13px] font-light text-[#57575f]">No vitals recorded for this patient yet.</p>;
+  }
+  const cell = (v: number | null, unit = "") => (v == null ? "—" : `${v}${unit}`);
+  return (
+    <div className="p-5 flex flex-col gap-3">
+      {withVitals.map(v => (
+        <div key={v.id} className="border border-[#dedee1] rounded-[10px] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[13px] font-medium text-[#11111c]">{v.tokenNumber} · {v.doctor}</span>
+            <span className="text-[12px] font-light text-[#57575f]">{v.checkInTime}</span>
+          </div>
+          <div className="grid grid-cols-5 gap-4">
+            <Field label="Blood pressure" value={v.vitals.bpSystolic != null ? `${v.vitals.bpSystolic}/${cell(v.vitals.bpDiastolic)} mmHg` : null} />
+            <Field label="Pulse" value={v.vitals.pulse != null ? `${v.vitals.pulse} bpm` : null} />
+            <Field label="Temperature" value={v.vitals.temperature != null ? `${v.vitals.temperature} °F` : null} />
+            <Field label="SpO₂" value={v.vitals.spo2 != null ? `${v.vitals.spo2}%` : null} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: "overview",      label: "Overview" },
-  { id: "prescriptions", label: "Prescriptions" },
-  { id: "lab",           label: "Lab Reports" },
-  { id: "radiology",     label: "Radiology Reports" },
-  { id: "documents",     label: "Documents" },
-  { id: "vaccinations",  label: "Vaccinations" },
+const MAIN_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "documents", label: "Documents" },
+  { id: "history", label: "Medical history" },
+  { id: "visits", label: "Visits" },
+  { id: "vitals", label: "Vitals" },
 ];
+const MORE_TABS = [
+  { id: "lab", label: "Lab reports" },
+  { id: "radiology", label: "Radiology reports" },
+  { id: "vaccinations", label: "Vaccinations" },
+];
+
+/** Pill-style tab strip with a "More" menu for the less-used tabs. */
+function PatientTabs({ active, onChange }: { active: string; onChange: (id: string) => void }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const inMore = MORE_TABS.find(t => t.id === active);
+  const pill = (on: boolean) =>
+    `px-4 py-[7px] rounded-[8px] text-[14px] whitespace-nowrap transition-colors cursor-pointer ${on ? "bg-white text-[#11111c] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "text-[#57575f] hover:text-[#11111c]"}`;
+  return (
+    <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#f0f0f0] rounded-[10px] relative" role="tablist">
+      {MAIN_TABS.map(t => (
+        <button key={t.id} role="tab" aria-selected={active === t.id} onClick={() => onChange(t.id)} className={pill(active === t.id)}>{t.label}</button>
+      ))}
+      <div className="relative">
+        <button role="tab" aria-selected={!!inMore} onClick={() => setMoreOpen(o => !o)} className={`${pill(!!inMore)} inline-flex items-center gap-1`}>
+          {inMore ? inMore.label : "More"} <ChevronDown size={14} />
+        </button>
+        {moreOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+            <div className="absolute right-0 top-[40px] z-50 min-w-[190px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1">
+              {MORE_TABS.map(t => (
+                <button key={t.id} onClick={() => { onChange(t.id); setMoreOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-[13px] hover:bg-[#f6f6f6] cursor-pointer ${active === t.id ? "text-[#009598] font-medium" : "text-[#11111c]"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState("overview");
   const [showIdCard, setShowIdCard] = useState(false);
+  const [now] = useState(() => Date.now());
   const { item: patient, loading } = useItem<PatientDetail>(`/patients/${id}`);
-  useBreadcrumb("/patients", "Patients", patient?.name ?? "Patient Details");
 
   if (loading) {
     return (
-      <div className={`${tw.gutterX} pt-10`}>
+      <div className="p-6">
         <p className="text-[14px] font-normal text-[#57575f]">Loading patient…</p>
       </div>
     );
   }
   if (!patient) {
     return (
-      <div className={`${tw.gutterX} pt-10`}>
+      <div className="p-6">
         <p className="text-[14px] font-normal text-[#57575f]">Patient not found.</p>
       </div>
     );
   }
 
-  const allergies = patient.allergies ?? [];
-  const chronic = patient.chronicConditions ?? [];
+  const allergies = recorded(patient.allergies);
+  const initials = patient.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  const summary = [ageLabel(patient.dob, patient.age, now), patient.gender, patient.bloodGroup].filter(Boolean).join(" · ");
 
   return (
     <>
       {showIdCard && <PatientIdCardModal patient={patient} onClose={() => setShowIdCard(false)} />}
-      <div className={`${tw.gutterX} mb-[30px] pt-4`}>
-        <div className="flex gap-5 items-start">
-          {/* ── Left: Profile card ── */}
-          <div className="flex flex-col gap-4 shrink-0" style={{ width: 280 }}>
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col items-center gap-3`}>
-              <div className="w-16 h-16 rounded-full bg-[#e8f7f7] flex items-center justify-center text-[24px] font-medium text-[#009598]">
-                {patient.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-              </div>
-              <div className="text-center">
-                <p className="text-[16px] font-medium text-[#11111c]">{patient.name}</p>
-                <p className="text-[12px] font-light text-[#57575f]">{patient.patientId}</p>
-              </div>
+      <div className="p-5 flex flex-col gap-4">
+        <div className="md:hidden">
+          <Link href="/patients" className="inline-flex items-center gap-1 text-[13px] text-[#57575f] hover:text-[#11111c]">
+            <ChevronLeft size={15} /> All patients
+          </Link>
+        </div>
+        {/* ── Identity header ── */}
+        <div className={`${tw.surface.card} ${tw.radius.card} px-6 py-5 flex items-start gap-4`}>
+          <div className="w-12 h-12 rounded-full bg-[#e8f7f7] flex items-center justify-center text-[16px] font-medium text-[#009598] shrink-0">{initials}</div>
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-[20px] font-medium text-[#11111c] leading-tight">{patient.name}</h1>
+              {patient.patientId && (
+                <span className="inline-flex items-center gap-2 text-[14px] font-mono text-[#57575f]">
+                  {patient.patientId} <CopyButton text={patient.patientId} label="Copy patient ID" />
+                </span>
+              )}
               <StatusBadge status={patient.status} />
-              <button
-                onClick={() => setShowIdCard(true)}
-                className="w-full flex items-center justify-center gap-2 text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors"
-              >
-                <ScanLine size={13} /> Print ID Card
-              </button>
             </div>
-
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>
-              {[
-                { icon: Calendar,  label: "Age",         value: `${patient.age} years · ${patient.gender}` },
-                { icon: Droplets,  label: "Blood Group", value: patient.bloodGroup ?? "—" },
-                { icon: Phone,     label: "Phone",        value: patient.phone },
-                { icon: MapPin,    label: "City",         value: patient.city ?? "—" },
-              ].map(row => (
-                <div key={row.label} className="flex items-start gap-3">
-                  <row.icon size={14} className="text-[#57575f] mt-[3px] shrink-0" strokeWidth={1.5} />
-                  <div>
-                    <p className="text-[11px] font-normal text-[#57575f] uppercase tracking-wider">{row.label}</p>
-                    <p className="text-[13px] font-normal text-[#11111c]">{row.value}</p>
-                  </div>
-                </div>
-              ))}
-              <div className="border-t border-[#f0f0f0] pt-3">
-                <AbhaBadge abhaId={patient.abhaId} variant="card" />
-              </div>
+            <div className="text-[14px] font-normal text-[#57575f]">{summary}</div>
+            <div className="flex items-center gap-2 text-[13px] text-[#57575f]">
+              <Phone size={13} strokeWidth={1.5} /> {patient.phone} <CopyButton text={patient.phone} label="Copy phone number" />
             </div>
-
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <div className="flex items-center gap-2 mb-3">
-                <AlertCircle size={14} className="text-[#ff0004]" strokeWidth={1.5} />
-                <p className="text-[12px] font-medium text-[#ff0004] uppercase tracking-wider">Allergies</p>
-              </div>
-              {allergies.length === 0 ? (
-                <p className="text-[12px] font-light text-[#57575f]">No known allergies</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {allergies.length > 0 ? (
+                <span className="inline-flex items-center gap-[6px] px-3 py-[4px] rounded-[8px] border border-[#ffc9c9] bg-[#fff3f3] text-[12px] text-[#ff0004]">
+                  <AlertCircle size={13} strokeWidth={1.5} /> Allergies documented · {allergies.join(", ")}
+                </span>
               ) : (
-                <div className="flex flex-wrap gap-1">
-                  {allergies.map(a => (
-                    <span key={a} className="inline-flex px-[8px] py-[4px] bg-[#ffe9e9] text-[#ff0004] rounded-full text-[11px] font-normal">{a}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldCheck size={14} className="text-[#009598]" strokeWidth={1.5} />
-                <p className="text-[12px] font-medium text-[#009598] uppercase tracking-wider">Chronic Conditions</p>
-              </div>
-              {chronic.length === 0 ? (
-                <p className="text-[12px] font-light text-[#57575f]">No chronic conditions</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {chronic.map(c => (
-                    <span key={c} className="inline-flex px-[8px] py-[4px] bg-[#e8f7f7] text-[#009598] rounded-full text-[11px] font-normal">{c}</span>
-                  ))}
-                </div>
+                <span className="inline-flex items-center gap-[6px] px-3 py-[4px] rounded-[8px] border border-[#dedee1] text-[12px] text-[#57575f]">No known allergies</span>
               )}
             </div>
           </div>
+          <button onClick={() => setShowIdCard(true)}
+            className="inline-flex items-center gap-2 text-[13px] font-normal text-[#11111c] border border-[#dedee1] px-4 py-[8px] rounded-[10px] hover:bg-[#f6f6f6] transition-colors cursor-pointer shrink-0">
+            <IdCard size={15} strokeWidth={1.5} /> Patient card
+          </button>
+        </div>
 
-          {/* ── Right: Tabbed content ── */}
-          <div className={`flex-1 ${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 580 }}>
-            <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-            {tab === "overview"      && <OverviewTab patient={patient} />}
-            {tab === "prescriptions" && <PrescriptionsTab rxList={patient.prescriptions} />}
-            {tab === "lab"           && <LabReportsTab tests={patient.labTests} />}
-            {tab === "radiology"     && <RadiologyReportsTab tests={patient.radiologyTests} />}
-            {tab === "documents"     && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}
-            {tab === "vaccinations"  && <VaccinationsTab patientId={patient.id} />}
-          </div>
+        {/* ── Tabs + content ── */}
+        <PatientTabs active={tab} onChange={setTab} />
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
+          {tab === "overview"     && <OverviewTab patient={patient} now={now} />}
+          {tab === "documents"    && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}
+          {tab === "history"      && <MedicalHistoryTab patient={patient} />}
+          {tab === "visits"       && <VisitsTab patient={patient} />}
+          {tab === "vitals"       && <VitalsTab patientId={patient.id} />}
+          {tab === "lab"          && <LabReportsTab tests={patient.labTests} />}
+          {tab === "radiology"    && <RadiologyReportsTab tests={patient.radiologyTests} />}
+          {tab === "vaccinations" && <VaccinationsTab patientId={patient.id} />}
         </div>
       </div>
     </>

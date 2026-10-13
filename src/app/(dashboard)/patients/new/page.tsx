@@ -9,7 +9,6 @@ import { User, Check, Loader2 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api/client";
 import { useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
-import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { validateMobile, validateDob, todayIso } from "@/lib/validators";
 import Link from "next/link";
 
@@ -24,7 +23,6 @@ const GENDER_MAP: Record<string, string> = { male: "Male", female: "Female", oth
 export default function NewPatientPage() {
   const router = useRouter();
   const { can } = useAuth();
-  useBreadcrumb("/patients", "Patients", "New Patient Registration");
   const { run, loading, error } = useMutation();
   const [step, setStep] = useState(1);
   const [hmsId] = useState(() => `HMS-${String(Math.floor(Math.random() * 9000) + 1000)}`);
@@ -65,8 +63,8 @@ export default function NewPatientPage() {
 
   async function submit() {
     try {
-      await run(() =>
-        api.post("/patients", {
+      const created = await run(() =>
+        api.post<{ id?: number }>("/patients", {
           name: form.name,
           phone: form.mobile,
           dob: form.dob || undefined,
@@ -88,7 +86,8 @@ export default function NewPatientPage() {
           corporate: form.corporate || undefined,
         }),
       );
-      router.push("/patients");
+      // Land on the patient just registered (the list stays beside it).
+      router.push(created?.id ? `/patients/${created.id}` : "/patients");
     } catch {
       // error surfaced via `error` below
     }
@@ -96,7 +95,7 @@ export default function NewPatientPage() {
 
   if (!can("patients", "write")) {
     return (
-      <div className={`${tw.gutterX} pt-10`}>
+      <div className="p-6">
         <p className="text-[14px] font-normal text-[#57575f]">
           You don&apos;t have permission to register patients. <Link href="/patients" className="text-[#009598] hover:underline">Back to Patients</Link>
         </p>
@@ -106,7 +105,7 @@ export default function NewPatientPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} pt-4 pb-3 flex items-end justify-between`}>
+      <div className="px-5 pt-5 pb-3 flex items-end justify-between gap-3 flex-wrap">
         <div className="flex flex-col gap-[2px]">
           <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New Patient Registration</h1>
           <p className="text-[13px] font-light text-[#57575f] leading-[17px]">
@@ -116,7 +115,7 @@ export default function NewPatientPage() {
         <span className="text-[12px] font-medium text-[#009598]">{hmsId}</span>
       </div>
 
-      <div className={`${tw.gutterX} mb-[30px]`}>
+      <div className="px-5 mb-[30px]">
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
           {/* Step bar */}
           <div className="px-6 py-3 border-b border-[#dedee1]">
