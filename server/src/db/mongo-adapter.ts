@@ -217,6 +217,7 @@ export class MongoAdapter implements DatabaseAdapter {
     let cursor = col.find(filter);
     const sort = buildSort(options);
     if (Object.keys(sort).length) cursor = cursor.sort(sort);
+    if (options?.caseInsensitiveSort) cursor = cursor.collation({ locale: "en", strength: 2 });
 
     if (!options?.unpaged && options?.pageSize && options.pageSize > 0) {
       const page = Math.max(1, options.page ?? 1);

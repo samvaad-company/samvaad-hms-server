@@ -13,6 +13,7 @@ import type { BirthRecordDTO, DeathRecordDTO } from "@/types/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -36,14 +37,14 @@ const BIRTH_COLUMNS = [
 function BirthRow({ row, actions }: { row: BirthRecordDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.childName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.gender}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.time}</span>
-      <span className="text-[13px] font-normal text-[#11111c] text-right">{row.weightKg ? `${row.weightKg} kg` : "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.motherName}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.fatherName || "—"}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.phone || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.childName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.gender}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.time}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] text-right">{row.weightKg ? `${row.weightKg} kg` : "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.motherName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.fatherName || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.phone || "—"}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
@@ -66,14 +67,14 @@ const DEATH_COLUMNS = [
 function DeathRow({ row, actions }: { row: DeathRecordDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.deceasedName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.gender}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.age || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.time}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.cause || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.guardianName || "—"}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.phone || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.deceasedName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.gender}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.age || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.time}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.cause || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.guardianName || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.phone || "—"}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
@@ -129,17 +130,20 @@ export default function RecordsPage() {
     const q = birthSearch.toLowerCase();
     return !q || b.childName.toLowerCase().includes(q) || b.motherName.toLowerCase().includes(q) || b.fatherName.toLowerCase().includes(q);
   });
+
+  const { rows: pagedVisibleBirths, bar: barVisibleBirths } = usePagination(visibleBirths, "records");
   const visibleDeaths = deaths.filter(d => {
     const q = deathSearch.toLowerCase();
     return !q || d.deceasedName.toLowerCase().includes(q) || d.guardianName.toLowerCase().includes(q) || d.cause.toLowerCase().includes(q);
   });
+  const { rows: pagedVisibleDeaths, bar: barVisibleDeaths } = usePagination(visibleDeaths, "records");
 
   const modalError = error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>;
   const modalFooter = (onSubmit: () => void, disabled: boolean) => (
     <>
-      <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+      <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
       <button onClick={onSubmit} disabled={loading || disabled}
-        className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {loading ? "Saving…" : "Save Record"}
       </button>
     </>
@@ -199,13 +203,14 @@ export default function RecordsPage() {
                 action={canWrite ? { label: "Register Birth", icon: Plus, onClick: () => setModal("birth") } : undefined} />
               <DataTable columns={BIRTH_COLUMNS} minWidth={1200}>
                 {visibleBirths.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No birth records.</div>
-                ) : visibleBirths.map(b => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No birth records.</div>
+                ) : pagedVisibleBirths.map(b => (
                   <BirthRow key={b.id} row={b} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => birthActions.remove(b.id, b.childName) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleBirths}
             </>
           )}
 
@@ -216,13 +221,14 @@ export default function RecordsPage() {
                 action={canWrite ? { label: "Register Death", icon: Plus, onClick: () => setModal("death") } : undefined} />
               <DataTable columns={DEATH_COLUMNS} minWidth={1200}>
                 {visibleDeaths.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No death records.</div>
-                ) : visibleDeaths.map(d => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No death records.</div>
+                ) : pagedVisibleDeaths.map(d => (
                   <DeathRow key={d.id} row={d} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => deathActions.remove(d.id, d.deceasedName) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleDeaths}
             </>
           )}
         </div>

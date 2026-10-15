@@ -83,22 +83,22 @@ export function DocumentsPanel({ ownerType, ownerId, categories = DEFAULT_CATEGO
   return (
     <div className="p-5 flex flex-col gap-3">
       {loading && items.length === 0 && (
-        <p className="text-[13px] font-light text-[#57575f]">Loading documents…</p>
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">Loading documents…</p>
       )}
 
       {!loading && items.length === 0 && (
-        <p className="text-[13px] font-light text-[#57575f]">No documents uploaded yet.</p>
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">No documents uploaded yet.</p>
       )}
 
       {items.map((d) => (
-        <div key={d.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px]">
+        <div key={d.id} className="flex items-center justify-between p-4 border border-[color:var(--line)] rounded-[10px]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 bg-[#f0f0f0] rounded-[8px] flex items-center justify-center shrink-0">
-              <FileText size={18} className="text-[#57575f]" />
+            <div className="w-10 h-10 bg-[color:var(--subtle-2)] rounded-[8px] flex items-center justify-center shrink-0">
+              <FileText size={18} className="text-[color:var(--ink-soft)]" />
             </div>
             <div className="min-w-0">
-              <span className="text-[14px] font-medium text-[#11111c] block truncate">{d.fileName}</span>
-              <span className="text-[12px] font-light text-[#57575f]">
+              <span className="text-[14px] font-medium text-[color:var(--ink)] block truncate">{d.fileName}</span>
+              <span className="text-[12px] font-light text-[color:var(--ink-soft)]">
                 {d.category} · {humanSize(d.sizeBytes)} · {d.uploadedBy}
               </span>
             </div>
@@ -108,7 +108,7 @@ export function DocumentsPanel({ ownerType, ownerId, categories = DEFAULT_CATEGO
               href={d.url}
               target="_blank"
               rel="noreferrer"
-              className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors inline-flex items-center gap-1"
+              className="text-[12px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors inline-flex items-center gap-1"
             >
               <Download size={12} /> View
             </a>
@@ -131,7 +131,7 @@ export function DocumentsPanel({ ownerType, ownerId, categories = DEFAULT_CATEGO
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] bg-white"
+          className="text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[8px] px-3 py-2 outline-none focus:border-[color:var(--brand)] bg-[color:var(--surface)]"
         >
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -149,13 +149,13 @@ export function DocumentsPanel({ ownerType, ownerId, categories = DEFAULT_CATEGO
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[#dedee1] rounded-[10px] py-3 text-[13px] font-normal text-[#57575f] hover:bg-[#f6f6f6] transition-colors disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-[color:var(--line)] rounded-[10px] py-3 text-[13px] font-normal text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] transition-colors disabled:opacity-50"
         >
           {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
           {uploading ? "Uploading…" : "Upload Document"}
         </button>
       </div>
-      <p className="text-[11px] font-light text-[#57575f]">PDF, PNG, JPEG, WebP or HEIC · up to 10 MB</p>
+      <p className="text-[11px] font-light text-[color:var(--ink-soft)]">PDF, PNG, JPEG, WebP or HEIC · up to 10 MB</p>
     </div>
   );
 }

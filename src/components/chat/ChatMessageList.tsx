@@ -37,10 +37,10 @@ export function ChatMessageList({ messages, streamingText, toolStatus, empty }: 
     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
       {showEmpty && (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6">
-          <div className="w-10 h-10 rounded-full bg-[#e8f7f7] flex items-center justify-center">
-            <Sparkles size={18} className="text-[#009598]" strokeWidth={1.5} />
+          <div className="w-10 h-10 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center">
+            <Sparkles size={18} className="text-[color:var(--brand)]" strokeWidth={1.5} />
           </div>
-          <p className="text-[13px] font-normal text-[#57575f]">
+          <p className="text-[13px] font-normal text-[color:var(--ink-soft)]">
             {empty ?? "Ask anything about this hospital's data — patients, appointments, billing, lab, and more."}
           </p>
         </div>
@@ -76,7 +76,7 @@ const markdownComponents: Components = {
   ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 last:mb-0 flex flex-col gap-1">{children}</ol>,
   li: ({ children }) => <li>{children}</li>,
   a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer" className="underline text-[#009598]">{children}</a>
+    <a href={href} target="_blank" rel="noreferrer" className="underline text-[color:var(--brand)]">{children}</a>
   ),
   code: ({ children }) => (
     <code className="bg-black/5 rounded-[4px] px-1 py-[1px] text-[12px]">{children}</code>
@@ -85,18 +85,18 @@ const markdownComponents: Components = {
   h2: ({ children }) => <p className="text-[14px] font-semibold mb-1">{children}</p>,
   h3: ({ children }) => <p className="text-[13px] font-semibold mb-1">{children}</p>,
   table: ({ children }) => (
-    <div className="overflow-x-auto my-2 rounded-[8px] border border-[#dedee1]">
+    <div className="overflow-x-auto my-2 rounded-[8px] border border-[color:var(--line)]">
       <table className="w-full text-left border-collapse">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="bg-[#f2f3f3]">{children}</thead>,
+  thead: ({ children }) => <thead className="bg-[color:var(--subtle-3)]">{children}</thead>,
   th: ({ children }) => (
-    <th className="px-3 py-[6px] text-[11px] font-medium text-[#57575f] uppercase tracking-wider border-b border-[#dedee1] whitespace-nowrap">
+    <th className="px-3 py-[6px] text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider border-b border-[color:var(--line)] whitespace-nowrap">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="px-3 py-[6px] text-[12px] border-b border-[#dedee1] align-top">{children}</td>
+    <td className="px-3 py-[6px] text-[12px] border-b border-[color:var(--line)] align-top">{children}</td>
   ),
 };
 
@@ -143,13 +143,13 @@ function Bubble({
         <div
           className={
             isUser
-              ? "bg-[#009598] text-white rounded-[14px] rounded-tr-[4px] px-3.5 py-2.5 text-[13px] font-normal leading-[19px] break-words"
-              : "bg-[#f6f6f6] text-[#11111c] rounded-[14px] rounded-tl-[4px] px-3.5 py-2.5 text-[13px] font-normal leading-[19px] break-words"
+              ? "bg-[color:var(--brand)] text-white rounded-[14px] rounded-tr-[4px] px-3.5 py-2.5 text-[13px] font-normal leading-[19px] break-words"
+              : "bg-[color:var(--subtle)] text-[color:var(--ink)] rounded-[14px] rounded-tl-[4px] px-3.5 py-2.5 text-[13px] font-normal leading-[19px] break-words"
           }
         >
           {content ? <Markdown content={content} /> : toolStatus ? null : <TypingDots />}
           {toolStatus && (
-            <span className="flex items-center gap-[6px] text-[#57575f]">
+            <span className="flex items-center gap-[6px] text-[color:var(--ink-soft)]">
               <Loader2 size={12} className="animate-spin" />
               Looking up {toolStatus}…
             </span>
@@ -157,11 +157,11 @@ function Bubble({
         </div>
         {!isUser && sources && sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 px-1">
-            <span className="text-[10px] font-normal text-[#57575f]">Used:</span>
+            <span className="text-[10px] font-normal text-[color:var(--ink-soft)]">Used:</span>
             {sources.map((s) => (
               <span
                 key={s}
-                className="text-[10px] font-normal text-[#57575f] bg-[#f2f3f3] rounded-[6px] px-[6px] py-[2px] capitalize"
+                className="text-[10px] font-normal text-[color:var(--ink-soft)] bg-[color:var(--subtle-3)] rounded-[6px] px-[6px] py-[2px] capitalize"
               >
                 {s}
               </span>
@@ -171,7 +171,7 @@ function Bubble({
         {!isUser && patientId != null && (
           <Link
             href={`/patients/${patientId}`}
-            className="flex items-center gap-1 text-[11px] font-medium text-[#009598] hover:underline px-1"
+            className="flex items-center gap-1 text-[11px] font-medium text-[color:var(--brand)] hover:underline px-1"
           >
             <UserRound size={11} /> View full patient profile
           </Link>

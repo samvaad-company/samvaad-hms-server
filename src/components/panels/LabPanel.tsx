@@ -35,8 +35,8 @@ export function LabPanel() {
       <StatRow stats={[
         { icon: Droplets,     label: "Samples to Collect", value: String(samplesPending.length), color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
         { icon: FileCheck,    label: "Reports to Enter",   value: String(reportsPending.length), color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
-        { icon: ScanLine,     label: "Imaging Pending",    value: String(scansPending.length),   color: "text-[#009598]", bg: "bg-[#e8f7f7]" },
-        { icon: FlaskConical, label: "Total Orders",       value: String(labTests.length),       color: "text-[#11111c]", bg: "bg-[#f0f0f0]" },
+        { icon: ScanLine,     label: "Imaging Pending",    value: String(scansPending.length),   color: "text-[color:var(--brand)]", bg: "bg-[color:var(--brand-soft)]" },
+        { icon: FlaskConical, label: "Total Orders",       value: String(labTests.length),       color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
       ]} />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -53,10 +53,10 @@ export function LabPanel() {
               {rows.length === 0 ? (
                 <EmptyRow text="Worklist is clear." />
               ) : rows.map(r => (
-                <div key={`${tab}-${r.id}`} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+                <div key={`${tab}-${r.id}`} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#11111c] truncate">{r.testName}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{r.patientName} · {r.patientAge} yrs · {r.date}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{r.testName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{r.patientName} · {r.patientAge} yrs · {r.date}</span>
                   </div>
                   <StatusBadge status={r.status} />
                 </div>

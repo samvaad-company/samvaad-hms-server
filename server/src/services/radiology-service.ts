@@ -98,21 +98,26 @@ function scopeRadiologyList(options: QueryOptions, actor: Session): QueryOptions
 export async function enrichRadiology(rows: RadiologyTestRow[]): Promise<RadiologyTestDTO[]> {
   const hospitalIds = [...new Set(rows.map((r) => r.hospital_id))];
   const centerIds = [...new Set(rows.map((r) => r.radiology_center_id).filter((v): v is number => v != null))];
-  const [hospitals, centers] = await Promise.all([
+  const patientIds = [...new Set(rows.map((r) => r.patient_id).filter((v): v is number => v != null))];
+  const [hospitals, centers, patients] = await Promise.all([
     Promise.all(hospitalIds.map((id) => hospitalsRepo.getRow(id))),
     Promise.all(centerIds.map((id) => radiologyCentersRepo.getRow(id))),
+    Promise.all(patientIds.map((id) => patientsRepo.getRow(id))),
   ]);
+  const patientCode = new Map(patients.filter((p) => p != null).map((p) => [p.id, p.patient_code]));
   const hospitalName = new Map(hospitals.filter((h) => h != null).map((h) => [h.id, h.name]));
   const centerName = new Map(centers.filter((c) => c != null).map((c) => [c.id, c.name]));
 
   return rows.map((r) => ({
     ...toRadiologyDTO(r),
+    patientCode: r.patient_id != null ? (patientCode.get(r.patient_id) ?? null) : null,
     hospitalName: hospitalName.get(r.hospital_id) ?? null,
     radiologyCenterName: r.radiology_center_id != null ? (centerName.get(r.radiology_center_id) ?? null) : null,
   }));
 }
 
 export const DISCOUNT_TYPES = ["percent", "amount"] as const;
+export const RADIOLOGY_PRIORITIES = ["Routine", "Urgent", "STAT"] as const;
 
 const createSchema = {
   patientId: { type: "number", required: false },
@@ -124,6 +129,8 @@ const createSchema = {
   amount: { type: "number", required: false, min: 0, default: 0 },
   discount: { type: "number", required: false, min: 0, default: 0 },
   discountType: { type: "enum", required: false, values: DISCOUNT_TYPES, default: "amount" },
+  /** Chosen by the ordering doctor; every study in one order shares it. */
+  priority: { type: "enum", required: false, values: RADIOLOGY_PRIORITIES, default: "Routine" },
   doctorId: { type: "number", required: false },
   doctor: { type: "string", required: false, max: 120, default: "" },
   /** Route the study to a linked center instead of keeping it in-house. */
@@ -132,7 +139,7 @@ const createSchema = {
 
 export const RADIOLOGY_LIST_CONFIG = {
   searchColumns: ["patient_name", "test_name"],
-  filterable: ["status", "scan_status", "report_status", "patient_id", "order_number"],
+  filterable: ["status", "scan_status", "report_status", "patient_id", "order_number", "priority"],
   sortable: ["test_date", "patient_name", "amount", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
@@ -258,6 +265,7 @@ export async function createRadiology(input: unknown, actor: Session, uow?: Unit
     amount: data.amount,
     discount: data.discount,
     discount_type: data.discountType,
+    priority: data.priority,
     status: "Pending",
     doctor_id: data.doctorId ?? null,
     doctor: doctorName,
@@ -316,6 +324,7 @@ export async function updateRadiology(id: number, input: unknown, actor: Session
     amount: { type: "number", required: false, min: 0 },
     discount: { type: "number", required: false, min: 0 },
     discountType: { type: "enum", required: false, values: DISCOUNT_TYPES },
+    priority: { type: "enum", required: false, values: RADIOLOGY_PRIORITIES },
     status: {
       type: "enum",
       required: false,
@@ -330,6 +339,7 @@ export async function updateRadiology(id: number, input: unknown, actor: Session
   if ("amount" in data) patch.amount = data.amount;
   if ("discount" in data) patch.discount = data.discount;
   if ("discountType" in data) patch.discount_type = data.discountType;
+  if ("priority" in data) patch.priority = data.priority;
 
   const scan = (patch.scan_status as string) ?? existing.scan_status;
   const report = (patch.report_status as string) ?? existing.report_status;

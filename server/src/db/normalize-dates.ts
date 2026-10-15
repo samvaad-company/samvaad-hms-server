@@ -29,6 +29,8 @@ const DATE_COLUMNS: Record<string, string[]> = {
   [TABLES.birthRecords]: ["birth_date"],
   [TABLES.deathRecords]: ["death_date"],
   [TABLES.tpaClaims]: ["claim_date"],
+  [TABLES.enquiries]: ["follow_up_on"],
+  [TABLES.followups]: ["due_on", "resolved_on"],
   [TABLES.financeIncomes]: ["entry_date"],
   [TABLES.financeExpenses]: ["entry_date"],
   [TABLES.inventoryIssues]: ["issue_date"],

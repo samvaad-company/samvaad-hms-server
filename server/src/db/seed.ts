@@ -754,6 +754,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     report_status: r.reportStatus,
     test_date: r.date,
     amount: r.amount,
+    // A few demo studies carry a doctor-set priority so the worklist tags show up.
+    priority: ({ 2: "STAT", 3: "Urgent", 5: "Urgent" } as Record<number, string>)[r.id] ?? "Routine",
     status: r.status,
     created_at: ts,
     updated_at: ts,
@@ -926,6 +928,51 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     updated_at: ts,
   }));
 
+  // Follow-ups: about 80 return visits spread over the last 100 days and the next 3 weeks (dates relative to today),
+  // booked by doctors and the front desk, most marked Done, a few Missed, and the recent ones still waiting.
+  const followups: Row[] = (() => {
+    const reasons = ["Review lab reports and adjust treatment", "Suture removal and wound inspection", "Recheck blood pressure and assess medication adherence",
+      "Repeat thyroid profile and dose adjustment", "Assess symptom response to current therapy", "Post-procedure check", "Vaccination due", "Diabetes review"];
+    const iso = (offset: number) => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    let seedN = 7;
+    const rnd = () => { seedN = (seedN * 9301 + 49297) % 233280; return seedN / 233280; };
+    const people = patientsData.slice(0, 14);
+    const docs = doctorsData.slice(0, 6);
+    const rows: Row[] = [];
+    for (let i = 0; i < 80; i++) {
+      const offset = i < 62 ? -Math.floor(rnd() * 100) : 1 + Math.floor(rnd() * 21);
+      const patient = people[Math.floor(rnd() * people.length)];
+      const doctor = docs[Math.floor(rnd() * docs.length)];
+      const bookedByDoctor = rnd() < 0.6;
+      const past = offset < 0;
+      const roll = rnd();
+      const status = !past ? "Pending" : offset > -4 ? (roll < 0.6 ? "Pending" : roll < 0.9 ? "Done" : "Missed") : roll < 0.74 ? "Done" : roll < 0.9 ? "Missed" : "Pending";
+      const resolvedByDoctor = rnd() < 0.35;
+      rows.push({
+        id: i + 1,
+        hospital_id: 1,
+        patient_id: patient.id,
+        patient_name: patient.name,
+        patient_code: patient.patientId,
+        doctor_id: doctor.id,
+        doctor: doctor.name,
+        reason: reasons[Math.floor(rnd() * reasons.length)],
+        due_on: iso(offset),
+        status,
+        created_by: bookedByDoctor ? doctor.name : "Deepak Nair",
+        created_by_role: bookedByDoctor ? "Doctor" : "Receptionist",
+        resolved_by: status === "Pending" ? null : resolvedByDoctor ? doctor.name : "Deepak Nair",
+        resolved_by_role: status === "Pending" ? null : resolvedByDoctor ? "Doctor" : "Receptionist",
+        resolved_on: status === "Pending" ? null : iso(offset),
+        reschedules: rnd() < 0.12 ? 1 : 0,
+        note: "",
+        created_at: ts,
+        updated_at: ts,
+      });
+    }
+    return rows;
+  })();
+
   return {
     [TABLES.departments]: [...departments, h2Department],
     [TABLES.doctors]: [...doctors, h2Doctor],
@@ -961,6 +1008,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.deathRecords]: deathRecords,
     [TABLES.tpas]: tpas,
     [TABLES.tpaClaims]: tpaClaims,
+    [TABLES.followups]: followups,
     [TABLES.financeIncomes]: financeIncomes,
     [TABLES.financeExpenses]: financeExpenses,
     [TABLES.inventoryItems]: inventoryItems,

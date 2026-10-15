@@ -64,12 +64,12 @@ export function BookingLinkModal({
     <Modal open={open} onClose={() => { onClose(); reset(); }} title="Send booking link" width={540}
       footer={
         <div className="flex justify-end gap-3">
-          <button onClick={() => { onClose(); reset(); }} className="text-[13px] text-[#57575f] px-4 py-[8px] rounded-full border border-[#dedee1] cursor-pointer">
+          <button onClick={() => { onClose(); reset(); }} className="text-[13px] text-[color:var(--ink-soft)] px-4 py-[8px] rounded-full border border-[color:var(--line)] cursor-pointer">
             {link ? "Done" : "Cancel"}
           </button>
           {!link && (
             <button onClick={generate} disabled={!patientId || loading}
-              className="text-[13px] text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] disabled:opacity-50 cursor-pointer">
+              className="text-[13px] text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
               {loading ? "Creating…" : "Create link"}
             </button>
           )}
@@ -78,8 +78,8 @@ export function BookingLinkModal({
       {!link ? (
         // Room under the picker so its suggestion list isn't clipped by the modal body.
         <div className="flex flex-col gap-4 min-h-[320px]">
-          <p className="text-[13px] font-light text-[#57575f]">
-            The patient opens the link, chooses a doctor and time, pays {fee ? <b className="font-medium text-[#11111c]">{fee}</b> : "the fee"} online
+          <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
+            The patient opens the link, chooses a doctor and time, pays {fee ? <b className="font-medium text-[color:var(--ink)]">{fee}</b> : "the fee"} online
             and receives their video link. No login needed.
           </p>
           <FormRow label="Patient" required>
@@ -89,12 +89,12 @@ export function BookingLinkModal({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-[13px] text-[#57575f]">Link for <b className="text-[#11111c]">{link.patientName}</b> — valid for 7 days.</p>
+          <p className="text-[13px] text-[color:var(--ink-soft)]">Link for <b className="text-[color:var(--ink)]">{link.patientName}</b> — valid for 7 days.</p>
           <textarea readOnly rows={5} value={message} onFocus={(e) => e.currentTarget.select()}
-            className="w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 py-2 text-[13px] text-[#11111c] resize-none" />
+            className="w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 py-2 text-[13px] text-[color:var(--ink)] resize-none" />
           <div className="flex gap-3 flex-wrap">
             <button onClick={copy}
-              className="inline-flex items-center gap-2 text-[13px] text-[#009598] border border-[#009598] px-4 py-[8px] rounded-full hover:bg-[#e8f7f7] cursor-pointer">
+              className="inline-flex items-center gap-2 text-[13px] text-[color:var(--brand)] border border-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-soft)] cursor-pointer">
               {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy message"}
             </button>
             {waNumber && (

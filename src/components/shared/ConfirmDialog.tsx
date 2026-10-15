@@ -36,7 +36,7 @@ export function ConfirmDialog({
         <>
           <button
             onClick={onCancel}
-            className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors"
+            className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors"
           >
             {cancelLabel}
           </button>
@@ -44,7 +44,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
             className={`text-[13px] font-normal text-white px-5 py-[8px] rounded-full transition-colors disabled:opacity-50 ${
-              danger ? "bg-[#ff0004] hover:bg-[#d60003]" : "bg-[#009598] hover:bg-[#007f82]"
+              danger ? "bg-[#ff0004] hover:bg-[#d60003]" : "bg-[color:var(--brand)] hover:bg-[color:var(--brand-hover)]"
             }`}
           >
             {loading ? "Working…" : confirmLabel}
@@ -52,7 +52,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-[14px] font-normal text-[#11111c] leading-[20px]">{message}</p>
+      <p className="text-[14px] font-normal text-[color:var(--ink)] leading-[20px]">{message}</p>
     </Modal>
   );
 }

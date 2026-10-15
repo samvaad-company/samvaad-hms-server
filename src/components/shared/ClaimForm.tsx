@@ -24,8 +24,8 @@ import type { TpaClaimDTO, TpaDTO, PatientDTO } from "@/types/api";
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{label}</p>
-      <p className="text-[13px] font-normal text-[#11111c] mt-[2px]">{value || "—"}</p>
+      <p className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{label}</p>
+      <p className="text-[13px] font-normal text-[color:var(--ink)] mt-[2px]">{value || "—"}</p>
     </div>
   );
 }
@@ -58,36 +58,36 @@ export function ClaimForm({
         <>
           <button
             onClick={onClose}
-            className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors"
+            className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors"
           >
             <X size={13} className="inline mr-1" /> Close
           </button>
           <button
             onClick={() => downloadElement(docRef.current, title)}
-            className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors"
+            className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors"
           >
             <Download size={13} className="inline mr-1" /> Download
           </button>
           <button
             onClick={() => printElement(docRef.current, title)}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors"
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors"
           >
             <Printer size={13} className="inline mr-1" /> Print
           </button>
         </>
       }
     >
-      <div ref={docRef} className="bg-white border border-[#dedee1] rounded-[10px] overflow-hidden">
+      <div ref={docRef} className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[10px] overflow-hidden">
         <DocumentLetterhead
           hospital={hospital}
           compact
           right={
             <>
-              <div className="text-[15px] font-medium text-[#11111c]">CLAIM FORM</div>
-              <div className="text-[12px] font-light text-[#57575f] mt-1">
+              <div className="text-[15px] font-medium text-[color:var(--ink)]">CLAIM FORM</div>
+              <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-1">
                 Claim #{String(claim.id).padStart(5, "0")}
               </div>
-              <div className="text-[12px] font-light text-[#57575f]">
+              <div className="text-[12px] font-light text-[color:var(--ink-soft)]">
                 {formatDate(claim.date)}
               </div>
             </>
@@ -95,8 +95,8 @@ export function ClaimForm({
         />
 
         {/* Insurer */}
-        <div className="px-8 py-4 border-b border-[#f0f0f0]">
-          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+        <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
+          <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Insurer / TPA
           </p>
           <div className="grid grid-cols-3 gap-4">
@@ -107,8 +107,8 @@ export function ClaimForm({
         </div>
 
         {/* Patient */}
-        <div className="px-8 py-4 border-b border-[#f0f0f0]">
-          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+        <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
+          <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Patient / Insured
           </p>
           <div className="grid grid-cols-3 gap-4">
@@ -122,8 +122,8 @@ export function ClaimForm({
         </div>
 
         {/* Claim */}
-        <div className="px-8 py-4 border-b border-[#f0f0f0]">
-          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+        <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
+          <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Claim Details
           </p>
           <div className="grid grid-cols-3 gap-4">
@@ -131,16 +131,16 @@ export function ClaimForm({
             <Field label="Claim Date" value={formatDate(claim.date)} />
             <Field label="Status" value={claim.status} />
           </div>
-          <div className="mt-4 flex items-center justify-end gap-8 border-t border-[#f0f0f0] pt-4">
+          <div className="mt-4 flex items-center justify-end gap-8 border-t border-[color:var(--subtle-2)] pt-4">
             <div className="text-right">
-              <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Amount Claimed</p>
-              <p className="text-[18px] font-medium text-[#11111c]">
+              <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Amount Claimed</p>
+              <p className="text-[18px] font-medium text-[color:var(--ink)]">
                 ₹{claim.claimAmount.toLocaleString("en-IN")}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Amount Approved</p>
-              <p className="text-[18px] font-medium text-[#009598]">
+              <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Amount Approved</p>
+              <p className="text-[18px] font-medium text-[color:var(--brand)]">
                 {claim.approvedAmount > 0 ? `₹${claim.approvedAmount.toLocaleString("en-IN")}` : "—"}
               </p>
             </div>
@@ -149,8 +149,8 @@ export function ClaimForm({
 
         {/* Declaration + signatures */}
         <div className="px-8 py-5">
-          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Declaration</p>
-          <p className="text-[12px] font-light text-[#57575f] leading-relaxed">
+          <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Declaration</p>
+          <p className="text-[12px] font-light text-[color:var(--ink-soft)] leading-relaxed">
             I certify that the information given above is true to the best of my knowledge and that
             the treatment described was provided at {hospital.name || "this hospital"}. I authorise
             the release of medical information necessary to process this claim.
@@ -158,8 +158,8 @@ export function ClaimForm({
           <div className="flex items-end justify-between mt-10">
             {["Patient / Insured", "Treating Doctor", "Authorised Signatory"].map((role) => (
               <div key={role} className="flex flex-col items-center gap-1">
-                <div className="w-[150px] border-b border-[#57575f]" />
-                <p className="text-[11px] font-light text-[#57575f]">{role}</p>
+                <div className="w-[150px] border-b border-[color:var(--ink-soft)]" />
+                <p className="text-[11px] font-light text-[color:var(--ink-soft)]">{role}</p>
               </div>
             ))}
           </div>

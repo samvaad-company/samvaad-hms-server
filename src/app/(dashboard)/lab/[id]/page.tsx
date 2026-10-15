@@ -76,10 +76,10 @@ export default function LabReportDetailPage() {
   }
 
   if (loading) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Loading…</p></div>;
   }
   if (!test) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Lab test not found.</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Lab test not found.</p></div>;
   }
 
   const sections = LAB_PARAMS[test.id] ?? LAB_PARAMS[1];
@@ -92,18 +92,18 @@ export default function LabReportDetailPage() {
         <div className="flex items-center gap-2">
           {isReady ? (
             <>
-              <button onClick={() => shareDocument(`Lab Report — ${test.testName}`, window.location.href)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={() => shareDocument(`Lab Report — ${test.testName}`, window.location.href)} className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[7px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
                 <Share2 size={14} /> Share
               </button>
-              <button onClick={() => downloadElement(docRef.current, `Lab Report — ${test.testName}`)} className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              <button onClick={() => downloadElement(docRef.current, `Lab Report — ${test.testName}`)} className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[7px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
                 <Download size={14} /> Download
               </button>
-              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+              <button onClick={printReport} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
                 <Printer size={14} /> Print
               </button>
             </>
           ) : canWrite ? (
-            <button onClick={markReady} disabled={acting} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            <button onClick={markReady} disabled={acting} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               <Upload size={14} /> {acting ? "Saving…" : "Mark Report Ready"}
             </button>
           ) : null}
@@ -118,15 +118,15 @@ export default function LabReportDetailPage() {
             compact
             right={
               <>
-                <div className="text-[16px] font-medium text-[#11111c]">{test.testName}</div>
-                <div className="text-[12px] font-light text-[#57575f] mt-1">Lab Report · {formatDate(test.date)}</div>
+                <div className="text-[16px] font-medium text-[color:var(--ink)]">{test.testName}</div>
+                <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-1">Lab Report · {formatDate(test.date)}</div>
                 <div className="mt-2"><StatusBadge status={test.status} /></div>
               </>
             }
           />
 
           {/* Patient info */}
-          <div className="px-8 py-4 grid grid-cols-3 gap-4 border-b border-[#f0f0f0]">
+          <div className="px-8 py-4 grid grid-cols-3 gap-4 border-b border-[color:var(--subtle-2)]">
             {[
               { label: "Patient",        value: test.patientName },
               { label: "Age",            value: `${test.patientAge} years` },
@@ -135,8 +135,8 @@ export default function LabReportDetailPage() {
               { label: "Report Status",  value: test.reportStatus },
             ].map(f => (
               <div key={f.label}>
-                <p className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{f.label}</p>
-                <p className="text-[13px] font-normal text-[#11111c] mt-[2px]">{f.value}</p>
+                <p className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{f.label}</p>
+                <p className="text-[13px] font-normal text-[color:var(--ink)] mt-[2px]">{f.value}</p>
               </div>
             ))}
           </div>
@@ -146,19 +146,19 @@ export default function LabReportDetailPage() {
             <div className="px-8 py-5">
               {sections.map(section => (
                 <div key={section.category} className="mb-6 last:mb-0">
-                  <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-3">{section.category}</h3>
-                  <div className="border border-[#dedee1] rounded-[10px] overflow-hidden">
-                    <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_1fr] bg-[#f2f3f3] px-4 py-2">
+                  <h3 className="text-[13px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">{section.category}</h3>
+                  <div className="border border-[color:var(--line)] rounded-[10px] overflow-hidden">
+                    <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_1fr] bg-[color:var(--subtle-3)] px-4 py-2">
                       {["Parameter", "Result", "Unit", "Reference Range", "Flag"].map(h => (
-                        <span key={h} className="text-[12px] font-medium text-[#11111c]">{h}</span>
+                        <span key={h} className="text-[12px] font-medium text-[color:var(--ink)]">{h}</span>
                       ))}
                     </div>
                     {section.params.map((p, i) => (
-                      <div key={i} className={`grid grid-cols-[2fr_1fr_1fr_1.2fr_1fr] px-4 py-3 items-center ${i < section.params.length - 1 ? "border-b border-[#f0f0f0]" : ""}`}>
-                        <span className="text-[13px] font-normal text-[#11111c]">{p.test}</span>
-                        <span className={`text-[13px] font-medium ${p.flag !== "Normal" ? "text-[#ff0004]" : "text-[#11111c]"}`}>{p.result}</span>
-                        <span className="text-[12px] font-light text-[#57575f]">{p.unit}</span>
-                        <span className="text-[12px] font-normal text-[#57575f]">{p.refRange}</span>
+                      <div key={i} className={`grid grid-cols-[2fr_1fr_1fr_1.2fr_1fr] px-4 py-3 items-center ${i < section.params.length - 1 ? "border-b border-[color:var(--subtle-2)]" : ""}`}>
+                        <span className="text-[13px] font-normal text-[color:var(--ink)]">{p.test}</span>
+                        <span className={`text-[13px] font-medium ${p.flag !== "Normal" ? "text-[#ff0004]" : "text-[color:var(--ink)]"}`}>{p.result}</span>
+                        <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{p.unit}</span>
+                        <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{p.refRange}</span>
                         <span className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-normal ${FLAG_CLR[p.flag]}`}>
                           {p.flag !== "Normal" && <Flag size={10} />}
                           {p.flag}
@@ -170,20 +170,20 @@ export default function LabReportDetailPage() {
               ))}
 
               {/* Remarks */}
-              <div className="mt-5 p-4 bg-[#f6f6f6] rounded-[10px]">
-                <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Pathologist Remarks</p>
-                <p className="text-[13px] font-light text-[#57575f]">Report reviewed and verified by Dr. P. Sharma (MD Pathology). Results should be correlated with clinical findings.</p>
+              <div className="mt-5 p-4 bg-[color:var(--subtle)] rounded-[10px]">
+                <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Pathologist Remarks</p>
+                <p className="text-[13px] font-light text-[color:var(--ink-soft)]">Report reviewed and verified by Dr. P. Sharma (MD Pathology). Results should be correlated with clinical findings.</p>
               </div>
             </div>
           ) : (
             <div className="px-8 py-12 flex flex-col items-center gap-3">
-              <div className="w-12 h-12 bg-[#f0f0f0] rounded-full flex items-center justify-center">
-                <Upload size={20} className="text-[#57575f]" />
+              <div className="w-12 h-12 bg-[color:var(--subtle-2)] rounded-full flex items-center justify-center">
+                <Upload size={20} className="text-[color:var(--ink-soft)]" />
               </div>
-              <p className="text-[14px] font-medium text-[#11111c]">Report not yet uploaded</p>
-              <p className="text-[13px] font-light text-[#57575f]">Sample status: {test.sampleStatus}</p>
+              <p className="text-[14px] font-medium text-[color:var(--ink)]">Report not yet uploaded</p>
+              <p className="text-[13px] font-light text-[color:var(--ink-soft)]">Sample status: {test.sampleStatus}</p>
               {canWrite && (
-                <button className="mt-2 bg-[#009598] text-white text-[13px] font-normal px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+                <button className="mt-2 bg-[color:var(--brand)] text-white text-[13px] font-normal px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
                   Upload Report PDF
                 </button>
               )}

@@ -30,25 +30,25 @@ export function AbhaBadge({ abhaId, variant = "inline", className = "" }: AbhaBa
       <div className={`flex items-center gap-3 ${className}`}>
         <div
           className={`w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 ${
-            linked ? "bg-[#e8f7f7]" : "bg-[#f2f3f3]"
+            linked ? "bg-[color:var(--brand-soft)]" : "bg-[color:var(--subtle-3)]"
           }`}
         >
           {linked ? (
-            <ShieldCheck size={16} className="text-[#009598]" strokeWidth={1.75} />
+            <ShieldCheck size={16} className="text-[color:var(--brand)]" strokeWidth={1.75} />
           ) : (
-            <ShieldAlert size={16} className="text-[#57575f]" strokeWidth={1.75} />
+            <ShieldAlert size={16} className="text-[color:var(--ink-soft)]" strokeWidth={1.75} />
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] font-normal text-[#57575f] uppercase tracking-wider">
+          <p className="text-[11px] font-normal text-[color:var(--ink-soft)] uppercase tracking-wider">
             ABHA ID
           </p>
           {linked ? (
-            <p className="text-[13px] font-medium text-[#11111c] tabular-nums truncate">
+            <p className="text-[13px] font-medium text-[color:var(--ink)] tabular-nums truncate">
               {formatAbha(abhaId!)}
             </p>
           ) : (
-            <p className="text-[13px] font-light text-[#57575f]">Not linked</p>
+            <p className="text-[13px] font-light text-[color:var(--ink-soft)]">Not linked</p>
           )}
         </div>
       </div>
@@ -58,7 +58,7 @@ export function AbhaBadge({ abhaId, variant = "inline", className = "" }: AbhaBa
   if (!linked) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-normal bg-[#f2f3f3] text-[#57575f] ${className}`}
+        className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-normal bg-[color:var(--subtle-3)] text-[color:var(--ink-soft)] ${className}`}
       >
         <ShieldAlert size={12} strokeWidth={1.75} /> No ABHA
       </span>
@@ -67,7 +67,7 @@ export function AbhaBadge({ abhaId, variant = "inline", className = "" }: AbhaBa
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-medium bg-[#e8f7f7] text-[#009598] tabular-nums ${className}`}
+      className={`inline-flex items-center gap-1 px-[8px] py-[3px] rounded-full text-[11px] font-medium bg-[color:var(--brand-soft)] text-[color:var(--brand)] tabular-nums ${className}`}
       title="ABHA linked"
     >
       <ShieldCheck size={12} strokeWidth={1.75} /> {formatAbha(abhaId!)}

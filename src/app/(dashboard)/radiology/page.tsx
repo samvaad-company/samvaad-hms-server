@@ -22,9 +22,13 @@ import type {
   DoctorDTO,
 } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { RadiologyWorklist } from "@/components/radiology/RadiologyWorklist";
+import { PRIORITIES } from "@/components/radiology/PriorityBadge";
+import type { RadiologyPriority } from "@/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { PatientPicker } from "@/components/shared/PatientPicker";
@@ -66,23 +70,23 @@ function ReportViewerModal({
               download={file.fileName}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 text-[13px] font-normal text-[#009598] border border-[#009598] px-5 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors"
+              className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors"
             >
               <Download size={14} /> Download
             </a>
           )}
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Close</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Close</button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           {test.patientName} · {test.patientAge} yrs
-          {file?.uploadedBy && <> · Uploaded by <span className="font-normal text-[#11111c]">{file.uploadedBy}</span></>}
+          {file?.uploadedBy && <> · Uploaded by <span className="font-normal text-[color:var(--ink)]">{file.uploadedBy}</span></>}
           {file?.uploadedAt && <> · {file.uploadedAt}</>}
         </p>
         {file?.note && (
-          <div className="text-[13px] font-normal text-[#11111c] bg-[#f6f6f6] rounded-[8px] px-3 py-2">
+          <div className="text-[13px] font-normal text-[color:var(--ink)] bg-[color:var(--subtle)] rounded-[8px] px-3 py-2">
             {file.note}
           </div>
         )}
@@ -90,16 +94,16 @@ function ReportViewerModal({
           <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error}</div>
         )}
         {!file && !error && (
-          <div className="flex items-center justify-center py-16 text-[#57575f]">
+          <div className="flex items-center justify-center py-16 text-[color:var(--ink-soft)]">
             <Loader2 size={20} className="animate-spin" />
           </div>
         )}
         {file && (
           isPdf ? (
-            <iframe src={file.fileUrl} title="Report document" className="w-full rounded-[8px] border border-[#dedee1]" style={{ height: 480 }} />
+            <iframe src={file.fileUrl} title="Report document" className="w-full rounded-[8px] border border-[color:var(--line)]" style={{ height: 480 }} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={file.fileUrl} alt="Report document" className="w-full rounded-[8px] border border-[#dedee1] object-contain" style={{ maxHeight: 480 }} />
+            <img src={file.fileUrl} alt="Report document" className="w-full rounded-[8px] border border-[color:var(--line)] object-contain" style={{ maxHeight: 480 }} />
           )
         )}
       </div>
@@ -124,8 +128,8 @@ function DetailField({ label, value }: { label: string; value: string | null | u
   if (!value) return null;
   return (
     <div className="flex flex-col gap-[2px]">
-      <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{label}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{value}</span>
+      <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{label}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{value}</span>
     </div>
   );
 }
@@ -179,12 +183,12 @@ function PatientDetailModal({
 
   return (
     <Modal open onClose={onClose} title={`Patient — ${test.patientName}`} width={640}
-      footer={<button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Close</button>}
+      footer={<button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Close</button>}
     >
       <div className="flex flex-col gap-5">
         {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error}</div>}
         {!detail && !error && (
-          <div className="flex items-center justify-center py-10 text-[#57575f]"><Loader2 size={20} className="animate-spin" /></div>
+          <div className="flex items-center justify-center py-10 text-[color:var(--ink-soft)]"><Loader2 size={20} className="animate-spin" /></div>
         )}
         {detail && (
           <div className="grid grid-cols-3 gap-4">
@@ -201,25 +205,25 @@ function PatientDetailModal({
           </div>
         )}
 
-        <div className="border-t border-[#f0f0f0] pt-4">
-          <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">
+        <div className="border-t border-[color:var(--subtle-2)] pt-4">
+          <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">
             All Studies ({history.length}) — latest first
           </p>
           <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
             {history.map(t => (
-              <div key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 border border-[#dedee1] rounded-[8px]">
+              <div key={t.id} className="flex items-center justify-between gap-3 px-3 py-2 border border-[color:var(--line)] rounded-[8px]">
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[13px] font-normal text-[#11111c] truncate">{t.testName}</span>
-                  <span className="text-[11px] font-light text-[#57575f]">{formatDate(t.date)}{t.doctor && <> · {t.doctor}</>}{discountLabel(t) && <> · {discountLabel(t)}</>}</span>
+                  <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{t.testName}</span>
+                  <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{formatDate(t.date)}{t.doctor && <> · {t.doctor}</>}{discountLabel(t) && <> · {discountLabel(t)}</>}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <StatusBadge status={t.status} />
                   {t.hasReport ? (
-                    <button onClick={() => onViewReport(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+                    <button onClick={() => onViewReport(t)} className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap">
                       <Eye size={12} /> Report
                     </button>
                   ) : canUpload ? (
-                    <button onClick={() => onUpload(t)} className="flex items-center gap-1 text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
+                    <button onClick={() => onUpload(t)} className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] transition-colors whitespace-nowrap">
                       <Upload size={12} /> Upload
                     </button>
                   ) : null}
@@ -309,11 +313,11 @@ function UploadReportModal({
       width={520}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button
             onClick={upload}
             disabled={stage !== "idle" || loading || !file}
-            className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50"
           >
             {stage !== "idle" || loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
             {stage === "storage" ? "Uploading…" : stage === "saving" ? "Saving…" : "Upload Report"}
@@ -322,7 +326,7 @@ function UploadReportModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           {test.patientName} · {test.patientAge} yrs · Ordered {formatDate(test.date)}
         </p>
 
@@ -339,8 +343,8 @@ function UploadReportModal({
             onClick={() => inputRef.current?.click()}
             className={`w-full flex items-center justify-center gap-2 border-2 border-dashed rounded-[10px] py-6 text-[13px] font-normal transition-colors ${
               file
-                ? "border-[#009598] bg-[#e8f7f7] text-[#009598]"
-                : "border-[#dedee1] text-[#57575f] hover:bg-[#f6f6f6]"
+                ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)] text-[color:var(--brand)]"
+                : "border-[color:var(--line)] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]"
             }`}
           >
             <FileText size={16} />
@@ -405,7 +409,7 @@ function patientColumns(showHospital: boolean) {
 
 const STATUS_DOT: Record<string, string> = {
   "Pending": "bg-[#ff9000]",
-  "Scan Done": "bg-[#009598]",
+  "Scan Done": "bg-[color:var(--brand)]",
   "Report Ready": "bg-[#00955c]",
   "Cancelled": "bg-[#ff0004]",
 };
@@ -417,7 +421,7 @@ function StatusSummary({ tests }: { tests: RadiologyTestDTO[] }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {[...counts.entries()].map(([status, count]) => (
-        <span key={status} className="inline-flex items-center gap-1 text-[11px] font-normal text-[#57575f] whitespace-nowrap">
+        <span key={status} className="inline-flex items-center gap-1 text-[11px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">
           <span className={`w-[6px] h-[6px] rounded-full ${STATUS_DOT[status] ?? "bg-[#57575f]"}`} />
           {count} {status}
         </span>
@@ -444,24 +448,24 @@ function PatientGroupRow({
 
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      {showHospital && <span className="text-[13px] font-normal text-[#11111c] truncate">{anchor.hospitalName ?? "—"}</span>}
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{anchor.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{anchor.patientAge}</span>
+      {showHospital && <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{anchor.hospitalName ?? "—"}</span>}
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{anchor.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{anchor.patientAge}</span>
       <div className="flex flex-col gap-[2px] min-w-0">
-        <span className="text-[13px] font-normal text-[#11111c] truncate">
+        <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">
           {tests.length} {tests.length === 1 ? "test" : "tests"} — {byRecency.map(t => t.testName).join(", ")}
         </span>
         <StatusSummary tests={tests} />
       </div>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{doctors.join(", ") || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(latestDate)}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{doctors.join(", ") || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(latestDate)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">
         {discountedCount > 0 ? `${discountedCount} of ${tests.length} discounted` : "—"}
       </span>
       <div className="flex justify-end">
         <button
           onClick={onViewPatient}
-          className="text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap"
+          className="text-[12px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap"
         >
           View
         </button>
@@ -514,7 +518,7 @@ function DiscountInput({
         placeholder="0"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+        className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] text-[14px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
       />
       <div className="w-[70px] shrink-0">
         <FormSelect value={type} onChange={onTypeChange} options={DISCOUNT_TYPE_OPTS} />
@@ -529,6 +533,7 @@ function BookingView({
   initialPatientId,
   initialDoctorId,
   initialRadiologyCenterId,
+  initialPriority,
 }: {
   patients: PatientDTO[];
   onBooked: () => void;
@@ -537,6 +542,7 @@ function BookingView({
   initialDoctorId?: string;
   /** Destination chosen on the OPD/Appointments hand-off — defaults to In-house when absent. */
   initialRadiologyCenterId?: string;
+  initialPriority?: RadiologyPriority;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -545,6 +551,8 @@ function BookingView({
   const [radiologyCenterId, setRadiologyCenterId] = useState(initialRadiologyCenterId ?? "");
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState("amount");
+  // Set by the ordering doctor; applies to every study in this order.
+  const [priority, setPriority] = useState<RadiologyPriority>(initialPriority ?? "Routine");
   const { run, loading, error } = useMutation();
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { items: centers } = useList<{ id: number; name: string }>("/radiology/routable-centers");
@@ -568,6 +576,7 @@ function BookingView({
         radiologyCenterId: radiologyCenterId ? Number(radiologyCenterId) : undefined,
         discount: Number(discount) || 0,
         discountType,
+        priority,
         tests: selected.map(name => ({ testName: name })),
       }),
     );
@@ -575,6 +584,7 @@ function BookingView({
     setPatientId("");
     setDiscount("");
     setDiscountType("amount");
+    setPriority("Routine");
     onBooked();
   }
 
@@ -600,38 +610,53 @@ function BookingView({
         </FormRow>
       </div>
 
+      <FormRow label="Priority">
+        <div className="inline-flex gap-2" role="radiogroup" aria-label="Order priority">
+          {PRIORITIES.map(p => (
+            <button key={p} type="button" role="radio" aria-checked={priority === p} onClick={() => setPriority(p)}
+              className={`h-[36px] px-5 rounded-full border text-[13px] font-normal cursor-pointer transition-colors ${
+                priority === p
+                  ? p === "STAT" ? "bg-[#ffe9b8] border-[#f3cf7d] text-[#8a5300] font-semibold" : "bg-[color:var(--brand)] border-[color:var(--brand)] text-white"
+                  : "bg-[color:var(--surface)] border-[color:var(--line)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
+              }`}>
+              {p}
+            </button>
+          ))}
+        </div>
+      </FormRow>
+
       <FormRow label="Add Studies">
         <div className="relative">
-          <ScanLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57575f]" />
+          <ScanLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
           <input
             placeholder="Search studies by name or modality..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[36px] pr-[14px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] transition-colors"
+            className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] pl-[36px] pr-[14px] text-[14px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--brand)] transition-colors"
           />
         </div>
       </FormRow>
 
       <div className="flex flex-col gap-2 overflow-y-auto flex-1">
         {filtered.map(study => (
-          <label key={study.name} className="flex items-center gap-3 p-3 border border-[#dedee1] rounded-[8px] cursor-pointer hover:bg-[#f6f6f6] transition-colors">
+          <label key={study.name} className="flex items-center gap-3 p-3 border border-[color:var(--line)] rounded-[8px] cursor-pointer hover:bg-[color:var(--subtle)] transition-colors">
             <input
               type="checkbox"
               checked={selected.includes(study.name)}
               onChange={e => setSelected(prev => e.target.checked ? [...prev, study.name] : prev.filter(t => t !== study.name))}
-              className="w-4 h-4 accent-[#009598]"
+              className="w-4 h-4 accent-[color:var(--brand)]"
             />
             <div>
-              <span className="text-[14px] font-normal text-[#11111c]">{study.name}</span>
-              <span className="text-[11px] font-light text-[#57575f] ml-2">{study.category}</span>
+              <span className="text-[14px] font-normal text-[color:var(--ink)]">{study.name}</span>
+              <span className="text-[11px] font-light text-[color:var(--ink-soft)] ml-2">{study.category}</span>
             </div>
           </label>
         ))}
       </div>
 
       {/* Footer: selection count + submit */}
-      <div className="flex items-center justify-between border-t border-[#dedee1] pt-4 shrink-0">
-        <span className="text-[13px] font-normal text-[#57575f]">
+      <div className="flex items-center justify-between border-t border-[color:var(--line)] pt-4 shrink-0">
+        <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">
           {selected.length > 0
             ? `${selected.length} stud${selected.length > 1 ? "ies" : "y"} selected`
             : "No studies selected"}
@@ -639,7 +664,7 @@ function BookingView({
         <div className="flex items-center gap-3">
           {error && <span className="text-[12px] text-[#ff0004]">{error.message}</span>}
           <button onClick={bookStudies} disabled={loading || selected.length === 0 || !patientId}
-            className={`text-[14px] font-normal px-6 py-[10px] rounded-full transition-colors ${selected.length > 0 && patientId ? "bg-[#009598] text-white hover:bg-[#007f82]" : "bg-[#f0f0f0] text-[#57575f] cursor-not-allowed"}`}>
+            className={`text-[14px] font-normal px-6 py-[10px] rounded-full transition-colors ${selected.length > 0 && patientId ? "bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)]" : "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)] cursor-not-allowed"}`}>
             {loading ? "Booking…" : "Book Studies"}
           </button>
         </div>
@@ -664,16 +689,16 @@ function ReportsView({
 }) {
   if (tests.length === 0) {
     return (
-      <div className="p-10 text-center text-[14px] text-[#57575f]">No studies yet.</div>
+      <div className="p-10 text-center text-[14px] text-[color:var(--ink-soft)]">No studies yet.</div>
     );
   }
   return (
     <div className="p-5 grid grid-cols-2 gap-4 overflow-y-auto" style={{ minHeight: 300 }}>
       {tests.map(test => (
-        <div key={test.id} className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
+        <div key={test.id} className="border border-[color:var(--line)] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-[color:var(--surface)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
           <div className="flex flex-col gap-[6px] min-w-0">
-            <span className="text-[14px] font-medium text-[#11111c] truncate">{test.testName}</span>
-            <span className="text-[12px] font-light text-[#57575f]">
+            <span className="text-[14px] font-medium text-[color:var(--ink)] truncate">{test.testName}</span>
+            <span className="text-[12px] font-light text-[color:var(--ink-soft)]">
               {test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}
               {test.doctor && <> · Dr. {test.doctor}</>}
               {test.hospitalName && <> · {test.hospitalName}</>}
@@ -687,16 +712,16 @@ function ReportsView({
               )}
             </div>
             {test.reportNote && (
-              <p className="text-[12px] font-light text-[#57575f] line-clamp-2">“{test.reportNote}”</p>
+              <p className="text-[12px] font-light text-[color:var(--ink-soft)] line-clamp-2">“{test.reportNote}”</p>
             )}
           </div>
           <div className="flex flex-col gap-2 shrink-0">
             {test.hasReport ? (
-              <button onClick={() => onView(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+              <button onClick={() => onView(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap">
                 <Eye size={13} /> View
               </button>
             ) : canUpload ? (
-              <button onClick={() => onUpload(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors whitespace-nowrap">
+              <button onClick={() => onUpload(test)} className="flex items-center gap-[6px] text-[12px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] transition-colors whitespace-nowrap">
                 <Upload size={13} /> Upload
               </button>
             ) : (
@@ -728,12 +753,12 @@ function CenterAboutView() {
   }
 
   if (loading || !center) {
-    return <div className="p-10 text-center text-[14px] text-[#57575f]">Loading…</div>;
+    return <div className="p-10 text-center text-[14px] text-[color:var(--ink-soft)]">Loading…</div>;
   }
 
   return (
     <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
-      <div className="rounded-[14px] bg-[#009598] p-5 flex items-center justify-between gap-4">
+      <div className="rounded-[14px] bg-[color:var(--brand)] p-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
           <div className="w-12 h-12 rounded-[10px] bg-white/15 flex items-center justify-center shrink-0">
             <Building2 size={22} className="text-white" strokeWidth={1.5} />
@@ -744,7 +769,7 @@ function CenterAboutView() {
             <p className="text-[12px] font-light text-white/80">Share this with a hospital so they can request a link with you.</p>
           </div>
         </div>
-        <button onClick={copyCode} className="flex items-center gap-2 text-[13px] font-normal text-[#009598] bg-white px-4 py-[8px] rounded-full hover:bg-[#e8f7f7] transition-colors shrink-0">
+        <button onClick={copyCode} className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--brand)] bg-[color:var(--surface)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors shrink-0">
           {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Code</>}
         </button>
       </div>
@@ -776,7 +801,7 @@ function CenterDetailsForm({ center, onSaved }: { center: RadiologyCenterDTO; on
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
-        <h3 className="text-[14px] font-medium text-[#11111c]">Center Details</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Center Details</h3>
         <StatusBadge status={center.status} />
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -789,7 +814,7 @@ function CenterDetailsForm({ center, onSaved }: { center: RadiologyCenterDTO; on
       </div>
       {error && <div className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2 mt-3">{error.message}</div>}
       <button onClick={save} disabled={saving}
-        className="mt-4 text-[13px] font-normal text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="mt-4 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[9px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {saving ? "Saving…" : "Save Changes"}
       </button>
     </section>
@@ -816,25 +841,25 @@ function LinkedHospitalsView() {
 
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 580 }}>
-      {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+      {loading && <p className="text-[13px] text-[color:var(--ink-soft)]">Loading…</p>}
 
       {pending.length > 0 && (
         <section>
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Pending Requests</h3>
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Pending Requests</h3>
           <div className="flex flex-col gap-2">
             {pending.map(link => (
               <div key={link.id} className="flex items-center justify-between p-3 border border-[#ffe0a3] bg-[#fff8ea] rounded-[8px]">
                 <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-[#11111c]">{link.hospitalName}</span>
-                  <span className="text-[11px] font-light text-[#57575f]">Requested by {link.requestedBy} · {link.requestedAt}</span>
+                  <span className="text-[13px] font-medium text-[color:var(--ink)]">{link.hospitalName}</span>
+                  <span className="text-[11px] font-light text-[color:var(--ink-soft)]">Requested by {link.requestedBy} · {link.requestedAt}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => respond(link.id, "reject")} disabled={saving}
-                    className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[6px] rounded-full hover:bg-white transition-colors disabled:opacity-50">
+                    className="text-[12px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[6px] rounded-full hover:bg-[color:var(--surface)] transition-colors disabled:opacity-50">
                     Reject
                   </button>
                   <button onClick={() => respond(link.id, "accept")} disabled={saving}
-                    className="text-[12px] font-normal text-white bg-[#009598] px-3 py-[6px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+                    className="text-[12px] font-normal text-white bg-[color:var(--brand)] px-3 py-[6px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
                     Accept
                   </button>
                 </div>
@@ -845,16 +870,16 @@ function LinkedHospitalsView() {
       )}
 
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Hospitals</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Hospitals</h3>
         {!loading && other.length === 0 && (
-          <p className="text-[13px] text-[#57575f]">No hospitals linked yet — ask a hospital admin to request a link using this center&apos;s code.</p>
+          <p className="text-[13px] text-[color:var(--ink-soft)]">No hospitals linked yet — ask a hospital admin to request a link using this center&apos;s code.</p>
         )}
         <div className="flex flex-col gap-2">
           {other.map(link => (
-            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[color:var(--line)] rounded-[8px] bg-[color:var(--surface)]">
               <div className="flex flex-col">
-                <span className="text-[13px] font-medium text-[#11111c]">{link.hospitalName}</span>
-                <span className="text-[11px] font-light text-[#57575f]">
+                <span className="text-[13px] font-medium text-[color:var(--ink)]">{link.hospitalName}</span>
+                <span className="text-[11px] font-light text-[color:var(--ink-soft)]">
                   {link.respondedAt ? `Responded ${link.respondedAt}` : ""}
                   {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
                 </span>
@@ -897,8 +922,9 @@ function RadiologyPageInner() {
   const handoffPatientId = searchParams.get("patientId") ?? undefined;
   const handoffDoctorId = searchParams.get("doctorId") ?? undefined;
   const handoffRadiologyCenterId = searchParams.get("radiologyCenterId") ?? undefined;
+  const handoffPriority = PRIORITIES.find(p => p === searchParams.get("priority"));
 
-  const [tab, setTab] = useState(handoffPatientId ? "booking" : "scans");
+  const [tab, setTab] = useState(handoffPatientId ? "booking" : "worklist");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [uploadFor, setUploadFor] = useState<RadiologyTestDTO | null>(null);
@@ -914,7 +940,8 @@ function RadiologyPageInner() {
   const { dialog, remove, mutate } = useRowActions("radiology", reload);
 
   const TABS = [
-    { id: "scans",   label: "All Studies", count: tests.length },
+    { id: "worklist", label: "Worklist", count: tests.filter(t => t.status === "Pending" || t.status === "Scan Done").length },
+    { id: "scans",   label: "By Patient", count: tests.length },
     ...(canBook ? [{ id: "booking", label: "New Order" }] : []),
     { id: "reports", label: "Reports",     count: tests.filter(t => t.reportStatus === "Ready").length },
     ...(isCenter ? [{ id: "links", label: "Linked Hospitals" }, { id: "about", label: "About" }] : []),
@@ -926,6 +953,9 @@ function RadiologyPageInner() {
     const matchS = !q || t.patientName.toLowerCase().includes(q) || t.testName.toLowerCase().includes(q);
     return matchF && matchS;
   });
+  // Page over patients (each row is one patient with all their tests).
+  const patientGroups = groupByPatient(visible);
+  const { rows: pagedGroups, bar: barGroups } = usePagination(patientGroups, "patients", g => `${g[0].hospitalId}:${g[0].patientId ?? g[0].patientName}`);
 
   return (
     <>
@@ -971,14 +1001,30 @@ function RadiologyPageInner() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 400 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          {tab === "worklist" && (
+            <RadiologyWorklist
+              tests={tests}
+              canWrite={canWrite}
+              canUpload={canUploadReport}
+              canDelete={canWrite && !isPartner}
+              showHospital={isCenter}
+              onViewPatient={setViewingPatient}
+              onViewReport={setViewing}
+              onUpload={setUploadFor}
+              onMarkScanned={(t) => mutate(() => api.patch(`/radiology/${t.id}`, { scanStatus: "Done" }))}
+              onSetPriority={(t, priority) => mutate(() => api.patch(`/radiology/${t.id}`, { priority }))}
+              onCancel={(t) => mutate(() => api.patch(`/radiology/${t.id}`, { status: "Cancelled" }))}
+              onDelete={(t) => remove(t.id, t.testName)}
+            />
+          )}
           {tab === "scans" && (
             <>
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or study..."
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={patientColumns(isCenter)} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No studies found.</div>
-                ) : groupByPatient(visible).map(group => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No studies found.</div>
+                ) : pagedGroups.map(group => (
                   <PatientGroupRow
                     key={`${group[0].hospitalId}:${group[0].patientId ?? group[0].patientName}`}
                     tests={group}
@@ -987,12 +1033,13 @@ function RadiologyPageInner() {
                   />
                 ))}
               </DataTable>
+              {barGroups}
             </>
           )}
           {tab === "booking" && canBook && (
-            <BookingView patients={patients} onBooked={() => { reload(); setTab("scans"); }}
+            <BookingView patients={patients} onBooked={() => { reload(); setTab("worklist"); }}
               initialPatientId={handoffPatientId} initialDoctorId={handoffDoctorId}
-              initialRadiologyCenterId={handoffRadiologyCenterId} />
+              initialRadiologyCenterId={handoffRadiologyCenterId} initialPriority={handoffPriority} />
           )}
           {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canUpload={canUploadReport} />}
           {tab === "links" && isCenter && <LinkedHospitalsView />}

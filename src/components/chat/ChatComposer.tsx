@@ -22,7 +22,7 @@ export function ChatComposer({ value, onChange, onSend, disabled, placeholder }:
   }
 
   return (
-    <div className="flex items-end gap-2 px-3 py-3 border-t border-[#dedee1] bg-white shrink-0">
+    <div className="flex items-end gap-2 px-3 py-3 border-t border-[color:var(--line)] bg-[color:var(--surface)] shrink-0">
       <textarea
         ref={ref}
         value={value}
@@ -31,12 +31,12 @@ export function ChatComposer({ value, onChange, onSend, disabled, placeholder }:
         disabled={disabled}
         rows={1}
         placeholder={placeholder ?? "Ask about patients, appointments, billing…"}
-        className="flex-1 resize-none max-h-[120px] text-[13px] font-normal text-[#11111c] placeholder:text-[#57575f] bg-[#f6f6f6] rounded-[14px] px-3.5 py-2.5 outline-none focus:ring-1 focus:ring-[#009598] disabled:opacity-60"
+        className="flex-1 resize-none max-h-[120px] text-[13px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] bg-[color:var(--subtle)] rounded-[14px] px-3.5 py-2.5 outline-none focus:ring-1 focus:ring-[color:var(--brand)] disabled:opacity-60"
       />
       <button
         onClick={onSend}
         disabled={disabled || !value.trim()}
-        className="w-9 h-9 shrink-0 rounded-full bg-[#009598] flex items-center justify-center hover:bg-[#007f82] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-9 h-9 shrink-0 rounded-full bg-[color:var(--brand)] flex items-center justify-center hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ArrowUp size={16} className="text-white" strokeWidth={2} />
       </button>

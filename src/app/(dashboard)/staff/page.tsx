@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput } from "@/components/shared/FormRow";
@@ -43,18 +44,18 @@ const MIN_WIDTH = 1180;
 function StaffRow({ row, actions }: { row: Staff; actions: RowAction[] }) {
   return (
     <Link href={`/staff/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.role}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.role}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.department}</span>
       <div className="flex items-center gap-[5px] min-w-0">
-        <Phone size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[13px] font-normal text-[#11111c] truncate">{row.phone}</span>
+        <Phone size={13} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
+        <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.phone}</span>
       </div>
       <div className="flex items-center gap-[5px] min-w-0">
-        <Mail size={13} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[13px] font-normal text-[#57575f] truncate">{row.email}</span>
+        <Mail size={13} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
+        <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.email}</span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.joinDate)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.joinDate)}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
@@ -89,37 +90,37 @@ function AccessControlView() {
     <div className="p-5 flex gap-5" style={{ height: 555 }}>
       {/* Role list */}
       <div className="w-48 flex flex-col gap-1 shrink-0">
-        <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Roles</p>
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Roles</p>
         {ROLES.map(role => (
           <button
             key={role}
             onClick={() => setSelectedRole(role)}
-            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors cursor-pointer ${selectedRole === role ? "bg-[#009598] text-white" : "text-[#57575f] hover:bg-[#f6f6f6] hover:text-[#11111c]"}`}
+            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors cursor-pointer ${selectedRole === role ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)]"}`}
           >
             {role}
           </button>
         ))}
       </div>
       {/* Permissions matrix */}
-      <div className="flex-1 border border-[#dedee1] rounded-[10px] overflow-hidden">
-        <div className="px-5 py-3 bg-[#f6f6f6] border-b border-[#dedee1]">
-          <h3 className="text-[14px] font-medium text-[#11111c]">Module Permissions — {selectedRole}</h3>
+      <div className="flex-1 border border-[color:var(--line)] rounded-[10px] overflow-hidden">
+        <div className="px-5 py-3 bg-[color:var(--subtle)] border-b border-[color:var(--line)]">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Module Permissions — {selectedRole}</h3>
         </div>
         <div className="grid gap-0 overflow-y-auto" style={{ maxHeight: 464 }}>
           {MODULES.map((module, i) => {
             const allowed = perms[selectedRole]?.[module] ?? false;
             return (
-              <label key={module} className={`flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#fafafa] transition-colors ${i < MODULES.length - 1 ? "border-b border-[#f0f0f0]" : ""}`}>
-                <span className="text-[14px] font-normal text-[#11111c]">{module}</span>
+              <label key={module} className={`flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[color:var(--faint)] transition-colors ${i < MODULES.length - 1 ? "border-b border-[color:var(--subtle-2)]" : ""}`}>
+                <span className="text-[14px] font-normal text-[color:var(--ink)]">{module}</span>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[12px] font-normal ${allowed ? "text-[#00955c]" : "text-[#57575f]"}`}>
+                  <span className={`text-[12px] font-normal ${allowed ? "text-[#00955c]" : "text-[color:var(--ink-soft)]"}`}>
                     {allowed ? "Allowed" : "Restricted"}
                   </span>
                   <button
                     onClick={() => toggle(module)}
-                    className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${allowed ? "bg-[#009598]" : "bg-[#dedee1]"}`}
+                    className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${allowed ? "bg-[color:var(--brand)]" : "bg-[color:var(--line)]"}`}
                   >
-                    <span className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all ${allowed ? "left-[21px]" : "left-[3px]"}`} />
+                    <span className={`absolute top-[3px] w-[18px] h-[18px] bg-[color:var(--surface)] rounded-full shadow transition-all ${allowed ? "left-[21px]" : "left-[3px]"}`} />
                   </button>
                 </div>
               </label>
@@ -179,15 +180,17 @@ export default function StaffPage() {
     return matchF && matchS;
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "staff");
+
   return (
     <>
       {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Staff Member"
         footer={
           <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={addStaff} disabled={loading || !form.name || !form.role}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Adding…" : "Add Staff"}
             </button>
           </>
@@ -219,8 +222,8 @@ export default function StaffPage() {
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No staff found.</div>
-                ) : visible.map(r => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No staff found.</div>
+                ) : pagedVisible.map(r => (
                   <StaffRow key={r.id} row={r} actions={[
                     { label: "View profile", onClick: () => router.push(`/staff/${r.id}`) },
                     ...(canWrite ? [
@@ -230,6 +233,7 @@ export default function StaffPage() {
                   ]} />
                 ))}
               </DataTable>
+{barVisible}
             </>
           )}
           {tab === "access"     && <AccessControlView />}

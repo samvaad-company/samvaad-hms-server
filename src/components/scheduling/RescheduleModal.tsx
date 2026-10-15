@@ -45,16 +45,16 @@ export function RescheduleModal({
     <Modal open={open} onClose={onClose} title={`Reschedule — ${appt.patientName}`} width={560}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button onClick={save} disabled={loading || !date || !time}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Moving…" : "Move appointment"}
           </button>
         </>
       }
     >
-      <p className="text-[13px] text-[#57575f] mb-4">
-        Currently <span className="text-[#11111c]">{appt.date} at {appt.time}</span>.
+      <p className="text-[13px] text-[color:var(--ink-soft)] mb-4">
+        Currently <span className="text-[color:var(--ink)]">{appt.date} at {appt.time}</span>.
         {isVideo && " The video link stays the same and the calendar invite moves with it."}
       </p>
       <div className="mb-4">

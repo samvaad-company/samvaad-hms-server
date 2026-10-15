@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
@@ -33,11 +34,11 @@ function StockView({ stock, onAdd, canWrite }: { stock: BloodStockDTO[]; onAdd: 
   return (
     <div className="p-5 flex flex-col gap-4 overflow-auto" style={{ height: 580 }}>
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           Live availability by blood group and component. Issuing blood decrements stock automatically.
         </p>
         {canWrite && (
-          <button onClick={onAdd} className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+          <button onClick={onAdd} className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
             <Plus size={14} /> Add Stock
           </button>
         )}
@@ -45,16 +46,16 @@ function StockView({ stock, onAdd, canWrite }: { stock: BloodStockDTO[]; onAdd: 
       <div className="overflow-x-auto">
         <div style={{ minWidth: 760 }}>
           <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `120px repeat(${COMPONENTS.length}, 1fr)` }}>
-            <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider py-2">Group</div>
+            <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider py-2">Group</div>
             {COMPONENTS.map(c => (
-              <div key={c} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider text-center py-2">{c}</div>
+              <div key={c} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider text-center py-2">{c}</div>
             ))}
           </div>
           {BLOOD_GROUPS.map(group => (
             <div key={group} className="grid gap-2 mb-2" style={{ gridTemplateColumns: `120px repeat(${COMPONENTS.length}, 1fr)` }}>
               <div className="flex items-center gap-2 py-2">
                 <Droplets size={16} className="text-[#ff0004]" />
-                <span className="text-[15px] font-medium text-[#11111c]">{group}</span>
+                <span className="text-[15px] font-medium text-[color:var(--ink)]">{group}</span>
               </div>
               {COMPONENTS.map(component => {
                 const units = unitsFor(group, component);
@@ -95,13 +96,13 @@ const DONOR_COLUMNS = [
 function DonorRow({ row, actions }: { row: BloodDonorDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.age}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.gender}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.age}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.gender}</span>
       <span className="text-[13px] font-medium text-[#ff0004]">{row.bloodGroup}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.phone}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.lastDonationDate || "—"}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.totalDonations}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{row.phone}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{row.lastDonationDate || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">{row.totalDonations}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -125,13 +126,13 @@ const ISSUE_COLUMNS = [
 function IssueRow({ row, actions }: { row: BloodIssueDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
       <span className="text-[13px] font-medium text-[#ff0004]">{row.bloodGroup}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.component}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.units}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.component}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">{row.units}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -224,17 +225,21 @@ export default function BloodBankPage() {
     return matchF && (!q || d.name.toLowerCase().includes(q) || d.bloodGroup.toLowerCase().includes(q) || d.phone.includes(q));
   });
 
+  const { rows: pagedVisibleDonors, bar: barVisibleDonors } = usePagination(visibleDonors, "records");
+
   const visibleIssues = issues.filter(i => {
     const q = issueSearch.toLowerCase();
     return !q || i.patientName.toLowerCase().includes(q) || i.bloodGroup.toLowerCase().includes(q) || i.component.toLowerCase().includes(q);
   });
 
+  const { rows: pagedVisibleIssues, bar: barVisibleIssues } = usePagination(visibleIssues, "records");
+
   const modalError = error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>;
   const modalFooter = (onSubmit: () => void, label: string, disabled: boolean) => (
     <>
-      <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+      <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
       <button onClick={onSubmit} disabled={loading || disabled}
-        className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {loading ? "Saving…" : label}
       </button>
     </>
@@ -319,8 +324,8 @@ export default function BloodBankPage() {
               />
               <DataTable columns={DONOR_COLUMNS} minWidth={1100}>
                 {visibleDonors.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No donors found.</div>
-                ) : visibleDonors.map(d => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No donors found.</div>
+                ) : pagedVisibleDonors.map(d => (
                   <DonorRow key={d.id} row={d} actions={[
                     ...(canWrite ? [
                       { label: "Record donation", disabled: d.status !== "Eligible", onClick: () => donorActions.mutate(() => api.post(`/blood-bank/donors/${d.id}/donate`, {})) },
@@ -331,6 +336,7 @@ export default function BloodBankPage() {
                   ]} />
                 ))}
               </DataTable>
+{barVisibleDonors}
             </>
           )}
 
@@ -345,14 +351,15 @@ export default function BloodBankPage() {
               />
               <DataTable columns={ISSUE_COLUMNS} minWidth={1100}>
                 {visibleIssues.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No issues recorded.</div>
-                ) : visibleIssues.map(i => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No issues recorded.</div>
+                ) : pagedVisibleIssues.map(i => (
                   <IssueRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Cancel & restock", disabled: i.status === "Cancelled", onClick: () => issueActions.ask({ message: `Cancel this issue and return ${i.units} unit(s) of ${i.bloodGroup} ${i.component} to stock?`, confirmLabel: "Cancel Issue", danger: true, action: () => api.patch(`/blood-bank/issues/${i.id}`, { status: "Cancelled" }) }) },
                     { label: "Delete", danger: true, onClick: () => issueActions.remove(i.id, `issue for ${i.patientName}`) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleIssues}
             </>
           )}
         </div>
@@ -364,7 +371,7 @@ export default function BloodBankPage() {
           title={`ID Proof — ${docsFor.name}`}
           width={600}
           footer={
-            <button onClick={() => setDocsFor(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+            <button onClick={() => setDocsFor(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
               Close
             </button>
           }

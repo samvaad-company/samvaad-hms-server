@@ -31,8 +31,8 @@ export function SlotPicker({
     : null;
   const { item, loading, error } = useItem<SlotsDTO>(path);
 
-  if (!path) return <p className="text-[12px] font-light text-[#57575f]">Choose a doctor and a date to see the available times.</p>;
-  if (loading && !item) return <Loader2 size={18} className="animate-spin text-[#57575f]" />;
+  if (!path) return <p className="text-[12px] font-light text-[color:var(--ink-soft)]">Choose a doctor and a date to see the available times.</p>;
+  if (loading && !item) return <Loader2 size={18} className="animate-spin text-[color:var(--ink-soft)]" />;
   if (error) return <p className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</p>;
   if (!item) return null;
   if (!item.isOpen) return <p className="text-[13px] text-[#ff9000] bg-[#fff2e0] rounded-[8px] px-3 py-2">{item.closedReason ?? "No times available."}</p>;
@@ -48,10 +48,10 @@ export function SlotPicker({
   const noneOpen = !item.slots.some(s => s.status === "open");
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider">{label}</p>
-        <p className="text-[11px] font-light text-[#57575f]">{item.note}</p>
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{label}</p>
+        <p className="text-[10.5px] font-light text-[color:var(--ink-soft)]">{item.note}</p>
       </div>
       {item.closedReason && noneOpen && (
         <p className="text-[13px] text-[#ff9000] bg-[#fff2e0] rounded-[8px] px-3 py-2">{item.closedReason}</p>
@@ -59,15 +59,15 @@ export function SlotPicker({
       {groups.map((g, i) => {
         const meta = item.hours[i];
         return (
-          <div key={g.hour} className="flex flex-col gap-[6px]">
+          <div key={g.hour} className="flex flex-col gap-[4px]">
             {meta && (
-              <div className="flex items-center gap-2 text-[11px] text-[#57575f]">
+              <div className="flex items-center gap-2 text-[10.5px] text-[color:var(--ink-soft)]">
                 <span className="font-medium">{meta.label}</span>
                 <span>· {meta.booked}/{meta.capacity} booked</span>
-                {meta.full && <span className="px-[8px] py-[1px] rounded-full bg-[#ffe9e9] text-[#ff0004] font-medium">Full</span>}
+                {meta.full && <span className="px-[6px] py-[1px] rounded-full bg-[#ffe9e9] text-[#ff0004] font-medium text-[10px]">Full</span>}
               </div>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-[6px]">
               {g.slots.map(s => {
                 const open = s.status === "open";
                 const active = value === s.value;
@@ -78,14 +78,14 @@ export function SlotPicker({
                     disabled={!open}
                     onClick={() => onChange(s.value, s.label)}
                     title={s.status === "booked" ? "This time is already booked" : s.status === "full" ? "This hour is full" : undefined}
-                    className={`flex items-center gap-1 px-4 py-[7px] rounded-full text-[13px] font-normal border transition-colors ${
-                      !open ? "border-[#dedee1] text-[#a0a0a8] bg-[#f6f6f6] cursor-not-allowed"
-                        : active ? "bg-[#009598] text-white border-[#009598] cursor-pointer"
-                        : "border-[#dedee1] text-[#57575f] hover:border-[#009598] hover:text-[#009598] cursor-pointer"
+                    className={`flex items-center gap-1 px-[10px] py-[3px] rounded-full text-[11.5px] font-normal border transition-colors ${
+                      !open ? "border-[color:var(--line)] text-[#a0a0a8] bg-[color:var(--subtle)] cursor-not-allowed"
+                        : active ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)] cursor-pointer"
+                        : "border-[color:var(--line)] text-[color:var(--ink-soft)] hover:border-[color:var(--brand)] hover:text-[color:var(--brand)] cursor-pointer"
                     }`}
                   >
-                    <Clock size={12} /> {s.label}
-                    {!open && <span className="text-[10px] ml-1 uppercase">{s.status}</span>}
+                    <Clock size={10} /> {s.label}
+                    {!open && <span className="text-[9px] ml-[2px] uppercase">{s.status}</span>}
                   </button>
                 );
               })}

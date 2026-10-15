@@ -13,6 +13,7 @@ import type { FinanceEntryDTO } from "@/types/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -39,10 +40,10 @@ const COLUMNS = [
 function EntryRow({ row, amountClass, actions }: { row: FinanceEntryDTO; amountClass: string; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.category}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.description}</span>
-      <span className="text-[13px] font-normal text-[#009598] whitespace-nowrap">{row.invoiceNumber || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.category}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.description}</span>
+      <span className="text-[13px] font-normal text-[color:var(--brand)] whitespace-nowrap">{row.invoiceNumber || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
       <span className={`text-[13px] font-medium text-right ${amountClass}`}>₹{row.amount.toLocaleString("en-IN")}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -99,11 +100,14 @@ export default function FinancePage() {
     const q = incomeSearch.toLowerCase();
     return matchF && (!q || e.description.toLowerCase().includes(q) || e.category.toLowerCase().includes(q) || e.invoiceNumber.toLowerCase().includes(q));
   });
+
+  const { rows: pagedVisibleIncomes, bar: barVisibleIncomes } = usePagination(visibleIncomes, "records");
   const visibleExpenses = expenses.filter(e => {
     const matchF = expenseFilter === "All" || e.category === expenseFilter;
     const q = expenseSearch.toLowerCase();
     return matchF && (!q || e.description.toLowerCase().includes(q) || e.category.toLowerCase().includes(q) || e.invoiceNumber.toLowerCase().includes(q));
   });
+  const { rows: pagedVisibleExpenses, bar: barVisibleExpenses } = usePagination(visibleExpenses, "records");
 
   const isIncomeModal = modal === "income";
 
@@ -115,9 +119,9 @@ export default function FinancePage() {
       <Modal open={modal !== ""} onClose={closeModal} title={isIncomeModal ? "Add Income" : "Add Expense"}
         footer={
           <>
-            <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={submitEntry} disabled={loading || !form.category || !form.description || !form.amount}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Saving…" : isIncomeModal ? "Add Income" : "Add Expense"}
             </button>
           </>
@@ -144,14 +148,14 @@ export default function FinancePage() {
       <div className={`${tw.gutterX} mb-5 grid grid-cols-2 gap-4`}>
         <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex items-center justify-between`}>
           <div>
-            <p className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider">Total Income</p>
+            <p className="text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Total Income</p>
             <p className="text-[24px] font-medium text-[#00955c] mt-1">₹{totalIncome.toLocaleString("en-IN")}</p>
           </div>
           <TrendingUp size={28} className="text-[#00955c]" />
         </div>
         <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex items-center justify-between`}>
           <div>
-            <p className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider">Total Expenses</p>
+            <p className="text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Total Expenses</p>
             <p className="text-[24px] font-medium text-[#ff0004] mt-1">₹{totalExpense.toLocaleString("en-IN")}</p>
           </div>
           <TrendingDown size={28} className="text-[#ff0004]" />
@@ -171,13 +175,14 @@ export default function FinancePage() {
                 action={canWrite ? { label: "Add Income", icon: Plus, onClick: () => setModal("income") } : undefined} />
               <DataTable columns={COLUMNS} minWidth={1050}>
                 {visibleIncomes.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No income entries.</div>
-                ) : visibleIncomes.map(e => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No income entries.</div>
+                ) : pagedVisibleIncomes.map(e => (
                   <EntryRow key={e.id} row={e} amountClass="text-[#00955c]" actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => incomeActions.remove(e.id, e.description) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleIncomes}
             </>
           )}
 
@@ -190,13 +195,14 @@ export default function FinancePage() {
                 action={canWrite ? { label: "Add Expense", icon: Plus, onClick: () => setModal("expense") } : undefined} />
               <DataTable columns={COLUMNS} minWidth={1050}>
                 {visibleExpenses.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No expense entries.</div>
-                ) : visibleExpenses.map(e => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No expense entries.</div>
+                ) : pagedVisibleExpenses.map(e => (
                   <EntryRow key={e.id} row={e} amountClass="text-[#ff0004]" actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => expenseActions.remove(e.id, e.description) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleExpenses}
             </>
           )}
         </div>

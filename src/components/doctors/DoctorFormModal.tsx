@@ -55,9 +55,9 @@ function DoctorForm({
     <Modal open={open} onClose={onClose} title={editing ? "Edit Doctor" : "Add Doctor"}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button onClick={save} disabled={loading || !form.name.trim()}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : editing ? "Save changes" : "Add Doctor"}
           </button>
         </>

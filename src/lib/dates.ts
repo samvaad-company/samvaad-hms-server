@@ -100,3 +100,12 @@ export function isPastDate(value: string | null | undefined): boolean {
 export function todayIso(): string {
   return localIso(new Date());
 }
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** ISO date → "Tue, 31 Mar" (weekday, day, month) for compact lists; anything else is returned as given. */
+export function formatShortDay(value: string | null | undefined): string {
+  const m = value ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim()) : null;
+  if (!m) return value ?? "—";
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}

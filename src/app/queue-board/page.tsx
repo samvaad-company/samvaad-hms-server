@@ -44,7 +44,7 @@ export default function QueueBoardPage() {
             {/* <span className="text-white text-[16px] font-medium">S</span> */}
             <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
           </div>
-          <span className="text-[24px] font-medium">Samvaad <span className="text-[#009598]">HMS</span> — OPD Queue</span>
+          <span className="text-[24px] font-medium">Samvaad <span className="text-[color:var(--brand)]">HMS</span> — OPD Queue</span>
         </div>
         <div className="text-right">
           <div className="text-[28px] font-medium tabular-nums">
@@ -67,7 +67,7 @@ export default function QueueBoardPage() {
           ) : (
             <div className="flex flex-col gap-6">
               {serving.map(r => (
-                <div key={r.id} className="bg-[#009598] rounded-[20px] px-10 py-8 flex items-center justify-between">
+                <div key={r.id} className="bg-[color:var(--brand)] rounded-[20px] px-10 py-8 flex items-center justify-between">
                   <div>
                     <div className="text-[64px] font-semibold leading-none tabular-nums">{r.tokenNumber}</div>
                     <div className="text-[20px] mt-2 text-white/90">{r.patientName}</div>

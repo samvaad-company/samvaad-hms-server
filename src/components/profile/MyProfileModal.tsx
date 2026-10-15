@@ -58,16 +58,16 @@ function MyProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Modal open={open} onClose={onClose} title="My profile"
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Close</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Close</button>
           <button onClick={save} disabled={loading || !profile || !form.name.trim()}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : "Save changes"}
           </button>
         </>
       }
     >
       {!profile ? (
-        <div className="py-8 text-center text-[13px] text-[#57575f]">Loading…</div>
+        <div className="py-8 text-center text-[13px] text-[color:var(--ink-soft)]">Loading…</div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2"><FormRow label="Full Name *"><FormInput value={form.name} onChange={(v) => set("name", v)} /></FormRow></div>
@@ -77,8 +77,8 @@ function MyProfile({ open, onClose }: { open: boolean; onClose: () => void }) {
           {isDoctor && <FormRow label="Experience"><FormInput placeholder="e.g. 10 yrs" value={form.experience} onChange={(v) => set("experience", v)} /></FormRow>}
           {isDoctor && <div className="col-span-2"><FormRow label="Specialty"><FormInput value={form.specialty} onChange={(v) => set("specialty", v)} /></FormRow></div>}
 
-          <div className="col-span-2 h-px bg-[#f0f0f0]" />
-          <div className="col-span-2 text-[12px] font-medium text-[#57575f] uppercase tracking-wider -mb-2">Change password (optional)</div>
+          <div className="col-span-2 h-px bg-[color:var(--subtle-2)]" />
+          <div className="col-span-2 text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider -mb-2">Change password (optional)</div>
           <div className="col-span-2"><FormRow label="Current password"><FormInput type="password" value={pw.current} onChange={(v) => setPw((p) => ({ ...p, current: v }))} /></FormRow></div>
           <FormRow label="New password" hint="At least 6 characters."><FormInput type="password" value={pw.next} onChange={(v) => setPw((p) => ({ ...p, next: v }))} /></FormRow>
           <FormRow label="Confirm new password"><FormInput type="password" error={mismatch} value={pw.confirm} onChange={(v) => setPw((p) => ({ ...p, confirm: v }))} /></FormRow>

@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
@@ -46,17 +47,17 @@ const MIN_WIDTH = 1200;
 function OtRow({ row, actions }: { row: OtRecord; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.procedure}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.procedure}</span>
       <div>
-        <span className="inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-medium bg-[#f2f3f3] text-[#11111c] whitespace-nowrap">
+        <span className="inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-medium bg-[color:var(--subtle-3)] text-[color:var(--ink)] whitespace-nowrap">
           {row.otRoom}
         </span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.surgeon}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.anesthetist}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.scheduledDate)}</span>
-      <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{row.scheduledTime}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.surgeon}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.anesthetist}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.scheduledDate)}</span>
+      <span className="text-[12px] font-light text-[color:var(--ink-soft)] whitespace-nowrap">{row.scheduledTime}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -110,16 +111,18 @@ export default function OtPage() {
     return matchF && matchS;
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "surgeries");
+
   return (
     <>
       {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Schedule OT" width={640}
         footer={
           <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <Link href="/ot/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
+            <Link href="/ot/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Full Form →</Link>
             <button onClick={schedule} disabled={loading || !form.patientId || !form.procedure || !form.otRoom || !form.surgeonId || !form.date || !form.time}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Scheduling…" : "Schedule OT"}
             </button>
           </>
@@ -162,7 +165,7 @@ export default function OtPage() {
             onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {visible.map((r) => (
+            {pagedVisible.map((r) => (
               <OtRow key={r.id} row={r} actions={[
                 { label: "View full form", onClick: () => router.push(`/ot/${r.id}`) },
                 ...(canWrite ? [
@@ -174,6 +177,7 @@ export default function OtPage() {
               ]} />
             ))}
           </DataTable>
+{barVisible}
         </div>
       </div>
     </>

@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
@@ -36,7 +37,7 @@ const COLUMNS = [
 const PRIORITY_CLR: Record<string, string> = {
   Emergency: "bg-[#ffe9e9] text-[#ff0004]",
   Urgent:    "bg-[#fff2e0] text-[#ff9000]",
-  Normal:    "bg-[#f0f0f0] text-[#57575f]",
+  Normal:    "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
 };
 
 /** Compact vitals readout, e.g. "120/80 · 74 · 98.6°F · 98%". */
@@ -61,11 +62,11 @@ const MIN_WIDTH = 1340;
 function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#009598]">{row.tokenNumber}</span>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate" title={row.reason}>
+      <span className="text-[13px] font-medium text-[color:var(--brand)]">{row.tokenNumber}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate" title={row.reason}>
         {row.reason || "—"}
       </span>
       <div>
@@ -80,14 +81,14 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
           <XCircle size={15} className="text-[#ff0004] shrink-0" />
         )}
         <span
-          className={`text-[12px] font-normal truncate ${row.vitalsRecorded ? "text-[#11111c]" : "text-[#ff0004]"}`}
+          className={`text-[12px] font-normal truncate ${row.vitalsRecorded ? "text-[color:var(--ink)]" : "text-[#ff0004]"}`}
           title={vitalsSummary(row.vitals)}
         >
           {row.vitalsRecorded ? (vitalsSummary(row.vitals) || "Recorded") : "Pending"}
         </span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.waitTime}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.checkInTime}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.waitTime}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.checkInTime}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -272,15 +273,17 @@ export default function OpdPage() {
     return matchF && matchS;
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "records");
+
   return (
     <>
       {dialog}
       <Modal open={showModal} onClose={closeModal} title={editingRow ? `Edit OPD Entry — ${editingRow.tokenNumber}` : "New OPD Check-in"}
         footer={
           <>
-            <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={submit} disabled={loading || (!editingRow && !form.patientId)}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? (editingRow ? "Saving…" : "Issuing…") : editingRow ? "Save Changes" : "Issue Token"}
             </button>
           </>
@@ -288,17 +291,17 @@ export default function OpdPage() {
       >
         <div className="grid grid-cols-2 gap-4">
           {editingRow ? (
-            <div className="col-span-2 flex items-center gap-3 p-3 bg-[#e8f7f7] rounded-[10px]">
+            <div className="col-span-2 flex items-center gap-3 p-3 bg-[color:var(--brand-soft)] rounded-[10px]">
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-[#009598] uppercase tracking-wider">{editingRow.tokenNumber}</span>
-                <span className="text-[16px] font-medium text-[#11111c]">{editingRow.patientName}</span>
+                <span className="text-[10px] font-medium text-[color:var(--brand)] uppercase tracking-wider">{editingRow.tokenNumber}</span>
+                <span className="text-[16px] font-medium text-[color:var(--ink)]">{editingRow.patientName}</span>
               </div>
             </div>
           ) : (
-            <div className="col-span-2 flex items-center gap-3 p-3 bg-[#e8f7f7] rounded-[10px]">
+            <div className="col-span-2 flex items-center gap-3 p-3 bg-[color:var(--brand-soft)] rounded-[10px]">
               <div className="flex flex-col">
-                <span className="text-[10px] font-medium text-[#009598] uppercase tracking-wider">Next Token</span>
-                <span className="text-[24px] font-medium text-[#009598]">{NEXT_TOKEN}</span>
+                <span className="text-[10px] font-medium text-[color:var(--brand)] uppercase tracking-wider">Next Token</span>
+                <span className="text-[24px] font-medium text-[color:var(--brand)]">{NEXT_TOKEN}</span>
               </div>
             </div>
           )}
@@ -322,15 +325,15 @@ export default function OpdPage() {
           </FormRow>
           <div />
 
-          <div className="col-span-2 border-t border-[#f0f0f0] pt-3">
-            <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">
+          <div className="col-span-2 border-t border-[color:var(--subtle-2)] pt-3">
+            <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">
               Vitals <span className="font-normal normal-case">— optional; entering any reading marks vitals as recorded</span>
             </p>
           </div>
           <FormRow label="Blood Pressure (mmHg)">
             <div className="flex items-center gap-2">
               <FormInput placeholder="120" type="number" value={form.bpSystolic} onChange={v => set("bpSystolic", v)} />
-              <span className="text-[#57575f]">/</span>
+              <span className="text-[color:var(--ink-soft)]">/</span>
               <FormInput placeholder="80" type="number" value={form.bpDiastolic} onChange={v => set("bpDiastolic", v)} />
             </div>
           </FormRow>
@@ -366,7 +369,7 @@ export default function OpdPage() {
             onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {visible.map((r) => (
+            {pagedVisible.map((r) => (
               <OpdRow key={r.id} row={r} actions={[
                 ...(canWrite ? [
                   { label: "Edit", onClick: () => openEdit(r) },
@@ -382,6 +385,7 @@ export default function OpdPage() {
               ]} />
             ))}
           </DataTable>
+{barVisible}
         </div>
       </div>
     </>

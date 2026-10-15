@@ -147,6 +147,16 @@ test("a Doctor login is linked to a doctor record at creation, once, and only fo
   assert.equal(moved.data.doctorId, null);
 });
 
+test("the hospital's theme colour: anyone can read it, only an admin can change it, and only real colours are accepted", async () => {
+  assert.equal((await as(RECEPTION, "GET", "/api/admin/settings")).data.themeColor, "teal", "teal until someone chooses");
+  assert.equal((await as(ADMIN, "PUT", "/api/admin/settings", { themeColor: "sky" })).data.themeColor, "sky");
+  assert.equal((await as(RECEPTION, "GET", "/api/admin/settings")).data.themeColor, "sky", "everyone at the hospital sees it");
+  assert.equal((await as(RECEPTION, "PUT", "/api/admin/settings", { themeColor: "red" })).status, 403);
+  assert.equal((await as(ADMIN, "PUT", "/api/admin/settings", { themeColor: "hot-pink" })).status, 422);
+  assert.equal((await as(ADMIN, "GET", "/api/admin/settings")).data.themeColor, "sky", "a refused change leaves it alone");
+  assert.equal((await as(ADMIN, "PUT", "/api/admin/settings", { themeColor: "teal" })).data.themeColor, "teal");
+});
+
 test("profile requires a login", async () => {
   assert.equal((await request("PATCH", "/api/auth/profile", { body: { name: "x y" } })).status, 401);
 });

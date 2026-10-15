@@ -43,6 +43,8 @@ export const TABLES = {
   deathRecords: "death_records",
   tpas: "tpas",
   tpaClaims: "tpa_claims",
+  enquiries: "enquiries",
+  followups: "followups",
   financeIncomes: "finance_incomes",
   financeExpenses: "finance_expenses",
   inventoryItems: "inventory_items",
@@ -166,6 +168,32 @@ export interface PatientRow extends Row {
   insurer: string | null;
   policy_number: string | null;
   corporate: string | null;
+  // Wider profile (all optional) — see services/patient-profile.ts
+  age_months?: number | null;
+  referral_source?: string | null;
+  medico_legal?: boolean | null;
+  is_temporary?: boolean | null;
+  data_consent?: boolean | null;
+  alternate_phone?: string | null;
+  address_line2?: string | null;
+  title?: string | null;
+  guardian_name?: string | null;
+  care_of?: string | null;
+  anniversary?: string | null;
+  marital_status?: string | null;
+  religion?: string | null;
+  language?: string | null;
+  nationality?: string | null;
+  education?: string | null;
+  notes?: string | null;
+  occupation?: string | null;
+  employer?: string | null;
+  designation?: string | null;
+  work_phone?: string | null;
+  privilege_card_no?: string | null;
+  payers?: { type: string; name: string; policyNumber: string; validUntil: string | null }[] | null;
+  identity_documents?: { type: string; last4: string; fingerprint: string }[] | null;
+  covid_details?: { vaccination: string | null; lastDose: string | null; infectedBefore: boolean } | null;
   created_at: string;
   updated_at: string;
 }
@@ -447,6 +475,8 @@ export interface HospitalRow extends Row {
   teleconsult_price?: number | null;
   /** Who may join a tele-consult's Meet room without being let in: OPEN (default) | TRUSTED | RESTRICTED. */
   teleconsult_meet_access?: string | null;
+  /** The brand colour chosen in Settings (a key from src/lib/theme.ts); teal when unset. */
+  theme_color?: string | null;
   updated_at: string;
 }
 
@@ -610,6 +640,8 @@ export interface RadiologyTestRow extends Row {
   discount: number;
   /** "percent" | "amount" — how `discount` should be read. */
   discount_type: string;
+  /** "Routine" | "Urgent" | "STAT" — chosen by the ordering doctor. */
+  priority: string;
   status: string;
   doctor_id: number | null;
   doctor: string;
@@ -713,6 +745,59 @@ export interface TpaClaimRow extends Row {
   approved_amount: number;
   claim_date: string;
   status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A planned return visit for a patient (a "follow-up"): booked by a doctor or the front desk, then marked
+ * Done when the patient comes, or Missed when they stay away. A Pending one whose date has passed is "due".
+ */
+export interface FollowUpRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  doctor_id: number | null;
+  doctor: string;
+  reason: string;
+  /** yyyy-mm-dd the patient is due back. */
+  due_on: string;
+  status: string;
+  /** Who booked it, and in what role (Doctor, Receptionist, …). */
+  created_by: string;
+  created_by_role: string;
+  /** Who marked it Done/Missed, and in what role; null while Pending. */
+  resolved_by: string | null;
+  resolved_by_role: string | null;
+  resolved_on: string | null;
+  /** How many times the date was moved. */
+  reschedules: number;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A lead captured before registration: someone who asked about a service and may later become a patient. */
+export interface EnquiryRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  mobile: string;
+  department: string;
+  interested_in: string;
+  source: string;
+  estimated_value: number;
+  /** When to contact them next (yyyy-mm-dd), or null when nothing is scheduled. */
+  follow_up_on: string | null;
+  notes: string;
+  /** Open → Follow-up → Converted (became a patient) or Closed (lost). */
+  status: string;
+  /** How many times they have been contacted so far, counting the first enquiry. */
+  contacts: number;
+  converted_patient_id: number | null;
+  history: { at: string; by: string; note: string; nextOn: string | null }[];
   created_at: string;
   updated_at: string;
 }

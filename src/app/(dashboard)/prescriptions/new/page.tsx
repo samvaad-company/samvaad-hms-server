@@ -182,8 +182,8 @@ export default function NewPrescriptionPage() {
     <>
       <div className={`${tw.gutterX} pt-4 pb-3 flex items-end justify-between gap-4`}>
         <div className="flex flex-col gap-[2px]">
-          <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New Prescription</h1>
-          <p className="text-[13px] font-light text-[#57575f] leading-[17px]">
+          <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px]">New Prescription</h1>
+          <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px]">
             Select patient and doctor, add diagnoses and medicines, then save.
           </p>
         </div>
@@ -193,7 +193,7 @@ export default function NewPrescriptionPage() {
               Add {missing.join(", ")} to save.
             </span>
           )}
-          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : null}
             {loading ? "Saving…" : "Save Prescription"}
           </button>
@@ -212,7 +212,7 @@ export default function NewPrescriptionPage() {
           <div className="col-span-1 flex flex-col gap-4">
             {/* Patient */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[#11111c] mb-3">Patient & Doctor</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Patient & Doctor</h3>
               <div className="flex flex-col gap-3">
                 <FormRow label="Patient *">
                   <SearchSelect
@@ -236,13 +236,13 @@ export default function NewPrescriptionPage() {
             {/* ICD-10 Diagnoses (multiple) */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[13px] font-medium text-[#11111c]">Diagnoses (ICD-10)</h3>
+                <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Diagnoses (ICD-10)</h3>
                 {diagnoses.length > 0 && (
-                  <span className="text-[11px] font-normal text-[#57575f]">{diagnoses.length} added</span>
+                  <span className="text-[11px] font-normal text-[color:var(--ink-soft)]">{diagnoses.length} added</span>
                 )}
               </div>
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57575f]" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
                 <input
                   placeholder="Search ICD-10 or type & press Enter…"
                   value={icdSearch}
@@ -253,20 +253,20 @@ export default function NewPrescriptionPage() {
                       addDiagnosis(icdSearch);
                     }
                   }}
-                  className="h-[38px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[34px] pr-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                  className="h-[38px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] pl-[34px] pr-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
                 />
               </div>
               {icdSearch && (
-                <div className="mt-2 border border-[#dedee1] rounded-[8px] overflow-hidden">
+                <div className="mt-2 border border-[color:var(--line)] rounded-[8px] overflow-hidden">
                   {filteredIcd.map(c => (
                     <button key={c.code} onClick={() => addDiagnosis(`${c.description} (${c.code})`)}
-                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#f6f6f6] border-b border-[#f0f0f0] last:border-0 transition-colors">
-                      <span className="font-medium text-[#009598]">{c.code}</span>
-                      <span className="text-[#57575f] ml-2">{c.description}</span>
+                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[color:var(--subtle)] border-b border-[color:var(--subtle-2)] last:border-0 transition-colors">
+                      <span className="font-medium text-[color:var(--brand)]">{c.code}</span>
+                      <span className="text-[color:var(--ink-soft)] ml-2">{c.description}</span>
                     </button>
                   ))}
                   <button onClick={() => addDiagnosis(icdSearch)}
-                    className="w-full text-left px-3 py-2 text-[12px] text-[#009598] hover:bg-[#e8f7f7] transition-colors">
+                    className="w-full text-left px-3 py-2 text-[12px] text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] transition-colors">
                     + Add “{icdSearch.trim()}” as free-text diagnosis
                   </button>
                 </div>
@@ -274,9 +274,9 @@ export default function NewPrescriptionPage() {
               {diagnoses.length > 0 && (
                 <div className="mt-3 flex flex-col gap-[6px]">
                   {diagnoses.map(d => (
-                    <div key={d} className="p-2 bg-[#e8f7f7] rounded-[6px] flex items-center justify-between gap-2">
-                      <span className="text-[12px] font-normal text-[#009598] min-w-0 truncate">{d}</span>
-                      <button onClick={() => removeDiagnosis(d)} className="text-[#57575f] hover:text-[#ff0004] shrink-0"><Trash2 size={12} /></button>
+                    <div key={d} className="p-2 bg-[color:var(--brand-soft)] rounded-[6px] flex items-center justify-between gap-2">
+                      <span className="text-[12px] font-normal text-[color:var(--brand)] min-w-0 truncate">{d}</span>
+                      <button onClick={() => removeDiagnosis(d)} className="text-[color:var(--ink-soft)] hover:text-[#ff0004] shrink-0"><Trash2 size={12} /></button>
                     </div>
                   ))}
                 </div>
@@ -285,10 +285,10 @@ export default function NewPrescriptionPage() {
 
             {/* Notes */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[#11111c] mb-3">Clinical Notes</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Clinical Notes</h3>
               <FormTextarea placeholder="Notes for patient or pharmacist..." value={notes} onChange={v => setNotes(v)} rows={3} />
               <div className="mt-3">
-                <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider block mb-1">Food Instructions</label>
+                <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider block mb-1">Food Instructions</label>
                 <FormTextarea placeholder="e.g. Low-sodium diet, avoid spicy food..." value={foodInstr} onChange={v => setFoodInstr(v)} rows={2} />
               </div>
             </div>
@@ -299,24 +299,24 @@ export default function NewPrescriptionPage() {
             {/* Quick templates */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-4`}>
               <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-1 text-[12px] font-medium text-[#57575f]">
+                <div className="flex items-center gap-1 text-[12px] font-medium text-[color:var(--ink-soft)]">
                   <Zap size={13} /> Quick Templates:
                 </div>
                 {myTemplates.map(t => (
                   <div key={t.id}
-                    className="flex items-center gap-1 border border-[#009598] rounded-full pl-3 pr-[6px] py-[3px] whitespace-nowrap">
+                    className="flex items-center gap-1 border border-[color:var(--brand)] rounded-full pl-3 pr-[6px] py-[3px] whitespace-nowrap">
                     <button onClick={() => applyTemplate(t)}
-                      className="text-[12px] font-normal text-[#009598] hover:underline">
+                      className="text-[12px] font-normal text-[color:var(--brand)] hover:underline">
                       {t.name}
                     </button>
                     {isDoctorUser && (
                       <>
                         <button onClick={() => openEditTemplate(t)} title="Edit template"
-                          className="text-[#57575f] hover:text-[#009598] transition-colors p-[2px]">
+                          className="text-[color:var(--ink-soft)] hover:text-[color:var(--brand)] transition-colors p-[2px]">
                           <Pencil size={11} />
                         </button>
                         <button onClick={() => setDeletingTemplate(t)} title="Delete template"
-                          className="text-[#57575f] hover:text-[#ff0004] transition-colors p-[2px]">
+                          className="text-[color:var(--ink-soft)] hover:text-[#ff0004] transition-colors p-[2px]">
                           <Trash2 size={11} />
                         </button>
                       </>
@@ -326,7 +326,7 @@ export default function NewPrescriptionPage() {
 
                 {isDoctorUser && (
                   <button onClick={openCreateTemplate}
-                    className="flex items-center gap-1 text-[12px] font-normal text-[#009598] border border-dashed border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+                    className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--brand)] border border-dashed border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap">
                     <Plus size={12} /> New Template
                   </button>
                 )}
@@ -336,8 +336,8 @@ export default function NewPrescriptionPage() {
             {/* Medicines table */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-[13px] font-medium text-[#11111c]">Medicines ({rows.length})</h3>
-                <button onClick={addRow} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] hover:underline">
+                <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Medicines ({rows.length})</h3>
+                <button onClick={addRow} className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--brand)] hover:underline">
                   <Plus size={13} /> Add Medicine
                 </button>
               </div>
@@ -345,7 +345,7 @@ export default function NewPrescriptionPage() {
               {/* Column headers */}
               <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_30px] gap-2 px-1">
                 {["Medicine", "Dosage", "Frequency", "Duration", "Instructions", ""].map(h => (
-                  <span key={h} className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{h}</span>
+                  <span key={h} className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
                 ))}
               </div>
 
@@ -360,10 +360,10 @@ export default function NewPrescriptionPage() {
                         setMedSearch(prev => ({ ...prev, [row.id]: e.target.value }));
                         updateRow(row.id, "medicine", e.target.value);
                       }}
-                      className="h-[38px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                      className="h-[38px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
                     />
                     {(medSearch[row.id]?.length ?? 0) > 1 && !row.medicine.includes("mg") && (
-                      <div className="absolute top-[40px] left-0 right-0 bg-white border border-[#dedee1] rounded-[8px] shadow-md z-10 overflow-hidden">
+                      <div className="absolute top-[40px] left-0 right-0 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[8px] shadow-md z-10 overflow-hidden">
                         {filteredMed(medSearch[row.id]).map(m => (
                           <button key={m.id} onClick={() => {
                             updateRow(row.id, "medicine", m.name);
@@ -371,9 +371,9 @@ export default function NewPrescriptionPage() {
                             updateRow(row.id, "frequency", m.defaultFrequency);
                             updateRow(row.id, "duration", m.defaultDuration);
                             setMedSearch(prev => ({ ...prev, [row.id]: m.name }));
-                          }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#f6f6f6] border-b border-[#f0f0f0] last:border-0">
-                            <span className="font-medium text-[#11111c]">{m.name}</span>
-                            <span className="text-[#57575f] ml-2 text-[11px]">{m.generic}</span>
+                          }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[color:var(--subtle)] border-b border-[color:var(--subtle-2)] last:border-0">
+                            <span className="font-medium text-[color:var(--ink)]">{m.name}</span>
+                            <span className="text-[color:var(--ink-soft)] ml-2 text-[11px]">{m.generic}</span>
                           </button>
                         ))}
                       </div>
@@ -382,21 +382,21 @@ export default function NewPrescriptionPage() {
                   {/* Dosage */}
                   <input value={row.dosage} onChange={e => updateRow(row.id, "dosage", e.target.value)}
                     placeholder="e.g. 500mg"
-                    className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                   {/* Frequency */}
                   <select value={row.frequency} onChange={e => updateRow(row.id, "frequency", e.target.value)}
-                    className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
                     {FREQ_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   {/* Duration */}
                   <select value={row.duration} onChange={e => updateRow(row.id, "duration", e.target.value)}
-                    className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
                     {DUR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   {/* Instructions */}
                   <input value={row.instructions} onChange={e => updateRow(row.id, "instructions", e.target.value)}
                     placeholder="With meals, etc."
-                    className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                   {/* Delete */}
                   {rows.length > 1 ? (
                     <button onClick={() => removeRow(row.id)} className="flex items-center justify-center h-[38px] text-[#ff0004] hover:text-red-700 transition-colors">
@@ -418,11 +418,11 @@ export default function NewPrescriptionPage() {
         footer={
           <>
             <button onClick={() => setTmplModalOpen(false)}
-              className="text-[13px] font-normal text-[#57575f] px-4 py-[8px] rounded-full hover:bg-[#f0f0f0] transition-colors">
+              className="text-[13px] font-normal text-[color:var(--ink-soft)] px-4 py-[8px] rounded-full hover:bg-[color:var(--subtle-2)] transition-colors">
               Cancel
             </button>
             <button onClick={saveTemplate} disabled={!tmplValid || tmplMutation.loading}
-              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {tmplMutation.loading ? <Loader2 size={14} className="animate-spin" /> : null}
               {tmplMutation.loading ? "Saving…" : "Save Template"}
             </button>
@@ -441,15 +441,15 @@ export default function NewPrescriptionPage() {
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Medicines</span>
-              <button onClick={addTmplRow} className="flex items-center gap-1 text-[12px] font-normal text-[#009598] hover:underline">
+              <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Medicines</span>
+              <button onClick={addTmplRow} className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--brand)] hover:underline">
                 <Plus size={13} /> Add Medicine
               </button>
             </div>
 
             <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_26px] gap-2 px-1">
               {["Medicine", "Dosage", "Frequency", "Duration", "Instructions", ""].map(h => (
-                <span key={h} className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider">{h}</span>
+                <span key={h} className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
               ))}
             </div>
 
@@ -463,10 +463,10 @@ export default function NewPrescriptionPage() {
                       setTmplMedSearch(prev => ({ ...prev, [row.id]: e.target.value }));
                       updateTmplRow(row.id, "medicine", e.target.value);
                     }}
-                    className="h-[36px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                    className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
                   />
                   {(tmplMedSearch[row.id]?.length ?? 0) > 1 && !row.medicine.includes("mg") && (
-                    <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#dedee1] rounded-[8px] shadow-md z-10 overflow-hidden">
+                    <div className="absolute top-[38px] left-0 right-0 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[8px] shadow-md z-10 overflow-hidden">
                       {filteredMed(tmplMedSearch[row.id]).map(m => (
                         <button key={m.id} onClick={() => {
                           updateTmplRow(row.id, "medicine", m.name);
@@ -474,9 +474,9 @@ export default function NewPrescriptionPage() {
                           updateTmplRow(row.id, "frequency", m.defaultFrequency);
                           updateTmplRow(row.id, "duration", m.defaultDuration);
                           setTmplMedSearch(prev => ({ ...prev, [row.id]: m.name }));
-                        }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[#f6f6f6] border-b border-[#f0f0f0] last:border-0">
-                          <span className="font-medium text-[#11111c]">{m.name}</span>
-                          <span className="text-[#57575f] ml-2 text-[11px]">{m.generic}</span>
+                        }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[color:var(--subtle)] border-b border-[color:var(--subtle-2)] last:border-0">
+                          <span className="font-medium text-[color:var(--ink)]">{m.name}</span>
+                          <span className="text-[color:var(--ink-soft)] ml-2 text-[11px]">{m.generic}</span>
                         </button>
                       ))}
                     </div>
@@ -484,18 +484,18 @@ export default function NewPrescriptionPage() {
                 </div>
                 <input value={row.dosage} onChange={e => updateTmplRow(row.id, "dosage", e.target.value)}
                   placeholder="e.g. 500mg"
-                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                  className="h-[36px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                 <select value={row.frequency} onChange={e => updateTmplRow(row.id, "frequency", e.target.value)}
-                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                  className="h-[36px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
                   {FREQ_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <select value={row.duration} onChange={e => updateTmplRow(row.id, "duration", e.target.value)}
-                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-2 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors">
+                  className="h-[36px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
                   {DUR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <input value={row.instructions} onChange={e => updateTmplRow(row.id, "instructions", e.target.value)}
                   placeholder="With meals, etc."
-                  className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[12px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors" />
+                  className="h-[36px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                 {tmplRows.length > 1 ? (
                   <button onClick={() => removeTmplRow(row.id)} className="flex items-center justify-center h-[36px] text-[#ff0004] hover:text-red-700 transition-colors">
                     <Trash2 size={13} />
@@ -515,7 +515,7 @@ export default function NewPrescriptionPage() {
         footer={
           <>
             <button onClick={() => setDeletingTemplate(null)}
-              className="text-[13px] font-normal text-[#57575f] px-4 py-[8px] rounded-full hover:bg-[#f0f0f0] transition-colors">
+              className="text-[13px] font-normal text-[color:var(--ink-soft)] px-4 py-[8px] rounded-full hover:bg-[color:var(--subtle-2)] transition-colors">
               Cancel
             </button>
             <button onClick={confirmDeleteTemplate} disabled={tmplMutation.loading}
@@ -526,8 +526,8 @@ export default function NewPrescriptionPage() {
           </>
         }
       >
-        <p className="text-[13px] font-normal text-[#57575f] leading-5">
-          Delete template <span className="font-medium text-[#11111c]">“{deletingTemplate?.name}”</span>? This can&apos;t be undone.
+        <p className="text-[13px] font-normal text-[color:var(--ink-soft)] leading-5">
+          Delete template <span className="font-medium text-[color:var(--ink)]">“{deletingTemplate?.name}”</span>? This can&apos;t be undone.
         </p>
       </Modal>
     </>

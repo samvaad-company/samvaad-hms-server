@@ -12,7 +12,11 @@
     "verify:atomicity": "tsx --env-file=.env scripts/verify-atomicity.ts",
     "test:payments": "tsx scripts/test-teleconsult-payments.ts",
     "test:scheduling": "tsx scripts/test-scheduling.ts",
-    "test:profile": "tsx scripts/test-profile.ts"
+    "test:profile": "tsx scripts/test-profile.ts",
+    "test:patients": "tsx scripts/test-patients.ts",
+    "test:enquiries": "tsx scripts/test-enquiries.ts",
+    "test:followups": "tsx scripts/test-followups.ts",
+    "test:rxreview": "tsx scripts/test-prescription-review.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

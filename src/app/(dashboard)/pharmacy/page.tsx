@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -46,14 +47,14 @@ function InventoryRow({ row, actions }: { row: PharmacyItem; actions: RowAction[
   const isOut = row.stock === 0;
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.category}</span>
-      <span className={`text-[13px] font-medium ${isOut ? "text-[#ff0004]" : isLow ? "text-[#ff9000]" : "text-[#11111c]"}`}>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.category}</span>
+      <span className={`text-[13px] font-medium ${isOut ? "text-[#ff0004]" : isLow ? "text-[#ff9000]" : "text-[color:var(--ink)]"}`}>
         {row.stock} units
       </span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.minStock}</span>
-      <span className={`text-[13px] font-normal whitespace-nowrap ${row.status === "Expired" ? "text-[#ff0004]" : "text-[#11111c]"}`}>{row.expiryDate}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.supplier}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.minStock}</span>
+      <span className={`text-[13px] font-normal whitespace-nowrap ${row.status === "Expired" ? "text-[#ff0004]" : "text-[color:var(--ink)]"}`}>{row.expiryDate}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.supplier}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -122,16 +123,16 @@ function MedicinePicker({
         onChange={(e) => { onPick(null, e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-        className="w-full text-[14px] text-[#11111c] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white"
+        className="w-full text-[14px] text-[color:var(--ink)] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]"
       />
       {open && matches.length > 0 && (
-        <div className="absolute z-30 left-0 right-0 top-[46px] max-h-[220px] overflow-y-auto bg-white border border-[#dedee1] rounded-[10px] shadow-lg">
+        <div className="absolute z-30 left-0 right-0 top-[46px] max-h-[220px] overflow-y-auto bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[10px] shadow-lg">
           {matches.map(m => (
             <button key={m.id} type="button"
               onMouseDown={() => { onPick(m, m.name); setOpen(false); }}
-              className="w-full text-left px-3 py-2 hover:bg-[#f6f6f6] transition-colors">
-              <span className="text-[13px] text-[#11111c]">{m.name}</span>
-              <span className="block text-[11px] text-[#57575f]">
+              className="w-full text-left px-3 py-2 hover:bg-[color:var(--subtle)] transition-colors">
+              <span className="text-[13px] text-[color:var(--ink)]">{m.name}</span>
+              <span className="block text-[11px] text-[color:var(--ink-soft)]">
                 {m.stock} in stock · {m.category} · {m.supplier}
               </span>
             </button>
@@ -240,12 +241,12 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
         footer={viewingPO && (
           <>
             <button onClick={() => downloadElement(poDocRef.current, viewingPO.poNumber)}
-              className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
               <Download size={14} /> Download
             </button>
             {viewingPO.status === "Pending" && (
               <button onClick={() => { openEditPO(viewingPO); setViewingPO(null); }}
-                className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+                className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
                 <Pencil size={14} /> Edit
               </button>
             )}
@@ -253,25 +254,25 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
         )}
       >
         {viewingPO && (
-          <div ref={poDocRef} className="border border-[#dedee1] rounded-[12px] overflow-hidden">
+          <div ref={poDocRef} className="border border-[color:var(--line)] rounded-[12px] overflow-hidden">
             <DocumentLetterhead
               hospital={hospital}
               compact
               right={
                 <>
-                  <div className="text-[18px] font-medium text-[#11111c]">{viewingPO.poNumber}</div>
-                  <div className="text-[12px] font-light text-[#57575f] mt-1">Order date: {formatDate(viewingPO.orderDate)}</div>
-                  {viewingPO.expectedDate && <div className="text-[12px] font-light text-[#57575f]">Expected: {formatDate(viewingPO.expectedDate)}</div>}
+                  <div className="text-[18px] font-medium text-[color:var(--ink)]">{viewingPO.poNumber}</div>
+                  <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-1">Order date: {formatDate(viewingPO.orderDate)}</div>
+                  {viewingPO.expectedDate && <div className="text-[12px] font-light text-[color:var(--ink-soft)]">Expected: {formatDate(viewingPO.expectedDate)}</div>}
                   <div className="mt-2"><StatusBadge status={viewingPO.status} /></div>
                 </>
               }
             />
             <div className="px-8 py-6">
-              <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">Supplier</p>
-              <p className="text-[14px] font-medium text-[#11111c] mb-4">{viewingPO.supplier}</p>
+              <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Supplier</p>
+              <p className="text-[14px] font-medium text-[color:var(--ink)] mb-4">{viewingPO.supplier}</p>
               <table className="w-full">
                 <thead>
-                  <tr className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider" style={{ borderBottom: "1px solid #dedee1" }}>
+                  <tr className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider" style={{ borderBottom: "1px solid var(--line)" }}>
                     <th className="text-left pb-2">#</th>
                     <th className="text-left pb-2">Medicine</th>
                     <th className="text-right pb-2">Qty</th>
@@ -281,18 +282,18 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
                 </thead>
                 <tbody>
                   {viewingPO.items.map((it, i) => (
-                    <tr key={it.id} className="text-[13px]" style={{ borderBottom: "1px solid #f0f0f0" }}>
-                      <td className="py-2 text-[#57575f]">{i + 1}</td>
-                      <td className="py-2 text-[#11111c]">{it.medicineName}</td>
-                      <td className="py-2 text-right text-[#57575f]">{it.quantity}</td>
-                      <td className="py-2 text-right text-[#57575f]">{it.unitCost.toLocaleString("en-IN")}</td>
-                      <td className="py-2 text-right text-[#11111c] font-medium">{(it.quantity * it.unitCost).toLocaleString("en-IN")}</td>
+                    <tr key={it.id} className="text-[13px]" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
+                      <td className="py-2 text-[color:var(--ink-soft)]">{i + 1}</td>
+                      <td className="py-2 text-[color:var(--ink)]">{it.medicineName}</td>
+                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.quantity}</td>
+                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.unitCost.toLocaleString("en-IN")}</td>
+                      <td className="py-2 text-right text-[color:var(--ink)] font-medium">{(it.quantity * it.unitCost).toLocaleString("en-IN")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div className="flex justify-end mt-4">
-                <div className="text-[15px] font-medium text-[#11111c]">Total: <span className="text-[#009598]">₹{viewingPO.total.toLocaleString("en-IN")}</span></div>
+                <div className="text-[15px] font-medium text-[color:var(--ink)]">Total: <span className="text-[color:var(--brand)]">₹{viewingPO.total.toLocaleString("en-IN")}</span></div>
               </div>
             </div>
             <DocumentFooter hospital={hospital} />
@@ -304,9 +305,9 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
       <Modal open={!!editingPO} onClose={() => setEditingPO(null)} title={editingPO ? `Edit — ${editingPO.poNumber}` : ""}
         footer={
           <>
-            <button onClick={() => setEditingPO(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setEditingPO(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={saveEditPO} disabled={editLoading || !editSupplier}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {editLoading ? "Saving…" : "Save Changes"}
             </button>
           </>
@@ -321,7 +322,7 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
             <FormInput type="date" value={editExpectedDate} onChange={setEditExpectedDate} />
           </FormRow>
         </div>
-        <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Medicines</p>
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Medicines</p>
         <div className="flex flex-col gap-2">
           {editLines.map((l, i) => (
             <div key={i} className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 36px" }}>
@@ -329,10 +330,10 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
                 onPick={(m, text) => setEditLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
               <input value={l.quantity} type="number" placeholder="Qty"
                 onChange={(e) => setEditLine(i, { quantity: e.target.value })}
-                className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
               <input value={l.price} type="number" placeholder="Unit ₹"
                 onChange={(e) => setEditLine(i, { price: e.target.value })}
-                className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
               <button onClick={() => setEditLines(prev => prev.filter((_, n) => n !== i))}
                 disabled={editLines.length === 1}
                 className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
@@ -340,15 +341,15 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
           ))}
         </div>
         <button onClick={() => setEditLines(prev => [...prev, { medicineName: "", quantity: "", price: "" }])}
-          className="mt-2 text-[12px] text-[#009598] hover:underline">+ Add medicine</button>
+          className="mt-2 text-[12px] text-[color:var(--brand)] hover:underline">+ Add medicine</button>
         {editError && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{editError.message}</div>}
         <div className="flex justify-end mt-4">
-          <span className="text-[14px] font-medium text-[#11111c]">Total: <span className="text-[#009598]">₹{editTotal.toLocaleString("en-IN")}</span></span>
+          <span className="text-[14px] font-medium text-[color:var(--ink)]">Total: <span className="text-[color:var(--brand)]">₹{editTotal.toLocaleString("en-IN")}</span></span>
         </div>
       </Modal>
 
-      <div className="border border-[#dedee1] rounded-[10px] p-5">
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-4">New Purchase Order</h3>
+      <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">New Purchase Order</h3>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <FormRow label="Supplier *">
             <FormSelect placeholder="Select supplier" value={supplier} onChange={setSupplier}
@@ -359,7 +360,7 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
           </FormRow>
         </div>
 
-        <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">Medicines</p>
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Medicines</p>
         <div className="flex flex-col gap-2">
           {lines.map((l, i) => (
             <div key={i} className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 36px" }}>
@@ -367,10 +368,10 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
                 onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
               <input value={l.quantity} type="number" placeholder="Qty"
                 onChange={(e) => setLine(i, { quantity: e.target.value })}
-                className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
               <input value={l.price} type="number" placeholder="Unit ₹"
                 onChange={(e) => setLine(i, { price: e.target.value })}
-                className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
               <button onClick={() => setLines(prev => prev.filter((_, n) => n !== i))}
                 disabled={lines.length === 1}
                 className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
@@ -378,52 +379,52 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
           ))}
         </div>
         <button onClick={() => setLines(prev => [...prev, { medicineName: "", quantity: "", price: "" }])}
-          className="mt-2 text-[12px] text-[#009598] hover:underline">+ Add medicine</button>
+          className="mt-2 text-[12px] text-[color:var(--brand)] hover:underline">+ Add medicine</button>
 
         {error && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
 
         <div className="flex justify-between items-center mt-4">
-          <span className="text-[14px] font-medium text-[#11111c]">
-            Total: <span className="text-[#009598]">₹{total.toLocaleString("en-IN")}</span>
+          <span className="text-[14px] font-medium text-[color:var(--ink)]">
+            Total: <span className="text-[color:var(--brand)]">₹{total.toLocaleString("en-IN")}</span>
           </span>
           <button onClick={createPO} disabled={loading || !supplier}
-            className="bg-[#009598] text-white text-[14px] font-normal px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="bg-[color:var(--brand)] text-white text-[14px] font-normal px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Creating…" : "Create PO"}
           </button>
         </div>
       </div>
 
       {notice && (
-        <div className="flex items-start justify-between gap-3 text-[13px] text-[#11111c] bg-[#e8f7f7] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
+        <div className="flex items-start justify-between gap-3 text-[13px] text-[color:var(--ink)] bg-[color:var(--brand-soft)] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
           <span>{notice}</span>
-          <button onClick={() => setNotice(null)} className="text-[#57575f] shrink-0">✕</button>
+          <button onClick={() => setNotice(null)} className="text-[color:var(--ink-soft)] shrink-0">✕</button>
         </div>
       )}
 
       <div>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Purchase Orders</h3>
-        <div className="border border-[#dedee1] rounded-[10px] overflow-hidden">
-          <div className="grid items-center px-4 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Purchase Orders</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] overflow-hidden">
+          <div className="grid items-center px-4 h-10 bg-[color:var(--subtle-3)] text-[12px] font-medium text-[color:var(--ink)]"
             style={{ gridTemplateColumns: "110px 1.4fr 110px 70px 110px 110px 150px" }}>
             <span>PO Number</span><span>Supplier</span><span>Date</span><span>Items</span>
             <span>Total</span><span>Status</span><span>Action</span>
           </div>
           {orders.length === 0 && (
-            <div className="py-10 text-center text-[13px] text-[#57575f]">No purchase orders yet.</div>
+            <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">No purchase orders yet.</div>
           )}
           {orders.map(po => (
-            <div key={po.id} className="grid items-center px-4 h-[56px] border-b border-[#f0f0f0] last:border-0 bg-white hover:bg-[#fafafa] transition-colors"
+            <div key={po.id} className="grid items-center px-4 h-[56px] border-b border-[color:var(--subtle-2)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors"
               style={{ gridTemplateColumns: "110px 1.4fr 110px 70px 110px 110px 150px" }}>
-              <span className="text-[13px] font-medium text-[#009598]">{po.poNumber}</span>
-              <span className="text-[13px] text-[#11111c] truncate">{po.supplier}</span>
-              <span className="text-[13px] text-[#57575f]">{formatDate(po.orderDate)}</span>
-              <span className="text-[13px] text-[#57575f]">{po.itemCount}</span>
-              <span className="text-[13px] font-medium text-[#11111c]">₹{po.total.toLocaleString("en-IN")}</span>
+              <span className="text-[13px] font-medium text-[color:var(--brand)]">{po.poNumber}</span>
+              <span className="text-[13px] text-[color:var(--ink)] truncate">{po.supplier}</span>
+              <span className="text-[13px] text-[color:var(--ink-soft)]">{formatDate(po.orderDate)}</span>
+              <span className="text-[13px] text-[color:var(--ink-soft)]">{po.itemCount}</span>
+              <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{po.total.toLocaleString("en-IN")}</span>
               <span className={`inline-flex w-fit items-center px-[10px] py-[4px] rounded-full text-[11px] ${PO_STATUS[po.status] ?? ""}`}>{po.status}</span>
               <div className="flex items-center gap-2 justify-end">
                 {po.status === "Pending" && (
                   <button onClick={() => void receive(po)}
-                    className="text-[12px] text-white bg-[#009598] px-3 py-[5px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+                    className="text-[12px] text-white bg-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
                     Receive stock
                   </button>
                 )}
@@ -445,7 +446,7 @@ function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChange
 
 const MODE_CLR: Record<string, string> = {
   UPI: "bg-[#d6eaff] text-[#007cff]", Cash: "bg-[#dffff3] text-[#00955c]",
-  Card: "bg-[#fff2e0] text-[#ff9000]", Cheque: "bg-[#f0f0f0] text-[#57575f]",
+  Card: "bg-[#fff2e0] text-[#ff9000]", Cheque: "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
   Insurance: "bg-[#ede9ff] text-[#6b4eff]",
 };
 
@@ -578,49 +579,49 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
         footer={viewingSale && (
           <>
             <button onClick={() => downloadElement(saleDocRef.current, viewingSale.saleNumber)}
-              className="flex items-center gap-2 text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+              className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
               <Download size={14} /> Download
             </button>
             <button onClick={() => { openEditSale(viewingSale); setViewingSale(null); }}
-              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+              className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
               <Pencil size={14} /> Edit
             </button>
           </>
         )}
       >
         {viewingSale && (
-          <div ref={saleDocRef} className="border border-[#dedee1] rounded-[12px] overflow-hidden">
+          <div ref={saleDocRef} className="border border-[color:var(--line)] rounded-[12px] overflow-hidden">
             <DocumentLetterhead
               hospital={hospital}
               compact
               right={
                 <>
-                  <div className="text-[18px] font-medium text-[#11111c]">{viewingSale.saleNumber}</div>
-                  <div className="text-[12px] font-light text-[#57575f] mt-1">Date: {formatDate(viewingSale.date)}</div>
+                  <div className="text-[18px] font-medium text-[color:var(--ink)]">{viewingSale.saleNumber}</div>
+                  <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-1">Date: {formatDate(viewingSale.date)}</div>
                 </>
               }
             />
-            <div className="grid grid-cols-2 gap-6 px-8 py-5" style={{ borderBottom: "1px solid #dedee1" }}>
+            <div className="grid grid-cols-2 gap-6 px-8 py-5" style={{ borderBottom: "1px solid var(--line)" }}>
               <div>
-                <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">Patient</p>
-                <p className="text-[14px] font-medium text-[#11111c]">{viewingSale.patientName}</p>
+                <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Patient</p>
+                <p className="text-[14px] font-medium text-[color:var(--ink)]">{viewingSale.patientName}</p>
               </div>
               <div>
-                <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">Payment</p>
+                <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Payment</p>
                 <div className="flex justify-between text-[13px] mb-1">
-                  <span className="text-[#57575f]">Mode</span>
-                  <span className="text-[#11111c] font-medium">{viewingSale.paymentMode}</span>
+                  <span className="text-[color:var(--ink-soft)]">Mode</span>
+                  <span className="text-[color:var(--ink)] font-medium">{viewingSale.paymentMode}</span>
                 </div>
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-[#57575f]">Prescription</span>
-                  <span className="text-[#11111c]">{viewingSale.rxNumber || "—"}</span>
+                  <span className="text-[color:var(--ink-soft)]">Prescription</span>
+                  <span className="text-[color:var(--ink)]">{viewingSale.rxNumber || "—"}</span>
                 </div>
               </div>
             </div>
             <div className="px-8 py-6">
               <table className="w-full">
                 <thead>
-                  <tr className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider" style={{ borderBottom: "1px solid #dedee1" }}>
+                  <tr className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider" style={{ borderBottom: "1px solid var(--line)" }}>
                     <th className="text-left pb-2">#</th>
                     <th className="text-left pb-2">Medicine</th>
                     <th className="text-right pb-2">Qty</th>
@@ -630,12 +631,12 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
                 </thead>
                 <tbody>
                   {viewingSale.items.map((it, i) => (
-                    <tr key={it.id} className="text-[13px]" style={{ borderBottom: "1px solid #f0f0f0" }}>
-                      <td className="py-2 text-[#57575f]">{i + 1}</td>
-                      <td className="py-2 text-[#11111c]">{it.medicineName}</td>
-                      <td className="py-2 text-right text-[#57575f]">{it.quantity}</td>
-                      <td className="py-2 text-right text-[#57575f]">{it.unitPrice.toLocaleString("en-IN")}</td>
-                      <td className="py-2 text-right text-[#11111c] font-medium">{it.lineTotal.toLocaleString("en-IN")}</td>
+                    <tr key={it.id} className="text-[13px]" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
+                      <td className="py-2 text-[color:var(--ink-soft)]">{i + 1}</td>
+                      <td className="py-2 text-[color:var(--ink)]">{it.medicineName}</td>
+                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.quantity}</td>
+                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.unitPrice.toLocaleString("en-IN")}</td>
+                      <td className="py-2 text-right text-[color:var(--ink)] font-medium">{it.lineTotal.toLocaleString("en-IN")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -643,19 +644,19 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
               <div className="flex justify-end mt-4">
                 <div className="w-56 flex flex-col gap-2">
                   <div className="flex justify-between text-[13px]">
-                    <span className="text-[#57575f]">Subtotal</span>
-                    <span className="text-[#11111c]">₹{viewingSale.subtotal.toLocaleString("en-IN")}</span>
+                    <span className="text-[color:var(--ink-soft)]">Subtotal</span>
+                    <span className="text-[color:var(--ink)]">₹{viewingSale.subtotal.toLocaleString("en-IN")}</span>
                   </div>
                   {viewingSale.discount > 0 && (
                     <div className="flex justify-between text-[13px]">
-                      <span className="text-[#57575f]">Discount</span>
+                      <span className="text-[color:var(--ink-soft)]">Discount</span>
                       <span className="text-[#00955c]">− ₹{viewingSale.discount.toLocaleString("en-IN")}</span>
                     </div>
                   )}
-                  <div className="h-px bg-[#dedee1] my-1" />
+                  <div className="h-px bg-[color:var(--line)] my-1" />
                   <div className="flex justify-between text-[15px] font-medium">
-                    <span className="text-[#11111c]">Total</span>
-                    <span className="text-[#009598]">₹{viewingSale.total.toLocaleString("en-IN")}</span>
+                    <span className="text-[color:var(--ink)]">Total</span>
+                    <span className="text-[color:var(--brand)]">₹{viewingSale.total.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               </div>
@@ -669,15 +670,15 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
       <Modal open={!!editingSale} onClose={() => setEditingSale(null)} title={editingSale ? `Edit — ${editingSale.saleNumber}` : ""}
         footer={
           <>
-            <button onClick={() => setEditingSale(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setEditingSale(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={saveEditSale} disabled={editSaleLoading}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {editSaleLoading ? "Saving…" : "Save Changes"}
             </button>
           </>
         }
       >
-        <p className="text-[12px] font-light text-[#57575f] mb-4">
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-4">
           Medicines and quantities can&apos;t be changed here since stock was already deducted for this sale — only billing details.
         </p>
         <div className="grid grid-cols-2 gap-4">
@@ -695,15 +696,15 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
         {editSaleError && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{editSaleError.message}</div>}
         {editingSale && (
           <div className="flex justify-end mt-4">
-            <span className="text-[14px] font-medium text-[#11111c]">
-              New Total: <span className="text-[#009598]">₹{editSaleTotal.toLocaleString("en-IN")}</span>
+            <span className="text-[14px] font-medium text-[color:var(--ink)]">
+              New Total: <span className="text-[color:var(--brand)]">₹{editSaleTotal.toLocaleString("en-IN")}</span>
             </span>
           </div>
         )}
       </Modal>
 
-      <div className="border border-[#dedee1] rounded-[10px] p-5">
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Quick Billing</h3>
+      <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Quick Billing</h3>
         <div className="grid grid-cols-4 gap-4 mb-4">
           <FormRow label="Patient">
             <SearchSelect
@@ -730,14 +731,14 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           </FormRow>
           <FormRow label="Discount">
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-[#f6f6f6] rounded-[8px] p-[3px] shrink-0">
+              <div className="flex items-center bg-[color:var(--subtle)] rounded-[8px] p-[3px] shrink-0">
                 {([{ id: "flat", label: "₹" }, { id: "percent", label: "%" }] as const).map(o => (
                   <button
                     key={o.id}
                     type="button"
                     onClick={() => setDiscountType(o.id)}
                     className={`w-7 h-7 rounded-[6px] text-[13px] font-medium transition-colors ${
-                      discountType === o.id ? "bg-[#009598] text-white" : "text-[#57575f] hover:text-[#11111c]"
+                      discountType === o.id ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
                     }`}
                   >
                     {o.label}
@@ -755,7 +756,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           </FormRow>
         </div>
 
-        <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-2">
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">
           Medicines <span className="font-normal normal-case">— scan or search; add as many as needed</span>
         </p>
         <div className="flex flex-col gap-2">
@@ -771,10 +772,10 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
                     onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
                   <input value={l.quantity} type="number" placeholder="Qty"
                     onChange={(e) => setLine(i, { quantity: e.target.value })}
-                    className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                    className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
                   <input value={l.price} type="number" placeholder="Unit ₹"
                     onChange={(e) => setLine(i, { price: e.target.value })}
-                    className="text-[14px] bg-[#f6f6f6] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[#009598] focus:bg-white" />
+                    className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
                   <button onClick={() => setLines(prev => prev.filter((_, n) => n !== i))}
                     disabled={lines.length === 1}
                     className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
@@ -789,44 +790,44 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           })}
         </div>
         <button onClick={() => setLines(prev => [...prev, { medicineName: "", quantity: "", price: "" }])}
-          className="mt-2 text-[12px] text-[#009598] hover:underline">+ Add medicine</button>
+          className="mt-2 text-[12px] text-[color:var(--brand)] hover:underline">+ Add medicine</button>
 
         {error && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
 
         <div className="flex justify-between items-center mt-4">
-          <span className="text-[14px] font-medium text-[#11111c]">
-            Total: <span className="text-[#009598]">₹{total.toLocaleString("en-IN")}</span>
+          <span className="text-[14px] font-medium text-[color:var(--ink)]">
+            Total: <span className="text-[color:var(--brand)]">₹{total.toLocaleString("en-IN")}</span>
             {discountAmount > 0 && (
-              <span className="text-[12px] font-light text-[#57575f]">
+              <span className="text-[12px] font-light text-[color:var(--ink-soft)]">
                 {" "}(after {discountType === "percent" ? `${discount}%` : `₹${Number(discount).toLocaleString("en-IN")}`} discount — ₹{Math.round(discountAmount).toLocaleString("en-IN")} off)
               </span>
             )}
           </span>
           <button onClick={generateBill} disabled={loading || subtotal <= 0}
-            className="bg-[#009598] text-white text-[14px] font-normal px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="bg-[color:var(--brand)] text-white text-[14px] font-normal px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Billing…" : "Generate Bill"}
           </button>
         </div>
       </div>
 
       <div>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Recent Sales</h3>
-        <div className="border border-[#dedee1] rounded-[10px] overflow-hidden">
-          <div className="grid items-center px-4 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Recent Sales</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] overflow-hidden">
+          <div className="grid items-center px-4 h-10 bg-[color:var(--subtle-3)] text-[12px] font-medium text-[color:var(--ink)]"
             style={{ gridTemplateColumns: "110px 1.4fr 120px 70px 110px 110px 52px" }}>
             <span>Sale #</span><span>Patient</span><span>Rx</span><span>Items</span><span>Total</span><span>Mode</span><span className="text-right">Action</span>
           </div>
           {sales.length === 0 && (
-            <div className="py-10 text-center text-[13px] text-[#57575f]">No sales recorded yet.</div>
+            <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">No sales recorded yet.</div>
           )}
           {sales.map(s => (
-            <div key={s.id} className="grid items-center px-4 h-[52px] border-b border-[#f0f0f0] last:border-0 bg-white hover:bg-[#fafafa] transition-colors"
+            <div key={s.id} className="grid items-center px-4 h-[52px] border-b border-[color:var(--subtle-2)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors"
               style={{ gridTemplateColumns: "110px 1.4fr 120px 70px 110px 110px 52px" }}>
-              <span className="text-[13px] font-medium text-[#009598]">{s.saleNumber}</span>
-              <span className="text-[13px] text-[#11111c] truncate">{s.patientName}</span>
-              <span className="text-[13px] text-[#57575f]">{s.rxNumber || "—"}</span>
-              <span className="text-[13px] text-[#57575f]">{s.itemCount}</span>
-              <span className="text-[13px] font-medium text-[#11111c]">₹{s.total.toLocaleString("en-IN")}</span>
+              <span className="text-[13px] font-medium text-[color:var(--brand)]">{s.saleNumber}</span>
+              <span className="text-[13px] text-[color:var(--ink)] truncate">{s.patientName}</span>
+              <span className="text-[13px] text-[color:var(--ink-soft)]">{s.rxNumber || "—"}</span>
+              <span className="text-[13px] text-[color:var(--ink-soft)]">{s.itemCount}</span>
+              <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{s.total.toLocaleString("en-IN")}</span>
               <span className={`inline-flex w-fit items-center px-[10px] py-[4px] rounded-full text-[11px] ${MODE_CLR[s.paymentMode] ?? ""}`}>{s.paymentMode}</span>
               <div className="flex justify-end">
                 <RowMenu actions={[
@@ -876,13 +877,13 @@ function ExpiringView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharma
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[#ff9000]" />
-          <span className="text-[14px] font-medium text-[#11111c]">About to Expire</span>
+          <span className="text-[14px] font-medium text-[color:var(--ink)]">About to Expire</span>
           <span className="text-[11px] px-[8px] py-[2px] rounded-full font-medium bg-[#fff2e0] text-[#ff9000]">{rows.length}</span>
         </div>
         <select
           value={windowId}
           onChange={e => setWindowId(e.target.value as (typeof EXPIRY_WINDOWS)[number]["id"])}
-          className="h-[36px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+          className="h-[36px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
         >
           {EXPIRY_WINDOWS.map(w => (
             <option key={w.id} value={w.id}>{w.label}</option>
@@ -892,7 +893,7 @@ function ExpiringView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharma
 
       {rows.length === 0 ? (
         <div className="flex items-center justify-center h-32">
-          <span className="text-[14px] font-normal text-[#57575f]">Nothing expiring {win.label.toLowerCase()}.</span>
+          <span className="text-[14px] font-normal text-[color:var(--ink-soft)]">Nothing expiring {win.label.toLowerCase()}.</span>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -900,19 +901,19 @@ function ExpiringView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharma
             const expired = expiry < now;
             const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
             return (
-              <div key={item.id} className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px] bg-white">
+              <div key={item.id} className="flex items-center justify-between p-4 border border-[color:var(--line)] rounded-[10px] bg-[color:var(--surface)]">
                 <div className="flex flex-col gap-[3px] min-w-0">
-                  <span className="text-[14px] font-medium text-[#11111c] truncate">{item.name}</span>
-                  <span className="text-[12px] font-light text-[#57575f] truncate">{item.category} · {item.supplier} · {item.stock} units in stock</span>
+                  <span className="text-[14px] font-medium text-[color:var(--ink)] truncate">{item.name}</span>
+                  <span className="text-[12px] font-light text-[color:var(--ink-soft)] truncate">{item.category} · {item.supplier} · {item.stock} units in stock</span>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
-                  <span className={`text-[13px] font-normal ${expired ? "text-[#ff0004]" : daysLeft <= 30 ? "text-[#ff9000]" : "text-[#57575f]"}`}>
+                  <span className={`text-[13px] font-normal ${expired ? "text-[#ff0004]" : daysLeft <= 30 ? "text-[#ff9000]" : "text-[color:var(--ink-soft)]"}`}>
                     {expired ? `Expired ${item.expiryDate}` : `Expires ${item.expiryDate} · ${daysLeft} days`}
                   </span>
                   {canWrite && (
                     <button
                       onClick={() => (expired ? onRemove(item.id, item.name) : onReorder(item))}
-                      className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap"
+                      className="text-[12px] font-medium text-white bg-[color:var(--brand)] px-4 py-[6px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap"
                     >
                       {expired ? "Remove" : "Reorder"}
                     </button>
@@ -933,10 +934,10 @@ function AlertsView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharmacy
   const expired   = pharmacyItems.filter(i => i.status === "Expired");
 
   const AlertCard = ({ item, type }: { item: PharmacyItem; type: string }) => (
-    <div className="flex items-center justify-between p-4 border border-[#dedee1] rounded-[10px] bg-white">
+    <div className="flex items-center justify-between p-4 border border-[color:var(--line)] rounded-[10px] bg-[color:var(--surface)]">
       <div className="flex flex-col gap-[4px]">
-        <span className="text-[14px] font-medium text-[#11111c]">{item.name}</span>
-        <span className="text-[12px] font-light text-[#57575f]">{item.category} · {item.supplier}</span>
+        <span className="text-[14px] font-medium text-[color:var(--ink)]">{item.name}</span>
+        <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{item.category} · {item.supplier}</span>
       </div>
       <div className="flex items-center gap-4">
         {type === "low"    && <span className="text-[13px] font-normal text-[#ff9000]">Stock: {item.stock} / Min: {item.minStock}</span>}
@@ -945,7 +946,7 @@ function AlertsView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharmacy
         {canWrite && (
           <button
             onClick={() => (type === "expiry" ? onRemove(item.id, item.name) : onReorder(item))}
-            className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+            className="text-[12px] font-medium text-white bg-[color:var(--brand)] px-4 py-[6px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
             {type === "expiry" ? "Remove" : "Reorder"}
           </button>
         )}
@@ -970,7 +971,7 @@ function AlertsView({ pharmacyItems, onReorder, onRemove, canWrite }: { pharmacy
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 555 }}>
       {lowStock.length === 0 && outStock.length === 0 && expired.length === 0 ? (
         <div className="flex items-center justify-center h-40">
-          <span className="text-[14px] font-normal text-[#57575f]">No active alerts — inventory is healthy.</span>
+          <span className="text-[14px] font-normal text-[color:var(--ink-soft)]">No active alerts — inventory is healthy.</span>
         </div>
       ) : (
         <>
@@ -1055,15 +1056,17 @@ export default function PharmacyPage() {
     return matchF && matchS;
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "items");
+
   return (
     <>
       {dialog}
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Add Pharmacy Item"
         footer={
           <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={addItem} disabled={loading || !form.name || form.stock === ""}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Adding…" : "Add Item"}
             </button>
           </>
@@ -1083,9 +1086,9 @@ export default function PharmacyPage() {
       <Modal open={!!reorderTarget} onClose={closeReorder} title={`Reorder — ${reorderTarget?.name ?? ""}`}
         footer={
           <>
-            <button onClick={closeReorder} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={closeReorder} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={submitReorder} disabled={reorderLoading || !reorderQty || Number(reorderQty) <= 0}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {reorderLoading ? "Saving…" : "Confirm Reorder"}
             </button>
           </>
@@ -1096,7 +1099,7 @@ export default function PharmacyPage() {
             <FormInput type="number" placeholder="e.g. 100" value={reorderQty} onChange={setReorderQty} />
           </FormRow>
           {reorderTarget && Number(reorderQty) > 0 && (
-            <p className="text-[12px] font-light text-[#57575f]">
+            <p className="text-[12px] font-light text-[color:var(--ink-soft)]">
               Current stock: {reorderTarget.stock} units → new stock: {reorderTarget.stock + Number(reorderQty)} units
             </p>
           )}
@@ -1120,14 +1123,15 @@ export default function PharmacyPage() {
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={INV_COLUMNS} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No items found.</div>
-                ) : visible.map(r => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No items found.</div>
+                ) : pagedVisible.map(r => (
                   <InventoryRow key={r.id} row={r} actions={canWrite ? [
                     { label: "Reorder", onClick: () => openReorder(r) },
                     { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisible}
             </>
           )}
           {tab === "purchase" && canWrite && <PurchaseView items={pharmacyItems} onChanged={reload} />}

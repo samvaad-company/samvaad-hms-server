@@ -44,6 +44,8 @@ export interface QueryOptions {
   pageSize?: number;
   /** When true, ignore pagination and return all matching rows. */
   unpaged?: boolean;
+  /** Order text columns without regard to case ("david" beside "Dev"); MongoDB otherwise sorts capitals first. */
+  caseInsensitiveSort?: boolean;
 }
 
 export interface QueryResult<T> {

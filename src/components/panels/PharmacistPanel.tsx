@@ -27,7 +27,7 @@ export function PharmacistPanel() {
 
       <StatRow stats={[
         { icon: FileText,      label: "Pending Dispense",  value: String(pending.length),  color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
-        { icon: Pill,          label: "Items in Stock",    value: String(stock.length),    color: "text-[#11111c]", bg: "bg-[#f0f0f0]" },
+        { icon: Pill,          label: "Items in Stock",    value: String(stock.length),    color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
         { icon: AlertTriangle, label: "Stock Alerts",      value: String(alerts.length),   color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
         { icon: PackageX,      label: "Out / Expired",     value: String(outOfStock),      color: "text-[#ff0004]", bg: "bg-[#ffe9e9]" },
       ]} />
@@ -39,10 +39,10 @@ export function PharmacistPanel() {
               {pending.length === 0 ? (
                 <EmptyRow text="Nothing pending — all caught up." />
               ) : pending.map(p => (
-                <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+                <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#11111c] truncate">{p.patientName}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{p.rxNumber} · {p.medicineCount} medicines · {p.doctor}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{p.patientName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{p.rxNumber} · {p.medicineCount} medicines · {p.doctor}</span>
                   </div>
                   <StatusBadge status={p.status} />
                 </div>
@@ -56,10 +56,10 @@ export function PharmacistPanel() {
                 {alerts.length === 0 ? (
                   <EmptyRow text="No stock alerts." />
                 ) : alerts.map(i => (
-                  <div key={i.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0]">
+                  <div key={i.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[#11111c] truncate">{i.name}</span>
-                      <span className="text-[11px] font-light text-[#57575f]">{i.stock} left · min {i.minStock}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{i.name}</span>
+                      <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{i.stock} left · min {i.minStock}</span>
                     </div>
                     <StatusBadge status={i.status} />
                   </div>

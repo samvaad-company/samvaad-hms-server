@@ -62,11 +62,11 @@ export function BookConsultModal({
     <Modal open={open} onClose={onClose} title="Book video consultation" width={560}
       footer={
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-[#57575f]">Fee: <b className="text-[#11111c]">₹{fee.toLocaleString("en-IN")}</b></span>
+          <span className="text-[13px] text-[color:var(--ink-soft)]">Fee: <b className="text-[color:var(--ink)]">₹{fee.toLocaleString("en-IN")}</b></span>
           <div className="flex gap-3">
-            <button onClick={onClose} className="text-[13px] text-[#57575f] px-4 py-[8px] rounded-full border border-[#dedee1] cursor-pointer">Cancel</button>
+            <button onClick={onClose} className="text-[13px] text-[color:var(--ink-soft)] px-4 py-[8px] rounded-full border border-[color:var(--line)] cursor-pointer">Cancel</button>
             <button onClick={submit} disabled={!ready || loading}
-              className="text-[13px] text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] disabled:opacity-50 cursor-pointer">
+              className="text-[13px] text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
               {loading ? "Booking…" : "Book consultation"}
             </button>
           </div>

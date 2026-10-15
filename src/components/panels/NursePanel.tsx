@@ -40,10 +40,10 @@ export function NursePanel() {
               {active.length === 0 ? (
                 <EmptyRow text="No admitted patients." />
               ) : active.map(a => (
-                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{a.ward} · Bed {a.bed} · {a.diagnosis}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.ward} · Bed {a.bed} · {a.diagnosis}</span>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>

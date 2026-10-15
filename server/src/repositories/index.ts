@@ -39,6 +39,8 @@ import type {
   DeathRecordRow,
   TpaRow,
   TpaClaimRow,
+  EnquiryRow,
+  FollowUpRow,
   FinanceIncomeRow,
   FinanceExpenseRow,
   InventoryItemRow,
@@ -86,6 +88,8 @@ import {
   toDeathRecordDTO,
   toTpaDTO,
   toTpaClaimDTO,
+  toEnquiryDTO,
+  toFollowUpDTO,
   toFinanceEntryDTO,
   toInventoryItemDTO,
   toInventoryIssueDTO,
@@ -204,6 +208,14 @@ export const tpasRepo = createRepository<TpaRow, ReturnType<typeof toTpaDTO>>(
 export const tpaClaimsRepo = createRepository<TpaClaimRow, ReturnType<typeof toTpaClaimDTO>>(
   TABLES.tpaClaims,
   toTpaClaimDTO,
+);
+export const followupsRepo = createRepository<FollowUpRow, ReturnType<typeof toFollowUpDTO>>(
+  TABLES.followups,
+  toFollowUpDTO,
+);
+export const enquiriesRepo = createRepository<EnquiryRow, ReturnType<typeof toEnquiryDTO>>(
+  TABLES.enquiries,
+  toEnquiryDTO,
 );
 export const financeIncomesRepo = createRepository<FinanceIncomeRow, ReturnType<typeof toFinanceEntryDTO>>(
   TABLES.financeIncomes,

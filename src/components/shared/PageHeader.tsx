@@ -53,10 +53,10 @@ export function PageHeader({
   return (
     <div className="flex items-start justify-between px-[30px] pt-[16px] pb-[12px]">
       <div className="flex flex-col gap-[2px]">
-        <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px] capitalize">
+        <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px] capitalize">
           {title}
         </h1>
-        <p className="text-[13px] font-light text-[#57575f] leading-[17px] whitespace-nowrap">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px] whitespace-nowrap">
           {subtitle}
         </p>
       </div>
@@ -70,17 +70,17 @@ export function PageHeader({
           <div className="relative" ref={ref}>
             <button
               onClick={() => setOpen((o) => !o)}
-              className="bg-white flex items-center gap-[8px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#f6f6f6] transition-colors"
+              className="bg-[color:var(--surface)] flex items-center gap-[8px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[color:var(--subtle)] transition-colors"
             >
-              <Calendar size={18} strokeWidth={1.5} className="text-[#11111c]" />
-              <span className="text-[13px] font-normal text-[#11111c] leading-[18px] whitespace-nowrap">
+              <Calendar size={18} strokeWidth={1.5} className="text-[color:var(--ink)]" />
+              <span className="text-[13px] font-normal text-[color:var(--ink)] leading-[18px] whitespace-nowrap">
                 {rangeLabel}
               </span>
-              <ChevronDown size={14} strokeWidth={2} className="text-[#11111c]" />
+              <ChevronDown size={14} strokeWidth={2} className="text-[color:var(--ink)]" />
             </button>
 
             {open && (
-              <div className="absolute right-0 top-[38px] z-50 w-[160px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1">
+              <div className="absolute right-0 top-[38px] z-50 w-[160px] bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg py-1">
                 {DATE_RANGES.map((r) => (
                   <button
                     key={r.id}
@@ -90,8 +90,8 @@ export function PageHeader({
                     }}
                     className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors ${
                       range === r.id
-                        ? "bg-[#e8f7f7] text-[#009598] font-medium"
-                        : "text-[#11111c] hover:bg-[#f6f6f6]"
+                        ? "bg-[color:var(--brand-soft)] text-[color:var(--brand)] font-medium"
+                        : "text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
                     }`}
                   >
                     {r.label}
@@ -105,7 +105,7 @@ export function PageHeader({
         {action && (
           <button
             onClick={action.onClick}
-            className="bg-[#009598] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[#007f82] transition-colors"
+            className="bg-[color:var(--brand)] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full cursor-pointer hover:bg-[color:var(--brand-hover)] transition-colors"
           >
             <ActionIcon size={18} strokeWidth={1.5} className="text-white" />
             <span className="text-[13px] font-normal text-white leading-[18px] whitespace-nowrap">

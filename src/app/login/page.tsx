@@ -66,7 +66,7 @@ function LoginForm() {
   const selectedRole = DEMO_ACCOUNTS.find(a => a.email === email)?.role ?? null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f7f7f7] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[color:var(--canvas)] px-4">
       <div className="w-full max-w-[420px]">
         {/* Brand */}
         <div className="flex items-center gap-[10px] justify-center mb-8">
@@ -74,47 +74,47 @@ function LoginForm() {
             {/* <span className="text-white text-[16px] font-medium">S</span> */}
             <Image width={28} height={28} className="w-[28px] h-[28px] rounded-[8px] flex items-center justify-center shrink-0" src={logo} alt="header logo" />
           </div>
-          <span className="text-[22px] font-medium text-[#11111c]">
-            Samvaad <span className="text-[#009598]">HMS</span>
+          <span className="text-[22px] font-medium text-[color:var(--ink)]">
+            Samvaad <span className="text-[color:var(--brand)]">HMS</span>
           </span>
         </div>
 
-        <div className="bg-white rounded-[18px] border border-[#dedee1] p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-          <h1 className="text-[22px] font-medium text-[#11111c] mb-1">Welcome back</h1>
-          <p className="text-[13px] font-light text-[#57575f] mb-6">
+        <div className="bg-[color:var(--surface)] rounded-[18px] border border-[color:var(--line)] p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <h1 className="text-[22px] font-medium text-[color:var(--ink)] mb-1">Welcome back</h1>
+          <p className="text-[13px] font-light text-[color:var(--ink-soft)] mb-6">
             Sign in to your hospital management account.
           </p>
 
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-[7px]">
-              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">
+              <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">
                 Email
               </label>
               <div className="relative">
-                <Mail size={16} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[#57575f]" />
+                <Mail size={16} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-[44px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[38px] pr-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors"
+                  className="h-[44px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] pl-[38px] pr-[14px] text-[14px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors"
                   placeholder="you@hospital.in"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-[7px]">
-              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">
+              <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[#57575f]" />
+                <Lock size={16} className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-[44px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] pl-[38px] pr-[14px] text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors"
+                  className="h-[44px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] pl-[38px] pr-[14px] text-[14px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors"
                   placeholder="••••••••"
                 />
               </div>
@@ -129,15 +129,15 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="h-[44px] mt-1 bg-[#009598] text-white rounded-[8px] text-[14px] font-medium hover:bg-[#007f82] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              className="h-[44px] mt-1 bg-[color:var(--brand)] text-white rounded-[8px] text-[14px] font-medium hover:bg-[color:var(--brand-hover)] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
-          <div className="mt-5 pt-4 border-t border-[#f0f0f0]">
-            <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+          <div className="mt-5 pt-4 border-t border-[color:var(--subtle-2)]">
+            <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
               Demo roles — pick one, then sign in
             </p>
             <div className="flex flex-wrap gap-2">
@@ -152,8 +152,8 @@ function LoginForm() {
                     title={`${a.name} · ${a.email}`}
                     className={`px-3 py-[7px] rounded-full border text-[12px] font-normal transition-colors disabled:opacity-50 whitespace-nowrap ${
                       selected
-                        ? "border-[#009598] bg-[#009598] text-white"
-                        : "border-[#dedee1] text-[#11111c] hover:border-[#009598] hover:bg-[#e8f7f7] hover:text-[#009598]"
+                        ? "border-[color:var(--brand)] bg-[color:var(--brand)] text-white"
+                        : "border-[color:var(--line)] text-[color:var(--ink)] hover:border-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] hover:text-[color:var(--brand)]"
                     }`}
                   >
                     {a.role}
@@ -161,12 +161,12 @@ function LoginForm() {
                 );
               })}
             </div>
-            <p className="text-[11px] font-light text-[#57575f] leading-5 mt-3">
+            <p className="text-[11px] font-light text-[color:var(--ink-soft)] leading-5 mt-3">
               {selectedRole ? (
-                <>Credentials filled for <span className="font-medium text-[#11111c]">{selectedRole}</span> — press Sign in.</>
+                <>Credentials filled for <span className="font-medium text-[color:var(--ink)]">{selectedRole}</span> — press Sign in.</>
               ) : (
                 <>Selecting a role fills its credentials (shared password{" "}
-                <span className="font-medium text-[#11111c]">{DEMO_PASSWORD}</span>).</>
+                <span className="font-medium text-[color:var(--ink)]">{DEMO_PASSWORD}</span>).</>
               )}
             </p>
           </div>

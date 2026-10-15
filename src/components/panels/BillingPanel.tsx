@@ -30,7 +30,7 @@ export function BillingPanel() {
         { icon: Clock,       label: "Open Bills",      value: String(open.length),                            color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
         { icon: IndianRupee, label: "Outstanding",     value: `₹${outstanding.toLocaleString("en-IN")}`,      color: "text-[#ff0004]", bg: "bg-[#ffe9e9]" },
         { icon: Wallet,      label: "Collected",       value: `₹${revenue.toLocaleString("en-IN")}`,          color: "text-[#00955c]", bg: "bg-[#dffff3]" },
-        { icon: Receipt,     label: "Total Bills",     value: String(bills.length),                           color: "text-[#11111c]", bg: "bg-[#f0f0f0]" },
+        { icon: Receipt,     label: "Total Bills",     value: String(bills.length),                           color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
       ]} />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -40,13 +40,13 @@ export function BillingPanel() {
               {open.length === 0 ? (
                 <EmptyRow text="No open bills." />
               ) : open.map(b => (
-                <div key={b.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+                <div key={b.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#009598] truncate">{b.billNumber}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{b.patientName} · {b.type} · {b.date}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{b.billNumber}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{b.patientName} · {b.type} · {b.date}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[13px] font-medium text-[#11111c]">₹{b.total.toLocaleString("en-IN")}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{b.total.toLocaleString("en-IN")}</span>
                     <StatusBadge status={b.status} />
                   </div>
                 </div>

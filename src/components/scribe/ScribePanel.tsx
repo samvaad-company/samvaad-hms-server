@@ -197,29 +197,29 @@ export function ScribePanel({
   const btn = "text-[13px] font-normal px-4 py-2 rounded-full transition-colors inline-flex items-center gap-2 disabled:opacity-50";
 
   return (
-    <div className="bg-white border border-[#dedee1] rounded-[14px] p-6">
+    <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[14px] p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-[8px] bg-[#e8f7f7] flex items-center justify-center">
-            <Sparkles size={16} className="text-[#009598]" strokeWidth={1.75} />
+          <div className="w-8 h-8 rounded-[8px] bg-[color:var(--brand-soft)] flex items-center justify-center">
+            <Sparkles size={16} className="text-[color:var(--brand)]" strokeWidth={1.75} />
           </div>
           <div>
-            <div className="text-[14px] font-medium text-[#11111c]">AI Consultation Scribe</div>
-            <div className="text-[11px] font-light text-[#57575f] flex items-center gap-[6px]">
+            <div className="text-[14px] font-medium text-[color:var(--ink)]">AI Consultation Scribe</div>
+            <div className="text-[11px] font-light text-[color:var(--ink-soft)] flex items-center gap-[6px]">
               Powered by Gemini AI
               {geminiLive ? (
                 <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#dffff3] text-[#00955c] font-medium">
                   Live
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#f2f3f3] text-[#57575f] font-medium">
+                <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[color:var(--subtle-3)] text-[color:var(--ink-soft)] font-medium">
                   Demo mode
                 </span>
               )}
               {mock && geminiLive && (
                 <span className="text-[#ff9000]">· sample text inserted</span>
               )}
-              <span className="text-[#57575f]">· speak any Indian language</span>
+              <span className="text-[color:var(--ink-soft)]">· speak any Indian language</span>
             </div>
           </div>
         </div>
@@ -228,7 +228,7 @@ export function ScribePanel({
             <Square size={13} /> Stop · {fmtDuration(seconds)}
           </button>
         ) : (
-          <button onClick={startRecording} disabled={transcribing} className={`${btn} bg-[#009598] text-white hover:bg-[#007f82]`}>
+          <button onClick={startRecording} disabled={transcribing} className={`${btn} bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)]`}>
             <Mic size={14} /> Start Scribing
           </button>
         )}
@@ -240,7 +240,7 @@ export function ScribePanel({
         </div>
       )}
       {transcribing && (
-        <div className="flex items-center gap-2 mb-3 text-[12px] text-[#57575f]">
+        <div className="flex items-center gap-2 mb-3 text-[12px] text-[color:var(--ink-soft)]">
           <Loader2 size={13} className="animate-spin" />
           Transcribing with Gemini…
           {chunkCount > 1 && <span>({chunkCount} segments)</span>}
@@ -251,59 +251,59 @@ export function ScribePanel({
       )}
 
       {/* Transcript */}
-      <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Transcript</label>
+      <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Transcript</label>
       <textarea
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
         placeholder="Record or type the consultation notes here…"
-        className="w-full mt-1 mb-3 min-h-[120px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[10px] p-3 outline-none focus:border-[#009598] resize-y"
+        className="w-full mt-1 mb-3 min-h-[120px] text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[10px] p-3 outline-none focus:border-[color:var(--brand)] resize-y"
       />
 
       {/* Brief */}
       {brief && (
         <>
-          <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Structured Brief (SOAP)</label>
+          <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Structured Brief (SOAP)</label>
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            className="w-full mt-1 mb-3 min-h-[110px] text-[13px] text-[#11111c] bg-[#f9fdfd] border border-[#dedee1] rounded-[10px] p-3 outline-none focus:border-[#009598] resize-y font-mono"
+            className="w-full mt-1 mb-3 min-h-[110px] text-[13px] text-[color:var(--ink)] bg-[#f9fdfd] border border-[color:var(--line)] rounded-[10px] p-3 outline-none focus:border-[color:var(--brand)] resize-y font-mono"
           />
         </>
       )}
 
       <div className="flex items-center gap-2">
-        <button onClick={generateBrief} disabled={!transcript.trim() || briefing} className={`${btn} border border-[#dedee1] text-[#57575f] hover:bg-[#f6f6f6]`}>
+        <button onClick={generateBrief} disabled={!transcript.trim() || briefing} className={`${btn} border border-[color:var(--line)] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]`}>
           {briefing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
           Generate Brief
         </button>
-        <button onClick={save} disabled={!transcript.trim() || saving} className={`${btn} bg-[#009598] text-white hover:bg-[#007f82]`}>
+        <button onClick={save} disabled={!transcript.trim() || saving} className={`${btn} bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)]`}>
           <Save size={14} /> Save Note
         </button>
       </div>
 
       {/* Saved notes */}
       {notes.length > 0 && (
-        <div className="mt-6 border-t border-[#f0f0f0] pt-4">
-          <div className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider mb-3">
+        <div className="mt-6 border-t border-[color:var(--subtle-2)] pt-4">
+          <div className="text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Saved Notes ({notes.length})
           </div>
           <div className="flex flex-col gap-3">
             {notes.map((n) => (
-              <div key={n.id} className="border border-[#dedee1] rounded-[10px] p-4">
+              <div key={n.id} className="border border-[color:var(--line)] rounded-[10px] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-[12px] text-[#57575f]">
+                  <div className="flex items-center gap-2 text-[12px] text-[color:var(--ink-soft)]">
                     <FileText size={13} /> {n.doctorName} · {fmtDuration(n.durationSec)} · {n.language}
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={n.status} />
-                    <button onClick={() => remove(n.id)} className="text-[#57575f] hover:text-[#ff0004] transition-colors">
+                    <button onClick={() => remove(n.id)} className="text-[color:var(--ink-soft)] hover:text-[#ff0004] transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <p className="text-[13px] text-[#11111c] whitespace-pre-wrap">{n.transcript}</p>
+                <p className="text-[13px] text-[color:var(--ink)] whitespace-pre-wrap">{n.transcript}</p>
                 {n.brief && (
-                  <pre className="mt-2 text-[12px] text-[#57575f] whitespace-pre-wrap bg-[#f9fdfd] rounded-[8px] p-3 font-mono">{n.brief}</pre>
+                  <pre className="mt-2 text-[12px] text-[color:var(--ink-soft)] whitespace-pre-wrap bg-[#f9fdfd] rounded-[8px] p-3 font-mono">{n.brief}</pre>
                 )}
               </div>
             ))}

@@ -74,7 +74,7 @@ export function ConsultLinkActions({
         <>
           <a href={appt.videoUrl} target="_blank" rel="noopener noreferrer"
             className={`inline-flex items-center gap-[6px] text-[12px] px-3 py-[5px] rounded-full transition-colors ${
-              closed ? "text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6]" : "text-white bg-[#009598] hover:bg-[#007f82]"
+              closed ? "text-[color:var(--ink-soft)] border border-[color:var(--line)] hover:bg-[color:var(--subtle)]" : "text-white bg-[color:var(--brand)] hover:bg-[color:var(--brand-hover)]"
             }`}>
             <Video size={13} /> Join
           </a>
@@ -86,23 +86,23 @@ export function ConsultLinkActions({
             </button>
           )}
           <button type="button" onClick={copy} aria-label="Copy video link"
-            className="inline-flex items-center gap-[5px] text-[12px] text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors cursor-pointer">
+            className="inline-flex items-center gap-[5px] text-[12px] text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] transition-colors cursor-pointer">
             {copied ? <Check size={13} className="text-[#00955c]" /> : <Copy size={13} />} {copied ? "Copied" : "Copy"}
           </button>
         </>
       ) : closed ? (
-        <span className="text-[12px] text-[#57575f]">No link</span>
+        <span className="text-[12px] text-[color:var(--ink-soft)]">No link</span>
       ) : (
         <>
           <span className="text-[12px] text-[#ff9000]" title={appt.meetError ?? undefined}>Link pending</span>
           {canWrite && (
             <>
               <button type="button" onClick={() => createMeet()} disabled={busy}
-                className="inline-flex items-center gap-[5px] text-[12px] text-[#009598] border border-[#009598] px-3 py-[5px] rounded-full hover:bg-[#e8f7f7] transition-colors disabled:opacity-60 cursor-pointer">
+                className="inline-flex items-center gap-[5px] text-[12px] text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors disabled:opacity-60 cursor-pointer">
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Video size={13} />} Create Meet
               </button>
               <button type="button" onClick={() => { setError(null); setAdding(true); }}
-                className="inline-flex items-center gap-[5px] text-[12px] text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors cursor-pointer">
+                className="inline-flex items-center gap-[5px] text-[12px] text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] transition-colors cursor-pointer">
                 <Link2 size={13} /> Add link
               </button>
             </>
@@ -115,9 +115,9 @@ export function ConsultLinkActions({
       <Modal open={adding} onClose={() => setAdding(false)} title="Add video link" width={460}
         footer={
           <div className="flex justify-end gap-3">
-            <button onClick={() => setAdding(false)} className="text-[13px] text-[#57575f] px-4 py-[8px] rounded-full border border-[#dedee1] cursor-pointer">Cancel</button>
+            <button onClick={() => setAdding(false)} className="text-[13px] text-[color:var(--ink-soft)] px-4 py-[8px] rounded-full border border-[color:var(--line)] cursor-pointer">Cancel</button>
             <button onClick={saveLink} disabled={busy || !url.trim()}
-              className="text-[13px] text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] disabled:opacity-50 cursor-pointer">
+              className="text-[13px] text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
               {busy ? "Saving…" : "Save link"}
             </button>
           </div>

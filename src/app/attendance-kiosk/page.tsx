@@ -67,13 +67,13 @@ export default function AttendanceKioskPage() {
   }, [allowed]);
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-[14px] text-[#57575f]">Loading…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-[14px] text-[color:var(--ink-soft)]">Loading…</div>;
   }
   if (!allowed) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-[15px] text-[#11111c]">Your role can&apos;t open the attendance screen.</p>
-        <Link href="/home" className="text-[13px] text-[#009598] hover:underline">Back to dashboard</Link>
+        <p className="text-[15px] text-[color:var(--ink)]">Your role can&apos;t open the attendance screen.</p>
+        <Link href="/home" className="text-[13px] text-[color:var(--brand)] hover:underline">Back to dashboard</Link>
       </div>
     );
   }
@@ -81,17 +81,17 @@ export default function AttendanceKioskPage() {
   const pct = Math.min(100, Math.max(0, (secondsLeft / cycle) * 100));
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] flex flex-col">
+    <div className="min-h-screen bg-[color:var(--canvas)] flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
-        <Link href="/home" className="flex items-center gap-2 text-[13px] text-[#57575f] hover:text-[#11111c] transition-colors">
+        <Link href="/home" className="flex items-center gap-2 text-[13px] text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] transition-colors">
           <ArrowLeft size={16} /> Back
         </Link>
         <div className="flex items-center gap-[10px]">
-          <div className="w-[34px] h-[34px] rounded-[10px] bg-[#009598] flex items-center justify-center">
+          <div className="w-[34px] h-[34px] rounded-[10px] bg-[color:var(--brand)] flex items-center justify-center">
             <ShieldCheck size={18} className="text-white" />
           </div>
-          <span className="text-[20px] font-medium text-[#11111c]">
-            Samvaad <span className="text-[#009598]">HMS</span>
+          <span className="text-[20px] font-medium text-[color:var(--ink)]">
+            Samvaad <span className="text-[color:var(--brand)]">HMS</span>
           </span>
         </div>
         <span className="w-[60px]" />
@@ -99,18 +99,18 @@ export default function AttendanceKioskPage() {
 
       <main className="flex-1 flex flex-col items-center justify-center gap-7 px-6 pb-10">
         <div className="text-center">
-          <h1 className="text-[30px] font-medium text-[#11111c] leading-9">Staff attendance</h1>
-          <p className="text-[15px] font-light text-[#57575f] mt-1">
+          <h1 className="text-[30px] font-medium text-[color:var(--ink)] leading-9">Staff attendance</h1>
+          <p className="text-[15px] font-light text-[color:var(--ink-soft)] mt-1">
             Open the Samvaad Attendance app and scan this code to check in or out.
           </p>
         </div>
 
-        <div className="bg-white rounded-[24px] border border-[#dedee1] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
+        <div className="bg-[color:var(--surface)] rounded-[24px] border border-[color:var(--line)] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.05)]">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qr} alt="Attendance QR code" width={340} height={340} className="block" />
           ) : (
-            <div className="w-[340px] h-[340px] flex items-center justify-center text-[14px] text-[#57575f]">
+            <div className="w-[340px] h-[340px] flex items-center justify-center text-[14px] text-[color:var(--ink-soft)]">
               Generating code…
             </div>
           )}
@@ -118,14 +118,14 @@ export default function AttendanceKioskPage() {
 
         <div className="w-[340px] flex flex-col gap-2">
           <div className="h-[6px] rounded-full bg-[#e6e6e8] overflow-hidden">
-            <div className="h-full bg-[#009598] transition-[width] duration-500 ease-linear" style={{ width: `${pct}%` }} />
+            <div className="h-full bg-[color:var(--brand)] transition-[width] duration-500 ease-linear" style={{ width: `${pct}%` }} />
           </div>
           {error ? (
             <p className="flex items-center justify-center gap-2 text-[13px] text-[#ff0004]">
               <WifiOff size={14} /> {error} — retrying
             </p>
           ) : (
-            <p className="text-center text-[13px] font-light text-[#57575f]">
+            <p className="text-center text-[13px] font-light text-[color:var(--ink-soft)]">
               Code refreshes in {secondsLeft}s — a screenshot won&apos;t work for long
             </p>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Search, ChevronDown, type LucideIcon } from "lucide-react";
 
 interface FilterTab {
@@ -19,6 +19,8 @@ interface FilterBarProps {
   onSearchChange?: (q: string) => void;
   /** Optional trailing action button (e.g. Add, Export). */
   action?: { label: string; icon?: LucideIcon; onClick: () => void };
+  /** Extra control at the end of the bar, e.g. a view switch. */
+  trailing?: ReactNode;
 }
 
 export function FilterBar({
@@ -30,6 +32,7 @@ export function FilterBar({
   searchQuery: controlledSearch,
   onSearchChange,
   action,
+  trailing,
 }: FilterBarProps) {
   const activeFilter = controlledFilter ?? filters[0]?.id ?? "All";
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,15 +52,15 @@ export function FilterBar({
   return (
     <div className="flex items-center justify-between flex-wrap gap-x-[15px] gap-y-3 px-5 py-[25px]">
       {/* Filter Tabs */}
-      <div className="bg-[#f6f6f6] flex items-center gap-[15px] p-[3px] rounded-full flex-wrap shrink-0">
+      <div className="bg-[color:var(--subtle)] flex items-center gap-[15px] p-[3px] rounded-full flex-wrap shrink-0">
         {filters.map((f) => (
           <button
             key={f.id}
             onClick={() => onFilterChange?.(f.id)}
             className={`flex items-center justify-center px-5 py-[5px] rounded-full text-[14px] leading-[19px] font-normal transition-colors cursor-pointer whitespace-nowrap ${
               activeFilter === f.id
-                ? "bg-[#009598] text-white"
-                : "text-[#57575f] hover:text-[#11111c]"
+                ? "bg-[color:var(--brand)] text-white"
+                : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
             }`}
           >
             {f.label}
@@ -67,17 +70,17 @@ export function FilterBar({
 
       {/* Search + Status dropdown */}
       <div className="flex items-center gap-[15px] flex-wrap">
-        <div className="bg-[#f6f6f6] flex items-center gap-[10px] px-3 py-[6px] rounded-full flex-1 min-w-[200px]" style={{ maxWidth: 372 }}>
-          <Search size={20} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
+        <div className="bg-[color:var(--subtle)] flex items-center gap-[10px] px-3 py-[6px] rounded-full flex-1 min-w-[200px]" style={{ maxWidth: 372 }}>
+          <Search size={20} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
           <input
             type="text"
             placeholder={searchPlaceholder}
             value={controlledSearch ?? ""}
             onChange={e => onSearchChange?.(e.target.value)}
-            className="flex-1 min-w-0 bg-transparent text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none"
+            className="flex-1 min-w-0 bg-transparent text-[14px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none"
           />
           {controlledSearch && (
-            <button onClick={() => onSearchChange?.("")} className="text-[#57575f] hover:text-[#11111c] text-[18px] leading-none shrink-0">×</button>
+            <button onClick={() => onSearchChange?.("")} className="text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] text-[18px] leading-none shrink-0">×</button>
           )}
         </div>
 
@@ -85,17 +88,17 @@ export function FilterBar({
         <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="bg-[#f6f6f6] flex items-center justify-between gap-2 px-[15px] py-2 rounded-full cursor-pointer hover:bg-[#ebebeb] transition-colors"
+            className="bg-[color:var(--subtle)] flex items-center justify-between gap-2 px-[15px] py-2 rounded-full cursor-pointer hover:bg-[#ebebeb] transition-colors"
             style={{ minWidth: 120 }}
           >
-            <span className="text-[14px] font-normal text-[#11111c] leading-[19px] whitespace-nowrap">
+            <span className="text-[14px] font-normal text-[color:var(--ink)] leading-[19px] whitespace-nowrap">
               {activeFilter === (filters[0]?.id ?? "All") ? statusLabel : activeLabel}
             </span>
-            <ChevronDown size={15} strokeWidth={2} className="text-[#11111c]" />
+            <ChevronDown size={15} strokeWidth={2} className="text-[color:var(--ink)]" />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-[44px] z-50 w-[180px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1">
+            <div className="absolute right-0 top-[44px] z-50 w-[180px] bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg py-1">
               {filters.map((f) => (
                 <button
                   key={f.id}
@@ -105,8 +108,8 @@ export function FilterBar({
                   }}
                   className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors ${
                     activeFilter === f.id
-                      ? "bg-[#e8f7f7] text-[#009598] font-medium"
-                      : "text-[#11111c] hover:bg-[#f6f6f6]"
+                      ? "bg-[color:var(--brand-soft)] text-[color:var(--brand)] font-medium"
+                      : "text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
                   }`}
                 >
                   {f.label}
@@ -116,10 +119,12 @@ export function FilterBar({
           )}
         </div>
 
+        {trailing}
+
         {action && (
           <button
             onClick={action.onClick}
-            className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap shrink-0"
+            className="flex items-center gap-[6px] text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap shrink-0"
           >
             {action.icon && <action.icon size={14} />}
             {action.label}

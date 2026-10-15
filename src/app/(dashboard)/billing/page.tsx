@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
@@ -45,22 +46,22 @@ const TYPE_COLORS: Record<string, string> = {
   OPD: "bg-[#d6eaff] text-[#007cff]", Pharmacy: "bg-[#fff2e0] text-[#ff9000]",
   Lab: "bg-[#dffff3] text-[#00955c]",  IPD: "bg-[#ffe9e9] text-[#ff0004]",
   Blood: "bg-[#ffe9e9] text-[#ff0004]", Ambulance: "bg-[#fff2e0] text-[#ff9000]",
-  Radiology: "bg-[#e8f7f7] text-[#009598]",
+  Radiology: "bg-[color:var(--brand-soft)] text-[color:var(--brand)]",
 };
 
 function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
   return (
     <Link href={`/billing/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#009598] truncate">{row.billNumber}</span>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{row.billNumber}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
       <div>
-        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[#f0f0f0] text-[#57575f]"}`}>{row.type}</span>
+        <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"}`}>{row.type}</span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-normal text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
-      <span className="text-[13px] font-normal text-[#57575f] text-right">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
-      <span className="text-[13px] font-normal text-[#57575f] text-right">₹{row.gst.toFixed(0)}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.total.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] text-right">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] text-right">₹{row.gst.toFixed(0)}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">₹{row.total.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
@@ -149,15 +150,15 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
       {/* Line items */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-[14px] font-medium text-[#11111c]">Line Items</h3>
-          <button onClick={addRow} className="flex items-center gap-[5px] text-[12px] font-normal text-[#009598] hover:underline">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Line Items</h3>
+          <button onClick={addRow} className="flex items-center gap-[5px] text-[12px] font-normal text-[color:var(--brand)] hover:underline">
             <Plus size={13} /> Add Item
           </button>
         </div>
         {/* Header */}
         <div className="grid grid-cols-[2fr_80px_100px_100px_120px_40px] gap-2 px-3">
           {["Description", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
-            <span key={h} className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">{h}</span>
+            <span key={h} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
           ))}
         </div>
         {/* Rows */}
@@ -167,7 +168,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
               <select
                 value={item.description}
                 onChange={e => updateRow(item.id, "description", e.target.value)}
-                className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
               >
                 <option value="">Select service...</option>
                 {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -175,22 +176,22 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
               <input
                 type="number" min={1} value={item.qty}
                 onChange={e => updateRow(item.id, "qty", Number(e.target.value))}
-                className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors text-center"
+                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors text-center"
               />
               <input
                 type="number" min={0} value={item.rate || ""}
                 onChange={e => updateRow(item.id, "rate", Number(e.target.value))}
                 placeholder="0"
-                className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
               />
               <select
                 value={item.gstPct}
                 onChange={e => updateRow(item.id, "gstPct", Number(e.target.value))}
-                className="h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
               >
                 {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
               </select>
-              <span className="text-[13px] font-medium text-[#11111c] px-3">
+              <span className="text-[13px] font-medium text-[color:var(--ink)] px-3">
                 ₹{(item.qty * item.rate * (1 + item.gstPct / 100)).toLocaleString("en-IN")}
               </span>
               {items.length > 1 ? (
@@ -212,14 +213,14 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           </FormRow>
           <FormRow label="Discount">
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-[#f6f6f6] rounded-[8px] p-[3px] shrink-0">
+              <div className="flex items-center bg-[color:var(--subtle)] rounded-[8px] p-[3px] shrink-0">
                 {([{ id: "flat", label: "₹" }, { id: "percent", label: "%" }] as const).map(o => (
                   <button
                     key={o.id}
                     type="button"
                     onClick={() => setDiscountType(o.id)}
                     className={`w-8 h-9 rounded-[6px] text-[13px] font-medium transition-colors ${
-                      discountType === o.id ? "bg-[#009598] text-white" : "text-[#57575f] hover:text-[#11111c]"
+                      discountType === o.id ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
                     }`}
                   >
                     {o.label}
@@ -230,7 +231,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                 type="number" min={0} max={discountType === "percent" ? 100 : undefined} value={discount || ""}
                 onChange={e => setDiscount(Number(e.target.value))}
                 placeholder="0"
-                className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+                className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] text-[14px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
               />
             </div>
           </FormRow>
@@ -238,28 +239,28 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             <textarea
               rows={2}
               placeholder="Payment remarks or notes..."
-              className="w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] transition-colors resize-none"
+              className="w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--brand)] transition-colors resize-none"
             />
           </FormRow>
         </div>
         {/* Total summary */}
-        <div className="border border-[#dedee1] rounded-[10px] p-5 flex flex-col gap-3 bg-[#f6f6f6] h-fit">
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5 flex flex-col gap-3 bg-[color:var(--subtle)] h-fit">
           {[
             { label: "Subtotal",    value: `₹${subtotal.toLocaleString("en-IN")}` },
             { label: "GST",         value: `₹${gstTotal.toFixed(0)}` },
             { label: discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-₹${Math.round(discAmt).toLocaleString("en-IN")}` : "—" },
           ].map(r => (
             <div key={r.label} className="flex justify-between text-[13px]">
-              <span className="font-normal text-[#57575f]">{r.label}</span>
-              <span className="font-normal text-[#11111c]">{r.value}</span>
+              <span className="font-normal text-[color:var(--ink-soft)]">{r.label}</span>
+              <span className="font-normal text-[color:var(--ink)]">{r.value}</span>
             </div>
           ))}
-          <div className="border-t border-[#dedee1] pt-3 flex justify-between">
-            <span className="text-[16px] font-medium text-[#11111c]">Grand Total</span>
-            <span className="text-[16px] font-medium text-[#009598]">₹{grandTotal.toLocaleString("en-IN")}</span>
+          <div className="border-t border-[color:var(--line)] pt-3 flex justify-between">
+            <span className="text-[16px] font-medium text-[color:var(--ink)]">Grand Total</span>
+            <span className="text-[16px] font-medium text-[color:var(--brand)]">₹{grandTotal.toLocaleString("en-IN")}</span>
           </div>
           <button onClick={generate} disabled={loading || !patientId || subtotal <= 0}
-            className="w-full mt-2 bg-[#009598] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="w-full mt-2 bg-[color:var(--brand)] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Generating…" : "Generate Bill"}
           </button>
           {error && <div className="text-[12px] text-[#ff0004]">{error.message}</div>}
@@ -293,24 +294,24 @@ function LookupView({ bills }: { bills: BillDTO[] }) {
       </div>
 
       {q && matches.length === 0 && (
-        <div className="py-12 text-center text-[14px] text-[#57575f]">No bills match “{query}”.</div>
+        <div className="py-12 text-center text-[14px] text-[color:var(--ink-soft)]">No bills match “{query}”.</div>
       )}
 
       {matches.length > 0 && (
         <>
-          <div className="flex items-center gap-6 px-4 py-3 bg-[#f6f6f6] rounded-[10px]">
+          <div className="flex items-center gap-6 px-4 py-3 bg-[color:var(--subtle)] rounded-[10px]">
             <div>
-              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Bills Found</span>
-              <p className="text-[20px] font-medium text-[#11111c] leading-tight">{matches.length}</p>
+              <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Bills Found</span>
+              <p className="text-[20px] font-medium text-[color:var(--ink)] leading-tight">{matches.length}</p>
             </div>
-            <div className="w-px h-8 bg-[#dedee1]" />
+            <div className="w-px h-8 bg-[color:var(--line)]" />
             <div>
-              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Total Billed</span>
-              <p className="text-[20px] font-medium text-[#11111c] leading-tight">₹{matches.reduce((s, b) => s + b.total, 0).toLocaleString("en-IN")}</p>
+              <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Total Billed</span>
+              <p className="text-[20px] font-medium text-[color:var(--ink)] leading-tight">₹{matches.reduce((s, b) => s + b.total, 0).toLocaleString("en-IN")}</p>
             </div>
-            <div className="w-px h-8 bg-[#dedee1]" />
+            <div className="w-px h-8 bg-[color:var(--line)]" />
             <div>
-              <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Outstanding</span>
+              <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Outstanding</span>
               <p className={`text-[20px] font-medium leading-tight ${outstanding > 0 ? "text-[#ff9000]" : "text-[#00955c]"}`}>₹{outstanding.toLocaleString("en-IN")}</p>
             </div>
           </div>
@@ -318,14 +319,14 @@ function LookupView({ bills }: { bills: BillDTO[] }) {
           <div className="grid grid-cols-2 gap-4">
             {matches.map(b => (
               <Link key={b.id} href={`/billing/${b.id}`}
-                className="border border-[#dedee1] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
+                className="border border-[color:var(--line)] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-[color:var(--surface)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
                 <div className="flex flex-col gap-[6px]">
-                  <span className="text-[14px] font-medium text-[#009598]">{b.billNumber}</span>
-                  <span className="text-[13px] font-normal text-[#11111c]">{b.patientName}</span>
-                  <span className="text-[12px] font-light text-[#57575f]">{b.type} · {b.date}</span>
+                  <span className="text-[14px] font-medium text-[color:var(--brand)]">{b.billNumber}</span>
+                  <span className="text-[13px] font-normal text-[color:var(--ink)]">{b.patientName}</span>
+                  <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{b.type} · {b.date}</span>
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                  <span className="text-[15px] font-medium text-[#11111c]">₹{b.total.toLocaleString("en-IN")}</span>
+                  <span className="text-[15px] font-medium text-[color:var(--ink)]">₹{b.total.toLocaleString("en-IN")}</span>
                   <StatusBadge status={b.status} />
                 </div>
               </Link>
@@ -368,6 +369,8 @@ export default function BillingPage() {
     return matchF && matchS && inDateRange(b.date, range);
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "bills");
+
   return (
     <>
       {dialog}
@@ -388,8 +391,8 @@ export default function BillingPage() {
                 activeFilter={filter} onFilterChange={setFilter} searchQuery={search} onSearchChange={setSearch} />
               <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
                 {visible.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No bills found.</div>
-                ) : visible.map(r => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No bills found.</div>
+                ) : pagedVisible.map(r => (
                   <BillRow key={r.id} row={r} actions={[
                     { label: "View invoice", onClick: () => router.push(`/billing/${r.id}`) },
                     ...(canWrite ? [
@@ -400,6 +403,7 @@ export default function BillingPage() {
                   ]} />
                 ))}
               </DataTable>
+{barVisible}
             </>
           )}
           {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}

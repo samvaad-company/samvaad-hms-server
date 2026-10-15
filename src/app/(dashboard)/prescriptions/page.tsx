@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { FileText, Plus } from "lucide-react";
+import { FileText, LayoutList, Plus, Table2 } from "lucide-react";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { Prescription } from "@/types";
@@ -40,22 +41,88 @@ const FILTERS = [
 
 const MIN_WIDTH = 1180;
 
-function PrescriptionRow({ row, actions }: { row: Prescription; actions: RowAction[] }) {
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+const VIEW_STORAGE_KEY = "samvaad.prescriptions.view";
+type ListView = "table" | "compact";
+const viewListeners = new Set<() => void>();
+
+/**
+ * The list view (Table / Compact) the user picked last, kept in localStorage.
+ * Server render and hydration use "table"; the saved choice is applied right after.
+ */
+function useSavedView(): [ListView, (next: ListView) => void] {
+  const view = useSyncExternalStore<ListView>(
+    (notify) => {
+      viewListeners.add(notify);
+      window.addEventListener("storage", notify);
+      return () => { viewListeners.delete(notify); window.removeEventListener("storage", notify); };
+    },
+    () => {
+      try { return window.localStorage.getItem(VIEW_STORAGE_KEY) === "compact" ? "compact" : "table"; } catch { return "table"; }
+    },
+    () => "table",
+  );
+  const choose = (next: ListView) => {
+    try { window.localStorage.setItem(VIEW_STORAGE_KEY, next); } catch { /* storage blocked — the choice just won't persist */ }
+    viewListeners.forEach((l) => l());
+  };
+  return [view, choose];
+}
+
+/** "2026-09-26" → "Sat, 26 Sept" (the compact list's date). Anything else is shown as it is. */
+function shortDay(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return formatDate(value);
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** One line per prescription: patient, then "Rx number · day", with the status at the right. */
+function CompactRow({ row, actions, onOpen }: { row: Prescription; actions: RowAction[]; onOpen: () => void }) {
   return (
-    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#009598] truncate">{row.rxNumber}</span>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.diagnosis}</span>
+    <div
+      role="link" tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
+      className="group flex items-center gap-3 px-5 py-[9px] border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--subtle)] focus:outline-none focus-visible:bg-[color:var(--subtle)] cursor-pointer transition-colors"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-[color:var(--ink)] truncate leading-[17px]">{row.patientName}</p>
+        <p className="text-[11.5px] text-[color:var(--ink-soft)] truncate leading-[16px]">
+          {row.status === "Draft" ? "Draft" : row.rxNumber} · {shortDay(row.date)}
+        </p>
+      </div>
+      <div className="w-[28px] flex justify-end opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+        <RowMenu actions={actions} compact />
+      </div>
+      <StatusBadge status={row.status} />
+    </div>
+  );
+}
+
+function PrescriptionRow({ row, actions, onOpen }: { row: Prescription; actions: RowAction[]; onOpen: () => void }) {
+  return (
+    <div
+      role="link" tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
+      className={`${tw.table.dataRow} cursor-pointer focus:outline-none focus-visible:bg-[color:var(--faint)]`}
+      style={{ gridTemplateColumns: "var(--cols)" }}
+    >
+      <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{row.rxNumber}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.diagnosis}</span>
       <div className="flex justify-center">
-        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#f6f6f6] text-[12px] font-medium text-[#11111c]">
+        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[color:var(--subtle)] text-[12px] font-medium text-[color:var(--ink)]">
           {row.medicineCount}
         </span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
       <div><StatusBadge status={row.status} /></div>
-      <div className="flex justify-end"><RowMenu actions={actions} /></div>
+      <div className="flex justify-end" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}><RowMenu actions={actions} /></div>
     </div>
   );
 }
@@ -67,6 +134,7 @@ export default function PrescriptionsPage() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRangeId>("all");
+  const [view, chooseView] = useSavedView();
   const { items: prescriptions, reload } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { dialog, remove, mutate } = useRowActions("prescriptions", reload);
   const { run: runEdit, loading: saving } = useMutation();
@@ -117,6 +185,30 @@ export default function PrescriptionsPage() {
     return matchF && matchS && inDateRange(r.date, range);
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "prescriptions");
+
+  const actionsFor = (r: PrescriptionDTO): RowAction[] => [
+    { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
+    ...(canWrite ? [
+      { label: "Edit", onClick: () => openEdit(r) },
+      { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => void dispense(r) },
+      { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
+    ] : []),
+  ];
+
+  const viewSwitch = (
+    <div role="group" aria-label="Prescription view" className="inline-flex items-center p-[2px] rounded-full bg-[color:var(--subtle)] shrink-0">
+      {([["table", "Table", Table2], ["compact", "Compact", LayoutList]] as const).map(([id, label, Icon]) => (
+        <button key={id} type="button" onClick={() => chooseView(id)} aria-pressed={view === id} title={`${label} view`}
+          className={`inline-flex items-center gap-[5px] h-[28px] px-3 rounded-full text-[12px] transition-colors cursor-pointer ${
+            view === id ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+          }`}>
+          <Icon size={13} /> {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <>
       {dialog}
@@ -131,9 +223,9 @@ export default function PrescriptionsPage() {
 
       {notice && (
         <div className={`${tw.gutterX} mb-3`}>
-          <div className="flex items-start justify-between gap-3 text-[13px] text-[#11111c] bg-[#e8f7f7] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
+          <div className="flex items-start justify-between gap-3 text-[13px] text-[color:var(--ink)] bg-[color:var(--brand-soft)] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
             <span>{notice}</span>
-            <button onClick={() => setNotice(null)} className="text-[#57575f] hover:text-[#11111c] shrink-0">✕</button>
+            <button onClick={() => setNotice(null)} className="text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] shrink-0">✕</button>
           </div>
         </div>
       )}
@@ -147,21 +239,26 @@ export default function PrescriptionsPage() {
             onFilterChange={setFilter}
             searchQuery={search}
             onSearchChange={setSearch}
+            trailing={viewSwitch}
           />
-          <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {visible.length === 0 ? (
-              <div className="py-16 text-center text-[14px] text-[#57575f]">No prescriptions found.</div>
-            ) : visible.map((r) => (
-              <PrescriptionRow key={r.id} row={r} actions={[
-                { label: "View Rx", onClick: () => router.push(`/prescriptions/${r.id}`) },
-                ...(canWrite ? [
-                  { label: "Edit", onClick: () => openEdit(r) },
-                  { label: "Dispense", disabled: r.status === "Dispensed", onClick: () => void dispense(r) },
-                  { label: "Delete", danger: true, onClick: () => remove(r.id, r.rxNumber) },
-                ] : []),
-              ]} />
-            ))}
-          </DataTable>
+          {view === "compact" ? (
+            <div className="border-t border-[color:var(--line)]">
+              {visible.length === 0 ? (
+                <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No prescriptions found.</div>
+              ) : pagedVisible.map(r => (
+                <CompactRow key={r.id} row={r} actions={actionsFor(r)} onOpen={() => router.push(`/prescriptions/${r.id}`)} />
+              ))}
+            </div>
+          ) : (
+            <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
+              {visible.length === 0 ? (
+                <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No prescriptions found.</div>
+              ) : pagedVisible.map((r) => (
+                <PrescriptionRow key={r.id} row={r} actions={actionsFor(r)} onOpen={() => router.push(`/prescriptions/${r.id}`)} />
+              ))}
+            </DataTable>
+          )}
+          {barVisible}
         </div>
       </div>
 
@@ -173,14 +270,14 @@ export default function PrescriptionsPage() {
           width={520}
           footer={
             <>
-              <button onClick={() => setEditing(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-              <button onClick={saveEdit} disabled={saving} className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              <button onClick={() => setEditing(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
+              <button onClick={saveEdit} disabled={saving} className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
                 {saving ? "Saving…" : "Save Changes"}
               </button>
             </>
           }
         >
-          <div className="mb-3 text-[12px] text-[#57575f]">
+          <div className="mb-3 text-[12px] text-[color:var(--ink-soft)]">
             {editing.patientName} · {editing.doctor} · {editing.medicineCount} medicines
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -194,7 +291,7 @@ export default function PrescriptionsPage() {
                 options={["Draft", "Pending", "Dispensed"].map(s => ({ value: s, label: s }))} />
             </FormRow>
           </div>
-          <p className="mt-3 text-[11px] font-light text-[#57575f]">
+          <p className="mt-3 text-[11px] font-light text-[color:var(--ink-soft)]">
             To change the medicine list, open the prescription and use the builder.
           </p>
         </Modal>

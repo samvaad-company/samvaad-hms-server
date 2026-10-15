@@ -21,21 +21,21 @@ export function StepBar({ steps, currentStep }: StepBarProps) {
           <div key={i} className="flex items-center flex-1 last:flex-none min-w-0">
             <div className="flex items-center gap-[6px] min-w-0">
               <div
-                className={`w-[20px] h-[20px] rounded-full flex items-center justify-center text-[11px] font-medium shrink-0 transition-colors ${
+                className={`w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-medium shrink-0 transition-colors ${
                   isCompleted || isActive
-                    ? "bg-[#009598] text-white"
-                    : "bg-[#f0f0f0] text-[#57575f]"
+                    ? "bg-[color:var(--brand)] text-white"
+                    : "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"
                 }`}
               >
                 {isCompleted ? <Check size={11} strokeWidth={2.5} /> : num}
               </div>
               <span
-                className={`text-[12px] whitespace-nowrap truncate ${
+                className={`text-[11.5px] whitespace-nowrap truncate ${
                   isActive
-                    ? "text-[#11111c] font-medium"
+                    ? "text-[color:var(--ink)] font-medium"
                     : isCompleted
-                      ? "text-[#009598] font-normal"
-                      : "text-[#57575f] font-normal"
+                      ? "text-[color:var(--brand)] font-normal"
+                      : "text-[color:var(--ink-soft)] font-normal"
                 }`}
               >
                 {label}
@@ -43,8 +43,8 @@ export function StepBar({ steps, currentStep }: StepBarProps) {
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`flex-1 h-px mx-3 transition-colors ${
-                  isCompleted ? "bg-[#009598]" : "bg-[#dedee1]"
+                className={`flex-1 h-px mx-2 transition-colors ${
+                  isCompleted ? "bg-[color:var(--brand)]" : "bg-[color:var(--line)]"
                 }`}
               />
             )}

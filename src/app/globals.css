@@ -39,7 +39,7 @@
   --radius-xl: calc(var(--radius) * 1.4);
 
   /* Design system tokens */
-  --color-brand: #009598;
+  --color-brand: var(--brand);
   --color-brand-foreground: #ffffff;
   --color-hms-black: #11111c;
   --color-hms-gray: #57575f;
@@ -59,33 +59,81 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #11111c;
-  --card: #ffffff;
-  --card-foreground: #11111c;
-  --popover: #ffffff;
-  --popover-foreground: #11111c;
-  --primary: #009598;
+  /* Brand colour. Settings → Profile & branding sets --brand-base for the whole hospital (see src/lib/theme.ts);
+     the other shades are derived from it so one choice recolours every button, link and highlight. */
+  --brand-base: #009598;
+  --brand: var(--brand-base);
+  --brand-hover: color-mix(in srgb, var(--brand) 84%, black);
+  --brand-soft: color-mix(in srgb, var(--brand) 9%, var(--surface));
+  --brand-ring: color-mix(in srgb, var(--brand) 40%, var(--surface));
+
+  /* Neutrals. Components use these (never raw greys) so the whole app flips with the light/dark switch. */
+  --surface: #ffffff;
+  --canvas: #ffffff;
+  --ink: #11111c;
+  --ink-soft: #57575f;
+  --line: #dedee1;
+  --subtle: #f6f6f6;
+  --subtle-2: #f0f0f0;
+  --subtle-3: #f2f3f3;
+  --faint: #fafafa;
+  /* The sidebar and top header carry a hint of the brand colour. */
+  --chrome: color-mix(in srgb, var(--brand-base) 7%, var(--surface));
+  --chrome-line: color-mix(in srgb, var(--brand-base) 16%, var(--line));
+  color-scheme: light;
+
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
   --primary-foreground: #ffffff;
-  --secondary: #f6f6f6;
-  --secondary-foreground: #11111c;
-  --muted: #f6f6f6;
-  --muted-foreground: #57575f;
-  --accent: #f6f6f6;
-  --accent-foreground: #11111c;
+  --secondary: var(--subtle);
+  --secondary-foreground: var(--ink);
+  --muted: var(--subtle);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--subtle);
+  --accent-foreground: var(--ink);
   --destructive: #ff0004;
-  --border: #dedee1;
-  --input: #dedee1;
-  --ring: #009598;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
   --radius: 0.625rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #11111c;
-  --sidebar-primary: #009598;
+  --sidebar: var(--chrome);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f6f6f6;
-  --sidebar-accent-foreground: #11111c;
-  --sidebar-border: #dedee1;
-  --sidebar-ring: #009598;
+  --sidebar-accent: var(--subtle);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--chrome-line);
+  --sidebar-ring: var(--brand);
+}
+
+/* Dark theme: same names, dark values. The brand colour is lightened so it stays visible on dark surfaces. */
+.dark {
+  --brand: color-mix(in oklab, var(--brand-base) 72%, white);
+  --surface: #16161b;
+  --canvas: #0e0e12;
+  --ink: #ececf1;
+  --ink-soft: #a3a3ae;
+  --line: #2f2f38;
+  --subtle: #1f1f26;
+  --subtle-2: #26262e;
+  --subtle-3: #22222a;
+  --faint: #1a1a20;
+  --brand-soft: color-mix(in srgb, var(--brand) 20%, var(--surface));
+  --brand-ring: color-mix(in srgb, var(--brand) 45%, var(--surface));
+  color-scheme: dark;
+}
+
+/* Printouts (bills, prescriptions, ID cards) are always black on white, whatever the screen theme. */
+@media print {
+  :root, .dark {
+    --surface: #ffffff; --canvas: #ffffff; --ink: #11111c; --ink-soft: #57575f; --line: #dedee1;
+    --subtle: #f6f6f6; --subtle-2: #f0f0f0; --subtle-3: #f2f3f3; --faint: #fafafa; color-scheme: light;
+  }
 }
 
 @layer base {

@@ -37,10 +37,10 @@ export function DriverPanel() {
             {calls.length === 0 ? (
               <EmptyRow text="No calls logged." />
             ) : calls.map(c => (
-              <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+              <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[13px] font-medium text-[#11111c] truncate">{c.patientName}</span>
-                  <span className="text-[11px] font-light text-[#57575f] truncate">
+                  <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{c.patientName}</span>
+                  <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">
                     {c.pickupLocation} → {c.dropLocation} · {c.vehicleNumber || "unassigned"} · {c.date} {c.time}
                   </span>
                 </div>

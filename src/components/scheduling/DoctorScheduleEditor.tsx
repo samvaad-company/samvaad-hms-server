@@ -18,7 +18,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 type Window = { day: string; start: string; end: string };
 interface FormState { patientsPerHour: number; videoEnabled: boolean; videoHours: Window[] }
 
-const timeInput = "h-[42px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[14px] text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors disabled:opacity-50";
+const timeInput = "h-[42px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[14px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors disabled:opacity-50";
 
 export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; canEdit: boolean }) {
   const { item, reload } = useItem<DoctorScheduleDTO>(`/doctors/${doctorId}/schedule`);
@@ -28,7 +28,7 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
   const [saved, setSaved] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (!item) return <div className="p-6 text-[14px] text-[#57575f]">Loading schedule…</div>;
+  if (!item) return <div className="p-6 text-[14px] text-[color:var(--ink-soft)]">Loading schedule…</div>;
 
   const form: FormState = {
     patientsPerHour: edits.patientsPerHour ?? item.patientsPerHour,
@@ -56,8 +56,8 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
   return (
     <div className="p-6 flex flex-col gap-8 max-w-[760px]">
       <section className="flex flex-col gap-3">
-        <h3 className="text-[14px] font-medium text-[#11111c]">Patients per hour</h3>
-        <p className="text-[12px] font-light text-[#57575f]">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Patients per hour</h3>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)]">
           Each patient gets an equal share of the hour. Once an hour&apos;s places are taken nobody can book it — reception, the patient app
           and the booking link all show that hour as <b className="font-medium">Full</b>.
         </p>
@@ -71,7 +71,7 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-[14px] font-medium text-[#11111c] flex items-center gap-2"><Video size={15} /> Video consultations</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] flex items-center gap-2"><Video size={15} /> Video consultations</h3>
         {videoBlocked && (
           <p className="text-[13px] text-[#ff9000] bg-[#fff2e0] rounded-[8px] px-3 py-2">
             Video consultations are switched off for the hospital, so they can&apos;t be turned on here yet. An administrator enables them in Admin → Settings.
@@ -80,20 +80,20 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
         <label className={`flex items-center gap-3 ${canEdit && !videoBlocked ? "cursor-pointer" : "opacity-60"}`}>
           <button type="button" role="switch" aria-checked={form.videoEnabled} disabled={!canEdit || (videoBlocked && !form.videoEnabled)}
             onClick={() => edit({ videoEnabled: !form.videoEnabled })}
-            className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${form.videoEnabled ? "bg-[#009598]" : "bg-[#dedee1]"}`}>
-            <span className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all ${form.videoEnabled ? "left-[21px]" : "left-[3px]"}`} />
+            className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${form.videoEnabled ? "bg-[color:var(--brand)]" : "bg-[color:var(--line)]"}`}>
+            <span className={`absolute top-[3px] w-[18px] h-[18px] bg-[color:var(--surface)] rounded-full shadow transition-all ${form.videoEnabled ? "left-[21px]" : "left-[3px]"}`} />
           </button>
-          <span className="text-[13px] text-[#11111c]">{form.videoEnabled ? "I take video consultations" : "I don't take video consultations"}</span>
+          <span className="text-[13px] text-[color:var(--ink)]">{form.videoEnabled ? "I take video consultations" : "I don't take video consultations"}</span>
         </label>
 
         {form.videoEnabled && (
           <div className="flex flex-col gap-3">
-            <p className="text-[12px] font-light text-[#57575f]">
+            <p className="text-[12px] font-light text-[color:var(--ink-soft)]">
               Your video hours. Inside them only video consultations can be booked; at every other time in the working day only in-person
               visits can — a time is never offered for both.
             </p>
             {form.videoHours.length === 0 && (
-              <p className="text-[13px] text-[#57575f] bg-[#f6f6f6] rounded-[8px] px-3 py-2">No video hours yet — add at least one so patients can book a video consultation.</p>
+              <p className="text-[13px] text-[color:var(--ink-soft)] bg-[color:var(--subtle)] rounded-[8px] px-3 py-2">No video hours yet — add at least one so patients can book a video consultation.</p>
             )}
             {form.videoHours.map((w, i) => (
               <div key={i} className="flex items-center gap-3 flex-wrap">
@@ -101,7 +101,7 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
                   <FormSelect value={w.day} disabled={!canEdit} onChange={v => setWindow(i, { day: v })} options={DAYS.map(d => ({ value: d, label: d }))} />
                 </div>
                 <input type="time" className={timeInput} value={w.start} disabled={!canEdit} onChange={e => setWindow(i, { start: e.target.value })} aria-label="From" />
-                <span className="text-[12px] text-[#57575f]">to</span>
+                <span className="text-[12px] text-[color:var(--ink-soft)]">to</span>
                 <input type="time" className={timeInput} value={w.end} disabled={!canEdit} onChange={e => setWindow(i, { end: e.target.value })} aria-label="To" />
                 {canEdit && (
                   <button type="button" onClick={() => edit({ videoHours: form.videoHours.filter((_, j) => j !== i) })} aria-label="Remove these hours"
@@ -111,7 +111,7 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
             ))}
             {canEdit && (
               <button type="button" onClick={() => edit({ videoHours: [...form.videoHours, { day: "Monday", start: "16:00", end: "18:00" }] })}
-                className="self-start inline-flex items-center gap-2 text-[13px] text-[#009598] border border-[#009598] px-4 py-[7px] rounded-full hover:bg-[#e8f7f7] cursor-pointer">
+                className="self-start inline-flex items-center gap-2 text-[13px] text-[color:var(--brand)] border border-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-soft)] cursor-pointer">
                 <Plus size={14} /> Add video hours
               </button>
             )}
@@ -129,7 +129,7 @@ export function DoctorScheduleEditor({ doctorId, canEdit }: { doctorId: number; 
       {canEdit && (
         <div>
           <button onClick={save} disabled={loading || !dirty}
-            className="inline-flex items-center gap-2 text-[13px] text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] disabled:opacity-50 cursor-pointer">
+            className="inline-flex items-center gap-2 text-[13px] text-white bg-[color:var(--brand)] px-5 py-[9px] rounded-full hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save schedule
           </button>
         </div>

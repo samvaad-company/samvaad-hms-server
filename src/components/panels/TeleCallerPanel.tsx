@@ -28,7 +28,7 @@ export function TeleCallerPanel() {
       <StatRow stats={[
         { icon: CalendarClock, label: "Upcoming",     value: String(open.length),    color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
         { icon: Link2Off,      label: "Link Pending", value: String(pending.length), color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
-        { icon: Video,         label: "All Consults", value: String(items.length),   color: "text-[#009598]", bg: "bg-[#e8f7f7]" },
+        { icon: Video,         label: "All Consults", value: String(items.length),   color: "text-[color:var(--brand)]", bg: "bg-[color:var(--brand-soft)]" },
         { icon: IndianRupee,   label: "Fees",         value: `₹${collected.toLocaleString("en-IN")}`, color: "text-[#00955c]", bg: "bg-[#dffff3]" },
       ]} />
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -37,10 +37,10 @@ export function TeleCallerPanel() {
             {open.length === 0 ? (
               <EmptyRow text="No upcoming video consultations." />
             ) : open.map(a => (
-              <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa] transition-colors">
+              <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors">
                 <div className="flex flex-col min-w-0">
-                  <Link href={`/appointments/${a.id}`} className="text-[13px] font-medium text-[#11111c] truncate hover:underline">{a.patientName}</Link>
-                  <span className="text-[11px] font-light text-[#57575f] truncate">{a.doctor} · {a.date} · {a.time}</span>
+                  <Link href={`/appointments/${a.id}`} className="text-[13px] font-medium text-[color:var(--ink)] truncate hover:underline">{a.patientName}</Link>
+                  <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{a.doctor} · {a.date} · {a.time}</span>
                 </div>
                 <ConsultLinkActions appt={a} canWrite onChanged={reload} />
               </div>

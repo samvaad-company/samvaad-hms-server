@@ -36,6 +36,9 @@ import { mobileRule, dobRule, optionalMobileRule } from "@/lib/field-rules";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { enrichLab } from "@/services/lab-service";
 import { enrichRadiology } from "@/services/radiology-service";
+import { PROFILE_COLUMNS, profileSchema, parsePayers, parseCovid } from "@/services/patient-profile";
+import { toStoredDocuments } from "@/lib/identity-documents";
+import { ConflictError } from "@/lib/errors";
 
 const createSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -64,6 +67,7 @@ const createSchema = {
   insurer: { type: "string", required: false, max: 120 },
   policyNumber: { type: "string", required: false, max: 80 },
   corporate: { type: "string", required: false, max: 120 },
+  ...profileSchema,
   status: {
     type: "enum",
     required: false,
@@ -80,7 +84,23 @@ export const PATIENT_LIST_CONFIG = {
 };
 
 export async function listPatients(options: QueryOptions, actor: Session) {
-  return patientsRepo.list(scopeToHospital(options, actor));
+  // A unique last sort key keeps paging stable: two patients with the same name can't swap places between pages.
+  const sort = [...(options.sort ?? PATIENT_LIST_CONFIG.defaultSort), { column: "id" as const, direction: "asc" as const }]
+    .filter((s, i, all) => all.findIndex((x) => x.column === s.column) === i);
+  return patientsRepo.list(scopeToHospital({ ...options, sort, caseInsensitiveSort: true }, actor));
+}
+
+const STATUSES = ["Today", "Upcoming", "Completed", "Cancelled"] as const;
+
+/** Headcounts for the filter chips — they can't be worked out from a partly loaded list. */
+export async function getPatientSummary(actor: Session) {
+  const counts = await Promise.all(
+    STATUSES.map((status) =>
+      patientsRepo.count(scopeToHospital({ filters: [{ column: "status", op: "eq", value: status }] }, actor)),
+    ),
+  );
+  const total = await patientsRepo.count(scopeToHospital({}, actor));
+  return { total, ...Object.fromEntries(STATUSES.map((s, i) => [s, counts[i]])) } as { total: number } & Record<(typeof STATUSES)[number], number>;
 }
 
 export async function getPatient(id: number, actor: Session) {
@@ -157,6 +177,27 @@ async function cascadePatientName(patientId: number, name: string): Promise<void
   );
 }
 
+/** The optional profile fields present in `data`, as database columns (booleans default to false only when sent). */
+function profileColumns(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, col] of Object.entries(PROFILE_COLUMNS)) {
+    if (key in data && data[key] !== undefined) out[col] = data[key];
+  }
+  return out;
+}
+
+/** The same identity document can't be registered under two patients of one hospital. */
+async function assertNoDuplicateDocuments(
+  docs: { type: string; fingerprint: string }[],
+  rows: PatientRow[],
+  selfId: number | null,
+): Promise<void> {
+  for (const d of docs) {
+    const clash = rows.find((r) => r.id !== selfId && (r.identity_documents ?? []).some((x) => x.fingerprint === d.fingerprint));
+    if (clash) throw new ConflictError(`A patient with this ${d.type} is already registered (${clash.patient_code}, ${clash.name})`);
+  }
+}
+
 export async function createPatient(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
 
@@ -169,6 +210,13 @@ export async function createPatient(input: unknown, actor: Session) {
 
   const age = data.age ?? (data.dob ? ageFromDob(String(data.dob)) : 0);
   const doctorName = await resolveDoctor(data.doctorId, actor);
+
+  const body = (input ?? {}) as Record<string, unknown>;
+  const identityDocuments = toStoredDocuments(body.identityDocuments);
+  await assertNoDuplicateDocuments(identityDocuments, existing.rows, null);
+  const payers = parsePayers(body.payers);
+  const covid = parseCovid(body.covid);
+  const firstInsurance = payers.find((p) => p.type === "Insurance" && p.name);
 
   const row = await patientsRepo.create({
     hospital_id: actor.hospitalId,
@@ -196,9 +244,13 @@ export async function createPatient(input: unknown, actor: Session) {
     emergency_name: data.emergencyName ?? null,
     emergency_relation: data.emergencyRelation ?? null,
     emergency_phone: data.emergencyPhone ?? null,
-    insurer: data.insurer ?? null,
-    policy_number: data.policyNumber ?? null,
+    insurer: data.insurer ?? firstInsurance?.name ?? null,
+    policy_number: data.policyNumber ?? firstInsurance?.policyNumber ?? null,
     corporate: data.corporate ?? null,
+    ...profileColumns(data as Record<string, unknown>),
+    payers,
+    identity_documents: identityDocuments,
+    covid_details: covid,
   });
 
   await audit(actor, "create", "patient", row.id, { code });
@@ -237,6 +289,18 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
   for (const [key, col] of Object.entries(map)) {
     if (key in data) patch[col] = (data as Record<string, unknown>)[key];
   }
+  Object.assign(patch, profileColumns(data as Record<string, unknown>));
+  const body = (input ?? {}) as Record<string, unknown>;
+  if ("payers" in body) patch.payers = parsePayers(body.payers);
+  if ("covid" in body) patch.covid_details = parseCovid(body.covid);
+  if ("identityDocuments" in body) {
+    // Adding documents never drops the ones already on file.
+    const added = toStoredDocuments(body.identityDocuments);
+    const all = await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
+    await assertNoDuplicateDocuments(added, all.rows, id);
+    const kept = existing.identity_documents ?? [];
+    patch.identity_documents = [...kept, ...added.filter((d) => !kept.some((k) => k.fingerprint === d.fingerprint))];
+  }
   if ("age" in data) patch.age = data.age;
   if ("dob" in data && data.dob) patch.age = ageFromDob(String(data.dob));
   if ("doctorId" in data) {
@@ -248,7 +312,10 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
   if (typeof patch.name === "string" && patch.name !== existing.name) {
     await cascadePatientName(id, patch.name);
   }
-  await audit(actor, "update", "patient", id, patch);
+  // Keep the audit trail free of identity-document hashes.
+  const { identity_documents: _ids, ...auditable } = patch;
+  void _ids;
+  await audit(actor, "update", "patient", id, auditable);
   return toPatientDTO(row as PatientRow);
 }
 

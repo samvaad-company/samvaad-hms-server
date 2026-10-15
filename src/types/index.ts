@@ -15,6 +15,8 @@ export type BedStatus = "Available" | "Occupied" | "Reserved" | "Maintenance";
 export type StaffStatus = "Active" | "On Leave" | "Inactive";
 export type DonorStatus = "Eligible" | "Deferred";
 export type BloodIssueStatus = "Issued" | "Pending" | "Cancelled";
+/** Set by the ordering doctor; STAT is read first, then Urgent, then Routine. */
+export type RadiologyPriority = "Routine" | "Urgent" | "STAT";
 export type RadiologyStatus = "Pending" | "Scan Done" | "Report Ready" | "Cancelled";
 export type AmbulanceStatus = "Available" | "On Call" | "Maintenance";
 export type AmbulanceCallStatus = "Dispatched" | "Completed" | "Cancelled";

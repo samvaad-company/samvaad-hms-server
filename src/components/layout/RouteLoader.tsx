@@ -14,6 +14,12 @@ import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAppSelector } from "@/store";
 
+/**
+ * Sections that draw their own loader inside a region of the page (e.g. Patients: the list stays on
+ * screen and only the details panel loads), so the full-page cover must not blank them.
+ */
+const SELF_LOADING = ["/patients"];
+
 /** If nothing starts loading within this long after navigating, the page is fully served from the store. */
 const GRACE_MS = 350;
 
@@ -31,19 +37,20 @@ export function RouteLoader() {
     return () => clearTimeout(t);
   }, [pending, pathname, settledPath]);
 
-  const showPage = pending > 0 && settledPath !== pathname;
+  const ownLoader = SELF_LOADING.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const showPage = pending > 0 && settledPath !== pathname && !ownLoader;
 
   return (
     <>
       {pending > 0 && (
         <div className="fixed top-0 left-0 right-0 z-[60] h-[2px] overflow-hidden pointer-events-none" role="progressbar" aria-label="Loading">
-          <div className="h-full w-1/3 bg-[#009598] animate-[hms-bar_1.1s_ease-in-out_infinite]" />
+          <div className="h-full w-1/3 bg-[color:var(--brand)] animate-[hms-bar_1.1s_ease-in-out_infinite]" />
         </div>
       )}
       {showPage && (
-        <div className="absolute inset-0 z-30 bg-[#f7f7f7]" aria-busy="true">
-          <div className="sticky top-[38vh] flex flex-col items-center gap-3 text-[#57575f]">
-            <Loader2 size={30} strokeWidth={1.5} className="animate-spin text-[#009598]" />
+        <div className="absolute inset-0 z-30 bg-[color:var(--canvas)]" aria-busy="true">
+          <div className="sticky top-[38vh] flex flex-col items-center gap-3 text-[color:var(--ink-soft)]">
+            <Loader2 size={30} strokeWidth={1.5} className="animate-spin text-[color:var(--brand)]" />
             <span className="text-[13px]">Loading…</span>
           </div>
         </div>

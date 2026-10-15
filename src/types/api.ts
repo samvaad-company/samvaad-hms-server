@@ -24,6 +24,7 @@ import type {
   BloodIssueStatus,
   BloodComponent,
   RadiologyStatus,
+  RadiologyPriority,
   AmbulanceStatus,
   AmbulanceCallStatus,
   TpaStatus,
@@ -73,6 +74,32 @@ export interface PatientDTO extends Patient {
   policyNumber: string | null;
   corporate: string | null;
   doctorId: number | null;
+  ageMonths: number | null;
+  referralSource: string | null;
+  medicoLegal: boolean;
+  temporary: boolean;
+  dataConsent: boolean;
+  alternatePhone: string | null;
+  addressLine2: string | null;
+  title: string | null;
+  guardianName: string | null;
+  careOf: string | null;
+  anniversary: string | null;
+  maritalStatus: string | null;
+  religion: string | null;
+  language: string | null;
+  nationality: string | null;
+  education: string | null;
+  notes: string | null;
+  occupation: string | null;
+  employer: string | null;
+  designation: string | null;
+  workPhone: string | null;
+  privilegeCardNo: string | null;
+  payers: { type: string; name: string; policyNumber: string; validUntil: string | null }[];
+  /** Identity documents on file — only the type and last four characters are ever returned. */
+  identityDocuments: { type: string; last4: string }[];
+  covid: { vaccination: string | null; lastDose: string | null; infectedBefore: boolean } | null;
 }
 
 export interface PrescriptionItemDTO {
@@ -84,12 +111,56 @@ export interface PrescriptionItemDTO {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** Generic (salt) name from the medicine master, when the item is linked to one. Detail view only. */
+  generic?: string | null;
+}
+
+/** The patient facts a prescription is read against. Detail view only. */
+export interface PrescriptionPatientDTO {
+  code: string | null;
+  gender: string | null;
+  allergies: string | null;
+  chronicConditions: string | null;
 }
 
 export interface PrescriptionDTO extends Prescription {
   patientId: number | null;
   doctorId: number | null;
   items: PrescriptionItemDTO[];
+  /** Present on the single-prescription fetch; the list omits it. */
+  patient?: PrescriptionPatientDTO | null;
+}
+
+export type RxFindingSeverity = "critical" | "warning" | "info";
+export type RxFindingCategory = "Allergy" | "Interaction" | "Dose" | "Condition" | "Pregnancy" | "Duplicate" | "Indication" | "Note";
+
+export interface RxAiFinding {
+  category: RxFindingCategory;
+  severity: RxFindingSeverity;
+  /** Medicines the finding is about, as written on the prescription. */
+  medicines: string[];
+  detail: string;
+  /** What the prescriber or pharmacist should do about it. */
+  action: string;
+}
+
+/** Advisory AI safety review of one prescription — never a substitute for the prescriber's judgement. */
+export interface RxAiReviewDTO {
+  /** hold = at least one critical finding; review = warnings only; clear = nothing found. */
+  verdict: "clear" | "review" | "hold";
+  summary: string;
+  findings: RxAiFinding[];
+  /** Plain-language points to tell the patient. */
+  tellPatient: string[];
+  checked: { medicines: number; allergies: number; conditions: number };
+  model: string | null;
+  /** True when this is a stored result for an unchanged prescription rather than a fresh run. */
+  cached: boolean;
+  /** True when the AI did not run (no key configured, or the call failed) and only the built-in checks did. */
+  mock: boolean;
+  reason: "live" | "no-key" | "api-error";
+  detail?: string;
+  reviewedAt: string;
 }
 
 export interface PrescriptionTemplateItemDTO {
@@ -423,6 +494,10 @@ export interface RadiologyTestDTO {
   discount: number;
   discountType: "percent" | "amount";
   status: RadiologyStatus;
+  /** Set by the ordering doctor; the worklist sorts and tags on it. */
+  priority: RadiologyPriority;
+  /** The patient's hospital ID (UHID), when the study is linked to a patient record. */
+  patientCode: string | null;
   doctorId: number | null;
   doctor: string;
   /** Null when kept in-house; set once routed to a linked radiology center. */
@@ -538,6 +613,104 @@ export interface TpaClaimDTO {
   approvedAmount: number;
   date: string;
   status: ClaimStatus;
+}
+
+export type FollowUpStatus = "Pending" | "Done" | "Missed";
+
+export interface FollowUpDTO {
+  id: number;
+  patientId: number | null;
+  patientName: string;
+  patientCode: string;
+  doctorId: number | null;
+  doctor: string;
+  reason: string;
+  /** yyyy-mm-dd the patient is due back. */
+  dueOn: string;
+  status: FollowUpStatus;
+  createdBy: string;
+  createdByRole: string;
+  resolvedBy: string | null;
+  resolvedByRole: string | null;
+  resolvedOn: string | null;
+  reschedules: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface FollowUpSummaryDTO {
+  /** Pending and past their date. */
+  overdue: number;
+  dueToday: number;
+  next14: number;
+  pending: number;
+  done: number;
+  missed: number;
+}
+
+/** Counts for one bucket (a day, or a week on the 12-month view) of the analytics chart and table. */
+export interface FollowUpBucketDTO {
+  /** yyyy-mm-dd the bucket starts on. */
+  key: string;
+  label: string;
+  total: number;
+  done: number;
+  missed: number;
+  /** Booked, date reached or passed, not yet marked — "due and not completed". Future ones count in `upcoming`. */
+  due: number;
+  upcoming: number;
+}
+
+export interface FollowUpAnalyticsDTO {
+  period: { from: string; to: string; days: number; bucket: "day" | "week" };
+  totals: {
+    scheduled: number;
+    done: number;
+    missed: number;
+    due: number;
+    upcoming: number;
+    /** done ÷ (done + missed), as a percentage; null until something has been marked. */
+    keptRate: number | null;
+    missedRate: number | null;
+    /** Booked and still waiting beyond the window's end (the next 14 days). */
+    next14: number;
+  };
+  buckets: FollowUpBucketDTO[];
+  /** Who booked them and who marked them, by role group (Doctor, Receptionist, Others). */
+  byRole: { role: string; booked: number; markedDone: number; markedMissed: number }[];
+  byDoctor: { doctorId: number | null; doctor: string; total: number; done: number; missed: number; due: number; upcoming: number; keptRate: number | null }[];
+}
+
+export type EnquiryStatus = "Open" | "Follow-up" | "Converted" | "Closed";
+
+/** A lead captured before registration. */
+export interface EnquiryDTO {
+  id: number;
+  name: string;
+  mobile: string;
+  department: string;
+  interestedIn: string;
+  source: string;
+  estimatedValue: number;
+  /** yyyy-mm-dd of the next planned contact, or null. */
+  followUpOn: string | null;
+  notes: string;
+  status: EnquiryStatus;
+  /** Times contacted so far, counting the first enquiry. */
+  contacts: number;
+  convertedPatientId: number | null;
+  history: { at: string; by: string; note: string; nextOn: string | null }[];
+  createdAt: string;
+}
+
+export interface EnquirySummaryDTO {
+  total: number;
+  Open: number;
+  "Follow-up": number;
+  Converted: number;
+  Closed: number;
+  /** Open or follow-up leads whose follow-up date is today or earlier. */
+  dueToday: number;
 }
 
 export interface FinanceEntryDTO {

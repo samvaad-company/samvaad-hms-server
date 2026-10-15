@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -43,12 +44,12 @@ const ITEM_FILTERS = [
 function ItemRow({ row, actions }: { row: InventoryItemDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.category}</span>
-      <span className={`text-[13px] font-medium text-right ${row.stock === 0 ? "text-[#ff0004]" : row.stock < row.minStock ? "text-[#ff9000]" : "text-[#11111c]"}`}>{row.stock}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.unit}</span>
-      <span className="text-[13px] font-normal text-[#57575f] text-right">{row.minStock}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.supplier || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.category}</span>
+      <span className={`text-[13px] font-medium text-right ${row.stock === 0 ? "text-[#ff0004]" : row.stock < row.minStock ? "text-[#ff9000]" : "text-[color:var(--ink)]"}`}>{row.stock}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.unit}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] text-right">{row.minStock}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.supplier || "—"}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -70,12 +71,12 @@ const ISSUE_COLUMNS = [
 function IssueRow({ row, actions }: { row: InventoryIssueDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.itemName}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.quantity}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.issuedTo || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-light text-[#57575f] truncate">{row.note || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.itemName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.department}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">{row.quantity}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.issuedTo || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-light text-[color:var(--ink-soft)] truncate">{row.note || "—"}</span>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
   );
@@ -154,17 +155,20 @@ export default function InventoryPage() {
     const q = itemSearch.toLowerCase();
     return matchF && (!q || i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || i.supplier.toLowerCase().includes(q));
   });
+
+  const { rows: pagedVisibleItems, bar: barVisibleItems } = usePagination(visibleItems, "records");
   const visibleIssues = issues.filter(i => {
     const q = issueSearch.toLowerCase();
     return !q || i.itemName.toLowerCase().includes(q) || i.department.toLowerCase().includes(q) || i.issuedTo.toLowerCase().includes(q);
   });
+  const { rows: pagedVisibleIssues, bar: barVisibleIssues } = usePagination(visibleIssues, "records");
 
   const modalError = error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>;
   const modalFooter = (onSubmit: () => void, label: string, disabled: boolean) => (
     <>
-      <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+      <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
       <button onClick={onSubmit} disabled={loading || disabled}
-        className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {loading ? "Saving…" : label}
       </button>
     </>
@@ -232,8 +236,8 @@ export default function InventoryPage() {
                 action={canWrite ? { label: "Add Item", icon: Plus, onClick: () => setModal("item") } : undefined} />
               <DataTable columns={ITEM_COLUMNS} minWidth={1150}>
                 {visibleItems.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No items found.</div>
-                ) : visibleItems.map(i => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No items found.</div>
+                ) : pagedVisibleItems.map(i => (
                   <ItemRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Restock", onClick: () => { setRestockTarget(i); setModal("restock"); } },
                     { label: "Issue to department", disabled: i.stock === 0, onClick: () => { setIssueForm(f => ({ ...f, itemId: String(i.id) })); setModal("issue"); } },
@@ -241,6 +245,7 @@ export default function InventoryPage() {
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleItems}
             </>
           )}
 
@@ -251,13 +256,14 @@ export default function InventoryPage() {
                 action={canWrite ? { label: "Issue Item", icon: Plus, onClick: () => setModal("issue") } : undefined} />
               <DataTable columns={ISSUE_COLUMNS} minWidth={1100}>
                 {visibleIssues.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No issues logged.</div>
-                ) : visibleIssues.map(i => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No issues logged.</div>
+                ) : pagedVisibleIssues.map(i => (
                   <IssueRow key={i.id} row={i} actions={canWrite ? [
                     { label: "Delete", danger: true, onClick: () => issueActions.remove(i.id, `issue of ${i.itemName}`) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleIssues}
             </>
           )}
         </div>

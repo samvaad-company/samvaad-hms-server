@@ -28,8 +28,8 @@ export function ReceptionistPanel() {
       <StatRow stats={[
         { icon: Calendar, label: "Appointments Today", value: String(today.length),    color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
         { icon: Clock,    label: "Waiting in Queue",   value: String(waiting.length),  color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
-        { icon: Calendar, label: "Upcoming",           value: String(upcoming.length), color: "text-[#009598]", bg: "bg-[#e8f7f7]" },
-        { icon: Users,    label: "Total Bookings",     value: String(appointments.length), color: "text-[#11111c]", bg: "bg-[#f0f0f0]" },
+        { icon: Calendar, label: "Upcoming",           value: String(upcoming.length), color: "text-[color:var(--brand)]", bg: "bg-[color:var(--brand-soft)]" },
+        { icon: Users,    label: "Total Bookings",     value: String(appointments.length), color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
       ]} />
 
       <div className={`${tw.gutterX} mb-[30px]`}>
@@ -39,10 +39,10 @@ export function ReceptionistPanel() {
               {today.length === 0 ? (
                 <EmptyRow text="No appointments today." />
               ) : today.map(a => (
-                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+                <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{a.time} · {a.doctor} · {a.reason}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.time} · {a.doctor} · {a.reason}</span>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>
@@ -56,12 +56,12 @@ export function ReceptionistPanel() {
                 {waiting.length === 0 ? (
                   <EmptyRow text="Queue is clear." />
                 ) : waiting.map(r => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0]">
+                  <div key={r.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-[14px] font-medium text-[#009598]">{r.tokenNumber}</span>
-                      <span className="text-[13px] font-normal text-[#11111c] truncate">{r.patientName}</span>
+                      <span className="text-[14px] font-medium text-[color:var(--brand)]">{r.tokenNumber}</span>
+                      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{r.patientName}</span>
                     </div>
-                    <span className="text-[12px] font-light text-[#57575f] whitespace-nowrap">{r.doctor}</span>
+                    <span className="text-[12px] font-light text-[color:var(--ink-soft)] whitespace-nowrap">{r.doctor}</span>
                   </div>
                 ))}
               </div>

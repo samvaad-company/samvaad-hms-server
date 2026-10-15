@@ -58,7 +58,7 @@ export default function DoctorDashboardPage() {
   });
 
   const TODAY_STATS = [
-    { icon: Users,       label: "Total Today",    value: String(queue.length), color: "text-[#11111c]",  bg: "bg-[#f0f0f0]" },
+    { icon: Users,       label: "Total Today",    value: String(queue.length), color: "text-[color:var(--ink)]",  bg: "bg-[color:var(--subtle-2)]" },
     { icon: Clock,       label: "Waiting",        value: String(waiting),      color: "text-[#ff9000]",  bg: "bg-[#fff2e0]" },
     { icon: CheckCircle, label: "Completed",      value: String(completed),    color: "text-[#00955c]",  bg: "bg-[#dffff3]" },
     { icon: XCircle,     label: "In Consultation",value: String(inConsult),    color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
@@ -78,8 +78,8 @@ export default function DoctorDashboardPage() {
       <div className={`${tw.gutterX} mb-5`}>
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
-            <h1 className="text-[26px] font-medium text-[#11111c]">Good morning, {TODAY_DOCTOR.name} 👋</h1>
-            <p className="text-[14px] font-light text-[#57575f]">{TODAY_DOCTOR.specialty} · {TODAY_DOCTOR.department} · {today}</p>
+            <h1 className="text-[26px] font-medium text-[color:var(--ink)]">Good morning, {TODAY_DOCTOR.name} 👋</h1>
+            <p className="text-[14px] font-light text-[color:var(--ink-soft)]">{TODAY_DOCTOR.specialty} · {TODAY_DOCTOR.department} · {today}</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-[#dffff3] rounded-full">
             <div className="w-2 h-2 bg-[#00955c] rounded-full animate-pulse" />
@@ -97,7 +97,7 @@ export default function DoctorDashboardPage() {
                 <s.icon size={16} className={s.color} strokeWidth={1.5} />
               </div>
               <span className={`text-[28px] font-medium leading-none ${s.color}`}>{s.value}</span>
-              <span className="text-[12px] font-normal text-[#57575f]">{s.label}</span>
+              <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.label}</span>
             </div>
           ))}
         </div>
@@ -109,31 +109,31 @@ export default function DoctorDashboardPage() {
           {/* Patient queue */}
           <div className={`flex-1 ${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
             <div className="px-5 pt-5 pb-0">
-              <h2 className="text-[15px] font-medium text-[#11111c]">Today's Patient Queue</h2>
+              <h2 className="text-[15px] font-medium text-[color:var(--ink)]">Today's Patient Queue</h2>
             </div>
             {/* Table header */}
-            <div className="relative h-10 bg-[#f2f3f3] mt-3" style={{ minWidth: 700 }}>
+            <div className="relative h-10 bg-[color:var(--subtle-3)] mt-3" style={{ minWidth: 700 }}>
               {[{ l: "Token #", x: 20 }, { l: "Patient", x: 90 }, { l: "Wait Time", x: 300 }, { l: "Vitals", x: 450 }, { l: "Status", x: 590 }, { l: "Action", x: 760 }].map(c => (
-                <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
+                <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[13px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
               ))}
             </div>
             {/* Rows */}
             <div className="overflow-y-auto" style={{ maxHeight: 440 }}>
               {queue.map(row => (
-                <div key={row.id} className="relative flex items-center h-[64px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 700 }}>
-                  <span className="absolute text-[16px] font-medium text-[#009598]" style={{ left: 20 }}>{row.tokenNumber}</span>
+                <div key={row.id} className="relative flex items-center h-[64px] border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 700 }}>
+                  <span className="absolute text-[16px] font-medium text-[color:var(--brand)]" style={{ left: 20 }}>{row.tokenNumber}</span>
                   <div className="absolute flex flex-col" style={{ left: 90 }}>
-                    <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{row.patientName}</span>
-                    <span className="text-[11px] font-light text-[#57575f]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
+                    <span className="text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap">{row.patientName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
                   </div>
-                  <span className={`absolute text-[13px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[#57575f]"}`} style={{ left: 300 }}>{row.waitTime !== "—" ? row.waitTime : "—"}</span>
+                  <span className={`absolute text-[13px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[color:var(--ink-soft)]"}`} style={{ left: 300 }}>{row.waitTime !== "—" ? row.waitTime : "—"}</span>
                   <span className={`absolute inline-flex px-[8px] py-[3px] rounded-full text-[11px] font-normal ${row.vitalsRecorded ? "bg-[#dffff3] text-[#00955c]" : "bg-[#fff2e0] text-[#ff9000]"}`} style={{ left: 450 }}>
                     {row.vitalsRecorded ? "Recorded" : "Pending"}
                   </span>
                   <div className="absolute" style={{ left: 590 }}><StatusBadge status={row.status} /></div>
                   <div className="absolute" style={{ left: 760 }}>
                     {row.status === "Waiting" ? (
-                      <button onClick={() => advance(row.id, "In Consultation")} className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+                      <button onClick={() => advance(row.id, "In Consultation")} className="text-[12px] font-medium text-white bg-[color:var(--brand)] px-4 py-[6px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
                         Begin Consultation
                       </button>
                     ) : row.status === "In Consultation" ? (
@@ -141,7 +141,7 @@ export default function DoctorDashboardPage() {
                         Complete →
                       </button>
                     ) : (
-                      <span className="text-[12px] font-light text-[#57575f]">Done</span>
+                      <span className="text-[12px] font-light text-[color:var(--ink-soft)]">Done</span>
                     )}
                   </div>
                 </div>
@@ -153,14 +153,14 @@ export default function DoctorDashboardPage() {
           <div className="flex flex-col gap-4 shrink-0" style={{ width: 240 }}>
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
               <div className="flex items-center gap-2 mb-4">
-                <Stethoscope size={15} className="text-[#009598]" strokeWidth={1.5} />
-                <h3 className="text-[13px] font-medium text-[#11111c]">Quick Stats</h3>
+                <Stethoscope size={15} className="text-[color:var(--brand)]" strokeWidth={1.5} />
+                <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Quick Stats</h3>
               </div>
               <div className="flex flex-col gap-4">
                 {QUICK_STATS.map(s => (
                   <div key={s.label}>
-                    <p className="text-[10px] font-medium text-[#57575f] uppercase tracking-wider mb-[3px]">{s.label}</p>
-                    <p className="text-[15px] font-medium text-[#11111c]">{s.value}</p>
+                    <p className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-[3px]">{s.label}</p>
+                    <p className="text-[15px] font-medium text-[color:var(--ink)]">{s.value}</p>
                   </div>
                 ))}
               </div>
@@ -168,16 +168,16 @@ export default function DoctorDashboardPage() {
 
             {/* Today's schedule note */}
             <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[#11111c] mb-3">OPD Hours</h3>
-              <div className="flex flex-col gap-2 text-[12px] font-normal text-[#57575f]">
+              <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">OPD Hours</h3>
+              <div className="flex flex-col gap-2 text-[12px] font-normal text-[color:var(--ink-soft)]">
                 <div className="flex justify-between">
-                  <span>Morning</span><span className="text-[#11111c]">9:00 AM – 1:00 PM</span>
+                  <span>Morning</span><span className="text-[color:var(--ink)]">9:00 AM – 1:00 PM</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Evening</span><span className="text-[#11111c]">4:00 PM – 8:00 PM</span>
+                  <span>Evening</span><span className="text-[color:var(--ink)]">4:00 PM – 8:00 PM</span>
                 </div>
-                <div className="border-t border-[#f0f0f0] pt-2 mt-1 flex justify-between">
-                  <span>Slots</span><span className="text-[#11111c]">18 / 24 booked</span>
+                <div className="border-t border-[color:var(--subtle-2)] pt-2 mt-1 flex justify-between">
+                  <span>Slots</span><span className="text-[color:var(--ink)]">18 / 24 booked</span>
                 </div>
               </div>
             </div>

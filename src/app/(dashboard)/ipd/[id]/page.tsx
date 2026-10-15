@@ -84,38 +84,38 @@ function NotesTab({
   return (
     <div className="p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[14px] font-medium text-[#11111c]">{title}</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)]">{title}</h3>
         {searchable && (
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search rounds by text or doctor…"
-            className="h-[36px] w-[280px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] outline-none focus:border-[#009598]"
+            className="h-[36px] w-[280px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] outline-none focus:border-[color:var(--brand)]"
           />
         )}
       </div>
 
       {/* Add new entry */}
       {!readOnly && (
-      <div className="border border-[#dedee1] rounded-[10px] p-4">
+      <div className="border border-[color:var(--line)] rounded-[10px] p-4">
         {isRounds ? (
           <div className="flex flex-col gap-3">
             <div>
-              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider block mb-1">Findings</label>
+              <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider block mb-1">Findings</label>
               <textarea
                 value={findings}
                 onChange={(e) => setFindings(e.target.value)}
                 placeholder="Clinical findings on this round…"
-                className="w-full min-h-[64px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+                className="w-full min-h-[64px] text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[8px] p-3 outline-none focus:border-[color:var(--brand)] resize-y"
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider block mb-1">Orders</label>
+              <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider block mb-1">Orders</label>
               <textarea
                 value={orders}
                 onChange={(e) => setOrders(e.target.value)}
                 placeholder="Orders / instructions…"
-                className="w-full min-h-[64px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+                className="w-full min-h-[64px] text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[8px] p-3 outline-none focus:border-[color:var(--brand)] resize-y"
               />
             </div>
           </div>
@@ -124,12 +124,12 @@ function NotesTab({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={placeholder}
-            className="w-full min-h-[72px] text-[13px] text-[#11111c] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+            className="w-full min-h-[72px] text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[8px] p-3 outline-none focus:border-[color:var(--brand)] resize-y"
           />
         )}
         <div className="flex justify-end mt-2">
           <button onClick={add} disabled={loading || (isRounds ? roundsEmpty : !content.trim())}
-            className="text-[13px] text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] text-white bg-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : `Add ${noteType === "Diet" ? "diet entry" : noteType.toLowerCase()}`}
           </button>
         </div>
@@ -137,24 +137,24 @@ function NotesTab({
       )}
 
       {visible.length === 0 && (
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           {search.trim() ? "No entries match that search." : "No entries recorded yet."}
         </p>
       )}
 
       {visible.map(n => (
-        <div key={n.id} className="p-4 border border-[#dedee1] rounded-[10px]">
+        <div key={n.id} className="p-4 border border-[color:var(--line)] rounded-[10px]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[13px] font-medium text-[#11111c]">
+            <span className="text-[13px] font-medium text-[color:var(--ink)]">
               {formatDate(n.date)}{n.time ? ` · ${n.time}` : ""}
             </span>
             <div className="flex items-center gap-3">
-              <span className="text-[12px] font-light text-[#57575f]">By: {n.author}</span>
+              <span className="text-[12px] font-light text-[color:var(--ink-soft)]">By: {n.author}</span>
               {!readOnly && (editingId === n.id ? (
-                <button onClick={() => saveEdit(n.id)} className="text-[12px] text-[#009598] hover:underline">Save</button>
+                <button onClick={() => saveEdit(n.id)} className="text-[12px] text-[color:var(--brand)] hover:underline">Save</button>
               ) : (
                 <button onClick={() => { setEditingId(n.id); setEditText(n.content); }}
-                  className="text-[12px] text-[#57575f] hover:text-[#11111c]">Edit</button>
+                  className="text-[12px] text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">Edit</button>
               ))}
               {!readOnly && (
                 <button onClick={() => remove(n.id)} className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors">
@@ -167,10 +167,10 @@ function NotesTab({
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="w-full min-h-[72px] text-[13px] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y"
+              className="w-full min-h-[72px] text-[13px] border border-[color:var(--line)] rounded-[8px] p-3 outline-none focus:border-[color:var(--brand)] resize-y"
             />
           ) : (
-            <p className="text-[13px] font-normal text-[#57575f] leading-relaxed whitespace-pre-wrap">{n.content}</p>
+            <p className="text-[13px] font-normal text-[color:var(--ink-soft)] leading-relaxed whitespace-pre-wrap">{n.content}</p>
           )}
         </div>
       ))}
@@ -181,7 +181,7 @@ function NotesTab({
 const MED_STATUS_CLR: Record<string, string> = {
   Active:    "bg-[#dffff3] text-[#00955c]",
   Stopped:   "bg-[#ffe9e9] text-[#ff0004]",
-  Completed: "bg-[#f0f0f0] text-[#57575f]",
+  Completed: "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
 };
 
 /** Editable medication chart for an admission. */
@@ -210,44 +210,44 @@ function MedicationTab({ admissionId, readOnly }: { admissionId: number; readOnl
 
   return (
     <div className="p-5 flex flex-col gap-4">
-      <h3 className="text-[14px] font-medium text-[#11111c]">Medication Chart</h3>
+      <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Medication Chart</h3>
 
       {!readOnly && (
-      <div className="border border-[#dedee1] rounded-[10px] p-4 grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto" }}>
+      <div className="border border-[color:var(--line)] rounded-[10px] p-4 grid gap-2" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto" }}>
         <input value={form.medicineName} onChange={(e) => set("medicineName", e.target.value)} placeholder="Medicine"
-          className="text-[13px] bg-[#f6f6f6] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] focus:bg-white" />
+          className="text-[13px] bg-[color:var(--subtle)] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
         <input value={form.dosage} onChange={(e) => set("dosage", e.target.value)} placeholder="Dosage (500mg)"
-          className="text-[13px] bg-[#f6f6f6] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] focus:bg-white" />
+          className="text-[13px] bg-[color:var(--subtle)] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
         <input value={form.frequency} onChange={(e) => set("frequency", e.target.value)} placeholder="Frequency (1-0-1)"
-          className="text-[13px] bg-[#f6f6f6] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] focus:bg-white" />
+          className="text-[13px] bg-[color:var(--subtle)] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
         <select value={form.route} onChange={(e) => set("route", e.target.value)}
-          className="text-[13px] bg-[#f6f6f6] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[#009598] focus:bg-white">
+          className="text-[13px] bg-[color:var(--subtle)] border border-transparent rounded-[8px] px-3 py-2 outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]">
           {["Oral", "IV", "IM", "SC", "Topical", "Inhaled"].map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         <button onClick={add} disabled={loading || !form.medicineName.trim()}
-          className="text-[13px] text-white bg-[#009598] px-4 rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 whitespace-nowrap">
+          className="text-[13px] text-white bg-[color:var(--brand)] px-4 rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50 whitespace-nowrap">
           Add
         </button>
       </div>
       )}
 
-      <div className="border border-[#dedee1] rounded-[10px] overflow-hidden">
-        <div className="grid items-center px-4 h-10 bg-[#f2f3f3] text-[12px] font-medium text-[#11111c]"
+      <div className="border border-[color:var(--line)] rounded-[10px] overflow-hidden">
+        <div className="grid items-center px-4 h-10 bg-[color:var(--subtle-3)] text-[12px] font-medium text-[color:var(--ink)]"
           style={{ gridTemplateColumns: "1.8fr 1fr 1fr 0.8fr 1.4fr 1fr auto" }}>
           <span>Medicine</span><span>Dosage</span><span>Frequency</span><span>Route</span>
           <span>Last given</span><span>Status</span><span></span>
         </div>
         {meds.length === 0 && (
-          <div className="py-8 text-center text-[13px] text-[#57575f]">No medicines charted yet.</div>
+          <div className="py-8 text-center text-[13px] text-[color:var(--ink-soft)]">No medicines charted yet.</div>
         )}
         {meds.map(m => (
-          <div key={m.id} className="grid items-center px-4 h-[54px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors"
+          <div key={m.id} className="grid items-center px-4 h-[54px] border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors"
             style={{ gridTemplateColumns: "1.8fr 1fr 1fr 0.8fr 1.4fr 1fr auto" }}>
-            <span className="text-[13px] font-medium text-[#11111c] truncate">{m.medicineName}</span>
-            <span className="text-[13px] text-[#57575f]">{m.dosage || "—"}</span>
-            <span className="text-[13px] text-[#57575f]">{m.frequency || "—"}</span>
-            <span className="text-[13px] text-[#57575f]">{m.route}</span>
-            <span className="text-[12px] text-[#57575f]">{m.lastGivenAt || "—"}</span>
+            <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{m.medicineName}</span>
+            <span className="text-[13px] text-[color:var(--ink-soft)]">{m.dosage || "—"}</span>
+            <span className="text-[13px] text-[color:var(--ink-soft)]">{m.frequency || "—"}</span>
+            <span className="text-[13px] text-[color:var(--ink-soft)]">{m.route}</span>
+            <span className="text-[12px] text-[color:var(--ink-soft)]">{m.lastGivenAt || "—"}</span>
             <select
               value={m.status}
               disabled={readOnly}
@@ -259,7 +259,7 @@ function MedicationTab({ admissionId, readOnly }: { admissionId: number; readOnl
             {!readOnly && (
             <div className="flex items-center gap-2 justify-end">
               <button onClick={() => update(m.id, { markGiven: true })}
-                className="text-[11px] text-[#009598] border border-[#009598] px-2 py-[3px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap">
+                className="text-[11px] text-[color:var(--brand)] border border-[color:var(--brand)] px-2 py-[3px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap">
                 Mark given
               </button>
               <button onClick={() => remove(m.id)} className="text-[#c8c8cc] hover:text-[#ff0004] transition-colors">
@@ -308,7 +308,7 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
 
   return (
     <div className="p-5 flex flex-col gap-4" style={{ maxWidth: 720 }}>
-      <h3 className="text-[14px] font-medium text-[#11111c]">Discharge</h3>
+      <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Discharge</h3>
 
       <div className="grid grid-cols-2 gap-4">
         <FormRow label="Discharge Date">
@@ -318,7 +318,7 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
             min={toIsoDate(record.admissionDate) || undefined}
             onChange={(e) => set("dischargeDate", e.target.value)}
             disabled={locked}
-            className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] outline-none focus:border-[#009598] disabled:opacity-50"
+            className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] text-[14px] outline-none focus:border-[color:var(--brand)] disabled:opacity-50"
           />
         </FormRow>
         <FormRow label="Condition at Discharge">
@@ -332,7 +332,7 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
           onChange={(e) => set("summary", e.target.value)}
           disabled={locked}
           placeholder="Course in hospital, procedures, medications on discharge…"
-          className="w-full min-h-[120px] text-[13px] border border-[#dedee1] rounded-[8px] p-3 outline-none focus:border-[#009598] resize-y disabled:opacity-50"
+          className="w-full min-h-[120px] text-[13px] border border-[color:var(--line)] rounded-[8px] p-3 outline-none focus:border-[color:var(--brand)] resize-y disabled:opacity-50"
         />
       </FormRow>
 
@@ -345,7 +345,7 @@ ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
       {!readOnly && (
       <div className="flex justify-end">
         <button onClick={confirm} disabled={loading || discharged}
-          className="text-[14px] text-white bg-[#009598] px-6 py-[10px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+          className="text-[14px] text-white bg-[color:var(--brand)] px-6 py-[10px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
           {discharged ? "Discharged" : loading ? "Discharging…" : "Confirm Discharge"}
         </button>
       </div>
@@ -372,10 +372,10 @@ export default function IpdDetailPage() {
   }
 
   if (loading) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Loading…</p></div>;
   }
   if (!record) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">IPD record not found.</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">IPD record not found.</p></div>;
   }
 
   const days = 4;
@@ -399,12 +399,12 @@ export default function IpdDetailPage() {
           <div className="flex items-start justify-between">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-[#e8f7f7] rounded-full flex items-center justify-center text-[18px] font-medium text-[#009598]">
+                <div className="w-12 h-12 bg-[color:var(--brand-soft)] rounded-full flex items-center justify-center text-[18px] font-medium text-[color:var(--brand)]">
                   {record.patientName.split(" ").map((n:string) => n[0]).join("").slice(0, 2)}
                 </div>
                 <div>
-                  <p className="text-[18px] font-medium text-[#11111c]">{record.patientName}</p>
-                  <p className="text-[13px] font-light text-[#57575f]">{record.patientId} · {record.patientAge} yrs</p>
+                  <p className="text-[18px] font-medium text-[color:var(--ink)]">{record.patientName}</p>
+                  <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{record.patientId} · {record.patientAge} yrs</p>
                 </div>
                 <StatusBadge status={record.status} />
               </div>
@@ -416,15 +416,15 @@ export default function IpdDetailPage() {
                   { icon: ClipboardList,label:"Diagnosis",     value: record.diagnosis },
                 ].map(f => (
                   <div key={f.label} className="flex items-center gap-2">
-                    <f.icon size={14} className="text-[#57575f]" strokeWidth={1.5} />
-                    <span className="text-[12px] font-normal text-[#57575f]">{f.label}:</span>
-                    <span className="text-[13px] font-medium text-[#11111c]">{f.value}</span>
+                    <f.icon size={14} className="text-[color:var(--ink-soft)]" strokeWidth={1.5} />
+                    <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{f.label}:</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)]">{f.value}</span>
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
-              <span className="text-[12px] font-normal text-[#57575f]">Day {days} of admission</span>
+              <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">Day {days} of admission</span>
               {canWrite && (
                 <button
                   onClick={() => setConfirmOpen(true)}

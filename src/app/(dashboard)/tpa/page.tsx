@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -35,11 +36,11 @@ const TPA_COLUMNS = [
 function TpaRow({ row, actions }: { row: TpaDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#009598]">{row.code || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.contactPerson || "—"}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.phone || "—"}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.email || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--brand)]">{row.code || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.contactPerson || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.phone || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.email || "—"}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -67,12 +68,12 @@ const CLAIM_FILTERS = [
 function ClaimRow({ row, actions }: { row: TpaClaimDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.tpaName}</span>
-      <span className="text-[13px] font-normal text-[#009598] whitespace-nowrap">{row.billNumber || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] text-right">₹{row.claimAmount.toLocaleString("en-IN")}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.approvedAmount > 0 ? `₹${row.approvedAmount.toLocaleString("en-IN")}` : "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.tpaName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--brand)] whitespace-nowrap">{row.billNumber || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] text-right">₹{row.claimAmount.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">{row.approvedAmount > 0 ? `₹${row.approvedAmount.toLocaleString("en-IN")}` : "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -139,18 +140,21 @@ export default function TpaPage() {
     const q = tpaSearch.toLowerCase();
     return !q || t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q) || t.contactPerson.toLowerCase().includes(q);
   });
+
+  const { rows: pagedVisibleTpas, bar: barVisibleTpas } = usePagination(visibleTpas, "records");
   const visibleClaims = claims.filter(c => {
     const matchF = claimFilter === "All" || c.status === claimFilter;
     const q = claimSearch.toLowerCase();
     return matchF && (!q || c.patientName.toLowerCase().includes(q) || c.tpaName.toLowerCase().includes(q) || c.billNumber.toLowerCase().includes(q));
   });
+  const { rows: pagedVisibleClaims, bar: barVisibleClaims } = usePagination(visibleClaims, "records");
 
   const modalError = error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>;
   const modalFooter = (onSubmit: () => void, label: string, disabled: boolean) => (
     <>
-      <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+      <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
       <button onClick={onSubmit} disabled={loading || disabled}
-        className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {loading ? "Saving…" : label}
       </button>
     </>
@@ -209,8 +213,8 @@ export default function TpaPage() {
                 action={canWrite ? { label: "Submit Claim", icon: Plus, onClick: () => setModal("claim") } : undefined} />
               <DataTable columns={CLAIM_COLUMNS} minWidth={1150}>
                 {visibleClaims.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No claims found.</div>
-                ) : visibleClaims.map(c => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No claims found.</div>
+                ) : pagedVisibleClaims.map(c => (
                   <ClaimRow key={c.id} row={c} actions={[
                     { label: "Generate claim form", onClick: () => setClaimFormFor(c) },
                     ...(canWrite ? [
@@ -223,6 +227,7 @@ export default function TpaPage() {
                   ]} />
                 ))}
               </DataTable>
+{barVisibleClaims}
             </>
           )}
 
@@ -233,14 +238,15 @@ export default function TpaPage() {
                 action={canWrite ? { label: "Add TPA", icon: Plus, onClick: () => setModal("tpa") } : undefined} />
               <DataTable columns={TPA_COLUMNS} minWidth={1100}>
                 {visibleTpas.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No TPAs registered.</div>
-                ) : visibleTpas.map(t => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No TPAs registered.</div>
+                ) : pagedVisibleTpas.map(t => (
                   <TpaRow key={t.id} row={t} actions={canWrite ? [
                     { label: t.status === "Active" ? "Mark Inactive" : "Mark Active", onClick: () => tpaActions.mutate(() => api.patch(`/tpa/${t.id}`, { status: t.status === "Active" ? "Inactive" : "Active" })) },
                     { label: "Delete", danger: true, onClick: () => tpaActions.remove(t.id, t.name) },
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleTpas}
             </>
           )}
         </div>

@@ -30,7 +30,7 @@ const PRIORITY_CLR: Record<TaskPriority, string> = {
   Urgent: "bg-[#ffe9e9] text-[#ff0004]",
   High:   "bg-[#fff2e0] text-[#ff9000]",
   Medium: "bg-[#d6eaff] text-[#007cff]",
-  Low:    "bg-[#f0f0f0] text-[#57575f]",
+  Low:    "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
 };
 
 function PriorityChip({ p }: { p: TaskPriority }) {
@@ -74,10 +74,10 @@ function TaskCard({
       draggable={canWrite && draggable}
       onDragStart={(e) => e.dataTransfer.setData("text/task-id", String(task.id))}
       onClick={() => onOpen(task)}
-      className={`bg-white border border-[#dedee1] rounded-[10px] p-3 flex flex-col gap-2 cursor-pointer hover:border-[#009598] transition-colors ${canWrite ? "active:cursor-grabbing" : ""}`}
+      className={`bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[10px] p-3 flex flex-col gap-2 cursor-pointer hover:border-[color:var(--brand)] transition-colors ${canWrite ? "active:cursor-grabbing" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[13px] font-medium text-[#11111c] leading-snug">{task.title}</span>
+        <span className="text-[13px] font-medium text-[color:var(--ink)] leading-snug">{task.title}</span>
         {canWrite && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(task); }}
@@ -88,30 +88,30 @@ function TaskCard({
         )}
       </div>
       {task.goal && (
-        <span className="inline-flex items-center gap-1 text-[11px] text-[#009598]">
+        <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--brand)]">
           <Target size={11} /> {task.goal}
         </span>
       )}
       {task.description && (
-        <p className="text-[12px] font-light text-[#57575f] line-clamp-2">{task.description}</p>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] line-clamp-2">{task.description}</p>
       )}
       <div className="flex items-center justify-between mt-1">
         <PriorityChip p={task.priority} />
-        <span className="inline-flex items-center gap-1 text-[11px] text-[#57575f]">
+        <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ink-soft)]">
           <CalendarClock size={11} /> {task.dueDate}
         </span>
       </div>
-      <div className="flex items-center gap-1 border-t border-[#f0f0f0] pt-2">
-        <div className="w-5 h-5 rounded-full bg-[#e8f7f7] flex items-center justify-center text-[9px] font-medium text-[#009598] shrink-0">
+      <div className="flex items-center gap-1 border-t border-[color:var(--subtle-2)] pt-2">
+        <div className="w-5 h-5 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center text-[9px] font-medium text-[color:var(--brand)] shrink-0">
           {task.assigneeName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
         </div>
-        <span className="text-[11px] text-[#57575f] truncate flex-1">{task.assigneeName}</span>
+        <span className="text-[11px] text-[color:var(--ink-soft)] truncate flex-1">{task.assigneeName}</span>
         <select
           value={task.status}
           disabled={!canWrite}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onMove(task.id, e.target.value as TaskStatus)}
-          className="text-[10px] text-[#57575f] border border-[#dedee1] rounded-[6px] px-1 py-[2px] outline-none focus:border-[#009598] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-[10px] text-[color:var(--ink-soft)] border border-[color:var(--line)] rounded-[6px] px-1 py-[2px] outline-none focus:border-[color:var(--brand)] bg-[color:var(--surface)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -174,12 +174,12 @@ function TaskModal({
               <Trash2 size={13} /> Delete
             </button>
           )}
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
             {canWrite ? "Cancel" : "Close"}
           </button>
           {canWrite && (
             <button onClick={save} disabled={loading || !form.title.trim()}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Saving…" : task ? "Save Changes" : "Create Task"}
             </button>
           )}
@@ -188,7 +188,7 @@ function TaskModal({
     >
       <div className="grid grid-cols-2 gap-4">
         {!canWrite && (
-          <div className="col-span-2 text-[12px] font-normal text-[#57575f] bg-[#f6f6f6] rounded-[8px] px-3 py-2">
+          <div className="col-span-2 text-[12px] font-normal text-[color:var(--ink-soft)] bg-[color:var(--subtle)] rounded-[8px] px-3 py-2">
             You have read-only access to tasks.
           </div>
         )}
@@ -202,8 +202,8 @@ function TaskModal({
           <FormRow label="Status"><FormSelect value={form.status} onChange={(v) => set("status", v)} options={STATUSES.map((s) => ({ value: s, label: s }))} disabled={!canWrite} /></FormRow>
         )}
         {task && (
-          <div className="col-span-2 text-[12px] font-light text-[#57575f] border-t border-[#f0f0f0] pt-3">
-            Assigned by <span className="font-normal text-[#11111c]">{task.assignedBy || "—"}</span>
+          <div className="col-span-2 text-[12px] font-light text-[color:var(--ink-soft)] border-t border-[color:var(--subtle-2)] pt-3">
+            Assigned by <span className="font-normal text-[color:var(--ink)]">{task.assignedBy || "—"}</span>
             {task.createdAt && <> · Created {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</>}
           </div>
         )}
@@ -279,7 +279,7 @@ export default function TasksPage() {
           {([["board", LayoutGrid, "Board"], ["list", ListIcon, "List"]] as const).map(([v, Icon, label]) => (
             <button key={v} onClick={() => setView(v)}
               className={`inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-full transition-colors ${
-                view === v ? "bg-[#009598] text-white" : "text-[#57575f] border border-[#dedee1] hover:bg-[#f6f6f6]"
+                view === v ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] border border-[color:var(--line)] hover:bg-[color:var(--subtle)]"
               }`}
             >
               <Icon size={15} /> {label}
@@ -304,12 +304,12 @@ export default function TasksPage() {
                     if (id) moveTask(id, status);
                   } : undefined}
                   className={`rounded-[12px] p-3 min-h-[400px] transition-colors ${
-                    dragOver === status ? "bg-[#e8f7f7]" : "bg-[#f7f7f7]"
+                    dragOver === status ? "bg-[color:var(--brand-soft)]" : "bg-[color:var(--canvas)]"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <span className="w-2 h-2 rounded-full" style={{ background: clr.dot }} />
-                    <span className="text-[13px] font-medium text-[#11111c]">{status}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)]">{status}</span>
                     <span className="text-[11px] font-medium px-[7px] py-[1px] rounded-full" style={{ background: clr.bg, color: clr.text }}>
                       {list.length}
                     </span>
@@ -336,40 +336,40 @@ export default function TasksPage() {
           </div>
         ) : (
           <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
-            <div className="grid items-center px-5 h-11 bg-[#f2f3f3] text-[11px] font-medium text-[#57575f] uppercase tracking-wider" style={{ gridTemplateColumns: "2fr 1.2fr 1.4fr 0.8fr 1fr 1fr" }}>
+            <div className="grid items-center px-5 h-11 bg-[color:var(--subtle-3)] text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider" style={{ gridTemplateColumns: "2fr 1.2fr 1.4fr 0.8fr 1fr 1fr" }}>
               <span>Task</span><span>Goal</span><span>Assignee</span><span>Priority</span><span>Due</span><span>Status</span>
             </div>
             {tasks.map((t) => (
               <div
                 key={t.id}
                 onClick={() => setModal({ open: true, task: t })}
-                className="grid items-center px-5 h-14 border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors cursor-pointer"
+                className="grid items-center px-5 h-14 border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors cursor-pointer"
                 style={{ gridTemplateColumns: "2fr 1.2fr 1.4fr 0.8fr 1fr 1fr" }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[13px] font-medium text-[#11111c] truncate">{t.title}</span>
+                  <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{t.title}</span>
                 </div>
-                <span className="text-[12px] text-[#57575f] truncate flex items-center gap-1">
-                  {t.goal ? <><Target size={11} className="text-[#009598]" /> {t.goal}</> : "—"}
+                <span className="text-[12px] text-[color:var(--ink-soft)] truncate flex items-center gap-1">
+                  {t.goal ? <><Target size={11} className="text-[color:var(--brand)]" /> {t.goal}</> : "—"}
                 </span>
-                <span className="text-[12px] text-[#11111c] truncate flex items-center gap-1">
-                  <User size={11} className="text-[#57575f]" /> {t.assigneeName}
+                <span className="text-[12px] text-[color:var(--ink)] truncate flex items-center gap-1">
+                  <User size={11} className="text-[color:var(--ink-soft)]" /> {t.assigneeName}
                 </span>
                 <PriorityChip p={t.priority} />
-                <span className="text-[12px] text-[#57575f]">{formatDate(t.dueDate)}</span>
+                <span className="text-[12px] text-[color:var(--ink-soft)]">{formatDate(t.dueDate)}</span>
                 <select
                   value={t.status}
                   disabled={!canWrite}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => moveTask(t.id, e.target.value as TaskStatus)}
-                  className="text-[12px] text-[#11111c] border border-[#dedee1] rounded-[8px] px-2 py-1 outline-none focus:border-[#009598] bg-white w-fit disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-[12px] text-[color:var(--ink)] border border-[color:var(--line)] rounded-[8px] px-2 py-1 outline-none focus:border-[color:var(--brand)] bg-[color:var(--surface)] w-fit disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             ))}
             {tasks.length === 0 && (
-              <div className="text-[13px] font-light text-[#57575f] text-center py-10">No tasks yet.</div>
+              <div className="text-[13px] font-light text-[color:var(--ink-soft)] text-center py-10">No tasks yet.</div>
             )}
           </div>
         )}

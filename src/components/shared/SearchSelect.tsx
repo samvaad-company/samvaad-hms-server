@@ -130,40 +130,40 @@ export function SearchSelect({
           setOpen((o) => !o);
           setQuery("");
         }}
-        className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] flex items-center justify-between gap-2 text-left focus:outline-none focus:border-[#009598] transition-colors disabled:opacity-50"
+        className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] flex items-center justify-between gap-2 text-left focus:outline-none focus:border-[color:var(--brand)] transition-colors disabled:opacity-50"
       >
         <span
-          className={`text-[14px] font-normal truncate ${selected ? "text-[#11111c]" : "text-[#57575f] opacity-70"}`}
+          className={`text-[14px] font-normal truncate ${selected ? "text-[color:var(--ink)]" : "text-[color:var(--ink-soft)] opacity-70"}`}
         >
           {selected ? selected.label : placeholder}
         </span>
-        <ChevronDown size={15} strokeWidth={2} className="text-[#57575f] shrink-0" />
+        <ChevronDown size={15} strokeWidth={2} className="text-[color:var(--ink-soft)] shrink-0" />
       </button>
 
       {open &&
         createPortal(
           <div
             ref={panelRef}
-            className="fixed z-50 bg-white rounded-[10px] border border-[#dedee1] shadow-lg overflow-hidden"
+            className="fixed z-50 bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg overflow-hidden"
             style={
               pos
                 ? { left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }
                 : { left: 0, top: 0, width: 0, visibility: "hidden" }
             }
           >
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-[#f0f0f0]">
-              <Search size={14} className="text-[#57575f] shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--subtle-2)]">
+              <Search size={14} className="text-[color:var(--ink-soft)] shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Type to search…"
-                className="flex-1 bg-transparent text-[13px] text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none"
+                className="flex-1 bg-transparent text-[13px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none"
               />
             </div>
             <div className="max-h-[220px] overflow-y-auto py-1">
               {filtered.length === 0 ? (
-                <div className="px-3 py-3 text-[12px] text-[#57575f]">No matches.</div>
+                <div className="px-3 py-3 text-[12px] text-[color:var(--ink-soft)]">No matches.</div>
               ) : (
                 filtered.map((o) => (
                   <button
@@ -175,14 +175,14 @@ export function SearchSelect({
                     }}
                     className={`w-full text-left px-3 py-[7px] flex items-center justify-between gap-2 transition-colors ${
                       o.value === value
-                        ? "bg-[#e8f7f7] text-[#009598]"
-                        : "text-[#11111c] hover:bg-[#f6f6f6]"
+                        ? "bg-[color:var(--brand-soft)] text-[color:var(--brand)]"
+                        : "text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
                     }`}
                   >
                     <span className="min-w-0">
                       <span className="block text-[13px] truncate">{o.label}</span>
                       {o.hint && (
-                        <span className="block text-[11px] text-[#57575f] truncate">{o.hint}</span>
+                        <span className="block text-[11px] text-[color:var(--ink-soft)] truncate">{o.hint}</span>
                       )}
                     </span>
                     {o.value === value && <Check size={14} className="shrink-0" />}

@@ -56,7 +56,7 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
-const field = "w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[10px] px-4 text-[15px] text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors";
+const field = "w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[10px] px-4 text-[15px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors";
 
 export default function BookVideoPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -175,54 +175,54 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
 
   // ── Screens ──
   const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen bg-[#f7f7f7] flex justify-center px-4 py-8">
+    <div className="min-h-screen bg-[color:var(--canvas)] flex justify-center px-4 py-8">
       <div className="w-full max-w-[520px] flex flex-col gap-5">{children}</div>
     </div>
   );
 
   if (loadError) {
     return shell(
-      <div className="bg-white border border-[#dedee1] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
+      <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
         <CircleAlert size={44} strokeWidth={1.5} className="text-[#ff0004]" />
-        <h1 className="text-[20px] font-medium text-[#11111c]">This link isn&apos;t working</h1>
-        <p className="text-[14px] text-[#57575f]">{loadError}</p>
+        <h1 className="text-[20px] font-medium text-[color:var(--ink)]">This link isn&apos;t working</h1>
+        <p className="text-[14px] text-[color:var(--ink-soft)]">{loadError}</p>
       </div>,
     );
   }
   if (!info) {
-    return shell(<div className="py-24 text-center text-[#57575f]"><Loader2 className="animate-spin inline" size={22} /></div>);
+    return shell(<div className="py-24 text-center text-[color:var(--ink-soft)]"><Loader2 className="animate-spin inline" size={22} /></div>);
   }
   if (!info.enabled || info.paymentMode === "off") {
     return shell(
-      <div className="bg-white border border-[#dedee1] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
-        <Video size={44} strokeWidth={1.5} className="text-[#57575f]" />
-        <h1 className="text-[20px] font-medium text-[#11111c]">Video consultations aren&apos;t available right now</h1>
-        <p className="text-[14px] text-[#57575f]">Please contact {info.hospitalName} to book an appointment.</p>
+      <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
+        <Video size={44} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
+        <h1 className="text-[20px] font-medium text-[color:var(--ink)]">Video consultations aren&apos;t available right now</h1>
+        <p className="text-[14px] text-[color:var(--ink-soft)]">Please contact {info.hospitalName} to book an appointment.</p>
       </div>,
     );
   }
 
   if (done) {
     return shell(
-      <div className="bg-white border border-[#dedee1] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
+      <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[18px] p-8 text-center flex flex-col items-center gap-3">
         <CheckCircle2 size={56} strokeWidth={1.5} className="text-[#00955c]" />
-        <h1 className="text-[22px] font-medium text-[#11111c]">You&apos;re booked</h1>
-        <p className="text-[14px] text-[#57575f]">
-          Video consultation with <b className="text-[#11111c]">{done.doctorName}</b><br />
+        <h1 className="text-[22px] font-medium text-[color:var(--ink)]">You&apos;re booked</h1>
+        <p className="text-[14px] text-[color:var(--ink-soft)]">
+          Video consultation with <b className="text-[color:var(--ink)]">{done.doctorName}</b><br />
           {prettyDate(done.date)} · {done.time}
         </p>
-        <p className="text-[13px] text-[#57575f]">Fee: {done.amount > 0 ? inr(done.amount) : "Free"}</p>
+        <p className="text-[13px] text-[color:var(--ink-soft)]">Fee: {done.amount > 0 ? inr(done.amount) : "Free"}</p>
         {done.videoUrl ? (
           <a href={done.videoUrl} target="_blank" rel="noopener noreferrer"
-            className="mt-2 h-[48px] px-8 inline-flex items-center gap-2 bg-[#009598] text-white text-[15px] font-medium rounded-full hover:bg-[#007f82] transition-colors">
+            className="mt-2 h-[48px] px-8 inline-flex items-center gap-2 bg-[color:var(--brand)] text-white text-[15px] font-medium rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
             <Video size={18} /> Join video consultation
           </a>
         ) : (
-          <p className="text-[13px] text-[#57575f] bg-[#f6f6f6] rounded-[10px] px-4 py-3 mt-2">
+          <p className="text-[13px] text-[color:var(--ink-soft)] bg-[color:var(--subtle)] rounded-[10px] px-4 py-3 mt-2">
             Your video link will be shared with you before the appointment. Keep this page — it appears here as soon as it&apos;s ready.
           </p>
         )}
-        <p className="text-[12px] font-light text-[#57575f] mt-2">{info.hospitalName}</p>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] mt-2">{info.hospitalName}</p>
       </div>,
     );
   }
@@ -230,13 +230,13 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
   return shell(
     <>
       <header>
-        <p className="text-[13px] font-light text-[#57575f]">{info.hospitalName}</p>
-        <h1 className="text-[24px] font-medium text-[#11111c] leading-8">Hi {info.patientFirstName}, book a video consultation</h1>
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{info.hospitalName}</p>
+        <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-8">Hi {info.patientFirstName}, book a video consultation</h1>
       </header>
 
-      <section className="bg-white border border-[#dedee1] rounded-[18px] p-5 flex flex-col gap-4">
+      <section className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[18px] p-5 flex flex-col gap-4">
         <label className="flex flex-col gap-[6px]">
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Doctor</span>
+          <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Doctor</span>
           <select className={`${field} h-[48px]`} value={doctorId}
             onChange={(e) => { setDoctorId(e.target.value); setError(null); void loadSlots(e.target.value, date); }}>
             <option value="">{info.doctors.length === 0 ? "No doctor is taking video consultations right now" : "Choose a doctor"}</option>
@@ -245,21 +245,21 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
         </label>
 
         <label className="flex flex-col gap-[6px]">
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Date</span>
+          <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Date</span>
           <input type="date" className={`${field} h-[48px]`} min={todayIso()} value={date}
             onChange={(e) => { setDate(e.target.value); setError(null); void loadSlots(doctorId, e.target.value); }} />
         </label>
 
         {doctorId && date && (
           <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider flex items-center gap-1">
+            <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider flex items-center gap-1">
               <CalendarClock size={12} /> Time
             </span>
             {slotsLoading ? (
-              <Loader2 className="animate-spin text-[#57575f]" size={18} />
+              <Loader2 className="animate-spin text-[color:var(--ink-soft)]" size={18} />
             ) : slots && slots.slots.length > 0 ? (
               <>
-                {slots.note && <p className="text-[11px] font-light text-[#57575f]">{slots.note}</p>}
+                {slots.note && <p className="text-[11px] font-light text-[color:var(--ink-soft)]">{slots.note}</p>}
                 {slots.closedReason && !slots.slots.some((s) => (s.status ?? "open") === "open") && (
                   <p className="text-[13px] text-[#ff9000] bg-[#fff2e0] rounded-[10px] px-4 py-3">{slots.closedReason}</p>
                 )}
@@ -270,9 +270,9 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
                       <button key={s.value} type="button" disabled={!open} onClick={() => { setTime(s.value); setError(null); }}
                         title={s.status === "booked" ? "This time is already booked" : s.status === "full" ? "This hour is full" : undefined}
                         className={`h-[40px] rounded-[10px] text-[13px] border transition-colors ${
-                          !open ? "bg-[#f6f6f6] text-[#a0a0a8] border-[#dedee1] cursor-not-allowed"
-                            : time === s.value ? "bg-[#009598] text-white border-[#009598] cursor-pointer"
-                            : "bg-white text-[#11111c] border-[#dedee1] hover:border-[#009598] cursor-pointer"
+                          !open ? "bg-[color:var(--subtle)] text-[#a0a0a8] border-[color:var(--line)] cursor-not-allowed"
+                            : time === s.value ? "bg-[color:var(--brand)] text-white border-[color:var(--brand)] cursor-pointer"
+                            : "bg-[color:var(--surface)] text-[color:var(--ink)] border-[color:var(--line)] hover:border-[color:var(--brand)] cursor-pointer"
                         }`}>
                         {s.label}{!open && <span className="block text-[9px] uppercase leading-none">{s.status}</span>}
                       </button>
@@ -287,13 +287,13 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
         )}
 
         <label className="flex flex-col gap-[6px]">
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Reason for the visit</span>
+          <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Reason for the visit</span>
           <textarea className={`${field} py-3 resize-none`} rows={2} maxLength={240} placeholder="e.g. Follow-up on my blood pressure"
             value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
 
         <label className="flex flex-col gap-[6px]">
-          <span className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Email <span className="normal-case font-light">(optional — for the calendar invite)</span></span>
+          <span className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Email <span className="normal-case font-light">(optional — for the calendar invite)</span></span>
           <input type="email" className={`${field} h-[48px]`} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
       </section>
@@ -301,8 +301,8 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
       {error && <p className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[10px] px-4 py-3">{error}</p>}
 
       {pending && pending.payment.mode === "mock" ? (
-        <div className="bg-white border border-dashed border-[#ff9000] rounded-[18px] p-5 flex flex-col gap-3">
-          <p className="text-[13px] text-[#57575f]"><b className="text-[#ff9000]">Test mode.</b> No real payment gateway is connected, so no money moves. Use the button to simulate a successful payment.</p>
+        <div className="bg-[color:var(--surface)] border border-dashed border-[#ff9000] rounded-[18px] p-5 flex flex-col gap-3">
+          <p className="text-[13px] text-[color:var(--ink-soft)]"><b className="text-[#ff9000]">Test mode.</b> No real payment gateway is connected, so no money moves. Use the button to simulate a successful payment.</p>
           <button disabled={busy}
             onClick={() => void verify(pending.booking, { razorpay_order_id: pending.payment.orderId, razorpay_payment_id: `pay_mock_${Date.now().toString(36)}`, razorpay_signature: "mock" })}
             className="h-[48px] bg-[#ff9000] text-white text-[15px] font-medium rounded-full hover:bg-[#e68200] disabled:opacity-60 transition-colors cursor-pointer">
@@ -311,12 +311,12 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
         </div>
       ) : (
         <button onClick={pay} disabled={!ready || busy}
-          className="h-[54px] bg-[#009598] text-white text-[16px] font-medium rounded-full hover:bg-[#007f82] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
+          className="h-[54px] bg-[color:var(--brand)] text-white text-[16px] font-medium rounded-full hover:bg-[color:var(--brand-hover)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
           {busy ? <Loader2 size={20} className="animate-spin" /> : null}
           {busy ? "Please wait…" : info.price && info.price > 0 ? `Pay ${inr(info.price)} & book` : "Book consultation"}
         </button>
       )}
-      <p className="text-[12px] font-light text-[#57575f] text-center">
+      <p className="text-[12px] font-light text-[color:var(--ink-soft)] text-center">
         {doctor ? `${doctor.name} · ` : ""}Video consultation fee {info.price ? inr(info.price) : "—"}, set by {info.hospitalName}. You&apos;ll get a Google Meet link after payment.
       </p>
     </>,

@@ -15,9 +15,9 @@ import type { KpiStat, ReportRow } from "@/types";
 
 function KpiCard({ stat }: { stat: KpiStat }) {
   return (
-    <div className={`${tw.surface.card} ${tw.radius.card} flex-1 p-5 flex flex-col gap-3 border border-[#f0f0f0]`}>
-      <span className="text-[13px] font-normal text-[#57575f]">{stat.label}</span>
-      <span className="text-[30px] font-medium text-[#11111c] leading-9">{stat.value}</span>
+    <div className={`${tw.surface.card} ${tw.radius.card} flex-1 p-5 flex flex-col gap-3 border border-[color:var(--subtle-2)]`}>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{stat.label}</span>
+      <span className="text-[30px] font-medium text-[color:var(--ink)] leading-9">{stat.value}</span>
       {stat.change && (
         <div className="flex items-center gap-[5px]">
           {stat.positive ? <TrendingUp size={13} className="text-[#00955c]" /> : <TrendingDown size={13} className="text-[#ff0004]" />}
@@ -32,11 +32,11 @@ function BarChartRow({ label, value, max, color, suffix = "" }: { label: string;
   const pct = Math.round((value / max) * 100);
   return (
     <div className="flex items-center gap-3">
-      <span className="text-[12px] font-normal text-[#57575f] w-36 shrink-0 whitespace-nowrap">{label}</span>
-      <div className="flex-1 h-[8px] bg-[#f0f0f0] rounded-full overflow-hidden">
+      <span className="text-[12px] font-normal text-[color:var(--ink-soft)] w-36 shrink-0 whitespace-nowrap">{label}</span>
+      <div className="flex-1 h-[8px] bg-[color:var(--subtle-2)] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[12px] font-medium text-[#11111c] w-20 text-right shrink-0">{suffix}{value.toLocaleString("en-IN")}</span>
+      <span className="text-[12px] font-medium text-[color:var(--ink)] w-20 text-right shrink-0">{suffix}{value.toLocaleString("en-IN")}</span>
     </div>
   );
 }
@@ -67,15 +67,15 @@ function FinancialView({ kpis }: { kpis: KpiStat[] }) {
       {/* Charts row */}
       <div className="grid grid-cols-2 gap-5">
         {/* Monthly trend */}
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Monthly Revenue Trend</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Monthly Revenue Trend</h3>
           <div className="flex flex-col gap-3">
-            {MONTHLY.map(m => <BarChartRow key={m.month} label={m.month + " 2025"} value={m.val} max={maxMonthly} color="bg-[#009598]" suffix="₹" />)}
+            {MONTHLY.map(m => <BarChartRow key={m.month} label={m.month + " 2025"} value={m.val} max={maxMonthly} color="bg-[color:var(--brand)]" suffix="₹" />)}
           </div>
         </div>
         {/* By dept */}
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Revenue by Department</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Revenue by Department</h3>
           <div className="flex flex-col gap-3">
             {BY_DEPT.map(d => <BarChartRow key={d.dept} label={d.dept} value={d.val} max={maxDept} color="bg-[#007cff]" suffix="₹" />)}
           </div>
@@ -112,30 +112,30 @@ function ClinicalView({ kpis }: { kpis: KpiStat[] }) {
         {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Top Diagnoses — Nov 2025</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Top Diagnoses — Nov 2025</h3>
           <div className="flex flex-col gap-3">
-            {TOP_DIAG.map(d => <BarChartRow key={d.name} label={d.name} value={d.count} max={maxDiag} color="bg-[#009598]" />)}
+            {TOP_DIAG.map(d => <BarChartRow key={d.name} label={d.name} value={d.count} max={maxDiag} color="bg-[color:var(--brand)]" />)}
           </div>
         </div>
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Patient Flow by Department</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Patient Flow by Department</h3>
           <div className="flex flex-col gap-4">
             {PATIENT_FLOW.map(d => (
               <div key={d.dept}>
                 <div className="flex justify-between mb-1">
-                  <span className="text-[12px] font-normal text-[#57575f]">{d.dept}</span>
-                  <span className="text-[11px] font-normal text-[#57575f]">OPD {d.opd} · IPD {d.ipd}</span>
+                  <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{d.dept}</span>
+                  <span className="text-[11px] font-normal text-[color:var(--ink-soft)]">OPD {d.opd} · IPD {d.ipd}</span>
                 </div>
                 <div className="flex h-[6px] rounded-full overflow-hidden gap-[1px]">
-                  <div className="bg-[#009598] rounded-full" style={{ width: `${(d.opd / (d.opd + d.ipd)) * 100}%` }} />
+                  <div className="bg-[color:var(--brand)] rounded-full" style={{ width: `${(d.opd / (d.opd + d.ipd)) * 100}%` }} />
                   <div className="bg-[#007cff] rounded-full" style={{ width: `${(d.ipd / (d.opd + d.ipd)) * 100}%` }} />
                 </div>
               </div>
             ))}
             <div className="flex items-center gap-4 mt-1">
-              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#009598] rounded-full" /><span className="text-[11px] text-[#57575f]">OPD</span></div>
-              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#007cff] rounded-full" /><span className="text-[11px] text-[#57575f]">IPD</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[color:var(--brand)] rounded-full" /><span className="text-[11px] text-[color:var(--ink-soft)]">OPD</span></div>
+              <div className="flex items-center gap-1"><span className="w-2 h-2 bg-[#007cff] rounded-full" /><span className="text-[11px] text-[color:var(--ink-soft)]">IPD</span></div>
             </div>
           </div>
         </div>
@@ -166,28 +166,28 @@ function OperationalView({ kpis }: { kpis: KpiStat[] }) {
         {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Bed Utilisation by Ward</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Bed Utilisation by Ward</h3>
           <div className="flex flex-col gap-4">
             {BED_UTIL.map(b => (
               <div key={b.ward}>
                 <div className="flex justify-between mb-1">
-                  <span className="text-[12px] font-normal text-[#57575f]">{b.ward}</span>
+                  <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{b.ward}</span>
                   <span className={`text-[12px] font-medium ${b.pct >= 90 ? "text-[#ff0004]" : b.pct >= 75 ? "text-[#ff9000]" : "text-[#00955c]"}`}>{b.pct}%</span>
                 </div>
-                <div className="h-[8px] bg-[#f0f0f0] rounded-full overflow-hidden">
+                <div className="h-[8px] bg-[color:var(--subtle-2)] rounded-full overflow-hidden">
                   <div className={`h-full rounded-full ${b.pct >= 90 ? "bg-[#ff0004]" : b.pct >= 75 ? "bg-[#ff9000]" : "bg-[#00955c]"}`} style={{ width: `${b.pct}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Average OPD Wait Time</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Average OPD Wait Time</h3>
           <div className="flex flex-col gap-3">
             {WAIT_TIME.map(w => <BarChartRow key={w.dept} label={w.dept} value={w.mins} max={maxWait} color="bg-[#ff9000]" suffix="" />)}
           </div>
-          <p className="text-[11px] font-normal text-[#57575f] mt-3">Values in minutes</p>
+          <p className="text-[11px] font-normal text-[color:var(--ink-soft)] mt-3">Values in minutes</p>
         </div>
       </div>
     </div>
@@ -218,33 +218,33 @@ function PharmacyReportView({ kpis }: { kpis: KpiStat[] }) {
         {kpis.map((s, i) => <KpiCard key={i} stat={s} />)}
       </div>
       <div className="grid grid-cols-2 gap-5">
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Top Selling Medicines — Nov 2025</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Top Selling Medicines — Nov 2025</h3>
           <div className="flex flex-col gap-3">
-            {TOP_MEDS.map(m => <BarChartRow key={m.name} label={m.name} value={m.sold} max={maxSold} color="bg-[#009598]" suffix="" />)}
+            {TOP_MEDS.map(m => <BarChartRow key={m.name} label={m.name} value={m.sold} max={maxSold} color="bg-[color:var(--brand)]" suffix="" />)}
           </div>
-          <p className="text-[11px] font-normal text-[#57575f] mt-3">Units sold</p>
+          <p className="text-[11px] font-normal text-[color:var(--ink-soft)] mt-3">Units sold</p>
         </div>
-        <div className="border border-[#dedee1] rounded-[10px] p-5">
-          <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Purchase vs Sales (₹)</h3>
+        <div className="border border-[color:var(--line)] rounded-[10px] p-5">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Purchase vs Sales (₹)</h3>
           <div className="flex flex-col gap-5">
             {PURCHASE_VS_SALES.map(m => (
               <div key={m.month}>
-                <span className="text-[12px] font-medium text-[#57575f]">{m.month} 2025</span>
+                <span className="text-[12px] font-medium text-[color:var(--ink-soft)]">{m.month} 2025</span>
                 <div className="mt-1 flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] w-14 text-[#57575f]">Purchase</span>
-                    <div className="flex-1 h-[6px] bg-[#f0f0f0] rounded-full">
+                    <span className="text-[10px] w-14 text-[color:var(--ink-soft)]">Purchase</span>
+                    <div className="flex-1 h-[6px] bg-[color:var(--subtle-2)] rounded-full">
                       <div className="h-full bg-[#007cff] rounded-full" style={{ width: `${(m.purchase / maxPvS) * 100}%` }} />
                     </div>
-                    <span className="text-[10px] font-medium text-[#11111c] w-16 text-right">₹{(m.purchase / 1000).toFixed(0)}K</span>
+                    <span className="text-[10px] font-medium text-[color:var(--ink)] w-16 text-right">₹{(m.purchase / 1000).toFixed(0)}K</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] w-14 text-[#57575f]">Sales</span>
-                    <div className="flex-1 h-[6px] bg-[#f0f0f0] rounded-full">
+                    <span className="text-[10px] w-14 text-[color:var(--ink-soft)]">Sales</span>
+                    <div className="flex-1 h-[6px] bg-[color:var(--subtle-2)] rounded-full">
                       <div className="h-full bg-[#00955c] rounded-full" style={{ width: `${(m.sales / maxPvS) * 100}%` }} />
                     </div>
-                    <span className="text-[10px] font-medium text-[#11111c] w-16 text-right">₹{(m.sales / 1000).toFixed(0)}K</span>
+                    <span className="text-[10px] font-medium text-[color:var(--ink)] w-16 text-right">₹{(m.sales / 1000).toFixed(0)}K</span>
                   </div>
                 </div>
               </div>
@@ -275,12 +275,12 @@ const PERF_MIN_WIDTH = 1000;
 function ReportTableRow({ row }: { row: ReportRow }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.doctor}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.specialty}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-center">{row.patientsCount || "—"}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">{row.revenue > 0 ? `₹${row.revenue.toLocaleString("en-IN")}` : "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.satisfaction}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.avgConsultTime}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.specialty}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-center">{row.patientsCount || "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">{row.revenue > 0 ? `₹${row.revenue.toLocaleString("en-IN")}` : "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.satisfaction}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.avgConsultTime}</span>
     </div>
   );
 }
@@ -331,7 +331,7 @@ export default function ReportsPage() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ height: 540 }}>
           <div className="px-5 pt-5 pb-0">
-            <h2 className="text-[16px] font-medium text-[#11111c] leading-5">Doctor Performance — November 2025</h2>
+            <h2 className="text-[16px] font-medium text-[color:var(--ink)] leading-5">Doctor Performance — November 2025</h2>
           </div>
           <FilterBar filters={PERF_FILTERS} searchPlaceholder="Search by doctor or specialty..." />
           <DataTable columns={PERF_COLUMNS} minWidth={PERF_MIN_WIDTH}>

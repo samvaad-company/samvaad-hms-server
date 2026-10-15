@@ -29,16 +29,19 @@ export function Modal({ open, onClose, title, children, footer, width = 600 }: M
 
       {/* Panel */}
       <div
-        className="relative bg-white rounded-[18px] shadow-2xl flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative bg-[color:var(--surface)] rounded-[18px] shadow-2xl flex flex-col overflow-hidden"
         style={{ width, maxHeight: "90vh" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[#dedee1] shrink-0">
-          <h2 className="text-[17px] font-medium text-[#11111c]">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[color:var(--line)] shrink-0">
+          <h2 className="text-[17px] font-medium text-[color:var(--ink)]">{title}</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-[#57575f] hover:bg-[#f6f6f6] hover:text-[#11111c] transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors"
           >
             <X size={18} />
           </button>
@@ -51,7 +54,7 @@ export function Modal({ open, onClose, title, children, footer, width = 600 }: M
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-[#dedee1] flex items-center justify-end gap-3 shrink-0 bg-[#fafafa]">
+          <div className="px-6 py-4 border-t border-[color:var(--line)] flex items-center justify-end gap-3 shrink-0 bg-[color:var(--faint)]">
             {footer}
           </div>
         )}

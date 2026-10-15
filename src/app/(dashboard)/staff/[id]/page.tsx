@@ -55,10 +55,10 @@ export default function StaffDetailPage() {
   useBreadcrumb("/staff", "Staff", staff?.name ?? "Staff Profile");
 
   if (loading) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Loading…</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Loading…</p></div>;
   }
   if (!staff) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[#57575f]">Staff member not found.</p></div>;
+    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Staff member not found.</p></div>;
   }
 
   const ext = STAFF_EXT[staff.id] ?? STAFF_EXT[1];
@@ -74,13 +74,13 @@ export default function StaffDetailPage() {
           {/* Left: card */}
           <div className="flex flex-col gap-4 shrink-0" style={{ width: 280 }}>
             <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col items-center gap-3`}>
-              <div className="w-16 h-16 rounded-full bg-[#f0f0f0] flex items-center justify-center text-[22px] font-medium text-[#57575f]">
+              <div className="w-16 h-16 rounded-full bg-[color:var(--subtle-2)] flex items-center justify-center text-[22px] font-medium text-[color:var(--ink-soft)]">
                 {staff.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </div>
               <div className="text-center">
-                <p className="text-[16px] font-medium text-[#11111c]">{staff.name}</p>
-                <p className="text-[13px] font-light text-[#57575f]">{staff.role}</p>
-                <p className="text-[12px] font-light text-[#57575f]">{ext.empId}</p>
+                <p className="text-[16px] font-medium text-[color:var(--ink)]">{staff.name}</p>
+                <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{staff.role}</p>
+                <p className="text-[12px] font-light text-[color:var(--ink-soft)]">{ext.empId}</p>
               </div>
               <StatusBadge status={staff.status} />
             </div>
@@ -95,10 +95,10 @@ export default function StaffDetailPage() {
                 { icon: Clock,         label: "Shift",      value: ext.shift },
               ].map(row => (
                 <div key={row.label} className="flex items-start gap-3">
-                  <row.icon size={13} className="text-[#57575f] mt-[3px] shrink-0" strokeWidth={1.5} />
+                  <row.icon size={13} className="text-[color:var(--ink-soft)] mt-[3px] shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-[10px] font-normal text-[#57575f] uppercase tracking-wider">{row.label}</p>
-                    <p className="text-[12px] font-normal text-[#11111c] leading-[16px]">{row.value}</p>
+                    <p className="text-[10px] font-normal text-[color:var(--ink-soft)] uppercase tracking-wider">{row.label}</p>
+                    <p className="text-[12px] font-normal text-[color:var(--ink)] leading-[16px]">{row.value}</p>
                   </div>
                 </div>
               ))}
@@ -119,9 +119,9 @@ export default function StaffDetailPage() {
                     { label: "Shift",             value: ext.shift },
                     { label: "Emergency Contact", value: ext.emergencyContact },
                   ].map(f => (
-                    <div key={f.label} className="p-4 border border-[#dedee1] rounded-[10px]">
-                      <p className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-1">{f.label}</p>
-                      <p className="text-[14px] font-normal text-[#11111c]">{f.value}</p>
+                    <div key={f.label} className="p-4 border border-[color:var(--line)] rounded-[10px]">
+                      <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">{f.label}</p>
+                      <p className="text-[14px] font-normal text-[color:var(--ink)]">{f.value}</p>
                     </div>
                   ))}
                 </div>
@@ -134,10 +134,10 @@ export default function StaffDetailPage() {
                   {[{ l: "Present", v: present, c: "text-[#00955c]" }, { l: "Absent", v: absent, c: "text-[#ff0004]" }, { l: "On Leave", v: leave, c: "text-[#ff9000]" }].map(s => (
                     <div key={s.l} className="flex items-center gap-2">
                       <span className={`text-[22px] font-medium ${s.c}`}>{s.v}</span>
-                      <span className="text-[12px] font-normal text-[#57575f]">{s.l}</span>
+                      <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.l}</span>
                     </div>
                   ))}
-                  <span className="text-[12px] font-normal text-[#57575f] ml-auto">November 2025</span>
+                  <span className="text-[12px] font-normal text-[color:var(--ink-soft)] ml-auto">November 2025</span>
                 </div>
                 {/* Calendar grid */}
                 <div className="grid grid-cols-10 gap-1">
@@ -152,7 +152,7 @@ export default function StaffDetailPage() {
                   {[{ k: "P", l: "Present" }, { k: "A", l: "Absent" }, { k: "L", l: "Leave" }].map(s => (
                     <div key={s.k} className="flex items-center gap-1">
                       <span className={`w-3 h-3 rounded-[3px] ${ATT_CLR[s.k]}`} />
-                      <span className="text-[11px] text-[#57575f]">{s.l}</span>
+                      <span className="text-[11px] text-[color:var(--ink-soft)]">{s.l}</span>
                     </div>
                   ))}
                 </div>
@@ -168,10 +168,10 @@ export default function StaffDetailPage() {
                   { label: "Training Completed", value: "3",  sub: "Modules this quarter" },
                   { label: "Overtime Hours",   value: "12 hrs", sub: "November 2025" },
                 ].map(s => (
-                  <div key={s.label} className="p-4 border border-[#dedee1] rounded-[10px] flex flex-col gap-1">
-                    <p className="text-[12px] font-normal text-[#57575f]">{s.label}</p>
-                    <p className="text-[24px] font-medium text-[#11111c]">{s.value}</p>
-                    <p className="text-[11px] font-light text-[#57575f]">{s.sub}</p>
+                  <div key={s.label} className="p-4 border border-[color:var(--line)] rounded-[10px] flex flex-col gap-1">
+                    <p className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.label}</p>
+                    <p className="text-[24px] font-medium text-[color:var(--ink)]">{s.value}</p>
+                    <p className="text-[11px] font-light text-[color:var(--ink-soft)]">{s.sub}</p>
                   </div>
                 ))}
               </div>

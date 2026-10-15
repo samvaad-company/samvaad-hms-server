@@ -8,6 +8,7 @@ import {
   patientsRepo,
   doctorsRepo,
   pharmacyRepo,
+  medicinesRepo,
 } from "@/repositories";
 import { toPrescriptionDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
@@ -66,7 +67,31 @@ export async function getPrescription(id: number, actor: Session) {
   const row = await prescriptionsRepo.getRow(id);
   assertOwnedByHospital(row, actor, "Prescription");
   const items = await loadItems(id);
-  return toPrescriptionDTO(row, items);
+  const dto = toPrescriptionDTO(row, items);
+  const [patient, generics] = await Promise.all([
+    row.patient_id ? patientsRepo.getRow(row.patient_id) : null,
+    loadGenerics(items),
+  ]);
+  return {
+    ...dto,
+    items: dto.items.map((it) => ({ ...it, generic: it.medicineId ? (generics.get(it.medicineId) ?? null) : null })),
+    patient: patient && patient.hospital_id === row.hospital_id
+      ? {
+          code: patient.patient_code ?? null,
+          gender: patient.gender ?? null,
+          allergies: patient.allergies ?? null,
+          chronicConditions: patient.chronic_conditions ?? null,
+        }
+      : null,
+  };
+}
+
+/** Generic names for the medicines a prescription's items are linked to. */
+async function loadGenerics(items: PrescriptionItemRow[]): Promise<Map<number, string>> {
+  const ids = [...new Set(items.map((i) => i.medicine_id).filter((v): v is number => v != null))];
+  const rows = await Promise.all(ids.map((id) => medicinesRepo.getRow(id)));
+  const found = rows.filter((m): m is NonNullable<typeof m> => m != null && Boolean(m.generic));
+  return new Map(found.map((m) => [m.id, m.generic]));
 }
 
 export async function createPrescription(input: unknown, actor: Session) {

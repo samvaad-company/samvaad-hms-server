@@ -32,7 +32,7 @@ export function DataTable({
           {columns.map((col) => (
             <span
               key={col.label}
-              className={`text-[12px] font-medium text-[#11111c] leading-[16px] whitespace-nowrap overflow-hidden text-ellipsis ${
+              className={`text-[12px] font-medium text-[color:var(--ink)] leading-[16px] whitespace-nowrap overflow-hidden text-ellipsis ${
                 col.align === "right"
                   ? "text-right"
                   : col.align === "center"

@@ -48,6 +48,8 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.deathRecords]: ["hospital_id", "gender"],
   [TABLES.tpas]: ["hospital_id", "status", "code"],
   [TABLES.tpaClaims]: ["hospital_id", "status", "tpa_id", "patient_id"],
+  [TABLES.followups]: ["hospital_id", "status", "due_on", "doctor_id", "patient_id"],
+  [TABLES.enquiries]: ["hospital_id", "status", "follow_up_on", "mobile"],
   [TABLES.financeIncomes]: ["hospital_id", "category", "entry_date"],
   [TABLES.financeExpenses]: ["hospital_id", "category", "entry_date"],
   [TABLES.inventoryItems]: ["hospital_id", "status", "category"],

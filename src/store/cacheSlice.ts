@@ -40,6 +40,8 @@ export interface CacheEntry {
   inflightEpoch: number | null;
   /** This entry is currently counted in `pendingFirstLoads`. */
   counted: boolean;
+  /** Paged lists only: the next page is being fetched (drives the "loading more" row). */
+  loadingMore: boolean;
 }
 
 export interface CacheState {
@@ -55,7 +57,7 @@ export const MAX_ENTRIES = 300;
 
 export const initialCacheState: CacheState = { entries: {}, epoch: 0, pendingFirstLoads: 0 };
 
-const blank = (): CacheEntry => ({ data: undefined, meta: null, error: null, loadedAt: null, fetchedEpoch: -1, inflightEpoch: null, counted: false });
+const blank = (): CacheEntry => ({ data: undefined, meta: null, error: null, loadedAt: null, fetchedEpoch: -1, inflightEpoch: null, counted: false, loadingMore: false });
 
 /** Structural equality for JSON-shaped values (what the API returns). */
 export function sameJson(a: unknown, b: unknown): boolean {
@@ -152,6 +154,32 @@ const slice = createSlice({
       e.error = error;
     },
 
+    /** Paged lists: the next page has been requested. */
+    moreStarted(state, a: PayloadAction<{ key: string }>) {
+      const e = state.entries[a.payload.key];
+      if (e) e.loadingMore = true;
+    },
+
+    /** Paged lists: append the next page (rows already shown are skipped, so a shifting list can't repeat a row). */
+    moreSucceeded(state, a: PayloadAction<{ key: string; epoch: number; rows: { id: unknown }[]; meta: PageMeta }>) {
+      const { key, epoch, rows, meta } = a.payload;
+      const e = state.entries[key];
+      if (!e) return;
+      e.loadingMore = false;
+      // Something was saved while this page was in flight: the refresh that follows reloads everything anyway.
+      if (epoch !== state.epoch) return;
+      const have = new Set((e.data as { id: unknown }[] | undefined ?? []).map((r) => r.id));
+      e.data = [...((e.data as unknown[] | undefined) ?? []), ...rows.filter((r) => !have.has(r.id))];
+      e.meta = meta;
+    },
+
+    moreFailed(state, a: PayloadAction<{ key: string; error: StoredError }>) {
+      const e = state.entries[a.payload.key];
+      if (!e) return;
+      e.loadingMore = false;
+      e.error = a.payload.error;
+    },
+
     /** Something was saved (or the tab came back): every query is out of date. Cached data stays visible meanwhile. */
     invalidateAll(state) {
       state.epoch++;
@@ -164,6 +192,6 @@ const slice = createSlice({
   },
 });
 
-export const { fetchStarted, fetchSucceeded, fetchFailed, invalidateAll, clearCache } = slice.actions;
+export const { fetchStarted, fetchSucceeded, fetchFailed, moreStarted, moreSucceeded, moreFailed, invalidateAll, clearCache } = slice.actions;
 export const cacheReducer = slice.reducer;
 export default cacheReducer;

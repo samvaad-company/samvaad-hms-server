@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
 import Link from "next/link";
 import type { Doctor } from "@/types";
@@ -42,15 +43,15 @@ const MIN_WIDTH = 1120;
 function DoctorRow({ row, actions }: { row: Doctor; actions: RowAction[] }) {
   return (
     <Link href={`/doctors/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.name}</span>
-      <span className="text-[13px] font-normal text-[#57575f] truncate">{row.specialty}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.specialty}</span>
       <div className="flex items-center gap-[5px] min-w-0">
-        <Phone size={14} strokeWidth={1.5} className="text-[#57575f] shrink-0" />
-        <span className="text-[13px] font-normal text-[#11111c] truncate">{row.phone}</span>
+        <Phone size={14} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
+        <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.phone}</span>
       </div>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.department}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.experience}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-center">{row.patientsToday}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.department}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.experience}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-center">{row.patientsToday}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
@@ -76,6 +77,8 @@ export default function DoctorsPage() {
     const matchS = !q || d.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || d.department.toLowerCase().includes(q);
     return matchF && matchS;
   });
+
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "doctors");
 
   return (
     <>
@@ -107,8 +110,8 @@ export default function DoctorsPage() {
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {visible.length === 0 ? (
-              <div className="py-16 text-center text-[14px] text-[#57575f]">No doctors found.</div>
-            ) : visible.map((r) => (
+              <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No doctors found.</div>
+            ) : pagedVisible.map((r) => (
               <DoctorRow key={r.id} row={r} actions={[
                 { label: "View details", onClick: () => router.push(`/doctors/${r.id}`) },
                 ...(showOpenDashboard ? [{ label: "Open dashboard", onClick: () => router.push(`/doctors/dashboard`) }] : []),
@@ -122,6 +125,7 @@ export default function DoctorsPage() {
               ]} />
             ))}
           </DataTable>
+{barVisible}
         </div>
       </div>
     </>

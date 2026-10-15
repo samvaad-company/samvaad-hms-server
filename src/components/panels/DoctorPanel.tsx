@@ -63,7 +63,7 @@ export function DoctorPanel() {
         <div className={`${tw.gutterX} mb-5`}>
           <div className="flex items-center gap-3 px-4 py-3 bg-[#fff2e0] border border-[#ff9000]/30 rounded-[10px]">
             <AlertCircle size={16} className="text-[#ff9000] shrink-0" />
-            <p className="text-[13px] text-[#11111c]">
+            <p className="text-[13px] text-[color:var(--ink)]">
               This account isn&apos;t linked to a doctor profile yet — showing the hospital-wide view.
               Ask an administrator to link your login to your doctor record.
             </p>
@@ -72,24 +72,24 @@ export function DoctorPanel() {
       )}
 
       <StatRow stats={[
-        { icon: Users,       label: "My Queue Today",   value: String(myQueue.length),      color: "text-[#11111c]", bg: "bg-[#f0f0f0]" },
+        { icon: Users,       label: "My Queue Today",   value: String(myQueue.length),      color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
         { icon: Clock,       label: "Waiting",          value: String(waiting.length),      color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
         { icon: CheckCircle, label: "Completed",        value: String(completed),           color: "text-[#00955c]", bg: "bg-[#dffff3]" },
         { icon: Calendar,    label: "My Appointments",  value: String(upcoming.length),     color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
-        { icon: FileText,    label: "Pending Rx",       value: String(pendingRx),           color: "text-[#009598]", bg: "bg-[#e8f7f7]" },
+        { icon: FileText,    label: "Pending Rx",       value: String(pendingRx),           color: "text-[color:var(--brand)]", bg: "bg-[color:var(--brand-soft)]" },
       ]} />
 
       {schedule && (
         <div className={`${tw.gutterX} mb-5`}>
           <div className={`${tw.surface.card} ${tw.radius.card} px-5 py-4 flex items-center justify-between gap-4 flex-wrap`}>
-            <div className="text-[13px] text-[#11111c]">
+            <div className="text-[13px] text-[color:var(--ink)]">
               <b className="font-medium">{schedule.patientsPerHour} patient{schedule.patientsPerHour === 1 ? "" : "s"} per hour</b>
-              <span className="text-[#57575f]"> · one every {schedule.slotMinutes} min · </span>
+              <span className="text-[color:var(--ink-soft)]"> · one every {schedule.slotMinutes} min · </span>
               {schedule.videoActive
                 ? <span className="text-[#00955c]">Video consultations on ({schedule.videoHours.length} window{schedule.videoHours.length === 1 ? "" : "s"})</span>
-                : <span className="text-[#57575f]">{schedule.hospitalVideoEnabled ? "Video consultations off" : "Video consultations not enabled by the hospital"}</span>}
+                : <span className="text-[color:var(--ink-soft)]">{schedule.hospitalVideoEnabled ? "Video consultations off" : "Video consultations not enabled by the hospital"}</span>}
             </div>
-            <Link href="/my-schedule" className="text-[13px] text-[#009598] hover:underline">Edit my schedule →</Link>
+            <Link href="/my-schedule" className="text-[13px] text-[color:var(--brand)] hover:underline">Edit my schedule →</Link>
           </div>
         </div>
       )}
@@ -99,14 +99,14 @@ export function DoctorPanel() {
           <WorklistCard title="Video Consultations" action={{ label: "All video consults", href: "/teleconsult" }}>
             <div className="overflow-y-auto" style={{ maxHeight: 260 }}>
               {videoConsults.map(a => (
-                <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[#f0f0f0] hover:bg-[#fafafa] transition-colors">
+                <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
-                    <span className="text-[11px] font-light text-[#57575f] truncate">{a.date} · {a.time}{a.reason ? ` · ${a.reason}` : ""}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{a.date} · {a.time}{a.reason ? ` · ${a.reason}` : ""}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     <button type="button" onClick={() => setMoving(a)}
-                      className="inline-flex items-center gap-[5px] text-[12px] text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] transition-colors cursor-pointer">
+                      className="inline-flex items-center gap-[5px] text-[12px] text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] transition-colors cursor-pointer">
                       <CalendarClock size={13} /> Reschedule
                     </button>
                     <ConsultLinkActions appt={a} canWrite onChanged={reloadAppointments} />
@@ -126,19 +126,19 @@ export function DoctorPanel() {
               {myQueue.length === 0 ? (
                 <EmptyRow text="No patients in your queue." />
               ) : myQueue.map(row => (
-                <div key={row.id} className="flex items-center justify-between gap-3 px-5 h-[62px] border-t border-[#f0f0f0] hover:bg-[#fafafa] transition-colors">
+                <div key={row.id} className="flex items-center justify-between gap-3 px-5 h-[62px] border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors">
                   <div className="flex items-center gap-4 min-w-0">
-                    <span className="text-[15px] font-medium text-[#009598] w-[52px] shrink-0">{row.tokenNumber}</span>
+                    <span className="text-[15px] font-medium text-[color:var(--brand)] w-[52px] shrink-0">{row.tokenNumber}</span>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-                      <span className="text-[11px] font-light text-[#57575f]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+                      <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <StatusBadge status={row.status} />
                     {row.status === "Waiting" ? (
                       <button onClick={() => advance(row.id, "In Consultation")}
-                        className="text-[12px] font-medium text-white bg-[#009598] px-4 py-[6px] rounded-full hover:bg-[#007f82] transition-colors whitespace-nowrap">
+                        className="text-[12px] font-medium text-white bg-[color:var(--brand)] px-4 py-[6px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
                         Begin
                       </button>
                     ) : row.status === "In Consultation" ? (
@@ -147,7 +147,7 @@ export function DoctorPanel() {
                         Complete →
                       </button>
                     ) : (
-                      <span className="text-[12px] font-light text-[#57575f]">Done</span>
+                      <span className="text-[12px] font-light text-[color:var(--ink-soft)]">Done</span>
                     )}
                   </div>
                 </div>
@@ -162,10 +162,10 @@ export function DoctorPanel() {
                 {upcoming.length === 0 ? (
                   <EmptyRow text="No upcoming appointments." />
                 ) : upcoming.slice(0, 6).map(a => (
-                  <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0]">
+                  <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[#11111c] truncate">{a.patientName}</span>
-                      <span className="text-[11px] font-light text-[#57575f]">{a.date} · {a.time}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                      <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.date} · {a.time}</span>
                     </div>
                     <StatusBadge status={a.status} />
                   </div>
@@ -178,10 +178,10 @@ export function DoctorPanel() {
                 {myPrescriptions.length === 0 ? (
                   <EmptyRow text="No prescriptions yet." />
                 ) : myPrescriptions.slice(-4).reverse().map(p => (
-                  <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[#f0f0f0]">
+                  <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[#11111c] truncate">{p.patientName}</span>
-                      <span className="text-[11px] font-light text-[#57575f]">{p.rxNumber} · {p.diagnosis}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{p.patientName}</span>
+                      <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{p.rxNumber} · {p.diagnosis}</span>
                     </div>
                     <StatusBadge status={p.status} />
                   </div>

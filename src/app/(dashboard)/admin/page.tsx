@@ -48,8 +48,8 @@ function TeleconsultSettings({
   const google = cfg?.google;
   return (
     <section>
-      <h3 className="text-[14px] font-medium text-[#11111c] mb-1 flex items-center gap-2"><Video size={15} /> Video consultations</h3>
-      <p className="text-[12px] font-light text-[#57575f] mb-4">
+      <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-1 flex items-center gap-2"><Video size={15} /> Video consultations</h3>
+      <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-4">
         Patients book a paid video consultation from the patient app. The fee below is what they are charged — it is
         decided here, never by the app. {canEdit ? "" : "Only a Super Admin can change the fee or switch this on or off."}
       </p>
@@ -61,10 +61,10 @@ function TeleconsultSettings({
         <label className={`flex items-center gap-3 h-[40px] ${canEdit ? "cursor-pointer" : "opacity-60"}`}>
           <button type="button" role="switch" aria-checked={form.teleconsultEnabled} disabled={!canEdit}
             onClick={() => setForm(prev => (prev ? { ...prev, teleconsultEnabled: !prev.teleconsultEnabled } : prev))}
-            className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${form.teleconsultEnabled ? "bg-[#009598]" : "bg-[#dedee1]"}`}>
-            <span className={`absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow transition-all ${form.teleconsultEnabled ? "left-[21px]" : "left-[3px]"}`} />
+            className={`w-[42px] h-[24px] rounded-full transition-colors relative shrink-0 ${form.teleconsultEnabled ? "bg-[color:var(--brand)]" : "bg-[color:var(--line)]"}`}>
+            <span className={`absolute top-[3px] w-[18px] h-[18px] bg-[color:var(--surface)] rounded-full shadow transition-all ${form.teleconsultEnabled ? "left-[21px]" : "left-[3px]"}`} />
           </button>
-          <span className="text-[13px] text-[#11111c]">{form.teleconsultEnabled ? "Accepting bookings" : "Switched off"}</span>
+          <span className="text-[13px] text-[color:var(--ink)]">{form.teleconsultEnabled ? "Accepting bookings" : "Switched off"}</span>
         </label>
       </div>
 
@@ -90,10 +90,10 @@ function TeleconsultSettings({
         </p>
       )}
 
-      <div className="mt-4 border border-[#dedee1] rounded-[10px] p-4 flex items-center gap-4 flex-wrap">
+      <div className="mt-4 border border-[color:var(--line)] rounded-[10px] p-4 flex items-center gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-[#11111c]">Google Meet</p>
-          <p className="text-[12px] font-light text-[#57575f]">
+          <p className="text-[13px] font-medium text-[color:var(--ink)]">Google Meet</p>
+          <p className="text-[12px] font-light text-[color:var(--ink-soft)]">
             {!google ? "Checking…"
               : !google.configured ? "Google isn't set up on this server yet — add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Until then, staff can paste a link by hand."
               : google.needsReconnect ? `Google needs to be reconnected${google.accountEmail ? ` (${google.accountEmail})` : ""}: ${google.lastError ?? "access was revoked or never granted"}.`
@@ -103,7 +103,7 @@ function TeleconsultSettings({
         </div>
         {google?.configured && google.connected && !google.needsReconnect && !google.meetAccessControl && (
           <a href="/api/teleconsult/google/connect"
-            className="text-[13px] text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+            className="text-[13px] text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
             Reconnect Google
           </a>
         )}
@@ -115,7 +115,7 @@ function TeleconsultSettings({
           </button>
         ) : (
           <a href="/api/teleconsult/google/connect"
-            className="text-[13px] text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors">
+            className="text-[13px] text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
             {google.needsReconnect ? "Reconnect Google" : "Connect Google"}
           </a>
         ))}
@@ -174,7 +174,7 @@ function SettingsView() {
   }
 
   if (!form) {
-    return <div className="p-8 text-[14px] text-[#57575f]">Loading settings…</div>;
+    return <div className="p-8 text-[14px] text-[color:var(--ink-soft)]">Loading settings…</div>;
   }
 
   const FIELDS: { label: string; key: keyof HospitalSettings; ph: string }[] = [
@@ -189,7 +189,7 @@ function SettingsView() {
   return (
     <div className="p-5 flex flex-col gap-6 overflow-y-auto" style={{ height: 580 }}>
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-4">Hospital Information</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Hospital Information</h3>
         <div className="grid grid-cols-2 gap-4">
           {FIELDS.map(f => (
             <FormRow key={f.key} label={f.label}>
@@ -205,8 +205,8 @@ function SettingsView() {
       </section>
 
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-1">Attendance geofence</h3>
-        <p className="text-[12px] font-light text-[#57575f] mb-4">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-1">Attendance geofence</h3>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-4">
           Staff can only mark attendance from the attendance app while their phone is inside this radius.
           Stand at the reception desk and tap &ldquo;Use my current location&rdquo; to fill it in.
         </p>
@@ -226,10 +226,10 @@ function SettingsView() {
         </div>
         <div className="flex items-center gap-3 mt-3">
           <button type="button" onClick={useMyLocation}
-            className="flex items-center gap-2 text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors">
+            className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors">
             <LocateFixed size={14} /> Use my current location
           </button>
-          {geoMsg && <span className="text-[12px] text-[#57575f]">{geoMsg}</span>}
+          {geoMsg && <span className="text-[12px] text-[color:var(--ink-soft)]">{geoMsg}</span>}
         </div>
       </section>
 
@@ -240,7 +240,7 @@ function SettingsView() {
       <div className="flex justify-end items-center gap-3">
         {saved && <span className="text-[13px] text-[#00955c]">Saved ✓</span>}
         <button onClick={save} disabled={loading}
-          className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[9px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-60">
+          className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[9px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-60">
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Settings
         </button>
       </div>
@@ -291,17 +291,17 @@ function MasterDataView() {
   return (
     <div className="flex overflow-hidden" style={{ height: 580 }}>
       {/* Left: section list */}
-      <div className="w-52 border-r border-[#dedee1] flex flex-col gap-1 p-3 shrink-0">
+      <div className="w-52 border-r border-[color:var(--line)] flex flex-col gap-1 p-3 shrink-0">
         {MASTER_SECTIONS.map(s => (
           <button key={s.key} onClick={() => setActiveSection(s.key)}
-            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors ${activeSection === s.key ? "bg-[#009598] text-white" : "text-[#57575f] hover:bg-[#f6f6f6] hover:text-[#11111c]"}`}>
+            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors ${activeSection === s.key ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)]"}`}>
             {s.label}
           </button>
         ))}
       </div>
       {/* Right: items */}
       <div className="flex-1 p-5 flex flex-col gap-3 overflow-y-auto">
-        <h3 className="text-[14px] font-medium text-[#11111c]">{section.label}</h3>
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)]">{section.label}</h3>
         {/* Add new */}
         <div className="flex gap-2">
           <input
@@ -309,21 +309,21 @@ function MasterDataView() {
             onChange={e => setNewItem(e.target.value)}
             onKeyDown={e => e.key === "Enter" && addItem()}
             placeholder={`Add new ${section.label.toLowerCase().replace(/s$/, "")}...`}
-            className="flex-1 h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+            className="flex-1 h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
           />
           <button onClick={addItem}
-            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-[8px] hover:bg-[#007f82] transition-colors whitespace-nowrap">
+            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-[8px] hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
             <Plus size={14} /> Add
           </button>
         </div>
         {/* Items */}
         <div className="flex flex-col gap-2">
           {currentItems.map(item => (
-            <div key={item} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white hover:bg-[#fafafa] transition-colors">
-              <span className="text-[13px] font-normal text-[#11111c]">{item}</span>
+            <div key={item} className="flex items-center justify-between p-3 border border-[color:var(--line)] rounded-[8px] bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors">
+              <span className="text-[13px] font-normal text-[color:var(--ink)]">{item}</span>
               <div className="flex items-center gap-2">
-                <button className="text-[#57575f] hover:text-[#009598] transition-colors"><Edit2 size={14} /></button>
-                <button onClick={() => removeItem(item)} className="text-[#57575f] hover:text-[#ff0004] transition-colors"><Trash2 size={14} /></button>
+                <button className="text-[color:var(--ink-soft)] hover:text-[color:var(--brand)] transition-colors"><Edit2 size={14} /></button>
+                <button onClick={() => removeItem(item)} className="text-[color:var(--ink-soft)] hover:text-[#ff0004] transition-colors"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -340,7 +340,7 @@ const ROLE_CLR: Record<string, string> = {
   Doctor:        "bg-[#d6eaff] text-[#007cff]",
   Nurse:         "bg-[#dffff3] text-[#00955c]",
   Receptionist:  "bg-[#fff2e0] text-[#ff9000]",
-  Accountant:    "bg-[#f0f0f0] text-[#57575f]",
+  Accountant:    "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
 };
 
 /** A readable random password (no look-alike characters) for the admin to hand over. */
@@ -371,9 +371,9 @@ function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClo
       width={420}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button onClick={save} disabled={loading}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : "Save Role"}
           </button>
         </>
@@ -408,16 +408,16 @@ function LinkStaffModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClos
       width={460}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button onClick={save} disabled={loading}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : "Save Link"}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           The attendance app records punches against this staff member whenever {user.name} scans in.
         </p>
         <FormRow label="Staff member">
@@ -448,10 +448,10 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUserDTO; onClose: ()
       width={440}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">{done ? "Close" : "Cancel"}</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">{done ? "Close" : "Cancel"}</button>
           {!done && (
             <button onClick={save} disabled={loading || password.length < 6}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Saving…" : "Set password"}
             </button>
           )}
@@ -459,13 +459,13 @@ function ResetPasswordModal({ user, onClose }: { user: AdminUserDTO; onClose: ()
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           Their old password stops working straight away. Share the new one with {user.name} — nothing is emailed.
         </p>
         <FormRow label="New password" hint="At least 6 characters.">
           <div className="flex gap-2">
             <FormInput value={password} onChange={setPassword} placeholder="New password" />
-            <button type="button" onClick={() => setPassword(generatePassword())} className="shrink-0 text-[12px] text-[#009598] border border-[#dedee1] px-3 rounded-[8px] hover:bg-[#f6f6f6]">Generate</button>
+            <button type="button" onClick={() => setPassword(generatePassword())} className="shrink-0 text-[12px] text-[color:var(--brand)] border border-[color:var(--line)] px-3 rounded-[8px] hover:bg-[color:var(--subtle)]">Generate</button>
           </div>
         </FormRow>
         {done && <div className="text-[13px] text-[#007f4f] bg-[#e6f6ee] rounded-[8px] px-3 py-2">Password updated.</div>}
@@ -496,16 +496,16 @@ function LinkDoctorModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClo
       width={460}
       footer={
         <>
-          <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+          <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
           <button onClick={save} disabled={loading}
-            className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+            className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Saving…" : "Save Link"}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] font-light text-[#57575f]">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
           Links this login to a doctor record, so {user.name} gets their own schedule, appointments and profile.
         </p>
         <FormRow label="Doctor">
@@ -557,17 +557,17 @@ function UsersView() {
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: 580 }}>
       {/* Action bar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#dedee1]">
-        <span className="text-[13px] font-normal text-[#57575f]">{adminUsers.length} users total</span>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[color:var(--line)]">
+        <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{adminUsers.length} users total</span>
         <button onClick={() => { setCreated(null); setShowForm(v => !v); }}
-          className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors">
+          className="flex items-center gap-1 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
           <Plus size={14} /> Add User
         </button>
       </div>
 
       {/* Inline form */}
       {showForm && (
-        <div className="px-5 py-4 border-b border-[#dedee1] bg-[#f6f6f6]">
+        <div className="px-5 py-4 border-b border-[color:var(--line)] bg-[color:var(--subtle)]">
           <div className="grid grid-cols-4 gap-3">
             <FormRow label={form.role === "Radiology Partner" ? "Radiology Centre Name *" : form.role === "Lab Partner" ? "Lab Name *" : "Full Name *"}>
               <FormInput placeholder={form.role === "Radiology Partner" ? "e.g. Scanwell Diagnostics" : form.role === "Lab Partner" ? "e.g. Pathcare Diagnostics" : "Name"} value={form.name} onChange={v => set("name", v)} />
@@ -584,7 +584,7 @@ function UsersView() {
             <FormRow label="Password *" hint="At least 6 characters. You give it to them — nothing is emailed.">
               <div className="flex gap-2">
                 <FormInput placeholder="Set a password" value={form.password} onChange={v => set("password", v)} />
-                <button type="button" onClick={() => set("password", generatePassword())} className="shrink-0 text-[12px] text-[#009598] border border-[#dedee1] px-3 rounded-[8px] hover:bg-white">Generate</button>
+                <button type="button" onClick={() => set("password", generatePassword())} className="shrink-0 text-[12px] text-[color:var(--brand)] border border-[color:var(--line)] px-3 rounded-[8px] hover:bg-[color:var(--surface)]">Generate</button>
               </div>
             </FormRow>
             <FormRow label="Staff record" hint="For attendance punches.">
@@ -599,13 +599,13 @@ function UsersView() {
             )}
           </div>
           {form.role === "Radiology Partner" && (
-            <p className="text-[12px] font-light text-[#57575f] mt-2">
+            <p className="text-[12px] font-light text-[color:var(--ink-soft)] mt-2">
               Partner centres get their own login and see only the Radiology worklist — reports they upload
               appear instantly in this hospital&apos;s Radiology panel.
             </p>
           )}
           {form.role === "Lab Partner" && (
-            <p className="text-[12px] font-light text-[#57575f] mt-2">
+            <p className="text-[12px] font-light text-[color:var(--ink-soft)] mt-2">
               Partner labs get their own login and see only the in-house Lab worklist — reports they upload
               appear instantly in this hospital&apos;s Lab panel.
             </p>
@@ -613,26 +613,26 @@ function UsersView() {
           {error && <p className="text-[12px] text-[#ff0004] mt-2">{error.message}</p>}
           <div className="flex gap-2 mt-3">
             <button onClick={createUser} disabled={loading || !form.name || !form.email || !form.role || form.password.length < 6}
-              className="text-[12px] font-normal text-white bg-[#009598] px-4 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[12px] font-normal text-white bg-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Creating…" : "Create User"}
             </button>
-            <button onClick={() => setShowForm(false)} className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-white transition-colors">Cancel</button>
+            <button onClick={() => setShowForm(false)} className="text-[12px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[7px] rounded-full hover:bg-[color:var(--surface)] transition-colors">Cancel</button>
           </div>
         </div>
       )}
 
       {created && (
-        <div className="px-5 py-3 border-b border-[#dedee1] bg-[#e6f6ee] text-[13px] text-[#11111c] flex items-center justify-between gap-3">
+        <div className="px-5 py-3 border-b border-[color:var(--line)] bg-[#e6f6ee] text-[13px] text-[color:var(--ink)] flex items-center justify-between gap-3">
           <span>User created. Share these with them — no email is sent: <b>{created.email}</b> / <b className="font-mono">{created.password}</b></span>
-          <button onClick={() => setCreated(null)} className="text-[12px] text-[#57575f] hover:text-[#11111c]">Dismiss</button>
+          <button onClick={() => setCreated(null)} className="text-[12px] text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">Dismiss</button>
         </div>
       )}
 
       {/* Users table */}
       <div className="overflow-y-auto flex-1">
-        <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 980 }}>
+        <div className="relative h-10 bg-[color:var(--subtle-3)]" style={{ minWidth: 980 }}>
           {[{ l: "Name", x: 20 }, { l: "Role", x: 250 }, { l: "Email", x: 440 }, { l: "Last Login", x: 700 }, { l: "Status", x: 880 }, { l: "Actions", x: 940 }].map(c => (
-            <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[13px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
+            <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[13px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
           ))}
         </div>
         {adminUsers.map(u => {
@@ -643,14 +643,14 @@ function UsersView() {
             ...(u.role === "Doctor" ? [{ label: u.doctorId ? "Change linked doctor" : "Link doctor record", onClick: () => setLinkingDoctor(u) }] : []),
           ];
           return (
-            <div key={u.id} className="relative flex items-center h-[60px] border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa] transition-colors" style={{ minWidth: 980 }}>
+            <div key={u.id} className="relative flex items-center h-[60px] border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 980 }}>
               <div className="absolute flex flex-col" style={{ left: 20 }}>
-                <span className="text-[14px] font-medium text-[#11111c] whitespace-nowrap">{u.name}</span>
-                <span className="text-[11px] font-light text-[#57575f]">{u.department}</span>
+                <span className="text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap">{u.name}</span>
+                <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{u.department}</span>
               </div>
-              <span className={`absolute inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${ROLE_CLR[u.role] ?? "bg-[#f0f0f0] text-[#57575f]"}`} style={{ left: 250 }}>{u.role}</span>
-              <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 440 }}>{u.email}</span>
-              <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 700 }}>{u.lastLogin}</span>
+              <span className={`absolute inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${ROLE_CLR[u.role] ?? "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"}`} style={{ left: 250 }}>{u.role}</span>
+              <span className="absolute text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap" style={{ left: 440 }}>{u.email}</span>
+              <span className="absolute text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap" style={{ left: 700 }}>{u.lastLogin}</span>
               <div className="absolute" style={{ left: 880 }}><StatusBadge status={u.status} /></div>
               <div className="absolute" style={{ left: 940 }}><RowMenu actions={actions} /></div>
             </div>
@@ -696,8 +696,8 @@ function RadiologyLinksView() {
   return (
     <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-2">Link a Radiology Center</h3>
-        <p className="text-[12px] font-light text-[#57575f] mb-3">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-2">Link a Radiology Center</h3>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-3">
           Enter the center&apos;s code (shared with you by the center) to send a link request.
           Once their admin accepts, orders can be routed there and their reports flow back here.
         </p>
@@ -707,10 +707,10 @@ function RadiologyLinksView() {
             onChange={e => { setCode(e.target.value); reset(); }}
             onKeyDown={e => e.key === "Enter" && requestLink()}
             placeholder="e.g. RADC-0001"
-            className="flex-1 h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+            className="flex-1 h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
           />
           <button onClick={requestLink} disabled={saving || !code.trim()}
-            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-[8px] hover:bg-[#007f82] transition-colors whitespace-nowrap disabled:opacity-50">
+            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-[8px] hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap disabled:opacity-50">
             <Link2 size={14} /> Request Link
           </button>
         </div>
@@ -718,17 +718,17 @@ function RadiologyLinksView() {
       </section>
 
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Linked Centers</h3>
-        {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Linked Centers</h3>
+        {loading && <p className="text-[13px] text-[color:var(--ink-soft)]">Loading…</p>}
         {!loading && links.length === 0 && (
-          <p className="text-[13px] text-[#57575f]">No radiology centers linked yet.</p>
+          <p className="text-[13px] text-[color:var(--ink-soft)]">No radiology centers linked yet.</p>
         )}
         <div className="flex flex-col gap-2">
           {links.map(link => (
-            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[color:var(--line)] rounded-[8px] bg-[color:var(--surface)]">
               <div className="flex flex-col">
-                <span className="text-[13px] font-medium text-[#11111c]">{link.radiologyCenterName}</span>
-                <span className="text-[11px] font-light text-[#57575f]">
+                <span className="text-[13px] font-medium text-[color:var(--ink)]">{link.radiologyCenterName}</span>
+                <span className="text-[11px] font-light text-[color:var(--ink-soft)]">
                   Requested by {link.requestedBy} · {link.requestedAt}
                   {link.respondedAt ? ` · Responded ${link.respondedAt}` : ""}
                   {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
@@ -773,8 +773,8 @@ function LabLinksView() {
   return (
     <div className="p-5 flex flex-col gap-5 overflow-y-auto" style={{ height: 580 }}>
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-2">Link a Lab Center</h3>
-        <p className="text-[12px] font-light text-[#57575f] mb-3">
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-2">Link a Lab Center</h3>
+        <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-3">
           Enter the lab&apos;s code (shared with you by the lab) to send a link request.
           Once their admin accepts, orders can be routed there and their reports flow back here.
         </p>
@@ -784,10 +784,10 @@ function LabLinksView() {
             onChange={e => { setCode(e.target.value); reset(); }}
             onKeyDown={e => e.key === "Enter" && requestLink()}
             placeholder="e.g. LABC-0001"
-            className="flex-1 h-[38px] bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-3 text-[13px] text-[#11111c] focus:outline-none focus:border-[#009598] transition-colors"
+            className="flex-1 h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
           />
           <button onClick={requestLink} disabled={saving || !code.trim()}
-            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-[8px] hover:bg-[#007f82] transition-colors whitespace-nowrap disabled:opacity-50">
+            className="flex items-center gap-1 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-[8px] hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap disabled:opacity-50">
             <Link2 size={14} /> Request Link
           </button>
         </div>
@@ -795,17 +795,17 @@ function LabLinksView() {
       </section>
 
       <section>
-        <h3 className="text-[14px] font-medium text-[#11111c] mb-3">Linked Labs</h3>
-        {loading && <p className="text-[13px] text-[#57575f]">Loading…</p>}
+        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Linked Labs</h3>
+        {loading && <p className="text-[13px] text-[color:var(--ink-soft)]">Loading…</p>}
         {!loading && links.length === 0 && (
-          <p className="text-[13px] text-[#57575f]">No lab centers linked yet.</p>
+          <p className="text-[13px] text-[color:var(--ink-soft)]">No lab centers linked yet.</p>
         )}
         <div className="flex flex-col gap-2">
           {links.map(link => (
-            <div key={link.id} className="flex items-center justify-between p-3 border border-[#dedee1] rounded-[8px] bg-white">
+            <div key={link.id} className="flex items-center justify-between p-3 border border-[color:var(--line)] rounded-[8px] bg-[color:var(--surface)]">
               <div className="flex flex-col">
-                <span className="text-[13px] font-medium text-[#11111c]">{link.labCenterName}</span>
-                <span className="text-[11px] font-light text-[#57575f]">
+                <span className="text-[13px] font-medium text-[color:var(--ink)]">{link.labCenterName}</span>
+                <span className="text-[11px] font-light text-[color:var(--ink-soft)]">
                   Requested by {link.requestedBy} · {link.requestedAt}
                   {link.respondedAt ? ` · Responded ${link.respondedAt}` : ""}
                   {link.revokedAt ? ` · Revoked ${link.revokedAt}` : ""}
@@ -853,12 +853,12 @@ export default function AdminPage() {
     <>
       <div className={`${tw.gutterX} mb-5`}>
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-[#f0f0f0] rounded-[10px] flex items-center justify-center shrink-0">
-            <Settings2 size={18} className="text-[#57575f]" />
+          <div className="w-10 h-10 bg-[color:var(--subtle-2)] rounded-[10px] flex items-center justify-center shrink-0">
+            <Settings2 size={18} className="text-[color:var(--ink-soft)]" />
           </div>
           <div>
-            <h1 className="text-[26px] font-medium text-[#11111c] leading-8">Admin Panel</h1>
-            <p className="text-[14px] font-light text-[#57575f]">
+            <h1 className="text-[26px] font-medium text-[color:var(--ink)] leading-8">Admin Panel</h1>
+            <p className="text-[14px] font-light text-[color:var(--ink-soft)]">
               {isItAdmin ? "Manage user access and roles." : "Manage hospital settings, master data, and user access."}
             </p>
           </div>

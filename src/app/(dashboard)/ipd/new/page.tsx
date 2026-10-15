@@ -53,8 +53,8 @@ export default function NewIpdAdmissionPage() {
   if (!can("ipd", "write")) {
     return (
       <div className={`${tw.gutterX} pt-10`}>
-        <p className="text-[14px] font-normal text-[#57575f]">
-          You don&apos;t have permission to create admissions. <Link href="/ipd" className="text-[#009598] hover:underline">Back to IPD</Link>
+        <p className="text-[14px] font-normal text-[color:var(--ink-soft)]">
+          You don&apos;t have permission to create admissions. <Link href="/ipd" className="text-[color:var(--brand)] hover:underline">Back to IPD</Link>
         </p>
       </div>
     );
@@ -64,12 +64,12 @@ export default function NewIpdAdmissionPage() {
     <>
       <div className={`${tw.gutterX} mb-4 pt-3 flex items-center justify-between`}>
         <div className="flex flex-col gap-[2px]">
-          <h1 className="text-[24px] font-medium text-[#11111c] leading-[28px]">New IPD Admission</h1>
-          <p className="text-[13px] font-light text-[#57575f] leading-[17px]">Admit a patient and assign a ward & bed.</p>
+          <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px]">New IPD Admission</h1>
+          <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px]">Admit a patient and assign a ward & bed.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/ipd" className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-[7px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</Link>
-          <button onClick={submit} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[#009598] px-5 py-[7px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+          <Link href="/ipd" className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[7px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</Link>
+          <button onClick={submit} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[7px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Admit Patient
           </button>
         </div>
@@ -82,7 +82,7 @@ export default function NewIpdAdmissionPage() {
           <div className="flex flex-col gap-7">
             {/* Patient */}
             <section>
-              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Patient Information</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-4">Patient Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormRow label="Patient *">
                   <SearchSelect
@@ -104,11 +104,11 @@ export default function NewIpdAdmissionPage() {
               </div>
             </section>
 
-            <div className="border-t border-[#f0f0f0]" />
+            <div className="border-t border-[color:var(--subtle-2)]" />
 
             {/* Doctor & Ward */}
             <section>
-              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Doctor & Ward Assignment</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-4">Doctor & Ward Assignment</h3>
               <div className="grid grid-cols-3 gap-4">
                 <FormRow label="Attending Doctor *">
                   <FormSelect placeholder="Select doctor" value={doctorId} onChange={setDoctorId} options={doctors.map(d => ({ value: String(d.id), label: d.name }))} />
@@ -127,11 +127,11 @@ export default function NewIpdAdmissionPage() {
               </div>
             </section>
 
-            <div className="border-t border-[#f0f0f0]" />
+            <div className="border-t border-[color:var(--subtle-2)]" />
 
             {/* Clinical */}
             <section>
-              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Clinical Details</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-4">Clinical Details</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <FormRow label="Chief Complaint / Reason for Admission *">
@@ -151,11 +151,11 @@ export default function NewIpdAdmissionPage() {
               </div>
             </section>
 
-            <div className="border-t border-[#f0f0f0]" />
+            <div className="border-t border-[color:var(--subtle-2)]" />
 
             {/* Insurance */}
             <section>
-              <h3 className="text-[13px] font-medium text-[#57575f] uppercase tracking-wider mb-4">Insurance & Billing</h3>
+              <h3 className="text-[13px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-4">Insurance & Billing</h3>
               <div className="grid grid-cols-3 gap-4">
                 <FormRow label="Payment Mode *">
                   <FormSelect placeholder="Select mode" options={["Cash","Insurance","Corporate / TPA","Government Scheme","Other"].map(m => ({ value: m.toLowerCase().replace(/\s+\/\s+|\s+/g,"-"), label: m }))} />

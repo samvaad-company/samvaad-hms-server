@@ -26,7 +26,7 @@ const STATUS_BG: Record<string, string> = {
   Available:   "bg-[#dffff3] border-[#b8f0d9]",
   Occupied:    "bg-[#ffe9e9] border-[#ffc8c8]",
   Reserved:    "bg-[#fff2e0] border-[#ffd99a]",
-  Maintenance: "bg-[#f0f0f0] border-[#dedee1]",
+  Maintenance: "bg-[color:var(--subtle-2)] border-[color:var(--line)]",
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -40,18 +40,18 @@ const STATUS_TEXT: Record<string, string> = {
   Available:   "text-[#00955c]",
   Occupied:    "text-[#ff0004]",
   Reserved:    "text-[#ff9000]",
-  Maintenance: "text-[#57575f]",
+  Maintenance: "text-[color:var(--ink-soft)]",
 };
 
 const STATUS_CHIP: Record<string, string> = {
   Available:   "bg-[#dffff3] text-[#00955c]",
   Occupied:    "bg-[#ffe9e9] text-[#ff0004]",
   Reserved:    "bg-[#fff2e0] text-[#ff9000]",
-  Maintenance: "bg-[#f0f0f0] text-[#57575f]",
+  Maintenance: "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
 };
 
 function BedCard({ bed, onClick }: { bed: BedDTO; onClick: () => void }) {
-  const bg = STATUS_BG[bed.status] ?? "bg-[#f0f0f0] border-[#dedee1]";
+  const bg = STATUS_BG[bed.status] ?? "bg-[color:var(--subtle-2)] border-[color:var(--line)]";
   const dot = STATUS_DOT[bed.status] ?? "bg-[#57575f]";
   return (
     <button
@@ -60,16 +60,16 @@ function BedCard({ bed, onClick }: { bed: BedDTO; onClick: () => void }) {
       style={{ width: 140, height: 90, flexShrink: 0 }}
     >
       <div className="flex items-center justify-between w-full">
-        <span className="text-[13px] font-medium text-[#11111c]">{bed.bedNumber}</span>
+        <span className="text-[13px] font-medium text-[color:var(--ink)]">{bed.bedNumber}</span>
         <span className={`w-2 h-2 rounded-full ${dot}`} />
       </div>
       {bed.patientName ? (
         <>
-          <span className="text-[11px] font-medium text-[#11111c] leading-[14px] whitespace-nowrap overflow-hidden text-ellipsis w-full">{bed.patientName}</span>
-          <span className="text-[10px] font-light text-[#57575f]">{bed.patientId}</span>
+          <span className="text-[11px] font-medium text-[color:var(--ink)] leading-[14px] whitespace-nowrap overflow-hidden text-ellipsis w-full">{bed.patientName}</span>
+          <span className="text-[10px] font-light text-[color:var(--ink-soft)]">{bed.patientId}</span>
         </>
       ) : (
-        <span className={`text-[11px] font-normal leading-[14px] ${STATUS_TEXT[bed.status] ?? "text-[#57575f]"}`}>
+        <span className={`text-[11px] font-normal leading-[14px] ${STATUS_TEXT[bed.status] ?? "text-[color:var(--ink-soft)]"}`}>
           {bed.status}
         </span>
       )}
@@ -151,7 +151,7 @@ function ManageBedModal({
   }
 
   const occupied = current.status === "Occupied";
-  const sectionTitle = "text-[12px] font-medium text-[#57575f] uppercase tracking-wider";
+  const sectionTitle = "text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider";
 
   return (
     <>
@@ -166,7 +166,7 @@ function ManageBedModal({
                 <Trash2 size={13} /> Delete Bed
               </button>
             )}
-            <button onClick={onClose} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Close</button>
+            <button onClick={onClose} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Close</button>
           </>
         }
       >
@@ -181,7 +181,7 @@ function ManageBedModal({
               <div className="flex items-center gap-2">
                 {STATUSES.filter((s) => s !== "Occupied" && s !== current.status).map((s) => (
                   <button key={s} onClick={() => setStatus(s)} disabled={loading}
-                    className="text-[12px] font-normal text-[#57575f] border border-[#dedee1] px-3 py-[5px] rounded-full hover:bg-[#f6f6f6] hover:text-[#11111c] transition-colors disabled:opacity-50"
+                    className="text-[12px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-3 py-[5px] rounded-full hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors disabled:opacity-50"
                   >
                     Mark {s}
                   </button>
@@ -193,19 +193,19 @@ function ManageBedModal({
           {occupied ? (
             <>
               {/* Occupant */}
-              <div className="bg-[#f6f6f6] rounded-[10px] p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#e8f7f7] flex items-center justify-center text-[#009598] shrink-0">
+              <div className="bg-[color:var(--subtle)] rounded-[10px] p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center text-[color:var(--brand)] shrink-0">
                   <UserRound size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium text-[#11111c] truncate">{current.patientName}</p>
-                  {current.patientId && <p className="text-[12px] font-light text-[#57575f]">{current.patientId}</p>}
+                  <p className="text-[14px] font-medium text-[color:var(--ink)] truncate">{current.patientName}</p>
+                  {current.patientId && <p className="text-[12px] font-light text-[color:var(--ink-soft)]">{current.patientId}</p>}
                 </div>
                 {canWrite && (
                   <button
                     onClick={() => { reset(); setConfirmRelease(true); }}
                     disabled={loading}
-                    className="inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 shrink-0"
+                    className="inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50 shrink-0"
                   >
                     <LogOut size={13} /> Discharge & Free
                   </button>
@@ -232,7 +232,7 @@ function ManageBedModal({
                   <button
                     onClick={transfer}
                     disabled={loading || !transferTargetId}
-                    className="self-start inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
+                    className="self-start inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50"
                   >
                     <ArrowRightLeft size={13} /> {loading ? "Transferring…" : "Transfer Patient"}
                   </button>
@@ -261,7 +261,7 @@ function ManageBedModal({
                     <button
                       onClick={assign}
                       disabled={loading || !assignPatientId}
-                      className="inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[#009598] px-4 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 shrink-0"
+                      className="inline-flex items-center gap-[6px] text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50 shrink-0"
                     >
                       <UserPlus size={13} /> {loading ? "Assigning…" : "Assign Bed"}
                     </button>
@@ -273,7 +273,7 @@ function ManageBedModal({
 
           {/* Edit */}
           {canWrite && (
-            <div className="flex flex-col gap-3 border-t border-[#f0f0f0] pt-4">
+            <div className="flex flex-col gap-3 border-t border-[color:var(--subtle-2)] pt-4">
               <span className={sectionTitle}>Edit bed</span>
               <div className="grid grid-cols-2 gap-3">
                 <FormRow label="Bed Number"><FormInput value={edit.bedNumber} onChange={(v) => setEdit((e) => ({ ...e, bedNumber: v }))} /></FormRow>
@@ -282,7 +282,7 @@ function ManageBedModal({
               <button
                 onClick={saveEdit}
                 disabled={loading || !edit.bedNumber || (edit.bedNumber === current.bedNumber && edit.ward === current.ward)}
-                className="self-start text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[7px] rounded-full hover:bg-[#e8f7f7] transition-colors disabled:opacity-40 disabled:border-[#dedee1] disabled:text-[#57575f]"
+                className="self-start text-[13px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-4 py-[7px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors disabled:opacity-40 disabled:border-[color:var(--line)] disabled:text-[color:var(--ink-soft)]"
               >
                 Save Changes
               </button>
@@ -339,17 +339,17 @@ function BedStatusView({
     <div className="p-5 flex flex-col gap-5">
       {/* Ward filter + add ward */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="bg-[#f6f6f6] inline-flex items-center gap-[10px] p-[3px] rounded-full flex-wrap">
+        <div className="bg-[color:var(--subtle)] inline-flex items-center gap-[10px] p-[3px] rounded-full flex-wrap">
           {["All", ...wardNames].map((w) => (
             <button key={w} onClick={() => setActiveWard(w)}
-              className={`px-4 py-[5px] rounded-full text-[13px] leading-[18px] font-normal transition-colors cursor-pointer whitespace-nowrap ${activeWard === w ? "bg-[#009598] text-white" : "text-[#57575f] hover:text-[#11111c]"}`}>
+              className={`px-4 py-[5px] rounded-full text-[13px] leading-[18px] font-normal transition-colors cursor-pointer whitespace-nowrap ${activeWard === w ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>
               {w}
             </button>
           ))}
         </div>
         {canWrite && (
           <button onClick={onAddWard}
-            className="inline-flex items-center gap-[6px] text-[13px] font-normal text-[#009598] border border-[#009598] px-4 py-[6px] rounded-full hover:bg-[#e8f7f7] transition-colors">
+            className="inline-flex items-center gap-[6px] text-[13px] font-normal text-[color:var(--brand)] border border-[color:var(--brand)] px-4 py-[6px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors">
             <Plus size={14} /> Add Ward
           </button>
         )}
@@ -360,7 +360,7 @@ function BedStatusView({
         {STATUSES.map((s) => (
           <div key={s} className="flex items-center gap-[6px]">
             <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[s]}`} />
-            <span className="text-[12px] font-normal text-[#57575f]">{s}</span>
+            <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s}</span>
           </div>
         ))}
       </div>
@@ -371,14 +371,14 @@ function BedStatusView({
           const ward = wards.find((w) => w.name === wardName)!;
           const wardBeds = beds.filter((b) => b.ward === wardName);
           return (
-            <div key={wardName} className="border border-[#dedee1] rounded-[10px] p-5">
+            <div key={wardName} className="border border-[color:var(--line)] rounded-[10px] p-5">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2 group">
-                  <h2 className="text-[16px] font-medium text-[#11111c] leading-5">{wardName}</h2>
+                  <h2 className="text-[16px] font-medium text-[color:var(--ink)] leading-5">{wardName}</h2>
                   {canWrite && (
                     <>
                       <button onClick={() => onEditWard(ward)} title="Rename ward"
-                        className="text-[#c8c8cc] hover:text-[#009598] transition-colors">
+                        className="text-[#c8c8cc] hover:text-[color:var(--brand)] transition-colors">
                         <Pencil size={13} />
                       </button>
                       <button onClick={() => onDeleteWard(ward)} title="Delete ward"
@@ -388,7 +388,7 @@ function BedStatusView({
                     </>
                   )}
                 </div>
-                <span className="text-[12px] font-light text-[#57575f]">
+                <span className="text-[12px] font-light text-[color:var(--ink-soft)]">
                   {wardBeds.length} beds · {wardBeds.filter((b) => b.status === "Occupied").length} occupied · {wardBeds.filter((b) => b.status === "Available").length} available
                 </span>
               </div>
@@ -417,26 +417,26 @@ function TransfersView({ transfers }: { transfers: BedTransferDTO[] }) {
   return (
     <div className="overflow-x-auto" style={{ minHeight: 555 }}>
       <div style={{ minWidth: 1100 }}>
-        <div className="relative h-10 bg-[#f2f3f3]" style={{ minWidth: 1100 }}>
+        <div className="relative h-10 bg-[color:var(--subtle-3)]" style={{ minWidth: 1100 }}>
           {[{ l: "Patient", x: 20 }, { l: "From", x: 220 }, { l: "To", x: 460 }, { l: "Date", x: 700 }, { l: "Reason", x: 860 }, { l: "Status", x: 1040 }].map(c => (
-            <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
+            <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: c.x }}>{c.l}</span>
           ))}
         </div>
         {transfers.map(t => (
-          <div key={t.id} className="relative flex items-center h-[64px] border-b border-[#dedee1] last:border-0 bg-white hover:bg-[#fafafa] transition-colors" style={{ minWidth: 1100 }}>
-            <span className="absolute text-[14px] font-medium text-[#11111c] whitespace-nowrap" style={{ left: 20 }}>{t.patientName}</span>
+          <div key={t.id} className="relative flex items-center h-[64px] border-b border-[color:var(--line)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 1100 }}>
+            <span className="absolute text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: 20 }}>{t.patientName}</span>
             <div className="absolute flex items-center gap-2" style={{ left: 220 }}>
-              <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{t.from}</span>
-              <ArrowRight size={14} className="text-[#57575f] shrink-0" />
-              <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{t.to}</span>
+              <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{t.from}</span>
+              <ArrowRight size={14} className="text-[color:var(--ink-soft)] shrink-0" />
+              <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{t.to}</span>
             </div>
-            <span className="absolute text-[14px] font-normal text-[#11111c] whitespace-nowrap" style={{ left: 700 }}>{formatDate(t.date)}</span>
-            <span className="absolute text-[13px] font-normal text-[#57575f] whitespace-nowrap" style={{ left: 860 }}>{t.reason}</span>
-            <span className={`absolute inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${TRANSFER_CLR[t.status] ?? "bg-[#f0f0f0] text-[#57575f]"}`} style={{ left: 1040 }}>{t.status}</span>
+            <span className="absolute text-[14px] font-normal text-[color:var(--ink)] whitespace-nowrap" style={{ left: 700 }}>{formatDate(t.date)}</span>
+            <span className="absolute text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap" style={{ left: 860 }}>{t.reason}</span>
+            <span className={`absolute inline-flex items-center px-[10px] py-[4px] rounded-full text-[12px] font-normal whitespace-nowrap ${TRANSFER_CLR[t.status] ?? "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"}`} style={{ left: 1040 }}>{t.status}</span>
           </div>
         ))}
         {transfers.length === 0 && (
-          <div className="text-[13px] font-light text-[#57575f] text-center py-10">No transfers recorded yet.</div>
+          <div className="text-[13px] font-light text-[color:var(--ink-soft)] text-center py-10">No transfers recorded yet.</div>
         )}
       </div>
     </div>
@@ -526,9 +526,9 @@ export default function BedsPage() {
       <Modal open={showAddBed} onClose={() => setShowAddBed(false)} title="Add Bed"
         footer={
           <>
-            <button onClick={() => setShowAddBed(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setShowAddBed(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={addBed} disabled={loading || !bedForm.bedNumber || !bedForm.ward}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Adding…" : "Add Bed"}
             </button>
           </>
@@ -546,9 +546,9 @@ export default function BedsPage() {
       <Modal open={showWardModal} onClose={() => setShowWardModal(false)} title={editingWard ? `Edit ${editingWard.name}` : "Add Ward"} width={460}
         footer={
           <>
-            <button onClick={() => setShowWardModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setShowWardModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={saveWard} disabled={loading || !wardForm.name.trim()}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Saving…" : editingWard ? "Save Ward" : "Add Ward"}
             </button>
           </>

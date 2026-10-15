@@ -34,13 +34,13 @@ function toDisplayDate(input: string): string {
 
 function InfoRow({ icon: Icon, label, value }: { icon: typeof Calendar; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
-      <div className="w-8 h-8 rounded-[8px] bg-[#f6f6f6] flex items-center justify-center shrink-0 mt-[2px]">
-        <Icon size={15} strokeWidth={1.5} className="text-[#57575f]" />
+    <div className="flex items-start gap-3 py-3" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
+      <div className="w-8 h-8 rounded-[8px] bg-[color:var(--subtle)] flex items-center justify-center shrink-0 mt-[2px]">
+        <Icon size={15} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
       </div>
       <div className="flex-1">
-        <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-[2px]">{label}</div>
-        <div className="text-[14px] font-normal text-[#11111c]">{value}</div>
+        <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-[2px]">{label}</div>
+        <div className="text-[14px] font-normal text-[color:var(--ink)]">{value}</div>
       </div>
     </div>
   );
@@ -70,13 +70,13 @@ export default function AppointmentDetailPage() {
     run(() => api.patch(`/appointments/${id}`, { status })).then(reload);
 
   if (loading) {
-    return <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>Loading…</div>;
+    return <div className={`${tw.gutterX} py-20 text-center text-[color:var(--ink-soft)]`}>Loading…</div>;
   }
   if (!appt) {
     return (
-      <div className={`${tw.gutterX} py-20 text-center text-[#57575f]`}>
+      <div className={`${tw.gutterX} py-20 text-center text-[color:var(--ink-soft)]`}>
         Appointment not found.{" "}
-        <Link href="/appointments" className="text-[#009598] underline">Back to Appointments</Link>
+        <Link href="/appointments" className="text-[color:var(--brand)] underline">Back to Appointments</Link>
       </div>
     );
   }
@@ -169,20 +169,20 @@ export default function AppointmentDetailPage() {
     reload();
   }
 
-  const btnPrimary = "text-[13px] font-normal text-white bg-[#009598] px-4 py-2 rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
-  const btnOutline = "text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-4 py-2 rounded-full hover:bg-[#f6f6f6] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
+  const btnPrimary = "text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-2 rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
+  const btnOutline = "text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-2 rounded-full hover:bg-[color:var(--subtle)] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
   const btnDanger = "text-[13px] font-normal text-[#ff0004] border border-[#ffd6d7] px-4 py-2 rounded-full hover:bg-[#ffe9e9] transition-colors disabled:opacity-50 inline-flex items-center gap-2";
 
   return (
     <>
       {/* Top bar */}
-      <div className={`${tw.gutterX} py-5 flex items-center gap-4`} style={{ borderBottom: "1px solid #dedee1" }}>
-        <Link href="/appointments" className="p-2 rounded-[8px] text-[#57575f] hover:bg-[#f6f6f6] hover:text-[#11111c] transition-colors">
+      <div className={`${tw.gutterX} py-5 flex items-center gap-4`} style={{ borderBottom: "1px solid var(--line)" }}>
+        <Link href="/appointments" className="p-2 rounded-[8px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors">
           <ArrowLeft size={20} strokeWidth={1.5} />
         </Link>
         <div className="flex-1">
-          <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">Appointment Details</div>
-          <div className="text-[17px] font-medium text-[#11111c] leading-tight">{appt.patientName}</div>
+          <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Appointment Details</div>
+          <div className="text-[17px] font-medium text-[color:var(--ink)] leading-tight">{appt.patientName}</div>
         </div>
         <StatusBadge status={appt.status} />
         <div className="flex items-center gap-2">
@@ -237,9 +237,9 @@ export default function AppointmentDetailPage() {
         <div className="flex flex-col gap-6">
           {/* Appointment info card */}
           <div className={`${tw.surface.card} ${tw.radius.card} p-6`}>
-            <div className="text-[14px] font-medium text-[#11111c] mb-4">Appointment Information</div>
+            <div className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Appointment Information</div>
             <InfoRow icon={User}        label="Patient"      value={`${appt.patientName} · ${appt.patientAge} years old`} />
-            <div className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <div className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
               <div className="w-8 h-8 shrink-0" />
               <AbhaBadge abhaId={patientRec?.abhaId} />
             </div>
@@ -249,12 +249,12 @@ export default function AppointmentDetailPage() {
             <InfoRow icon={Tag}         label="Type"         value={appt.type} />
             <div className="py-3">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-[8px] bg-[#f6f6f6] flex items-center justify-center shrink-0 mt-[2px]">
-                  <FileText size={15} strokeWidth={1.5} className="text-[#57575f]" />
+                <div className="w-8 h-8 rounded-[8px] bg-[color:var(--subtle)] flex items-center justify-center shrink-0 mt-[2px]">
+                  <FileText size={15} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider mb-[2px]">Chief Complaint / Reason</div>
-                  <div className="text-[14px] font-normal text-[#11111c]">{appt.reason}</div>
+                  <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-[2px]">Chief Complaint / Reason</div>
+                  <div className="text-[14px] font-normal text-[color:var(--ink)]">{appt.reason}</div>
                 </div>
               </div>
             </div>
@@ -263,18 +263,18 @@ export default function AppointmentDetailPage() {
           {/* Video consultation */}
           {appt.type === "Tele-consult" && (
             <div className={`${tw.surface.card} ${tw.radius.card} p-6`}>
-              <div className="text-[14px] font-medium text-[#11111c] mb-1">Video Consultation</div>
-              <p className="text-[12px] font-light text-[#57575f] mb-4">
+              <div className="text-[14px] font-medium text-[color:var(--ink)] mb-1">Video Consultation</div>
+              <p className="text-[12px] font-light text-[color:var(--ink-soft)] mb-4">
                 {appt.consultAmount != null ? `Fee ₹${appt.consultAmount.toLocaleString("en-IN")}` : "Fee —"}
                 {appt.paymentStatus ? ` · ${appt.paymentStatus}` : ""}
                 {appt.meetError && !appt.videoUrl ? ` · ${appt.meetError}` : ""}
                 {appt.meetAccess && appt.videoUrl ? ` · Join access: ${({ OPEN: "anyone with the link", TRUSTED: "ask to join", RESTRICTED: "invitees only", "calendar-default": "invited guests only (Google default)" } as Record<string, string>)[appt.meetAccess] ?? appt.meetAccess}` : ""}
               </p>
               {(appt.paymentId || appt.orderId) && (
-                <p className="text-[11px] font-light text-[#57575f] mb-4 break-all">
-                  {appt.paymentId && <>Payment <span className="text-[#11111c]">{appt.paymentId}</span></>}
+                <p className="text-[11px] font-light text-[color:var(--ink-soft)] mb-4 break-all">
+                  {appt.paymentId && <>Payment <span className="text-[color:var(--ink)]">{appt.paymentId}</span></>}
                   {appt.paymentId && appt.orderId && " · "}
-                  {appt.orderId && <>Order <span className="text-[#11111c]">{appt.orderId}</span></>}
+                  {appt.orderId && <>Order <span className="text-[color:var(--ink)]">{appt.orderId}</span></>}
                 </p>
               )}
               <ConsultLinkActions appt={appt} canWrite={can("teleconsult", "write")} onChanged={reload} />
@@ -284,18 +284,18 @@ export default function AppointmentDetailPage() {
           {/* Related prescription */}
           {relatedRx && (
             <div className={`${tw.surface.card} ${tw.radius.card} p-6`}>
-              <div className="text-[14px] font-medium text-[#11111c] mb-4">Related Prescription</div>
-              <div className="flex items-center justify-between p-4 rounded-[10px] bg-[#f6f6f6]">
+              <div className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Related Prescription</div>
+              <div className="flex items-center justify-between p-4 rounded-[10px] bg-[color:var(--subtle)]">
                 <div>
-                  <div className="text-[13px] font-medium text-[#11111c]">{relatedRx.rxNumber}</div>
-                  <div className="text-[12px] font-light text-[#57575f] mt-[2px]">
+                  <div className="text-[13px] font-medium text-[color:var(--ink)]">{relatedRx.rxNumber}</div>
+                  <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-[2px]">
                     {relatedRx.diagnosis} · {relatedRx.medicineCount} medicines · {relatedRx.date}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={relatedRx.status} />
                   <Link href={`/prescriptions/${relatedRx.id}`}
-                    className="text-[12px] font-medium text-[#009598] hover:underline">
+                    className="text-[12px] font-medium text-[color:var(--brand)] hover:underline">
                     View →
                   </Link>
                 </div>
@@ -316,39 +316,39 @@ export default function AppointmentDetailPage() {
         {/* Right — doctor info */}
         {doctor && (
           <div className={`${tw.surface.card} ${tw.radius.card} p-6 flex flex-col gap-4 self-start`}>
-            <div className="text-[14px] font-medium text-[#11111c]">Attending Doctor</div>
+            <div className="text-[14px] font-medium text-[color:var(--ink)]">Attending Doctor</div>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#009598] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-full bg-[color:var(--brand)] flex items-center justify-center shrink-0">
                 <span className="text-white text-[16px] font-medium">
                   {doctor.name.replace("Dr. ", "").split(" ").map(n => n[0]).join("").slice(0,2)}
                 </span>
               </div>
               <div>
-                <div className="text-[14px] font-medium text-[#11111c]">{doctor.name}</div>
-                <div className="text-[12px] font-light text-[#57575f]">{doctor.specialty}</div>
+                <div className="text-[14px] font-medium text-[color:var(--ink)]">{doctor.name}</div>
+                <div className="text-[12px] font-light text-[color:var(--ink-soft)]">{doctor.specialty}</div>
               </div>
             </div>
-            <div className="h-px bg-[#f0f0f0]" />
+            <div className="h-px bg-[color:var(--subtle-2)]" />
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-[13px]">
-                <span className="text-[#57575f]">Department</span>
-                <span className="text-[#11111c]">{doctor.department}</span>
+                <span className="text-[color:var(--ink-soft)]">Department</span>
+                <span className="text-[color:var(--ink)]">{doctor.department}</span>
               </div>
               <div className="flex justify-between text-[13px]">
-                <span className="text-[#57575f]">Experience</span>
-                <span className="text-[#11111c]">{doctor.experience}</span>
+                <span className="text-[color:var(--ink-soft)]">Experience</span>
+                <span className="text-[color:var(--ink)]">{doctor.experience}</span>
               </div>
               <div className="flex justify-between text-[13px]">
-                <span className="text-[#57575f]">Phone</span>
-                <span className="text-[#11111c]">{doctor.phone}</span>
+                <span className="text-[color:var(--ink-soft)]">Phone</span>
+                <span className="text-[color:var(--ink)]">{doctor.phone}</span>
               </div>
               <div className="flex justify-between text-[13px]">
-                <span className="text-[#57575f]">Status</span>
+                <span className="text-[color:var(--ink-soft)]">Status</span>
                 <StatusBadge status={doctor.status} />
               </div>
             </div>
             <Link href={`/doctors/${doctor.id}`}
-              className="mt-2 text-[13px] font-medium text-[#009598] hover:underline text-center">
+              className="mt-2 text-[13px] font-medium text-[color:var(--brand)] hover:underline text-center">
               View Full Profile →
             </Link>
           </div>
@@ -363,23 +363,23 @@ export default function AppointmentDetailPage() {
         width={520}
         footer={
           <>
-            <button onClick={() => setModal(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">
+            <button onClick={() => setModal(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
               Cancel
             </button>
             <button
               onClick={modal === "followup" ? createFollowup : saveReschedule}
               disabled={acting || !form.date || !form.time}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50"
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50"
             >
               {acting ? "Saving…" : modal === "followup" ? "Book Appointment" : "Save New Time"}
             </button>
           </>
         }
       >
-        <div className="mb-3 text-[12px] text-[#57575f]">
+        <div className="mb-3 text-[12px] text-[color:var(--ink-soft)]">
           {appt.patientName} · {appt.patientAge} yrs
           {modal === "reschedule" && (
-            <span className="text-[#57575f]"> — currently {formatDate(appt.date)} at {appt.time}</span>
+            <span className="text-[color:var(--ink-soft)]"> — currently {formatDate(appt.date)} at {appt.time}</span>
           )}
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -387,7 +387,7 @@ export default function AppointmentDetailPage() {
           {modal === "followup" ? (
             <FormRow label="Doctor"><FormSelect placeholder="Select doctor" value={form.doctorId} onChange={v => { setF("doctorId", v); setF("time", ""); setF("timeLabel", ""); }} options={doctorOptions} /></FormRow>
           ) : (
-            <FormRow label="Doctor"><p className="h-[42px] flex items-center text-[14px] text-[#11111c]">{appt.doctor}</p></FormRow>
+            <FormRow label="Doctor"><p className="h-[42px] flex items-center text-[14px] text-[color:var(--ink)]">{appt.doctor}</p></FormRow>
           )}
           {modal === "followup" && (
             <div className="col-span-2"><FormRow label="Reason"><FormInput placeholder="Reason for follow-up" value={form.reason} onChange={v => setF("reason", v)} /></FormRow></div>

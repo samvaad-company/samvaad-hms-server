@@ -21,7 +21,7 @@ const GAP = 4;
 const VIEWPORT_MARGIN = 8;
 
 /**
- * Self-contained "⋮" action menu for table rows. Stops event propagation so it
+ * Self-contained "⋮" action menu for table rows (`compact` shrinks the icon for tight lists). Stops event propagation so it
  * works inside clickable/link rows, closes on outside click, Escape, or
  * scroll, and renders its dropdown through a portal to `document.body` —
  * fixed-positioned off the button's own rect — so it floats above the table's
@@ -30,7 +30,7 @@ const VIEWPORT_MARGIN = 8;
  * there isn't enough room left in the viewport (e.g. the last rows of a
  * long table), so the menu is never rendered off-screen.
  */
-export function RowMenu({ actions }: { actions: RowAction[] }) {
+export function RowMenu({ actions, compact = false }: { actions: RowAction[]; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Position | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -95,17 +95,17 @@ export function RowMenu({ actions }: { actions: RowAction[] }) {
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="cursor-pointer text-[#57575f] hover:text-[#11111c] transition-colors pr-1"
+        className={`cursor-pointer text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] transition-colors ${compact ? "p-1 rounded-[6px] hover:bg-black/5" : "pr-1"}`}
         aria-label="Row actions"
       >
-        <MoreVertical size={24} strokeWidth={1.5} />
+        <MoreVertical size={compact ? 16 : 24} strokeWidth={1.5} />
       </button>
 
       {open &&
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-50 w-[160px] bg-white rounded-[10px] border border-[#dedee1] shadow-lg py-1"
+            className="fixed z-50 w-[160px] bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg py-1"
             style={
               pos
                 ? { top: pos.top, bottom: pos.bottom, right: pos.right }
@@ -129,7 +129,7 @@ export function RowMenu({ actions }: { actions: RowAction[] }) {
                 className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   a.danger
                     ? "text-[#ff0004] hover:bg-[#ffe9e9]"
-                    : "text-[#11111c] hover:bg-[#f6f6f6]"
+                    : "text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
                 }`}
               >
                 {a.label}

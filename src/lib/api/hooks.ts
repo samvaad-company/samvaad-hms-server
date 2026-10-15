@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiClientError, type QueryParams } from "@/lib/api/client";
 import type { PaginationMeta } from "@/types/api";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { fetchQuery, queryKey, type Query } from "@/store/thunks";
+import { fetchMorePaged, fetchPagedQuery, fetchQuery, queryKey, type PagedQuery, type Query } from "@/store/thunks";
 import type { StoredError } from "@/store/cacheSlice";
 
 export interface ListState<T> {
@@ -25,6 +25,21 @@ export interface ListState<T> {
   /** True only while there is nothing to show yet (the first load). Cached data never reports loading. */
   loading: boolean;
   error: ApiClientError | null;
+  reload: () => void;
+}
+
+export interface InfiniteListState<T> {
+  items: T[];
+  /** Everything that matches the search/filters, not just what is loaded so far. */
+  total: number;
+  /** True only until the first page of this search arrives. */
+  loading: boolean;
+  /** The next page is on its way. */
+  loadingMore: boolean;
+  hasMore: boolean;
+  error: ApiClientError | null;
+  /** Fetch the next page (does nothing while one is loading or when everything is loaded). */
+  loadMore: () => void;
   reload: () => void;
 }
 
@@ -80,6 +95,39 @@ export function useList<T>(path: string | null, params?: QueryParams): ListState
   const items = (data as T[] | undefined) ?? (NO_ITEMS as T[]);
   const loading = active && !loaded && !error;
   return useMemo(() => ({ items, meta, loading, error, reload }), [items, meta, loading, error, reload]);
+}
+
+/**
+ * A list that grows as the user scrolls. Search, filters and sort go to the server (so they cover every record,
+ * not just the loaded ones); each distinct combination is cached on its own, so going back to a search you
+ * already ran shows its rows at once, however far you had scrolled.
+ */
+export function useInfiniteList<T>(path: string, params?: QueryParams, pageSize = 40): InfiniteListState<T> {
+  const dispatch = useAppDispatch();
+  const key = `paged|${queryKey(path, { ...params, pageSize })}`;
+  const paramsJson = params ? JSON.stringify(params) : "";
+  const data = useAppSelector((s) => s.apiCache.entries[key]?.data);
+  const meta = useAppSelector((s) => s.apiCache.entries[key]?.meta ?? null);
+  const storedError = useAppSelector((s) => s.apiCache.entries[key]?.error);
+  const loaded = useAppSelector((s) => s.apiCache.entries[key]?.loadedAt != null);
+  const loadingMore = useAppSelector((s) => !!s.apiCache.entries[key]?.loadingMore);
+  const epoch = useAppSelector((s) => s.apiCache.epoch);
+
+  const query = useCallback((): PagedQuery => ({ key, path, pageSize, params: paramsJson ? (JSON.parse(paramsJson) as QueryParams) : undefined }), [key, path, pageSize, paramsJson]);
+
+  useEffect(() => { void dispatch(fetchPagedQuery(query())); }, [dispatch, query, epoch]);
+
+  const loadMore = useCallback(() => { void dispatch(fetchMorePaged(query())); }, [dispatch, query]);
+  const reload = useCallback(() => { void dispatch(fetchPagedQuery(query(), { force: true })); }, [dispatch, query]);
+
+  const error = useMemo(() => toError(storedError), [storedError]);
+  const items = (data as T[] | undefined) ?? (NO_ITEMS as T[]);
+  const hasMore = !!meta && meta.page < meta.totalPages;
+  const loading = !loaded && !error;
+  return useMemo(
+    () => ({ items, total: meta?.total ?? 0, loading, loadingMore, hasMore, error, loadMore, reload }),
+    [items, meta, loading, loadingMore, hasMore, error, loadMore, reload],
+  );
 }
 
 export function useItem<T>(path: string | null): ItemState<T> {

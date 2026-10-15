@@ -33,7 +33,7 @@ export default function HomePage() {
 
   if (loading || !user) {
     return (
-      <div className={`${tw.gutterX} py-16 text-center text-[14px] text-[#57575f]`}>
+      <div className={`${tw.gutterX} py-16 text-center text-[14px] text-[color:var(--ink-soft)]`}>
         Loading your workspace…
       </div>
     );

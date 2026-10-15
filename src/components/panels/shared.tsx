@@ -29,8 +29,8 @@ export function PanelHeader({ name, subtitle, badge }: { name: string; subtitle:
     <div className={`${tw.gutterX} pt-[16px] mb-5`}>
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-[26px] font-medium text-[#11111c]">{greeting}, {name} 👋</h1>
-          <p className="text-[14px] font-light text-[#57575f]">{subtitle}</p>
+          <h1 className="text-[26px] font-medium text-[color:var(--ink)]">{greeting}, {name} 👋</h1>
+          <p className="text-[14px] font-light text-[color:var(--ink-soft)]">{subtitle}</p>
         </div>
         {badge && (
           <div className="flex items-center gap-2 px-4 py-2 bg-[#dffff3] rounded-full">
@@ -53,7 +53,7 @@ export function StatRow({ stats }: { stats: PanelStat[] }) {
               <s.icon size={16} className={s.color} strokeWidth={1.5} />
             </div>
             <span className={`text-[28px] font-medium leading-none ${s.color}`}>{s.value}</span>
-            <span className="text-[12px] font-normal text-[#57575f]">{s.label}</span>
+            <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.label}</span>
           </div>
         ))}
       </div>
@@ -73,13 +73,13 @@ export function QuickLinks({ links }: { links: QuickLink[] }) {
     <div className="grid grid-cols-2 gap-3">
       {links.map(l => (
         <Link key={l.href + l.label} href={l.href}
-          className="border border-[#dedee1] rounded-[10px] p-4 flex items-center gap-3 bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:border-[#009598] transition-all">
-          <div className="w-9 h-9 rounded-[8px] bg-[#e8f7f7] flex items-center justify-center shrink-0">
-            <l.icon size={16} className="text-[#009598]" strokeWidth={1.5} />
+          className="border border-[color:var(--line)] rounded-[10px] p-4 flex items-center gap-3 bg-[color:var(--surface)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:border-[color:var(--brand)] transition-all">
+          <div className="w-9 h-9 rounded-[8px] bg-[color:var(--brand-soft)] flex items-center justify-center shrink-0">
+            <l.icon size={16} className="text-[color:var(--brand)]" strokeWidth={1.5} />
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-[#11111c] truncate">{l.label}</p>
-            <p className="text-[11px] font-light text-[#57575f] truncate">{l.description}</p>
+            <p className="text-[13px] font-medium text-[color:var(--ink)] truncate">{l.label}</p>
+            <p className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{l.description}</p>
           </div>
         </Link>
       ))}
@@ -95,9 +95,9 @@ export function WorklistCard({ title, action, children }: {
   return (
     <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex-1 min-w-0`}>
       <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-medium text-[#11111c]">{title}</h2>
+        <h2 className="text-[15px] font-medium text-[color:var(--ink)]">{title}</h2>
         {action && (
-          <Link href={action.href} className="text-[12px] font-normal text-[#009598] hover:underline whitespace-nowrap">
+          <Link href={action.href} className="text-[12px] font-normal text-[color:var(--brand)] hover:underline whitespace-nowrap">
             {action.label} →
           </Link>
         )}
@@ -108,7 +108,7 @@ export function WorklistCard({ title, action, children }: {
 }
 
 export function EmptyRow({ text }: { text: string }) {
-  return <div className="py-10 text-center text-[13px] text-[#57575f]">{text}</div>;
+  return <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">{text}</div>;
 }
 
 /**
@@ -141,7 +141,7 @@ export function MyTasksCard() {
     Urgent: "bg-[#ffe9e9] text-[#ff0004]",
     High: "bg-[#fff2e0] text-[#ff9000]",
     Medium: "bg-[#d6eaff] text-[#007cff]",
-    Low: "bg-[#f0f0f0] text-[#57575f]",
+    Low: "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
   };
 
   return (
@@ -150,10 +150,10 @@ export function MyTasksCard() {
         <EmptyRow text="No open tasks assigned to you." />
       ) : (
         mine.map((t) => (
-          <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#f0f0f0] last:border-0">
+          <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--subtle-2)] last:border-0">
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-[#11111c] truncate">{t.title}</p>
-              <p className="text-[11px] font-light text-[#57575f] truncate">
+              <p className="text-[13px] font-medium text-[color:var(--ink)] truncate">{t.title}</p>
+              <p className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">
                 {t.goal ? `${t.goal} · ` : ""}Due {formatDate(t.dueDate)}
               </p>
             </div>
@@ -163,7 +163,7 @@ export function MyTasksCard() {
               </span>
               <button
                 onClick={() => advance(t.id, t.status === "To Do" ? "In Progress" : "Done")}
-                className="text-[11px] font-medium text-[#009598] border border-[#009598] px-3 py-[4px] rounded-full hover:bg-[#e8f7f7] transition-colors whitespace-nowrap"
+                className="text-[11px] font-medium text-[color:var(--brand)] border border-[color:var(--brand)] px-3 py-[4px] rounded-full hover:bg-[color:var(--brand-soft)] transition-colors whitespace-nowrap"
               >
                 {t.status === "To Do" ? "Start" : "Mark done"}
               </button>

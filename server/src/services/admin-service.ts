@@ -16,6 +16,7 @@ import {
   toMedicineDTO,
 } from "@/repositories/mappers";
 import { hashPassword } from "@/auth/password";
+import { DEFAULT_THEME, THEME_KEYS } from "@shared/lib/theme";
 import { ROLE_PERMISSIONS, RESOURCES } from "@/auth/rbac";
 import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
@@ -49,6 +50,7 @@ export async function getSettings(actor: Session) {
     teleconsultEnabled: !!row.teleconsult_enabled,
     teleconsultPrice: row.teleconsult_price ?? null,
     teleconsultMeetAccess: row.teleconsult_meet_access ?? "OPEN",
+    themeColor: (row.theme_color ?? DEFAULT_THEME) as string,
   };
 }
 
@@ -71,6 +73,7 @@ const settingsSchema = {
   teleconsultEnabled: { type: "boolean", required: false },
   teleconsultPrice: { type: "number", required: false, min: 0, max: 100000 },
   teleconsultMeetAccess: { type: "enum", required: false, values: ["OPEN", "TRUSTED", "RESTRICTED"] },
+  themeColor: { type: "enum", required: false, values: THEME_KEYS },
 } as const;
 
 export async function updateSettings(input: unknown, actor: Session) {
@@ -94,6 +97,7 @@ export async function updateSettings(input: unknown, actor: Session) {
     teleconsultEnabled: "teleconsult_enabled",
     teleconsultPrice: "teleconsult_price",
     teleconsultMeetAccess: "teleconsult_meet_access",
+    themeColor: "theme_color",
   };
   const patch: Record<string, unknown> = {};
   for (const [key, col] of Object.entries(map)) {

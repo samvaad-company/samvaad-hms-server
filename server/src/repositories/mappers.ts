@@ -32,6 +32,10 @@ import type {
   DeathRecordDTO,
   TpaDTO,
   TpaClaimDTO,
+  EnquiryDTO,
+  FollowUpDTO,
+  FollowUpStatus,
+  EnquiryStatus,
   FinanceEntryDTO,
   InventoryItemDTO,
   InventoryIssueDTO,
@@ -75,6 +79,8 @@ import type {
   DeathRecordRow,
   TpaRow,
   TpaClaimRow,
+  EnquiryRow,
+  FollowUpRow,
   FinanceIncomeRow,
   FinanceExpenseRow,
   InventoryItemRow,
@@ -112,6 +118,7 @@ import type {
   BloodIssueStatus,
   BloodComponent,
   RadiologyStatus,
+  RadiologyPriority,
   AmbulanceStatus,
   AmbulanceCallStatus,
   TpaStatus,
@@ -160,6 +167,32 @@ export function toPatientDTO(r: PatientRow): PatientDTO {
     policyNumber: r.policy_number,
     corporate: r.corporate,
     doctorId: r.doctor_id,
+    ageMonths: r.age_months ?? null,
+    referralSource: r.referral_source ?? null,
+    medicoLegal: !!r.medico_legal,
+    temporary: !!r.is_temporary,
+    dataConsent: !!r.data_consent,
+    alternatePhone: r.alternate_phone ?? null,
+    addressLine2: r.address_line2 ?? null,
+    title: r.title ?? null,
+    guardianName: r.guardian_name ?? null,
+    careOf: r.care_of ?? null,
+    anniversary: r.anniversary ?? null,
+    maritalStatus: r.marital_status ?? null,
+    religion: r.religion ?? null,
+    language: r.language ?? null,
+    nationality: r.nationality ?? null,
+    education: r.education ?? null,
+    notes: r.notes ?? null,
+    occupation: r.occupation ?? null,
+    employer: r.employer ?? null,
+    designation: r.designation ?? null,
+    workPhone: r.work_phone ?? null,
+    privilegeCardNo: r.privilege_card_no ?? null,
+    payers: r.payers ?? [],
+    // Never the fingerprint — just enough to recognise the document.
+    identityDocuments: (r.identity_documents ?? []).map((d) => ({ type: d.type, last4: d.last4 })),
+    covid: r.covid_details ?? null,
   };
 }
 
@@ -483,6 +516,9 @@ export function toRadiologyDTO(r: RadiologyTestRow): RadiologyTestDTO {
     discount: Number(r.discount ?? 0),
     discountType: (r.discount_type as "percent" | "amount") ?? "amount",
     status: r.status as RadiologyStatus,
+    priority: (r.priority as RadiologyPriority) ?? "Routine",
+    // Joined in by the service layer, like the names below.
+    patientCode: null,
     doctorId: r.doctor_id,
     doctor: r.doctor,
     radiologyCenterId: r.radiology_center_id,
@@ -582,6 +618,47 @@ export function toTpaClaimDTO(r: TpaClaimRow): TpaClaimDTO {
     approvedAmount: Number(r.approved_amount),
     date: r.claim_date,
     status: r.status as ClaimStatus,
+  };
+}
+
+export function toFollowUpDTO(r: FollowUpRow): FollowUpDTO {
+  return {
+    id: r.id,
+    patientId: r.patient_id ?? null,
+    patientName: r.patient_name,
+    patientCode: r.patient_code ?? "",
+    doctorId: r.doctor_id ?? null,
+    doctor: r.doctor ?? "",
+    reason: r.reason ?? "",
+    dueOn: r.due_on,
+    status: r.status as FollowUpStatus,
+    createdBy: r.created_by ?? "",
+    createdByRole: r.created_by_role ?? "",
+    resolvedBy: r.resolved_by ?? null,
+    resolvedByRole: r.resolved_by_role ?? null,
+    resolvedOn: r.resolved_on ?? null,
+    reschedules: Number(r.reschedules ?? 0),
+    note: r.note ?? "",
+    createdAt: r.created_at,
+  };
+}
+
+export function toEnquiryDTO(r: EnquiryRow): EnquiryDTO {
+  return {
+    id: r.id,
+    name: r.name,
+    mobile: r.mobile ?? "",
+    department: r.department ?? "",
+    interestedIn: r.interested_in ?? "",
+    source: r.source ?? "",
+    estimatedValue: Number(r.estimated_value ?? 0),
+    followUpOn: r.follow_up_on || null,
+    notes: r.notes ?? "",
+    status: r.status as EnquiryStatus,
+    contacts: Number(r.contacts ?? 1),
+    convertedPatientId: r.converted_patient_id ?? null,
+    history: Array.isArray(r.history) ? r.history : [],
+    createdAt: r.created_at,
   };
 }
 

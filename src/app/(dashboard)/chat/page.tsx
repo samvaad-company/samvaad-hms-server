@@ -65,7 +65,7 @@ function ChatPageInner() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 52px)" }}>
+    <div className="flex flex-col h-full">
       {dialog}
       <div className="shrink-0">
         <PageHeader
@@ -78,28 +78,28 @@ function ChatPageInner() {
 
       <div className={`${tw.gutterX} pb-[20px] flex gap-4 flex-1 min-h-0`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col`} style={{ width: 280 }}>
-          <div className="px-4 py-3 border-b border-[#dedee1] shrink-0">
-            <span className="text-[12px] font-medium text-[#57575f] uppercase tracking-wider">History</span>
+          <div className="px-4 py-3 border-b border-[color:var(--line)] shrink-0">
+            <span className="text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">History</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             {threadsLoading && threads.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[#57575f]">Loading…</div>
+              <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">Loading…</div>
             ) : threads.length === 0 ? (
-              <div className="py-10 text-center text-[13px] text-[#57575f] px-4">No chats yet — start one below.</div>
+              <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)] px-4">No chats yet — start one below.</div>
             ) : (
               threads.map((t) => (
                 <div
                   key={t.id}
-                  className={`flex items-center justify-between gap-1 px-4 py-3 border-b border-[#f2f3f3] cursor-pointer transition-colors ${
-                    t.id === threadId ? "bg-[#e8f7f7]" : "hover:bg-[#fafafa]"
+                  className={`flex items-center justify-between gap-1 px-4 py-3 border-b border-[color:var(--subtle-3)] cursor-pointer transition-colors ${
+                    t.id === threadId ? "bg-[color:var(--brand-soft)]" : "hover:bg-[color:var(--faint)]"
                   }`}
                   onClick={() => void loadThread(t.id)}
                 >
                   <div className="min-w-0">
-                    <p className={`text-[13px] truncate ${t.id === threadId ? "font-medium text-[#009598]" : "font-normal text-[#11111c]"}`}>
+                    <p className={`text-[13px] truncate ${t.id === threadId ? "font-medium text-[color:var(--brand)]" : "font-normal text-[color:var(--ink)]"}`}>
                       {t.title || "New chat"}
                     </p>
-                    <p className="text-[11px] font-light text-[#57575f]">{relativeTime(t.updatedAt)}</p>
+                    <p className="text-[11px] font-light text-[color:var(--ink-soft)]">{relativeTime(t.updatedAt)}</p>
                   </div>
                   <RowMenu
                     actions={[
@@ -114,8 +114,8 @@ function ChatPageInner() {
 
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col flex-1`}>
           {loadingThread && messages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-[#57575f]">
-              <Sparkles size={20} className="animate-pulse text-[#009598]" strokeWidth={1.5} />
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-[color:var(--ink-soft)]">
+              <Sparkles size={20} className="animate-pulse text-[color:var(--brand)]" strokeWidth={1.5} />
               <span className="text-[13px]">Loading…</span>
             </div>
           ) : (

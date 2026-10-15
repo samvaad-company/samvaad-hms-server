@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import {
   cacheReducer as reducer,
-  fetchStarted, fetchSucceeded, fetchFailed, invalidateAll, clearCache, initialCacheState, MAX_ENTRIES,
+  fetchStarted, fetchSucceeded, fetchFailed, moreStarted, moreSucceeded, moreFailed, invalidateAll, clearCache, initialCacheState, MAX_ENTRIES,
   type CacheState,
 } from "../src/store/cacheSlice";
 
@@ -95,10 +95,41 @@ test("clearing the cache (sign-in/out) forgets everything", () => {
   assert.deepEqual(s, initialCacheState);
 });
 
+// ── Paged ("infinite scroll") lists ──────────────────────────────────────────
+
+const meta = (page: number, total = 100) => ({ page, pageSize: 2, total, totalPages: Math.ceil(total / 2) });
+
+test("the next page is appended after the rows already shown, and never repeats one", () => {
+  let s = run(initialCacheState, fetchStarted({ key: "/p", epoch: 0 }), fetchSucceeded({ key: "/p", epoch: 0, at: 1, data: [{ id: 1 }, { id: 2 }], meta: meta(1) }));
+  const first = (s.entries["/p"].data as { id: number }[])[0];
+  s = run(s, moreStarted({ key: "/p" }));
+  assert.equal(s.entries["/p"].loadingMore, true);
+  // the server's list shifted by one, so page 2 repeats id 2
+  s = run(s, moreSucceeded({ key: "/p", epoch: 0, rows: [{ id: 2 }, { id: 3 }], meta: meta(2) }));
+  assert.deepEqual((s.entries["/p"].data as { id: number }[]).map(r => r.id), [1, 2, 3]);
+  assert.equal((s.entries["/p"].data as { id: number }[])[0], first, "rows already on screen keep their identity");
+  assert.equal(s.entries["/p"].meta?.page, 2);
+  assert.equal(s.entries["/p"].loadingMore, false);
+});
+
+test("a page that arrives after something was saved is dropped (the refresh reloads everything)", () => {
+  let s = run(initialCacheState, fetchStarted({ key: "/p", epoch: 0 }), fetchSucceeded({ key: "/p", epoch: 0, at: 1, data: [{ id: 1 }], meta: meta(1) }), moreStarted({ key: "/p" }), invalidateAll());
+  s = run(s, moreSucceeded({ key: "/p", epoch: 0, rows: [{ id: 9 }], meta: meta(2) }));
+  assert.deepEqual((s.entries["/p"].data as { id: number }[]).map(r => r.id), [1]);
+  assert.equal(s.entries["/p"].loadingMore, false);
+});
+
+test("a failed next page keeps the rows and clears the loading flag", () => {
+  const s = run(initialCacheState, fetchStarted({ key: "/p", epoch: 0 }), fetchSucceeded({ key: "/p", epoch: 0, at: 1, data: [{ id: 1 }], meta: meta(1) }), moreStarted({ key: "/p" }), moreFailed({ key: "/p", error: err }));
+  assert.equal(s.entries["/p"].loadingMore, false);
+  assert.equal(s.entries["/p"].error?.message, "boom");
+  assert.equal((s.entries["/p"].data as unknown[]).length, 1);
+});
+
 // ── The thunk, against a fake network ────────────────────────────────────────
 
 const { makeStore } = await import("../src/store/index");
-const { fetchQuery, queryKey } = await import("../src/store/thunks");
+const { fetchQuery, queryKey, fetchPagedQuery, fetchMorePaged } = await import("../src/store/thunks");
 const { invalidateAll: inval } = await import("../src/store/cacheSlice");
 
 let calls: string[] = [];
@@ -160,6 +191,44 @@ test("a network failure is stored as a plain error and the loader counter return
   assert.equal(e.error?.status, 403);
   assert.equal(e.error?.message, "Not allowed");
   assert.equal(store.getState().apiCache.pendingFirstLoads, 0);
+});
+
+
+test("scrolling fetches the next page of the same search; a refresh reloads every page on screen at once", async () => {
+  calls = [];
+  const all = Array.from({ length: 5 }, (_, i) => ({ id: i + 1 }));
+  reply = (url) => {
+    const u = new URL(url, "http://x"); const page = Number(u.searchParams.get("page")); const size = Number(u.searchParams.get("pageSize"));
+    return { data: all.slice((page - 1) * size, page * size), meta: { page, pageSize: size, total: 5, totalPages: 3 } };
+  };
+  const store = makeStore();
+  const q = { key: "paged|/pp", path: "/pp", params: { search: "x" }, pageSize: 2 };
+  await store.dispatch(fetchPagedQuery(q));
+  assert.equal((store.getState().apiCache.entries[q.key].data as unknown[]).length, 2);
+  await store.dispatch(fetchMorePaged(q));
+  await store.dispatch(fetchMorePaged(q));
+  assert.deepEqual((store.getState().apiCache.entries[q.key].data as { id: number }[]).map(r => r.id), [1, 2, 3, 4, 5]);
+  assert.ok(calls.every(c => c.includes("search=x")), "every page carries the search");
+  await store.dispatch(fetchMorePaged(q)); // nothing left
+  assert.equal(calls.length, 3);
+  // a save, then a refresh: pages 1-3 come back together
+  calls = [];
+  store.dispatch(inval());
+  await store.dispatch(fetchPagedQuery(q));
+  assert.equal(calls.length, 3);
+  assert.equal((store.getState().apiCache.entries[q.key].data as unknown[]).length, 5);
+  assert.equal(store.getState().apiCache.entries[q.key].meta?.page, 3);
+});
+
+test("two scroll events at once fetch the next page only once", async () => {
+  calls = []; delay = 20;
+  const store = makeStore();
+  const q = { key: "paged|/qq", path: "/qq", pageSize: 2 };
+  await store.dispatch(fetchPagedQuery(q));
+  calls = [];
+  await Promise.all([store.dispatch(fetchMorePaged(q)), store.dispatch(fetchMorePaged(q)), store.dispatch(fetchMorePaged(q))]);
+  delay = 0;
+  assert.equal(calls.length, 1);
 });
 
 let failed = 0;

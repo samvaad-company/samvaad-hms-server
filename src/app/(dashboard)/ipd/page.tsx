@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormSelect, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
@@ -47,15 +48,15 @@ const MIN_WIDTH = 1330;
 function IpdRow({ row, actions }: { row: IpdRecord; actions: RowAction[] }) {
   return (
     <Link href={`/ipd/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f]">{row.patientAge}</span>
-      <span className="text-[12px] font-medium text-[#009598] truncate">{row.patientId}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.admissionDate)}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.ward}</span>
-      <span className="text-[13px] font-normal text-[#11111c]">{row.bed}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.doctor}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.diagnosis}</span>
-      <span className="text-[13px] font-normal text-[#11111c] text-right whitespace-nowrap">{row.creditLimit > 0 ? `₹${row.creditLimit.toLocaleString("en-IN")}` : "—"}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
+      <span className="text-[12px] font-medium text-[color:var(--brand)] truncate">{row.patientId}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.admissionDate)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.ward}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.bed}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.diagnosis}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] text-right whitespace-nowrap">{row.creditLimit > 0 ? `₹${row.creditLimit.toLocaleString("en-IN")}` : "—"}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </Link>
@@ -136,6 +137,8 @@ export default function IpdPage() {
     return matchF && matchS;
   });
 
+  const { rows: pagedVisible, bar: barVisible } = usePagination(visible, "admissions");
+
   const availableBeds = beds.filter(b => b.ward === ward && b.status === "Available");
 
   return (
@@ -144,10 +147,10 @@ export default function IpdPage() {
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Quick Admission" width={640}
         footer={
           <>
-            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
-            <Link href="/ipd/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Full Form →</Link>
+            <button onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
+            <Link href="/ipd/new" onClick={() => setShowModal(false)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Full Form →</Link>
             <button onClick={admit} disabled={loading || !form.patientId || !form.bedId || !form.diagnosis.trim() || !admissionDateValid}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {loading ? "Admitting…" : "Admit Patient"}
             </button>
           </>
@@ -178,9 +181,9 @@ export default function IpdPage() {
       <Modal open={!!roundTarget} onClose={() => setRoundTarget(null)} title={roundTarget ? `Add Doctor Round — ${roundTarget.patientName}` : ""}
         footer={
           <>
-            <button onClick={() => setRoundTarget(null)} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+            <button onClick={() => setRoundTarget(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
             <button onClick={saveRound} disabled={roundLoading || (!roundFindings.trim() && !roundOrders.trim())}
-              className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
               {roundLoading ? "Saving…" : "Add Round"}
             </button>
           </>
@@ -214,7 +217,7 @@ export default function IpdPage() {
             onSearchChange={setSearch}
           />
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
-            {visible.map((r) => (
+            {pagedVisible.map((r) => (
               <IpdRow key={r.id} row={r} actions={[
                 { label: "View admission", onClick: () => router.push(`/ipd/${r.id}`) },
                 ...(canWrite ? [
@@ -226,6 +229,7 @@ export default function IpdPage() {
               ]} />
             ))}
           </DataTable>
+{barVisible}
         </div>
       </div>
     </>

@@ -74,26 +74,26 @@ export const typography = {
 
 export const tw = {
   text: {
-    h1:          "text-[24px] font-medium leading-[28px] text-[#11111c]",
-    title3M:     "text-[16px] font-medium leading-5 text-[#11111c]",
-    title3L:     "text-[16px] font-light leading-5 text-[#11111c]",
-    title4M:     "text-[14px] font-medium leading-[19px] text-[#11111c]",
-    title4R:     "text-[14px] font-normal leading-[19px] text-[#11111c]",
-    title4Muted: "text-[14px] font-normal leading-[19px] text-[#57575f]",
-    title5L:     "text-[12px] font-light leading-4 text-[#57575f]",
+    h1:          "text-[24px] font-medium leading-[28px] text-[color:var(--ink)]",
+    title3M:     "text-[16px] font-medium leading-5 text-[color:var(--ink)]",
+    title3L:     "text-[16px] font-light leading-5 text-[color:var(--ink)]",
+    title4M:     "text-[14px] font-medium leading-[19px] text-[color:var(--ink)]",
+    title4R:     "text-[14px] font-normal leading-[19px] text-[color:var(--ink)]",
+    title4Muted: "text-[14px] font-normal leading-[19px] text-[color:var(--ink-soft)]",
+    title5L:     "text-[12px] font-light leading-4 text-[color:var(--ink-soft)]",
   },
 
   surface: {
-    page:      "bg-[#f7f7f7]",
-    card:      "bg-white",
-    greyLight: "bg-[#f6f6f6]",
-    greyDark:  "bg-[#f2f3f3]",
-    brand:     "bg-[#009598]",
+    page:      "bg-[color:var(--canvas)]",
+    card:      "bg-[color:var(--surface)] border border-[color:var(--line)]",
+    greyLight: "bg-[color:var(--subtle)]",
+    greyDark:  "bg-[color:var(--subtle-3)]",
+    brand:     "bg-[color:var(--brand)]",
   },
 
   border: {
-    default: "border border-[#dedee1]",
-    bottom:  "border-b border-[#dedee1]",
+    default: "border border-[color:var(--line)]",
+    bottom:  "border-b border-[color:var(--line)]",
   },
 
   radius: {
@@ -111,9 +111,9 @@ export const tw = {
   gutterX: "mx-[30px]",
 
   pill: {
-    white: "bg-white flex items-center gap-[10px] px-[15px] py-[6px] rounded-full",
-    grey:  "bg-[#f6f6f6] flex items-center gap-[10px] px-[15px] py-[6px] rounded-full",
-    brand: "bg-[#009598] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full text-white hover:bg-[#007f82] transition-colors cursor-pointer",
+    white: "bg-[color:var(--surface)] flex items-center gap-[10px] px-[15px] py-[6px] rounded-full",
+    grey:  "bg-[color:var(--subtle)] flex items-center gap-[10px] px-[15px] py-[6px] rounded-full",
+    brand: "bg-[color:var(--brand)] flex items-center gap-[5px] px-[15px] py-[6px] rounded-full text-white hover:bg-[color:var(--brand-hover)] transition-colors cursor-pointer",
   },
 
   statusBadge: {
@@ -124,7 +124,7 @@ export const tw = {
     "Cancelled":       "bg-[#ffe9e9] text-[#ff0004]",
     // IPD / admission
     "Admitted":        "bg-[#e8f4ff] text-[#0066cc]",
-    "Discharged":      "bg-[#f0f0f0] text-[#57575f]",
+    "Discharged":      "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     "ICU":             "bg-[#ffe9e9] text-[#ff0004]",
     // OPD queue
     "Waiting":         "bg-[#fff2e0] text-[#ff9000]",
@@ -133,7 +133,7 @@ export const tw = {
     "Available":       "bg-[#dffff3] text-[#00955c]",
     "Occupied":        "bg-[#ffe9e9] text-[#ff0004]",
     "Reserved":        "bg-[#fff2e0] text-[#ff9000]",
-    "Maintenance":     "bg-[#f0f0f0] text-[#57575f]",
+    "Maintenance":     "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     // Pharmacy
     "In Stock":        "bg-[#dffff3] text-[#00955c]",
     "Low Stock":       "bg-[#fff2e0] text-[#ff9000]",
@@ -146,18 +146,18 @@ export const tw = {
     "Paid":            "bg-[#dffff3] text-[#00955c]",
     "Pending":         "bg-[#fff2e0] text-[#ff9000]",
     "Partial":         "bg-[#d6eaff] text-[#007cff]",
-    "Refunded":        "bg-[#f0f0f0] text-[#57575f]",
+    "Refunded":        "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     // Staff / doctor
     "Active":          "bg-[#dffff3] text-[#00955c]",
     "On Leave":        "bg-[#fff2e0] text-[#ff9000]",
-    "Inactive":        "bg-[#f0f0f0] text-[#57575f]",
+    "Inactive":        "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     "In OPD":          "bg-[#d6eaff] text-[#007cff]",
     // Lab
     "Sample Collected": "bg-[#d6eaff] text-[#007cff]",
     "Report Ready":    "bg-[#dffff3] text-[#00955c]",
     // Prescription
     "Dispensed":       "bg-[#dffff3] text-[#00955c]",
-    "Draft":           "bg-[#f0f0f0] text-[#57575f]",
+    "Draft":           "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     // Radiology
     "Scan Done":       "bg-[#d6eaff] text-[#007cff]",
     // Blood bank
@@ -168,7 +168,7 @@ export const tw = {
     "On Call":         "bg-[#d6eaff] text-[#007cff]",
     "Dispatched":      "bg-[#fff2e0] text-[#ff9000]",
     // TPA claims
-    "Submitted":       "bg-[#f0f0f0] text-[#57575f]",
+    "Submitted":       "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
     "In Review":       "bg-[#fff2e0] text-[#ff9000]",
     "Approved":        "bg-[#dffff3] text-[#00955c]",
     "Rejected":        "bg-[#ffe9e9] text-[#ff0004]",
@@ -185,8 +185,8 @@ export const tw = {
     // Grid-based: cells are laid out via `grid-template-columns: var(--cols)`,
     // which the DataTable sets from each page's column widths. This keeps every
     // field in its own column (no stacking) and rows compact.
-    headerRow: "grid items-center gap-3 pl-5 pr-6 h-[34px] bg-[#f2f3f3]",
-    dataRow:   "grid items-center gap-3 pl-5 pr-6 h-[42px] border-b border-[#dedee1] bg-white hover:bg-[#fafafa] transition-colors",
+    headerRow: "grid items-center gap-3 pl-5 pr-6 h-[34px] bg-[color:var(--subtle-3)]",
+    dataRow:   "grid items-center gap-3 pl-5 pr-6 h-[42px] border-b border-[color:var(--line)] bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors",
     minWidth:  1240,
   },
 

@@ -61,7 +61,7 @@ export function DocumentLetterhead({
   return (
     <div
       className={`flex items-start justify-between gap-6 ${compact ? "px-8 py-5" : "px-8 py-6"}`}
-      style={{ borderBottom: "1px solid #dedee1" }}
+      style={{ borderBottom: "1px solid var(--line)" }}
     >
       <div className="flex items-center gap-3 min-w-0">
         {/* Logo mark — an uploaded logo replaces this when configured. */}
@@ -69,19 +69,19 @@ export function DocumentLetterhead({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hospital.logoUrl} alt="" className="w-12 h-12 rounded-[10px] object-contain shrink-0" />
         ) : (
-          <div className="w-12 h-12 rounded-[10px] bg-[#009598] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-[10px] bg-[color:var(--brand)] flex items-center justify-center shrink-0">
             <Building2 size={22} strokeWidth={1.5} className="text-white" />
           </div>
         )}
         <div className="min-w-0">
-          <div className="text-[17px] font-medium text-[#11111c] truncate">
+          <div className="text-[17px] font-medium text-[color:var(--ink)] truncate">
             {hospital.name || "Hospital"}
           </div>
           {address && (
-            <div className="text-[12px] font-light text-[#57575f]">{address}</div>
+            <div className="text-[12px] font-light text-[color:var(--ink-soft)]">{address}</div>
           )}
           {meta && (
-            <div className="text-[12px] font-light text-[#57575f]">{meta}</div>
+            <div className="text-[12px] font-light text-[color:var(--ink-soft)]">{meta}</div>
           )}
         </div>
       </div>
@@ -93,7 +93,7 @@ export function DocumentLetterhead({
 /** Matching footer line for printed documents. */
 export function DocumentFooter({ hospital }: { hospital: HospitalSettings }) {
   return (
-    <div className="px-8 pb-8 text-[11px] font-light text-[#57575f] text-center">
+    <div className="px-8 pb-8 text-[11px] font-light text-[color:var(--ink-soft)] text-center">
       Thank you for choosing {hospital.name || "our hospital"}.
       {hospital.phone ? ` For queries call ${hospital.phone}.` : ""}
       {hospital.regNumber ? ` Reg. No. ${hospital.regNumber}.` : ""}

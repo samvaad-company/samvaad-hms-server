@@ -11,7 +11,7 @@ interface FormRowProps {
 export function FormRow({ label, required, children, hint, error }: FormRowProps) {
   return (
     <div className="flex flex-col gap-[7px]">
-      <label className="text-[11px] font-medium text-[#57575f] uppercase tracking-wider">
+      <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">
         {label}
         {required && <span className="text-[#ff0004] ml-[3px]">*</span>}
       </label>
@@ -19,7 +19,7 @@ export function FormRow({ label, required, children, hint, error }: FormRowProps
       {error ? (
         <p className="text-[11px] font-normal text-[#ff0004] leading-4">{error}</p>
       ) : (
-        hint && <p className="text-[11px] font-light text-[#57575f] leading-4">{hint}</p>
+        hint && <p className="text-[11px] font-light text-[color:var(--ink-soft)] leading-4">{hint}</p>
       )}
     </div>
   );
@@ -56,10 +56,10 @@ export function FormInput({
       min={min}
       onChange={(e) => onChange?.(e.target.value)}
       onBlur={onBlur}
-      className={`h-[42px] w-full bg-[#f6f6f6] border rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:bg-white transition-colors disabled:opacity-50 ${
+      className={`h-[42px] w-full bg-[color:var(--subtle)] border rounded-[8px] px-[14px] text-[14px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none focus:bg-[color:var(--surface)] transition-colors disabled:opacity-50 ${
         error
           ? "border-[#ff0004] focus:border-[#ff0004]"
-          : "border-[#dedee1] focus:border-[#009598]"
+          : "border-[color:var(--line)] focus:border-[color:var(--brand)]"
       }`}
     />
   );
@@ -83,7 +83,7 @@ export function FormSelect({
       value={value ?? ""}
       disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className="h-[42px] w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] text-[14px] font-normal text-[#11111c] focus:outline-none focus:border-[#009598] focus:bg-white transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+      className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] text-[14px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {placeholder && (
         <option value="" disabled>
@@ -119,7 +119,7 @@ export function FormTextarea({
       rows={rows}
       disabled={disabled}
       onChange={(e) => onChange?.(e.target.value)}
-      className="w-full bg-[#f6f6f6] border border-[#dedee1] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[#11111c] placeholder:text-[#57575f] placeholder:opacity-60 focus:outline-none focus:border-[#009598] focus:bg-white transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] py-[10px] text-[14px] font-normal text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)] transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
     />
   );
 }

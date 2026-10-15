@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
+import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
@@ -39,13 +40,13 @@ const CALL_FILTERS = [
 function CallRow({ row, actions }: { row: AmbulanceCallDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#11111c] truncate">{row.patientName}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.phone || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.pickupLocation}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.dropLocation}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{row.vehicleNumber || "—"}</span>
-      <span className="text-[13px] font-normal text-[#11111c] whitespace-nowrap">{formatDate(row.date)}</span>
-      <span className="text-[13px] font-medium text-[#11111c] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.phone || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.pickupLocation}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.dropLocation}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{row.vehicleNumber || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -70,10 +71,10 @@ const FLEET_FILTERS = [
 function FleetRow({ row, actions }: { row: AmbulanceDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[#009598] whitespace-nowrap">{row.vehicleNumber}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.model}</span>
-      <span className="text-[13px] font-normal text-[#11111c] truncate">{row.driverName}</span>
-      <span className="text-[13px] font-normal text-[#57575f] whitespace-nowrap">{row.driverPhone}</span>
+      <span className="text-[13px] font-medium text-[color:var(--brand)] whitespace-nowrap">{row.vehicleNumber}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.model}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.driverName}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{row.driverPhone}</span>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -138,18 +139,22 @@ export default function AmbulancePage() {
     return matchF && (!q || c.patientName.toLowerCase().includes(q) || c.vehicleNumber.toLowerCase().includes(q) || c.pickupLocation.toLowerCase().includes(q));
   });
 
+  const { rows: pagedVisibleCalls, bar: barVisibleCalls } = usePagination(visibleCalls, "records");
+
   const visibleVehicles = vehicles.filter(v => {
     const matchF = fleetFilter === "All" || v.status === fleetFilter;
     const q = fleetSearch.toLowerCase();
     return matchF && (!q || v.vehicleNumber.toLowerCase().includes(q) || v.model.toLowerCase().includes(q) || v.driverName.toLowerCase().includes(q));
   });
 
+  const { rows: pagedVisibleVehicles, bar: barVisibleVehicles } = usePagination(visibleVehicles, "records");
+
   const modalError = error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>;
   const modalFooter = (onSubmit: () => void, label: string, disabled: boolean) => (
     <>
-      <button onClick={closeModal} className="text-[13px] font-normal text-[#57575f] border border-[#dedee1] px-5 py-[8px] rounded-full hover:bg-[#f6f6f6] transition-colors">Cancel</button>
+      <button onClick={closeModal} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
       <button onClick={onSubmit} disabled={loading || disabled}
-        className="text-[13px] font-normal text-white bg-[#009598] px-5 py-[8px] rounded-full hover:bg-[#007f82] transition-colors disabled:opacity-50">
+        className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
         {loading ? "Saving…" : label}
       </button>
     </>
@@ -204,8 +209,8 @@ export default function AmbulancePage() {
                 action={canWrite ? { label: "New Call", icon: Plus, onClick: () => setModal("call") } : undefined} />
               <DataTable columns={CALL_COLUMNS} minWidth={1250}>
                 {visibleCalls.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No calls logged.</div>
-                ) : visibleCalls.map(c => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No calls logged.</div>
+                ) : pagedVisibleCalls.map(c => (
                   <CallRow key={c.id} row={c} actions={canWrite ? [
                     { label: "Mark Completed", disabled: c.status !== "Dispatched", onClick: () => callActions.mutate(() => api.patch(`/ambulance/calls/${c.id}`, { status: "Completed" })) },
                     { label: "Cancel call", disabled: c.status !== "Dispatched", onClick: () => callActions.mutate(() => api.patch(`/ambulance/calls/${c.id}`, { status: "Cancelled" })) },
@@ -213,6 +218,7 @@ export default function AmbulancePage() {
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleCalls}
             </>
           )}
 
@@ -223,8 +229,8 @@ export default function AmbulancePage() {
                 action={canWrite ? { label: "Add Vehicle", icon: Plus, onClick: () => setModal("vehicle") } : undefined} />
               <DataTable columns={FLEET_COLUMNS} minWidth={1000}>
                 {visibleVehicles.length === 0 ? (
-                  <div className="py-16 text-center text-[14px] text-[#57575f]">No vehicles in the fleet.</div>
-                ) : visibleVehicles.map(v => (
+                  <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No vehicles in the fleet.</div>
+                ) : pagedVisibleVehicles.map(v => (
                   <FleetRow key={v.id} row={v} actions={canWrite ? [
                     { label: "Mark Available", disabled: v.status === "Available", onClick: () => fleetActions.mutate(() => api.patch(`/ambulance/vehicles/${v.id}`, { status: "Available" })) },
                     { label: "Send to Maintenance", disabled: v.status === "Maintenance", onClick: () => fleetActions.mutate(() => api.patch(`/ambulance/vehicles/${v.id}`, { status: "Maintenance" })) },
@@ -232,6 +238,7 @@ export default function AmbulancePage() {
                   ] : []} />
                 ))}
               </DataTable>
+{barVisibleVehicles}
             </>
           )}
         </div>
