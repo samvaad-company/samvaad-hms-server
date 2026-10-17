@@ -16,7 +16,8 @@
     "test:patients": "tsx scripts/test-patients.ts",
     "test:enquiries": "tsx scripts/test-enquiries.ts",
     "test:followups": "tsx scripts/test-followups.ts",
-    "test:rxreview": "tsx scripts/test-prescription-review.ts"
+    "test:rxreview": "tsx scripts/test-prescription-review.ts",
+    "test:ipd": "tsx scripts/test-ipd.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

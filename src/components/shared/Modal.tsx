@@ -10,9 +10,11 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: number;
+  /** A line of guidance under the title. */
+  subtitle?: string;
 }
 
-export function Modal({ open, onClose, title, children, footer, width = 600 }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, width = 600, subtitle }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -33,12 +35,15 @@ export function Modal({ open, onClose, title, children, footer, width = 600 }: M
         aria-modal="true"
         aria-label={title}
         className="relative bg-[color:var(--surface)] rounded-[18px] shadow-2xl flex flex-col overflow-hidden"
-        style={{ width, maxHeight: "90vh" }}
+        style={{ width, maxWidth: "100%", maxHeight: "90vh" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[color:var(--line)] shrink-0">
-          <h2 className="text-[17px] font-medium text-[color:var(--ink)]">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-[17px] font-medium text-[color:var(--ink)]">{title}</h2>
+            {subtitle && <p className="mt-[2px] text-[13px] text-[color:var(--ink-soft)]">{subtitle}</p>}
+          </div>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors"

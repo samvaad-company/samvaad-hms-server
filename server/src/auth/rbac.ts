@@ -36,7 +36,8 @@ export type Resource =
   | "attendance"
   | "teleconsult"
   | "enquiries"
-  | "followups";
+  | "followups"
+  | "nursing";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -71,6 +72,7 @@ export const RESOURCES: Resource[] = [
   "teleconsult",
   "enquiries",
   "followups",
+  "nursing",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -115,6 +117,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
     followups: "write",
+    nursing: "write",
     attendance: "none",
     teleconsult: "write",
     opd: "write",
@@ -134,6 +137,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     reports: "none",
   }),
   "Head Nurse": withOverrides(NONE, {
+    nursing: "write",
     followups: "read",
     patients: "read",
     appointments: "read",

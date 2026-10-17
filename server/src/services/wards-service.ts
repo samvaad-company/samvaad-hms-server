@@ -13,10 +13,11 @@ import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scop
 const schema = {
   name: { type: "string", required: true, min: 2, max: 80 },
   capacity: { type: "number", required: false, min: 0, default: 0 },
+  dailyRate: { type: "number", required: false, min: 0, default: 0 },
 } as const;
 
 function toWardDTO(w: WardRow) {
-  return { id: w.id, name: w.name, capacity: Number(w.capacity ?? 0) };
+  return { id: w.id, name: w.name, capacity: Number(w.capacity ?? 0), dailyRate: Number(w.daily_rate ?? 0) };
 }
 
 export async function listWards(actor: Session) {
@@ -37,6 +38,7 @@ export async function createWard(input: unknown, actor: Session) {
     hospital_id: actor.hospitalId,
     name: data.name,
     capacity: data.capacity ?? 0,
+    daily_rate: data.dailyRate ?? 0,
   });
   await audit(actor, "create", "ward", row.id);
   return toWardDTO(row as WardRow);
@@ -58,6 +60,7 @@ export async function updateWard(id: number, input: unknown, actor: Session) {
     patch.name = data.name;
   }
   if ("capacity" in data) patch.capacity = data.capacity;
+  if ("dailyRate" in data) patch.daily_rate = data.dailyRate;
   const row = await wardsRepo.update(id, patch);
 
   // Renaming a ward cascades to its beds' denormalized ward label.

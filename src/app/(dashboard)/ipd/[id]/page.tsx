@@ -408,6 +408,20 @@ export default function IpdDetailPage() {
                 </div>
                 <StatusBadge status={record.status} />
               </div>
+              <div className="flex items-center gap-x-6 gap-y-1 flex-wrap text-[12px] text-[color:var(--ink-soft)]">
+                {[
+                  { label: "Admission no.", value: record.admissionNo, mono: true },
+                  { label: "Type", value: record.admissionType },
+                  { label: "Primary nurse", value: record.primaryNurse },
+                  { label: "Family", value: [record.familyName, record.familyRelation && `(${record.familyRelation})`, record.familyPhone].filter(Boolean).join(" ") },
+                  { label: "Deposit", value: record.depositAmount > 0 ? `₹${record.depositAmount.toLocaleString("en-IN")}${record.depositMode ? ` · ${record.depositMode}` : ""}` : "" },
+                  { label: "Expected stay", value: record.expectedStayDays ? `${record.expectedStayDays} days` : "" },
+                  { label: "Diet", value: record.diet },
+                ].filter(f => f.value).map(f => (
+                  <span key={f.label}>{f.label}: <span className={`font-medium text-[color:var(--ink)] ${f.mono ? "font-mono" : ""}`}>{f.value}</span></span>
+                ))}
+                {record.isMlc && <span className="rounded-full border border-[#f4a3ac] bg-[#ffe3e5] px-2 text-[11px] font-semibold text-[#b3001b]">MLC · police intimation needed</span>}
+              </div>
               <div className="flex items-center gap-6 flex-wrap">
                 {[
                   { icon: Stethoscope, label: "Doctor",       value: record.doctor },

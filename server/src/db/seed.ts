@@ -354,11 +354,22 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
 
   // ── Wards + beds ─────────────────────────────────────────────────────────
   const wardNames = Array.from(new Set(bedsData.map((b) => b.ward)));
+  /** Demo bed rates (₹/day) by ward type. */
+  const wardRate = (name: string): number => {
+    const n = name.toLowerCase();
+    if (n.includes("icu")) return 7500;
+    if (n.includes("hdu")) return 4500;
+    if (n.includes("private")) return 3000;
+    if (n.includes("cardio") || n.includes("neuro")) return 4000;
+    if (n.includes("surg") || n.includes("ortho") || n.includes("matern")) return 2500;
+    return 1200;
+  };
   const wards: Row[] = wardNames.map((name, i) => ({
     id: i + 1,
     hospital_id: 1,
     name,
     capacity: bedsData.filter((b) => b.ward === name).length,
+    daily_rate: wardRate(name),
     created_at: ts,
     updated_at: ts,
   }));
@@ -419,6 +430,93 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     diagnosis: r.diagnosis,
     credit_limit: r.creditLimit,
     status: r.status,
+    admission_no: `ADM/${new Date(r.admissionDate).getFullYear()}/${String(r.id).padStart(5, "0")}`,
+    admission_type: r.status === "ICU" ? "Emergency" : "Planned",
+    is_mlc: false,
+    family_name: "",
+    family_relation: "",
+    family_phone: "",
+    deposit_amount: 0,
+    deposit_mode: "",
+    primary_nurse_id: null,
+    primary_nurse: "",
+    expected_stay_days: null,
+    diet: "",
+    created_at: ts,
+    updated_at: ts,
+  }));
+
+  // ── Nurse station demo data ──────────────────────────────────────────────
+  // Each patient still in hospital gets a couple of orders, a set of vitals (one deliberately out of range)
+  // and, for the first, a drip — so the nurse station has something on it from the first launch.
+  const inHospital = ipdAdmissions.filter((a) => a.status !== "Discharged");
+  const today = new Date().toISOString().slice(0, 10);
+  const orders = [
+    { name: "Inj. Ceftriaxone", dosage: "1 g", frequency: "BD", route: "IV" },
+    { name: "Tab. Paracetamol", dosage: "650 mg", frequency: "TDS", route: "Oral" },
+    { name: "Inj. Pantoprazole", dosage: "40 mg", frequency: "OD", route: "IV" },
+  ];
+  const ipdMedications: Row[] = inHospital.flatMap((a, i) =>
+    [orders[i % 3], orders[(i + 1) % 3]].map((o, k) => ({
+      id: i * 2 + k + 1,
+      admission_id: a.id as number,
+      medicine_name: o.name,
+      dosage: o.dosage,
+      frequency: o.frequency,
+      route: o.route,
+      start_date: today,
+      end_date: "",
+      status: "Active",
+      last_given_at: "",
+      notes: "",
+      created_at: ts,
+      updated_at: ts,
+    })),
+  );
+  const ipdVitals: Row[] = inHospital.map((a, i) => ({
+    id: i + 1,
+    hospital_id: 1,
+    admission_id: a.id as number,
+    recorded_at: ts,
+    temp_c: i === 1 ? 39.8 : 37.2,
+    pulse: i === 1 ? 118 : 82,
+    bp_systolic: 124,
+    bp_diastolic: 80,
+    spo2: i === 1 ? 88 : 98,
+    resp_rate: i === 1 ? 26 : 16,
+    note: "",
+    recorded_by: "Rekha Menon",
+    created_at: ts,
+    updated_at: ts,
+  }));
+  const ipdIvLines: Row[] = inHospital.slice(0, 1).map((a, i) => ({
+    id: i + 1,
+    hospital_id: 1,
+    admission_id: a.id as number,
+    fluid: "Normal saline 0.9%",
+    volume_ml: 500,
+    rate_ml_hr: 100,
+    started_at: ts,
+    stopped_at: null,
+    status: "Running",
+    started_by: "Rekha Menon",
+    note: "",
+    created_at: ts,
+    updated_at: ts,
+  }));
+  const ipdNursingTasks: Row[] = [
+    { title: "Check the crash cart", admission_id: null },
+    { title: "Change dressing", admission_id: (inHospital[0]?.id as number | undefined) ?? null },
+  ].map((t, i) => ({
+    id: i + 1,
+    hospital_id: 1,
+    admission_id: t.admission_id,
+    title: t.title,
+    due_at: null,
+    status: "To do",
+    created_by: "Rekha Menon",
+    done_by: null,
+    done_at: null,
     created_at: ts,
     updated_at: ts,
   }));
@@ -1019,7 +1117,15 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.googleConnections]: [],
     [TABLES.teleconsultPayments]: [],
     [TABLES.ipdNotes]: [],
-    [TABLES.ipdMedications]: [],
+    [TABLES.ipdMedications]: ipdMedications,
+    [TABLES.ipdVitals]: ipdVitals,
+    [TABLES.ipdIvLines]: ipdIvLines,
+    [TABLES.ipdDoseLog]: [],
+    [TABLES.ipdNursingTasks]: ipdNursingTasks,
+    [TABLES.ipdHandovers]: [],
+    [TABLES.ipdAlertAcks]: [],
+    [TABLES.ipdChecklistTemplates]: [],
+    [TABLES.ipdChecklists]: [],
     [TABLES.purchaseOrders]: [],
     [TABLES.purchaseOrderItems]: [],
     [TABLES.pharmacySales]: [],

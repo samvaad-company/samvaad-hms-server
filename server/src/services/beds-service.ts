@@ -40,8 +40,15 @@ export const BEDS_LIST_CONFIG = {
   ],
 };
 
+/** ₹/day by ward name, for the bed cards. */
+async function rateByWard(actor: Session): Promise<Map<string, number>> {
+  const { rows } = await wardsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
+  return new Map(rows.map((w) => [w.name, Number(w.daily_rate ?? 0)]));
+}
+
 export async function listBeds(options: QueryOptions, actor: Session) {
-  return bedsRepo.list(scopeToHospital(options, actor));
+  const [res, rates] = await Promise.all([bedsRepo.list(scopeToHospital(options, actor)), rateByWard(actor)]);
+  return { ...res, rows: res.rows.map((b) => ({ ...b, dailyRate: rates.get(b.ward) ?? 0 })) };
 }
 
 /** Beds grouped by ward, with occupancy summary — drives the wards board. */
@@ -70,7 +77,7 @@ export async function listBedsByWard(actor: Session) {
       wardId: wards.rows.find((w) => w.name === ward)?.id ?? null,
       total: wardBeds.length,
       counts,
-      beds: wardBeds.map(toBedDTO),
+      beds: wardBeds.map((b) => ({ ...toBedDTO(b), dailyRate: Number(wards.rows.find((w) => w.name === ward)?.daily_rate ?? 0) })),
     };
   });
 }

@@ -26,6 +26,14 @@ import type {
   BloodStockDTO,
   BloodIssueDTO,
   RadiologyTestDTO,
+  IpdVitalDTO,
+  IpdAdmissionType,
+  DepositMode,
+  IpdIvLineDTO,
+  IpdNursingTaskDTO,
+  IpdHandoverDTO,
+  IpdChecklistTemplateDTO,
+  IpdChecklistDTO,
   AmbulanceDTO,
   AmbulanceCallDTO,
   BirthRecordDTO,
@@ -73,6 +81,14 @@ import type {
   BloodStockRow,
   BloodIssueRow,
   RadiologyTestRow,
+  IpdVitalRow,
+  IpdIvLineRow,
+  IpdDoseLogRow,
+  IpdNursingTaskRow,
+  IpdHandoverRow,
+  IpdAlertAckRow,
+  IpdChecklistTemplateRow,
+  IpdChecklistRow,
   AmbulanceRow,
   AmbulanceCallRow,
   BirthRecordRow,
@@ -394,8 +410,138 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     bedId: r.bed_id,
     wardId: r.ward_id,
     doctorId: r.doctor_id,
+    // Admissions made before these fields existed read as a plain planned admission.
+    admissionNo: r.admission_no || `ADM/${(r.admission_date || "").slice(0, 4) || new Date().getFullYear()}/${String(r.id).padStart(5, "0")}`,
+    admissionType: (r.admission_type || "Planned") as IpdAdmissionType,
+    isMlc: Boolean(r.is_mlc),
+    // Joined in by the service layer, which has the patient record.
+    gender: "",
+    familyName: r.family_name ?? "",
+    familyRelation: r.family_relation ?? "",
+    familyPhone: r.family_phone ?? "",
+    depositAmount: Number(r.deposit_amount ?? 0),
+    depositMode: (r.deposit_mode || "") as DepositMode | "",
+    primaryNurseId: r.primary_nurse_id ?? null,
+    primaryNurse: r.primary_nurse ?? "",
+    expectedStayDays: r.expected_stay_days ?? null,
+    diet: r.diet ?? "",
   };
 }
+
+export function toIpdVitalDTO(r: IpdVitalRow): IpdVitalDTO {
+  return {
+    id: r.id,
+    admissionId: r.admission_id,
+    recordedAt: r.recorded_at,
+    tempC: r.temp_c ?? null,
+    pulse: r.pulse ?? null,
+    bpSystolic: r.bp_systolic ?? null,
+    bpDiastolic: r.bp_diastolic ?? null,
+    spo2: r.spo2 ?? null,
+    respRate: r.resp_rate ?? null,
+    note: r.note ?? "",
+    recordedBy: r.recorded_by ?? "",
+  };
+}
+
+export function toIpdIvLineDTO(r: IpdIvLineRow): IpdIvLineDTO {
+  const rate = Number(r.rate_ml_hr) || 0;
+  const hours = rate > 0 ? Number(r.volume_ml) / rate : 0;
+  return {
+    id: r.id,
+    admissionId: r.admission_id,
+    fluid: r.fluid,
+    volumeMl: Number(r.volume_ml),
+    rateMlHr: rate,
+    startedAt: r.started_at,
+    stoppedAt: r.stopped_at ?? null,
+    status: r.status as IpdIvLineDTO["status"],
+    startedBy: r.started_by ?? "",
+    note: r.note ?? "",
+    endsAt: new Date(new Date(r.started_at).getTime() + hours * 3_600_000).toISOString(),
+  };
+}
+
+export function toIpdNursingTaskDTO(r: IpdNursingTaskRow): IpdNursingTaskDTO {
+  return {
+    id: r.id,
+    admissionId: r.admission_id ?? null,
+    title: r.title,
+    dueAt: r.due_at ?? null,
+    status: r.status as IpdNursingTaskDTO["status"],
+    createdBy: r.created_by ?? "",
+    doneBy: r.done_by ?? null,
+    doneAt: r.done_at ?? null,
+    overdue: r.status === "To do" && Boolean(r.due_at) && new Date(r.due_at as string).getTime() < Date.now(),
+  };
+}
+
+export function toIpdHandoverDTO(r: IpdHandoverRow): IpdHandoverDTO {
+  return {
+    id: r.id,
+    admissionId: r.admission_id,
+    shift: r.shift as IpdHandoverDTO["shift"],
+    shiftDate: r.shift_date,
+    note: r.note,
+    author: r.author ?? "",
+    createdAt: r.created_at,
+  };
+}
+
+/** Lines you can tick: a heading with sub-lines counts its sub-lines, not itself. */
+function tickKeys(items: IpdChecklistTemplateRow["items"]): string[] {
+  return items.flatMap((i) => (i.children?.length ? i.children.map((c) => c.key) : [i.key]));
+}
+
+export function toIpdChecklistTemplateDTO(r: IpdChecklistTemplateRow): IpdChecklistTemplateDTO {
+  const items = Array.isArray(r.items) ? r.items : [];
+  return {
+    id: r.id,
+    name: r.name,
+    scope: r.scope,
+    description: r.description ?? "",
+    items,
+    active: r.active !== false,
+    lineCount: tickKeys(items).length,
+  };
+}
+
+export function toIpdChecklistDTO(r: IpdChecklistRow): IpdChecklistDTO {
+  const items = Array.isArray(r.items) ? r.items : [];
+  const ticks = r.ticks ?? {};
+  const keys = tickKeys(items);
+  const done = keys.filter((k) => ticks[k]?.done).length;
+  // Counted in lines, like the progress bar: a required heading with three sub-lines owes three.
+  const requiredLeft = items
+    .filter((i) => i.required)
+    .flatMap((i) => (i.children?.length ? i.children.map((c) => c.key) : [i.key]))
+    .filter((k) => !ticks[k]?.done).length;
+  return {
+    id: r.id,
+    templateId: r.template_id ?? null,
+    name: r.name,
+    scope: r.scope,
+    admissionId: r.admission_id ?? null,
+    patientId: r.patient_id ?? null,
+    patientName: r.patient_name,
+    patientCode: r.patient_code ?? "",
+    items,
+    ticks,
+    status: r.status as IpdChecklistDTO["status"],
+    startedBy: r.started_by ?? "",
+    startedAt: r.created_at,
+    completedBy: r.completed_by ?? null,
+    completedAt: r.completed_at ?? null,
+    cancelledReason: r.cancelled_reason ?? null,
+    done,
+    total: keys.length,
+    requiredLeft,
+  };
+}
+
+/** Dose log and alert acknowledgements are read back as plain rows. */
+export const toIpdDoseLogDTO = (r: IpdDoseLogRow) => r;
+export const toIpdAlertAckDTO = (r: IpdAlertAckRow) => r;
 
 export function toOtDTO(r: OtScheduleRow): OtRecordDTO {
   return {
@@ -422,6 +568,8 @@ export function toBedDTO(r: BedRow): BedDTO {
     patientId: r.patient_code ?? undefined,
     status: r.status as BedStatus,
     wardId: r.ward_id,
+    // Joined in from the ward by the beds service.
+    dailyRate: 0,
   };
 }
 

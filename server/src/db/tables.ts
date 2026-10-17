@@ -55,6 +55,14 @@ export const TABLES = {
   staffAttendance: "staff_attendance",
   ipdNotes: "ipd_notes",
   ipdMedications: "ipd_medications",
+  ipdVitals: "ipd_vitals",
+  ipdIvLines: "ipd_iv_lines",
+  ipdDoseLog: "ipd_dose_log",
+  ipdNursingTasks: "ipd_nursing_tasks",
+  ipdHandovers: "ipd_handovers",
+  ipdAlertAcks: "ipd_alert_acks",
+  ipdChecklistTemplates: "ipd_checklist_templates",
+  ipdChecklists: "ipd_checklists",
   purchaseOrders: "purchase_orders",
   purchaseOrderItems: "purchase_order_items",
   pharmacySales: "pharmacy_sales",
@@ -379,6 +387,8 @@ export interface WardRow extends Row {
   hospital_id: number;
   name: string;
   capacity: number;
+  /** ₹ per day for a bed in this ward; shown when picking a bed at admission. */
+  daily_rate?: number;
   created_at: string;
   updated_at: string;
 }
@@ -427,6 +437,22 @@ export interface IpdAdmissionRow extends Row {
   diagnosis: string;
   credit_limit: number;
   status: string;
+  /** ADM/2026/00003 — the number the ward and the bill know the admission by. */
+  admission_no?: string;
+  /** Emergency | Planned | Day care | Maternity | Transfer in */
+  admission_type?: string;
+  /** Medico-legal case: police intimation needed. */
+  is_mlc?: boolean;
+  family_name?: string;
+  family_relation?: string;
+  family_phone?: string;
+  deposit_amount?: number;
+  /** Cash | UPI | Card */
+  deposit_mode?: string;
+  primary_nurse_id?: number | null;
+  primary_nurse?: string;
+  expected_stay_days?: number | null;
+  diet?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1001,6 +1027,154 @@ export interface IpdMedicationRow extends Row {
   status: string;
   last_given_at: string;
   notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One set of bedside observations. `recorded_at` is a full ISO instant. */
+export interface IpdVitalRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  recorded_at: string;
+  temp_c: number | null;
+  pulse: number | null;
+  bp_systolic: number | null;
+  bp_diastolic: number | null;
+  spo2: number | null;
+  resp_rate: number | null;
+  note: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A bottle / bag of IV fluid running on a patient. */
+export interface IpdIvLineRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  fluid: string;
+  volume_ml: number;
+  rate_ml_hr: number;
+  started_at: string;
+  stopped_at: string | null;
+  /** Running | Stopped | Completed */
+  status: string;
+  started_by: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What happened to one scheduled dose of a medication: given, or held back on purpose. */
+export interface IpdDoseLogRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  medication_id: number;
+  /** The slot this entry answers, as a full ISO instant. */
+  scheduled_at: string;
+  /** Given | Held */
+  status: string;
+  given_at: string;
+  given_by: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A job or reminder for the ward — optionally about one admission. */
+export interface IpdNursingTaskRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number | null;
+  title: string;
+  /** Full ISO instant, or null when it has no time. */
+  due_at: string | null;
+  /** To do | Done */
+  status: string;
+  created_by: string;
+  done_by: string | null;
+  done_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A shift-handover note about one patient. */
+export interface IpdHandoverRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  /** Morning | Evening | Night */
+  shift: string;
+  /** yyyy-mm-dd the shift started. */
+  shift_date: string;
+  note: string;
+  author: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An alert a nurse has acknowledged or dismissed. Alerts are derived, so they are identified by a stable key. */
+export interface IpdAlertAckRow extends Row {
+  id: number;
+  hospital_id: number;
+  alert_key: string;
+  /** Acknowledged | Dismissed */
+  action: string;
+  by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistItemDef {
+  key: string;
+  label: string;
+  required: boolean;
+  /** Sub-lines ticked individually under this heading. */
+  children?: { key: string; label: string }[];
+}
+
+export interface IpdChecklistTemplateRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** "Inpatient (IPD)" | "OPD" — where it is used. */
+  scope: string;
+  description: string;
+  items: ChecklistItemDef[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistTick {
+  done: boolean;
+  by: string | null;
+  at: string | null;
+}
+
+export interface IpdChecklistRow extends Row {
+  id: number;
+  hospital_id: number;
+  template_id: number | null;
+  name: string;
+  scope: string;
+  admission_id: number | null;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  /** The template's items, copied at start so later template edits never change a running checklist. */
+  items: ChecklistItemDef[];
+  /** Tick state by item / child key. */
+  ticks: Record<string, ChecklistTick>;
+  /** In progress | Complete | Cancelled */
+  status: string;
+  started_by: string;
+  completed_by: string | null;
+  completed_at: string | null;
+  cancelled_reason: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -9,6 +9,7 @@ import {
   doctorsRepo,
   wardsRepo,
   bedTransfersRepo,
+  staffRepo,
 } from "@/repositories";
 import { toIpdDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
@@ -18,11 +19,15 @@ import { type IpdAdmissionRow } from "@/db/tables";
 import { ConflictError, BadRequestError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { validateNotPast } from "@/lib/field-rules";
-import { displayDate, isoDate } from "@/services/helpers";
+import { displayDate, isoDate, nextCode } from "@/services/helpers";
+import { localDate } from "@/lib/clock";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
+
+export const ADMISSION_TYPES = ["Emergency", "Planned", "Day care", "Maternity", "Transfer in"] as const;
+export const DEPOSIT_MODES = ["Cash", "UPI", "Card"] as const;
 
 const admitSchema = {
   patientId: { type: "number", required: false },
@@ -33,10 +38,21 @@ const admitSchema = {
   ward: { type: "string", required: false, max: 80, default: "" },
   doctorId: { type: "number", required: false },
   doctor: { type: "string", required: false, max: 120, default: "" },
-  diagnosis: { type: "string", required: true, min: 2, max: 240 },
+  // The reason for admission is "optional, can be filled in later" on the admit form.
+  diagnosis: { type: "string", required: false, max: 240, default: "" },
   admissionDate: { type: "string", required: false, max: 40, custom: validateNotPast("admission date") },
   creditLimit: { type: "number", required: false, min: 0, default: 0 },
   status: { type: "enum", required: false, values: ["Admitted", "ICU", "Discharged"], default: "Admitted" },
+  admissionType: { type: "enum", required: false, values: ADMISSION_TYPES, default: "Planned" },
+  isMlc: { type: "boolean", required: false, default: false },
+  familyName: { type: "string", required: false, max: 120, default: "" },
+  familyRelation: { type: "string", required: false, max: 60, default: "" },
+  familyPhone: { type: "string", required: false, max: 30, default: "" },
+  depositAmount: { type: "number", required: false, min: 0, default: 0 },
+  depositMode: { type: "enum", required: false, values: DEPOSIT_MODES },
+  primaryNurseId: { type: "number", required: false, min: 1 },
+  expectedStayDays: { type: "number", required: false, min: 0, max: 365 },
+  diet: { type: "string", required: false, max: 300, default: "" },
 } as const;
 
 export const IPD_LIST_CONFIG = {
@@ -46,16 +62,38 @@ export const IPD_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
+/** The patient's sex isn't copied onto the admission, so it is joined in for display. */
+async function withGender<T extends { patientRefId: number | null; gender: string }>(rows: T[]): Promise<T[]> {
+  const ids = [...new Set(rows.map((r) => r.patientRefId).filter((v): v is number => v != null))];
+  const patients = await Promise.all(ids.map((id) => patientsRepo.getRow(id)));
+  const gender = new Map(patients.filter((p) => p != null).map((p) => [p.id, p.gender]));
+  return rows.map((r) => ({ ...r, gender: r.patientRefId != null ? (gender.get(r.patientRefId) ?? "") : "" }));
+}
+
 export async function listIpd(options: QueryOptions, actor: Session) {
-  return ipdRepo.list(
-    scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
-  );
+  const res = await ipdRepo.list(scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor));
+  return { ...res, rows: await withGender(res.rows) };
 }
 
 export async function getIpd(id: number, actor: Session) {
   const row = await ipdRepo.getRow(id);
   assertOwnedByHospital(row, actor, "Admission");
-  return toIpdDTO(row);
+  return (await withGender([toIpdDTO(row)]))[0];
+}
+
+/** Primary nurse must be one of this hospital's staff. */
+async function resolveNurse(nurseId: number | undefined, actor: Session): Promise<{ id: number | null; name: string }> {
+  if (!nurseId) return { id: null, name: "" };
+  const nurse = await staffRepo.getRow(nurseId);
+  assertOwnedByHospital(nurse, actor, "Nurse");
+  return { id: nurse.id, name: nurse.name };
+}
+
+/** ADM/2026/00003 — numbered per hospital, restarting each year. */
+async function nextAdmissionNo(actor: Session): Promise<string> {
+  const prefix = `ADM/${localDate().slice(0, 4)}/`;
+  const { rows } = await ipdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
+  return nextCode(rows.map((r) => r.admission_no ?? ""), prefix, 5);
 }
 
 export async function admitPatient(input: unknown, actor: Session) {
@@ -78,6 +116,9 @@ export async function admitPatient(input: unknown, actor: Session) {
     assertOwnedByHospital(d, actor, "Doctor");
     doctorName = d.name;
   }
+
+  const nurse = await resolveNurse(data.primaryNurseId, actor);
+  const admissionNo = await nextAdmissionNo(actor);
 
   // Resolve and occupy the bed.
   let ward = data.ward ?? "";
@@ -129,10 +170,22 @@ export async function admitPatient(input: unknown, actor: Session) {
       diagnosis: data.diagnosis,
       credit_limit: data.creditLimit ?? 0,
       status: data.status,
+      admission_no: admissionNo,
+      admission_type: data.admissionType,
+      is_mlc: data.isMlc,
+      family_name: data.familyName,
+      family_relation: data.familyRelation,
+      family_phone: data.familyPhone,
+      deposit_amount: data.depositAmount ?? 0,
+      deposit_mode: data.depositAmount ? (data.depositMode ?? "Cash") : "",
+      primary_nurse_id: nurse.id,
+      primary_nurse: nurse.name,
+      expected_stay_days: data.expectedStayDays ?? null,
+      diet: data.diet,
     });
   });
-  await audit(actor, "admit", "ipd", row.id, { bedId, ward });
-  return toIpdDTO(row as IpdAdmissionRow);
+  await audit(actor, "admit", "ipd", row.id, { bedId, ward, admissionNo });
+  return (await withGender([toIpdDTO(row as IpdAdmissionRow)]))[0];
 }
 
 export async function updateIpd(id: number, input: unknown, actor: Session) {
@@ -143,6 +196,21 @@ export async function updateIpd(id: number, input: unknown, actor: Session) {
   if ("diagnosis" in data) patch.diagnosis = data.diagnosis;
   if ("creditLimit" in data) patch.credit_limit = data.creditLimit;
   if ("status" in data) patch.status = data.status;
+  if ("admissionType" in data) patch.admission_type = data.admissionType;
+  if ("isMlc" in data) patch.is_mlc = data.isMlc;
+  if ("familyName" in data) patch.family_name = data.familyName;
+  if ("familyRelation" in data) patch.family_relation = data.familyRelation;
+  if ("familyPhone" in data) patch.family_phone = data.familyPhone;
+  if ("depositAmount" in data) patch.deposit_amount = data.depositAmount ?? 0;
+  if ("depositMode" in data) patch.deposit_mode = data.depositMode ?? "";
+  if ("expectedStayDays" in data) patch.expected_stay_days = data.expectedStayDays ?? null;
+  if ("diet" in data) patch.diet = data.diet;
+  // `null` means "no nurse": the validator drops nulls, so look at the raw input for that key.
+  if ("primaryNurseId" in ((input ?? {}) as Record<string, unknown>)) {
+    const nurse = await resolveNurse(data.primaryNurseId, actor);
+    patch.primary_nurse_id = nurse.id;
+    patch.primary_nurse = nurse.name;
+  }
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;
     const d = data.doctorId ? await doctorsRepo.getRow(data.doctorId) : null;

@@ -41,6 +41,14 @@ import type {
   TpaClaimRow,
   EnquiryRow,
   FollowUpRow,
+  IpdVitalRow,
+  IpdIvLineRow,
+  IpdDoseLogRow,
+  IpdNursingTaskRow,
+  IpdHandoverRow,
+  IpdAlertAckRow,
+  IpdChecklistTemplateRow,
+  IpdChecklistRow,
   FinanceIncomeRow,
   FinanceExpenseRow,
   InventoryItemRow,
@@ -90,6 +98,14 @@ import {
   toTpaClaimDTO,
   toEnquiryDTO,
   toFollowUpDTO,
+  toIpdVitalDTO,
+  toIpdIvLineDTO,
+  toIpdDoseLogDTO,
+  toIpdNursingTaskDTO,
+  toIpdHandoverDTO,
+  toIpdAlertAckDTO,
+  toIpdChecklistTemplateDTO,
+  toIpdChecklistDTO,
   toFinanceEntryDTO,
   toInventoryItemDTO,
   toInventoryIssueDTO,
@@ -261,6 +277,14 @@ export const ipdMedicationsRepo = createRepository<IpdMedicationRow, ReturnType<
   TABLES.ipdMedications,
   toIpdMedicationDTO,
 );
+export const ipdVitalsRepo = createRepository<IpdVitalRow, ReturnType<typeof toIpdVitalDTO>>(TABLES.ipdVitals, toIpdVitalDTO);
+export const ipdIvLinesRepo = createRepository<IpdIvLineRow, ReturnType<typeof toIpdIvLineDTO>>(TABLES.ipdIvLines, toIpdIvLineDTO);
+export const ipdDoseLogRepo = createRepository<IpdDoseLogRow, ReturnType<typeof toIpdDoseLogDTO>>(TABLES.ipdDoseLog, toIpdDoseLogDTO);
+export const ipdNursingTasksRepo = createRepository<IpdNursingTaskRow, ReturnType<typeof toIpdNursingTaskDTO>>(TABLES.ipdNursingTasks, toIpdNursingTaskDTO);
+export const ipdHandoversRepo = createRepository<IpdHandoverRow, ReturnType<typeof toIpdHandoverDTO>>(TABLES.ipdHandovers, toIpdHandoverDTO);
+export const ipdAlertAcksRepo = createRepository<IpdAlertAckRow, ReturnType<typeof toIpdAlertAckDTO>>(TABLES.ipdAlertAcks, toIpdAlertAckDTO);
+export const ipdChecklistTemplatesRepo = createRepository<IpdChecklistTemplateRow, ReturnType<typeof toIpdChecklistTemplateDTO>>(TABLES.ipdChecklistTemplates, toIpdChecklistTemplateDTO);
+export const ipdChecklistsRepo = createRepository<IpdChecklistRow, ReturnType<typeof toIpdChecklistDTO>>(TABLES.ipdChecklists, toIpdChecklistDTO);
 export const documentsRepo = createRepository<DocumentRow, ReturnType<typeof toDocumentDTO>>(
   TABLES.documents,
   toDocumentDTO,

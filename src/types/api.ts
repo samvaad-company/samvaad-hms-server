@@ -361,12 +361,196 @@ export interface BillDTO extends Bill {
   patientId: number | null;
 }
 
+export type IpdAdmissionType = "Emergency" | "Planned" | "Day care" | "Maternity" | "Transfer in";
+export type DepositMode = "Cash" | "UPI" | "Card";
+
 export interface IpdRecordDTO extends IpdRecord {
   // Note: IpdRecord.patientId is the patient *code* (e.g. HMS-0007).
   patientRefId: number | null;
   doctorId: number | null;
   bedId: number | null;
   wardId: number | null;
+  /** ADM/2026/00003 */
+  admissionNo: string;
+  admissionType: IpdAdmissionType;
+  isMlc: boolean;
+  gender: string;
+  familyName: string;
+  familyRelation: string;
+  familyPhone: string;
+  depositAmount: number;
+  depositMode: DepositMode | "";
+  primaryNurseId: number | null;
+  primaryNurse: string;
+  expectedStayDays: number | null;
+  diet: string;
+}
+
+/** Live state of one admission, for the admissions list and the nurse station. */
+export interface IpdLiveDTO {
+  admissionId: number;
+  /** The signed-in user is this patient's doctor or primary nurse. */
+  mine: boolean;
+  /** A doctor round was recorded today; when, and by whom. */
+  seenToday: boolean;
+  lastRoundAt: string | null;
+  lastRoundBy: string | null;
+  ivRunning: number;
+  /** Doses inside their window right now, and ones that have passed it unrecorded. */
+  dosesDue: number;
+  dosesMissed: number;
+  /** Next dose still to come today, as an ISO instant. */
+  nextDoseAt: string | null;
+  /** New medication orders nobody has acted on yet. */
+  newOrders: number;
+  vitalsDue: boolean;
+  lastVitalsAt: string | null;
+  openTasks: number;
+  openChecklists: number;
+  /** Whole days in hospital, counting the admission day as day 1. */
+  stayDay: number;
+}
+
+export interface IpdBoardDTO {
+  live: IpdLiveDTO[];
+  /** Rounds seen today among the signed-in doctor's own patients, when they have any. */
+  rounds: { seen: number; total: number } | null;
+}
+
+export interface IpdVitalDTO {
+  id: number;
+  admissionId: number;
+  recordedAt: string;
+  tempC: number | null;
+  pulse: number | null;
+  bpSystolic: number | null;
+  bpDiastolic: number | null;
+  spo2: number | null;
+  respRate: number | null;
+  note: string;
+  recordedBy: string;
+}
+
+export interface IpdIvLineDTO {
+  id: number;
+  admissionId: number;
+  fluid: string;
+  volumeMl: number;
+  rateMlHr: number;
+  startedAt: string;
+  stoppedAt: string | null;
+  status: "Running" | "Stopped" | "Completed";
+  startedBy: string;
+  note: string;
+  /** When the bottle runs dry at its set rate. */
+  endsAt: string;
+}
+
+export type DoseState = "upcoming" | "due" | "missed" | "given" | "held";
+
+/** One scheduled dose of one medicine, with what became of it. */
+export interface DoseSlotDTO {
+  key: string;
+  admissionId: number;
+  medicationId: number;
+  medicineName: string;
+  dosage: string;
+  route: string;
+  scheduledAt: string;
+  state: DoseState;
+  givenAt: string | null;
+  givenBy: string | null;
+  note: string;
+}
+
+export interface IpdNursingTaskDTO {
+  id: number;
+  admissionId: number | null;
+  title: string;
+  dueAt: string | null;
+  status: "To do" | "Done";
+  createdBy: string;
+  doneBy: string | null;
+  doneAt: string | null;
+  overdue: boolean;
+}
+
+export interface IpdHandoverDTO {
+  id: number;
+  admissionId: number;
+  shift: "Morning" | "Evening" | "Night";
+  shiftDate: string;
+  note: string;
+  author: string;
+  createdAt: string;
+}
+
+export type IpdAlertKind = "Critical vitals" | "Dose missed" | "Dose held" | "IV bottle" | "New order" | "Nursing task";
+
+export interface IpdAlertDTO {
+  /** Stable across refreshes, so an acknowledgement sticks. */
+  key: string;
+  kind: IpdAlertKind;
+  severity: "critical" | "warning" | "info";
+  admissionId: number;
+  patientName: string;
+  patientCode: string;
+  title: string;
+  detail: string;
+  /** ISO instant the alert is about. */
+  at: string;
+}
+
+export interface NurseBoardDTO {
+  alerts: IpdAlertDTO[];
+  tasks: IpdNursingTaskDTO[];
+}
+
+export interface ChecklistItemDefDTO {
+  key: string;
+  label: string;
+  required: boolean;
+  children?: { key: string; label: string }[];
+}
+
+export interface ChecklistTickDTO {
+  done: boolean;
+  by: string | null;
+  at: string | null;
+}
+
+export interface IpdChecklistTemplateDTO {
+  id: number;
+  name: string;
+  scope: string;
+  description: string;
+  items: ChecklistItemDefDTO[];
+  active: boolean;
+  /** Tickable lines, counting each sub-line. */
+  lineCount: number;
+}
+
+export interface IpdChecklistDTO {
+  id: number;
+  templateId: number | null;
+  name: string;
+  scope: string;
+  admissionId: number | null;
+  patientId: number | null;
+  patientName: string;
+  patientCode: string;
+  items: ChecklistItemDefDTO[];
+  ticks: Record<string, ChecklistTickDTO>;
+  status: "In progress" | "Complete" | "Cancelled";
+  startedBy: string;
+  startedAt: string;
+  completedBy: string | null;
+  completedAt: string | null;
+  cancelledReason: string | null;
+  done: number;
+  total: number;
+  /** Required lines still unticked. */
+  requiredLeft: number;
 }
 
 export interface OtRecordDTO extends OtRecord {
@@ -376,12 +560,15 @@ export interface OtRecordDTO extends OtRecord {
 
 export interface BedDTO extends Bed {
   wardId: number | null;
+  /** ₹ per day, from the bed's ward. */
+  dailyRate: number;
 }
 
 export interface WardDTO {
   id: number;
   name: string;
   capacity: number;
+  dailyRate: number;
 }
 
 export interface BedTransferDTO {

@@ -38,6 +38,8 @@ import {
   CalendarCheck,
   CalendarClock,
   Video,
+  HeartPulse,
+  ListChecks,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -105,6 +107,8 @@ const groups: NavGroup[] = [
     label: "Inpatient",
     items: [
       { href: "/ipd",           label: "IPD",           icon: BedDouble,  resource: "ipd", key: "I" },
+      { href: "/nurse-station", label: "Nurse Station", icon: HeartPulse, resource: "nursing", key: "6" },
+      { href: "/checklists",    label: "Checklists",    icon: ListChecks, resource: "nursing", key: "5" },
       { href: "/ot",            label: "OT",            icon: Scissors,   resource: "ot", key: "U" },
       { href: "/beds",          label: "Beds & Wards",  icon: LayoutGrid, resource: "beds", key: "B" },
     ],

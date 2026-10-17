@@ -462,7 +462,7 @@ export default function BedsPage() {
   const [managedBed, setManagedBed] = useState<BedDTO | null>(null);
 
   const [bedForm, setBedForm] = useState({ bedNumber: "", ward: "", status: "Available" });
-  const [wardForm, setWardForm] = useState({ name: "", capacity: "" });
+  const [wardForm, setWardForm] = useState({ name: "", capacity: "", dailyRate: "" });
 
   function reloadAll() {
     reloadBeds();
@@ -481,13 +481,14 @@ export default function BedsPage() {
     const body = {
       name: wardForm.name,
       capacity: wardForm.capacity ? Number(wardForm.capacity) : 0,
+      dailyRate: wardForm.dailyRate ? Number(wardForm.dailyRate) : 0,
     };
     await run(() =>
       editingWard ? api.patch(`/wards/${editingWard.id}`, body) : api.post("/wards", body),
     );
     setShowWardModal(false);
     setEditingWard(null);
-    setWardForm({ name: "", capacity: "" });
+    setWardForm({ name: "", capacity: "", dailyRate: "" });
     reloadAll();
   }
 
@@ -501,14 +502,14 @@ export default function BedsPage() {
   function openAddWard() {
     reset();
     setEditingWard(null);
-    setWardForm({ name: "", capacity: "" });
+    setWardForm({ name: "", capacity: "", dailyRate: "" });
     setShowWardModal(true);
   }
 
   function openEditWard(w: WardDTO) {
     reset();
     setEditingWard(w);
-    setWardForm({ name: w.name, capacity: String(w.capacity || "") });
+    setWardForm({ name: w.name, capacity: String(w.capacity || ""), dailyRate: String(w.dailyRate || "") });
     setShowWardModal(true);
   }
 
@@ -557,6 +558,7 @@ export default function BedsPage() {
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Ward Name *"><FormInput placeholder="e.g. Pediatrics Ward" value={wardForm.name} onChange={v => setWardForm(f => ({ ...f, name: v }))} /></FormRow>
           <FormRow label="Capacity"><FormInput type="number" placeholder="e.g. 12" value={wardForm.capacity} onChange={v => setWardForm(f => ({ ...f, capacity: v }))} /></FormRow>
+          <div className="col-span-2"><FormRow label="Bed rate (₹ per day)" hint="Shown on the bed cards when admitting a patient"><FormInput type="number" placeholder="e.g. 1200" value={wardForm.dailyRate} onChange={v => setWardForm(f => ({ ...f, dailyRate: v }))} /></FormRow></div>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>
