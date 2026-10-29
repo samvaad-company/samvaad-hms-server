@@ -23,13 +23,13 @@ import type { OpdRecord } from "@/types";
 const COLUMNS = [
   { label: "Token",  width: "80px" },
   { label: "Patient", width: "minmax(140px,1.3fr)" },
-  { label: "Age",    width: "55px" },
-  { label: "Doctor", width: "minmax(130px,1.2fr)" },
-  { label: "Reason", width: "minmax(140px,1.4fr)" },
-  { label: "Priority", width: "100px" },
-  { label: "Vitals", width: "150px" },
-  { label: "Wait",   width: "80px" },
-  { label: "Check-in", width: "95px" },
+  { label: "Age",    width: "55px", hideBelow: 1180 },
+  { label: "Doctor", width: "minmax(130px,1.2fr)", hideBelow: 780 },
+  { label: "Reason", width: "minmax(140px,1.4fr)", hideBelow: 1000 },
+  { label: "Priority", width: "100px", hideBelow: 700 },
+  { label: "Vitals", width: "150px", hideBelow: 900 },
+  { label: "Wait",   width: "80px", hideBelow: 1100 },
+  { label: "Check-in", width: "95px", hideBelow: 1280 },
   { label: "Status", width: "130px" },
   { label: "Action", width: "52px", align: "right" as const },
 ];
@@ -59,11 +59,38 @@ const FILTERS = [
 
 const MIN_WIDTH = 1340;
 
+/**
+ * On a narrower screen the table drops its less important columns (see `hideBelow`) — and what they held moves under the patient's
+ * name, so every field stays on screen without scrolling sideways. Each item appears at the width its column disappears.
+ */
+const NARROW_CSS = `
+.opd-sub{display:none;flex-wrap:wrap;gap:2px 10px;margin-top:2px;font-size:11px;font-weight:400;color:var(--ink-soft);line-height:15px}
+.opd-sub>span{display:none}
+@container (max-width:1279px){.opd-row{height:auto;min-height:42px;padding-top:7px;padding-bottom:7px}.opd-sub{display:flex}.opd-sub>.s-in{display:inline}}
+@container (max-width:1179px){.opd-sub>.s-age{display:inline}}
+@container (max-width:1099px){.opd-sub>.s-wait{display:inline}}
+@container (max-width:999px){.opd-sub>.s-reason{display:inline;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@container (max-width:899px){.opd-sub>.s-vitals{display:inline}}
+@container (max-width:779px){.opd-sub>.s-doc{display:inline}}
+@container (max-width:699px){.opd-sub>.s-pri{display:inline;font-weight:500}}
+`;
+
 function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
   return (
-    <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
+    <div className={`${tw.table.dataRow} opd-row`} style={{ gridTemplateColumns: "var(--cols)" }}>
       <span className="text-[13px] font-medium text-[color:var(--brand)]">{row.tokenNumber}</span>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <div className="min-w-0">
+        <span className="block truncate text-[13px] font-medium text-[color:var(--ink)]">{row.patientName}</span>
+        <div className="opd-sub">
+          <span className="s-doc">{row.doctor}</span>
+          <span className="s-pri" style={row.priority === "Emergency" ? { color: "#ff0004" } : row.priority === "Urgent" ? { color: "#ff9000" } : undefined}>{row.priority}</span>
+          <span className="s-age">Age {row.patientAge}</span>
+          <span className="s-in">In {row.checkInTime}</span>
+          <span className="s-wait">Wait {row.waitTime}</span>
+          <span className="s-vitals">Vitals: {row.vitalsRecorded ? (vitalsSummary(row.vitals) || "Recorded") : "Pending"}</span>
+          {row.reason && <span className="s-reason" title={row.reason}>{row.reason}</span>}
+        </div>
+      </div>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate" title={row.reason}>
@@ -368,6 +395,7 @@ export default function OpdPage() {
             searchQuery={search}
             onSearchChange={setSearch}
           />
+          <style>{NARROW_CSS}</style>
           <DataTable columns={COLUMNS} minWidth={MIN_WIDTH}>
             {pagedVisible.map((r) => (
               <OpdRow key={r.id} row={r} actions={[

@@ -60,6 +60,8 @@ export const TABLES = {
   setupRecords: "setup_records",
   billItems: "bill_items",
   billPayouts: "bill_payouts",
+  whatsappAccounts: "whatsapp_accounts",
+  whatsappMessages: "whatsapp_messages",
   pharmacyBatches: "pharmacy_batches",
   pharmacyDispenses: "pharmacy_dispenses",
   pharmacyDispenseLines: "pharmacy_dispense_lines",
@@ -538,6 +540,53 @@ export interface BillItemRow extends Row {
   amount: number;
   /** What the contract pays for this line (0 on a self-pay bill). */
   payer_amount?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A hospital's connected WhatsApp Business number (Meta Cloud API). The access token is stored encrypted and never leaves the server. */
+export interface WhatsappAccountRow extends Row {
+  id: number;
+  hospital_id: number;
+  waba_id: string;
+  phone_number_id: string;
+  display_phone: string;
+  verified_name: string;
+  /** AES-256-GCM, `iv.tag.cipher` in base64. */
+  access_token_enc: string;
+  api_version: string;
+  /** embedded (Meta Embedded Signup) | manual */
+  connected_via: string;
+  /** The app is subscribed to the WABA, so Meta delivers its messages to our webhook. */
+  subscribed: boolean;
+  /** Answer patients' messages with the chat assistant. */
+  bot_enabled: boolean;
+  /** Approved template for sending a signing link outside the 24-hour window ("" = plain text only). */
+  consent_template: string;
+  consent_template_lang: string;
+  /** named | positional — must match how the template was created in Meta. */
+  consent_template_format: string;
+  /** Country calling code digits for numbers saved without one. */
+  default_country: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One WhatsApp message in or out, for the activity list and delivery tracking. */
+export interface WhatsappMessageRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** in | out */
+  direction: string;
+  /** The patient's number, digits only. */
+  phone: string;
+  /** bot | consent | test | status */
+  kind: string;
+  body: string;
+  wa_message_id: string | null;
+  /** received | sent | delivered | read | failed */
+  status: string;
+  error: string | null;
   created_at: string;
   updated_at: string;
 }

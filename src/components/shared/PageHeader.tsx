@@ -51,12 +51,12 @@ export function PageHeader({
   const rangeLabel = DATE_RANGES.find((r) => r.id === range)?.label ?? "All time";
 
   return (
-    <div className="flex items-start justify-between px-[30px] pt-[16px] pb-[12px]">
-      <div className="flex flex-col gap-[2px]">
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-[30px] pt-[16px] pb-[12px]">
+      <div className="flex min-w-0 flex-col gap-[2px]">
         <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px] capitalize">
           {title}
         </h1>
-        <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px] whitespace-nowrap">
+        <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px]">
           {subtitle}
         </p>
       </div>

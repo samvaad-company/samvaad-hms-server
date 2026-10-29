@@ -6,40 +6,19 @@
  */
 import { useItem } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
-import type { DashboardStatsDTO, AttendanceTodayDTO } from "@/types/api";
-import {
-  Users, Calendar, Clock, BedDouble, LayoutGrid, Receipt,
-  Pill, FlaskConical, IndianRupee, Stethoscope, BarChart3, Settings2,
-} from "lucide-react";
+import type { AttendanceTodayDTO } from "@/types/api";
 import Link from "next/link";
 import { tw } from "@/lib/design-system";
-import { PanelHeader, StatRow, QuickLinks, MyTasksCard } from "./shared";
+import { MyTasksCard } from "./shared";
+import { OverviewDashboard } from "@/components/overview/OverviewDashboard";
 
 export function AdminPanel() {
-  const { user, can } = useAuth();
-  const { item: stats } = useItem<DashboardStatsDTO>("/dashboard");
+  const { can } = useAuth();
   const { item: att } = useItem<AttendanceTodayDTO>(can("staff") ? "/staff/attendance/today" : null);
-
-  const n = (v?: number) => String(v ?? 0);
 
   return (
     <>
-      <PanelHeader name={user?.name ?? "Admin"} subtitle="Hospital Overview · Admin Panel" badge="All Systems Live" />
-
-      <StatRow stats={[
-        { icon: Users,       label: "Patients",           value: n(stats?.patients),          color: "text-[color:var(--ink)]", bg: "bg-[color:var(--subtle-2)]" },
-        { icon: Calendar,    label: "Appointments Today", value: n(stats?.appointmentsToday), color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
-        { icon: Clock,       label: "OPD Waiting",        value: n(stats?.opdWaiting),        color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
-        { icon: BedDouble,   label: "IPD Admitted",       value: n(stats?.ipdAdmitted),       color: "text-[color:var(--brand)]", bg: "bg-[color:var(--brand-soft)]" },
-        { icon: IndianRupee, label: "Revenue",            value: `₹${(stats?.revenue ?? 0).toLocaleString("en-IN")}`, color: "text-[#00955c]", bg: "bg-[#dffff3]" },
-      ]} />
-
-      <StatRow stats={[
-        { icon: LayoutGrid,   label: "Beds Available", value: n(stats?.bedsAvailable), color: "text-[#00955c]", bg: "bg-[#dffff3]" },
-        { icon: Receipt,      label: "Pending Bills",  value: n(stats?.pendingBills),  color: "text-[#ff9000]", bg: "bg-[#fff2e0]" },
-        { icon: Pill,         label: "Low Stock",      value: n(stats?.lowStock),      color: "text-[#ff0004]", bg: "bg-[#ffe9e9]" },
-        { icon: FlaskConical, label: "Pending Labs",   value: n(stats?.pendingLabs),   color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
-      ]} />
+      <OverviewDashboard />
 
       {att && (
         <div className={`${tw.gutterX} mb-[30px]`}>
@@ -80,16 +59,6 @@ export function AdminPanel() {
           </div>
         </div>
       )}
-      <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className="max-w-[720px]">
-          <QuickLinks links={[
-            { href: "/reports",  label: "Reports",       description: "KPIs & performance",         icon: BarChart3 },
-            { href: "/admin",    label: "Admin Panel",   description: "Settings, roles, users",      icon: Settings2 },
-            { href: "/doctors",  label: "Doctors",       description: "Directory & schedules",       icon: Stethoscope },
-            { href: "/billing",  label: "Billing",       description: "Invoices & collections",      icon: Receipt },
-          ]} />
-        </div>
-      </div>
       <div className={`${tw.gutterX} mb-[30px]`}>
         <MyTasksCard />
       </div>

@@ -27,3 +27,13 @@ export function readCookie(name: string): string | undefined {
   }
   return undefined;
 }
+
+/** The request currently being handled, if any. */
+export function currentRequest(): Request | undefined {
+  return storage.getStore()?.req;
+}
+
+/** One header of the request currently being handled. */
+export function readHeader(name: string): string | undefined {
+  return storage.getStore()?.req.headers.get(name) ?? undefined;
+}

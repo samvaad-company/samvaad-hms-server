@@ -13,7 +13,7 @@ import { readCookie, runWithRequest } from "@/http/request-context";
 import { loadRoutes, type LoadedRoute } from "@/load-routes";
 
 /** Paths that never require a staff session. */
-const PUBLIC_API = new Set(["/api/auth/login", "/api/health", "/api/razorpay/webhook"]);
+const PUBLIC_API = new Set(["/api/auth/login", "/api/health", "/api/razorpay/webhook", "/api/whatsapp/webhook"]);
 /**
  * Routes that do their own authentication instead of using a staff session:
  *  - /api/portal/*  — the patient portal's server, with a shared key

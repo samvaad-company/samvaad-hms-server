@@ -56,6 +56,8 @@ import type {
   PharmacyBatchRow,
   BillItemRow,
   BillPayoutRow,
+  WhatsappAccountRow,
+  WhatsappMessageRow,
   PharmacyDispenseRow,
   PharmacyDispenseLineRow,
   PharmacyReturnRow,
@@ -266,6 +268,8 @@ export const cssdSettingsRepo = createRepository<CssdSettingsRow, CssdSettingsRo
 export const hrLeaveTypesRepo = createRepository<HrLeaveTypeRow, HrLeaveTypeRow>(TABLES.hrLeaveTypes, (r) => r);
 export const hrLeaveRequestsRepo = createRepository<HrLeaveRequestRow, HrLeaveRequestRow>(TABLES.hrLeaveRequests, (r) => r);
 export const billItemsRepo = createRepository<BillItemRow, BillItemRow>(TABLES.billItems, (r) => r);
+export const whatsappAccountsRepo = createRepository<WhatsappAccountRow, WhatsappAccountRow>(TABLES.whatsappAccounts, (r) => r);
+export const whatsappMessagesRepo = createRepository<WhatsappMessageRow, WhatsappMessageRow>(TABLES.whatsappMessages, (r) => r);
 export const billPayoutsRepo = createRepository<BillPayoutRow, BillPayoutRow>(TABLES.billPayouts, (r) => r);
 export const pharmacyBatchesRepo = createRepository<PharmacyBatchRow, PharmacyBatchRow>(TABLES.pharmacyBatches, (r) => r);
 export const pharmacyDispensesRepo = createRepository<PharmacyDispenseRow, PharmacyDispenseRow>(TABLES.pharmacyDispenses, (r) => r);

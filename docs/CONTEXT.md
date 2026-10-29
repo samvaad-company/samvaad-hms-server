@@ -191,6 +191,22 @@ stationery and Treatment sheet buttons on Settings, logo upload.
   `test:idformats` (8), `test:wardmasters` (7), `test:coverage` (21).
 - Pharmacy OTC sales keep their own payment-mode enum.
 
+### WhatsApp (Meta Cloud API) — Setup → WhatsApp (`/whatsapp`), `docs/WHATSAPP_SETUP.md`
+- One number per hospital in `whatsapp_accounts` (token AES-256-GCM encrypted with a key from `SESSION_SECRET`, never returned) plus a
+  `whatsapp_messages` log (in/out, delivery status). Connect by Meta Embedded Signup (`POST /api/whatsapp/callback` swaps the code for a token and
+  subscribes the app) or by typing ids + token (`PUT /api/whatsapp`, checked with Meta first). `PATCH` = bot switch, country code, signing-link template.
+  Admin-only except `GET /api/whatsapp/status` (any user: connected? template ready?). Client: `services/whatsapp-cloud.ts`; account/sending:
+  `whatsapp-service.ts`; assistant: `whatsapp-bot.ts`.
+- **Signing links**: consent link with delivery `whatsapp` (or `POST /api/consents/:id/whatsapp` to resend) sends the link from the hospital's number — an
+  approved template if configured (variables: patient name, form title, link, hospital name; numbered or named), else plain text (Meta refuses it outside
+  the 24-hour window, and the screen says so). The link is made either way. Not connected → the old share-menu path.
+- **Webhook** `GET/POST /api/whatsapp/webhook` (public path): verify-token challenge; POST checked with `X-Hub-Signature-256` over the raw body, answered 200
+  at once, processed after (`setImmediate`). Statuses update the log. Inbound: matched to the hospital by `phone_number_id`, deduped by message id, routed:
+  cancel → emergency → running booking → greeting/intents (book, my appointments, prescriptions) → Gemini fallback (canned reply without a key). Booking uses
+  the doctor's real slots (`slotsFor` / `bookInPerson`). Conversation state is in memory per number (single instance only).
+- Migration `0048_whatsapp.sql`; Mongo schema v11. Tests: `test:whatsapp` (24, Meta stubbed). **Not verified against real Meta** (needs your account): Embedded
+  Signup popup, a real send, a real webhook delivery.
+
 ### Consents & documents — patient page tab "Documents & consents" (`components/patients/PatientDocuments.tsx`, `components/consents/`)
 See §4.
 
@@ -228,7 +244,7 @@ See §4.
 cd server && npx tsc --noEmit            # server types
 cd .. && npx tsc --noEmit                # web types
 npx eslint src                           # expect 24 problems (baseline)
-cd server && for t in payments scheduling profile patients enquiries followups rxreview ipd ot labpriority bloodbank mrd consents cssd hr setup dispense inuse idformats wardmasters coverage; do npm run -s test:$t | tail -1; done
+cd server && for t in payments scheduling profile patients enquiries followups rxreview ipd ot labpriority bloodbank mrd consents cssd hr setup dispense inuse idformats wardmasters coverage overview whatsapp; do npm run -s test:$t | tail -1; done
 npm run -s test:store                    # from repo root
 ```
 Expected last run (2026-10-29): payments 48, scheduling 18, profile 11, patients 11, enquiries 11, followups 8, rxreview 7,
@@ -239,7 +255,7 @@ printed during `payments` is an expected logged error.)
 
 - **Nothing from these sessions is committed** (~96 changed/new paths on `surya-dev`). Earlier commits only cover the first
   two feature batches. Commit/push only when asked.
-- **Migrations `0037`–`0047` have not been run on Postgres/Supabase** (dev DB is Mongo). Mongo schema version is 10
+- **Migrations `0037`–`0048` have not been run on Postgres/Supabase** (dev DB is Mongo). Mongo schema version is 11
   (`MONGO_SCHEMA_VERSION` in `db/index.ts`) — bump it if you add indexes.
 - Old blood-bank aggregate stock/issue tables and the `donate` route were removed; issuing blood no longer creates a bill.
 - Retention "nightly sweep" runs on read, not on a schedule.

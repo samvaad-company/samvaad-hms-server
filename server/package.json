@@ -30,7 +30,9 @@
     "test:inuse": "tsx scripts/test-masters-in-use.ts",
     "test:idformats": "tsx scripts/test-id-formats.ts",
     "test:wardmasters": "tsx scripts/test-ward-masters.ts",
-    "test:coverage": "tsx scripts/test-coverage.ts"
+    "test:coverage": "tsx scripts/test-coverage.ts",
+    "test:overview": "tsx scripts/test-overview.ts",
+    "test:whatsapp": "tsx scripts/test-whatsapp.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

@@ -19,6 +19,9 @@ interface DataTableProps {
   minWidth?: number;
 }
 
+/** The grid's column gap (`gap-3`) — a hidden column frees its gap along with its track. */
+const GAP = 12;
+
 /** The least width a grid track needs: 180px, minmax(140px,1fr) → 140; a bare fr track counts as 120. */
 function trackMin(width: string): number {
   const n = /(\d+(?:\.\d+)?)px/.exec(width);
@@ -34,7 +37,7 @@ function responsiveCss(id: string, columns: Column[], minWidth: number): string 
   return thresholds.map((t) => {
     const hidden = columns.map((c, i) => ({ c, i })).filter(({ c }) => (c.hideBelow ?? 0) >= t);
     const kept = columns.filter((c) => !((c.hideBelow ?? 0) >= t));
-    const saved = hidden.reduce((n, { c }) => n + trackMin(c.width), 0);
+    const saved = hidden.reduce((n, { c }) => n + trackMin(c.width) + GAP, 0);
     const cells = hidden.map(({ i }) => `.${id} > div > * > :nth-child(${i + 1})`).join(",");
     return `@container (max-width: ${t - 1}px){.${id} > div{--cols:${kept.map((c) => c.width).join(" ")} !important;min-width:${Math.max(320, minWidth - saved)}px !important}${cells}{display:none}}`;
   }).join("");

@@ -53,6 +53,8 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.mrdDeficiencies]: ["hospital_id", "case_id", "status"],
   [TABLES.mrdRegisterEntries]: ["hospital_id", "register", "entry_no"],
   [TABLES.billItems]: ["hospital_id", "bill_id"],
+  [TABLES.whatsappAccounts]: ["hospital_id", "phone_number_id"],
+  [TABLES.whatsappMessages]: ["hospital_id", "phone", "wa_message_id"],
   [TABLES.billPayouts]: ["hospital_id", "bill_id", "status", "payee_name"],
   [TABLES.pharmacyBatches]: ["hospital_id", "item_id"],
   [TABLES.pharmacyDispenses]: ["hospital_id", "patient_id", "dispense_no"],

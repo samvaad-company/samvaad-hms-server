@@ -52,6 +52,7 @@ import {
   Building2,
   GitBranch,
   BadgeCheck,
+  MessageCircle,
   Gift,
   PillBottle,
 } from "lucide-react";
@@ -187,6 +188,7 @@ const groups: NavGroup[] = [
       { href: "/masters",        label: "Masters",        icon: Layers,     resource: "admin" },
       { href: "/hospital-setup", label: "Hospital setup", icon: Building2,  resource: "admin" },
       { href: "/branches",       label: "Branches",       icon: GitBranch,  resource: "admin" },
+      { href: "/whatsapp",       label: "WhatsApp",       icon: MessageCircle, resource: "admin" },
       { href: "/plan",           label: "Plan & licence", icon: BadgeCheck, resource: "admin" },
       { href: "/refer",          label: "Refer & earn",   icon: Gift,       resource: "admin" },
     ],

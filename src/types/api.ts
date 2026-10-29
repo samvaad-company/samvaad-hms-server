@@ -1499,6 +1499,80 @@ export interface DashboardStatsDTO {
   revenue: number;
 }
 
+// ── WhatsApp (Meta Cloud API) ────────────────────────────────────────────────
+
+/** What a signed-in staff member needs to know: can this hospital send WhatsApp messages? */
+export interface WhatsappLiteDTO { connected: boolean; displayPhone: string; templateReady: boolean }
+
+/** The hospital's connection, for the admin screen. The access token is never included. */
+export interface WhatsappStatusDTO {
+  connected: boolean;
+  wabaId: string;
+  phoneNumberId: string;
+  displayPhone: string;
+  verifiedName: string;
+  apiVersion: string;
+  via: "embedded" | "manual" | "";
+  subscribed: boolean;
+  botEnabled: boolean;
+  consentTemplate: { name: string; language: string; format: "named" | "positional" };
+  defaultCountry: string;
+  updatedAt: string | null;
+  webhook: { path: string; verifyTokenConfigured: boolean; signatureCheck: boolean };
+  /** What the "Connect with Facebook" button needs (all public values). */
+  embedded: { available: boolean; appId: string; configId: string; apiVersion: string };
+}
+
+export interface WhatsappMessageDTO {
+  id: number; direction: "in" | "out"; phone: string; kind: string; body: string;
+  status: "received" | "sent" | "delivered" | "read" | "failed"; error: string | null; at: string;
+}
+
+/** The outcome of sending one message. */
+export interface WhatsappSendResult { state: "sent" | "failed" | "not_connected"; /** Masked, e.g. +91 ••••• 43210 */ to?: string; detail?: string }
+
+// ── Home overview (the admin command dashboard) ─────────────────────────────
+
+export interface OverviewDTO {
+  today: string;
+  hospital: string;
+  plan: { name: string; active: boolean };
+  /** The one-line summary under the greeting. */
+  summary: { patientsToday: number; collectedToday: number; opdWaiting: number; urgentLabs: number };
+  attention: {
+    opdWaiting: number;
+    urgentLabs: { urgent: number; pending: number };
+    unpaid: { amount: number; bills: number };
+    claims: { count: number };
+  };
+  kpis: {
+    patientsWeek: { value: number; previous: number };
+    collectedWeek: { value: number; previous: number };
+    appointments: { total: number; left: number };
+    beds: { occupied: number; total: number };
+  };
+  trend: { date: string; patients: number; collected: number }[];
+  byMode: { mode: string; amount: number; count: number }[];
+  appointmentsToday: { id: number; time: string; patient: string; doctor: string; type: string; status: string }[];
+  bedsByClass: { name: string; occupied: number; total: number }[];
+  admittedToday: number;
+  dischargedToday: number;
+  doctorLoad: { doctor: string; total: number; seen: number }[];
+  retention: {
+    noShowRate: number | null;
+    followUpsKept: number | null;
+    cameBack90: number | null;
+    returningShare: number | null;
+    missed: number;
+    followUpsDue: number;
+    atRisk: number;
+    lapsed: number;
+  };
+  alerts: { tone: "red" | "amber" | "grey"; title: string; detail: string; action: string; href: string }[];
+  opdQueue: { id: number; token: string; patient: string; doctor: string; priority: string; wait: string }[];
+  theatre: { id: number; time: string; procedure: string; patient: string; room: string; surgeon: string; status: string }[];
+}
+
 // ── MRD (medical records department) ─────────────────────────────────────────
 
 export const MRD_LOCATION_KINDS = ["MRD rack", "Archive room", "Operation theatre", "Nurse station", "Doctor cabin", "Other"] as const;
@@ -1676,6 +1750,8 @@ export interface ConsentDTO {
   signedDocumentId: number | null;
   /** Path of the page the patient opens (/sign/<token>); only while the link is live. */
   link: string | null;
+  /** Only on the reply to "make a link" with WhatsApp delivery: whether the hospital's WhatsApp sent it. */
+  whatsapp?: WhatsappSendResult;
 }
 
 /** A form a consent can be made from: one of the built-in ones, or one the hospital wrote. */

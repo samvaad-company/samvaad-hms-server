@@ -15,7 +15,7 @@ import { randomBytes } from "node:crypto";
 import { signatureRequestsRepo, patientsRepo, hospitalsRepo, mrdFoldersRepo } from "@/repositories";
 import { toConsentDTO, signatureStatusOf } from "@/repositories/mappers";
 import { type SignatureRequestRow } from "@/db/tables";
-import { BadRequestError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { BadRequestError, ConflictError, NotFoundError, ValidationError, isAppError } from "@/lib/errors";
 import { validate } from "@/lib/validation";
 import { localDate, zonedInstant } from "@/lib/clock";
 import { withKeyLocks } from "@/lib/key-lock";
@@ -27,6 +27,8 @@ import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/ser
 import { CONSENT_DELIVERIES, type ConsentCountsDTO, type ConsentDocumentDTO, type ConsentDTO, type ConsentTextDTO, type PublicConsentDTO } from "@shared/types/api";
 import { CONSENT_LANGUAGES, RELATIONS, consentForm } from "@shared/types/consent-catalog";
 import { fillPlaceholders, resolveTemplate } from "@/services/consent-templates-service";
+import { publicAppUrl, sendSigningLink } from "@/services/whatsapp-service";
+import type { WhatsappSendResult } from "@shared/types/api";
 
 const VALID_DAYS = [1, 3, 7];
 const MAX_SIGNATURE_CHARS = 300_000; // a drawn PNG data URL; plenty for a signature, small enough to keep rows light
@@ -141,6 +143,7 @@ const linkSchema = {
   delivery: { type: "enum", required: true, values: CONSENT_DELIVERIES },
   validDays: { type: "number", required: false, default: 3 },
   email: { type: "string", required: false, max: 160, default: "" },
+  phone: { type: "string", required: false, max: 24, default: "" },
 } as const;
 
 /** Make the link the patient signs through. A form that already has a live link keeps it (show its QR code instead). */
@@ -168,7 +171,40 @@ export async function createLink(id: number, input: unknown, actor: Session): Pr
     });
   });
   await audit(actor, "send", "consent", id, { delivery: data.delivery, validDays: data.validDays });
-  return toConsentDTO(updated as SignatureRequestRow);
+  const dto: ConsentDTO = toConsentDTO(updated as SignatureRequestRow);
+  // WhatsApp goes out through the hospital's connected number when it has one; without one the screen falls back to the device's share menu.
+  if (data.delivery === "whatsapp") {
+    // The link exists either way; if sending couldn't start (no number, no public address) say why instead of failing the request.
+    const sent: WhatsappSendResult = await sendConsentWhatsApp(id, { phone: data.phone }, actor).catch((e) => {
+      if (isAppError(e)) return { state: "failed" as const, detail: (e.details as { fields?: { message: string }[] } | undefined)?.fields?.[0]?.message ?? e.message };
+      throw e;
+    });
+    if (sent.state !== "not_connected") return { ...dto, whatsapp: sent };
+  }
+  return dto;
+}
+
+/** The message that goes with the link, in the language of the form. */
+function signingMessage(c: { formTitle: string; language: string; patientName: string }, url: string): string {
+  if (c.language === "Hindi") return `कृपया "${c.formTitle}" पढ़ें और हस्ताक्षर करें (${c.patientName}): ${url}`;
+  if (c.language === "Gujarati") return `કૃપા કરીને "${c.formTitle}" વાંચો અને સહી કરો (${c.patientName}): ${url}`;
+  return `Please read and sign "${c.formTitle}" (${c.patientName}): ${url}`;
+}
+
+/** Send a live signing link to the patient on WhatsApp — to `phone`, or the number on their record. Used on creating the link and to resend it. */
+export async function sendConsentWhatsApp(id: number, input: unknown, actor: Session): Promise<WhatsappSendResult> {
+  const row = await ownedRow(id, actor);
+  const dto = toConsentDTO(row);
+  if (!dto.link) throw new ConflictError("This form has no live link — make one first");
+  const base = publicAppUrl();
+  if (!base) throw new BadRequestError("The public address patients open isn't known — set PUBLIC_APP_URL on the server");
+  const typed = String((input as { phone?: unknown } | null)?.phone ?? "").trim();
+  const phone = typed || row.patient_phone || "";
+  if (!phone) throw new ValidationError([{ field: "phone", message: "there is no number on the patient's record — enter one" }]);
+  const url = `${base}${dto.link}`;
+  const result = await sendSigningLink(actor.hospitalId as number, { to: phone, patientName: dto.signerName || dto.patientName, formTitle: dto.formTitle, link: url, message: signingMessage(dto, url) });
+  await audit(actor, "send", "consent", id, { delivery: "whatsapp", state: result.state });
+  return result;
 }
 
 export async function cancelLink(id: number, actor: Session) {
