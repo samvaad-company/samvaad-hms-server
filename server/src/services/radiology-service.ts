@@ -23,7 +23,7 @@ import { TABLES } from "@/db/tables";
 import { type RadiologyTestRow } from "@/db/tables";
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
-import { displayDate, displayTime, nextCode } from "@/services/helpers";
+import { displayDate, displayTime } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
@@ -35,6 +35,7 @@ import {
   type RadiologyReportFileDTO,
   type RadiologyTestDTO,
 } from "@shared/types/api";
+import { nextNumber } from "@/services/id-service";
 
 // ── Dual (hospital or radiology-center) ownership ───────────────────────────
 
@@ -213,7 +214,7 @@ export async function listRoutableCenters(actor: Session) {
 /** Next order number, shared by every study ordered in one go. */
 async function nextOrderNumber(actor: Session): Promise<string> {
   const { rows } = await radiologyRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextCode(rows.map((r) => r.order_number ?? ""), "RAD-", 4);
+  return nextNumber("radiology_order", actor, rows.map((r) => r.order_number ?? ""), { prefix: "RAD-", pad: 4 });
 }
 
 export async function createRadiology(input: unknown, actor: Session, uow?: UnitOfWork) {

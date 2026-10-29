@@ -36,6 +36,9 @@ export const POST = withRoute(async (req: ApiRequest) => {
       ownerType: String(form.get("ownerType") ?? ""),
       ownerId: Number(form.get("ownerId")),
       category: (form.get("category") as string) ?? undefined,
+      folderId: form.get("folderId") ? Number(form.get("folderId")) : null,
+      title: (form.get("title") as string) ?? undefined,
+      referenceNo: (form.get("referenceNo") as string) ?? undefined,
     },
     session,
   );

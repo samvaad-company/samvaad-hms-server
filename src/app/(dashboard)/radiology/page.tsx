@@ -23,7 +23,7 @@ import type {
 } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RadiologyWorklist } from "@/components/radiology/RadiologyWorklist";
-import { PRIORITIES } from "@/components/radiology/PriorityBadge";
+import { PRIORITIES } from "@/components/shared/PriorityBadge";
 import type { RadiologyPriority } from "@/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";

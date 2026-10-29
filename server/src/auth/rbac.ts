@@ -37,7 +37,12 @@ export type Resource =
   | "teleconsult"
   | "enquiries"
   | "followups"
-  | "nursing";
+  | "nursing"
+  | "mrd"
+  | "consents"
+  | "cssd"
+  | "hr"
+  | "payroll";
 
 export type Access = "none" | "read" | "write";
 export type Action = "read" | "write";
@@ -73,6 +78,11 @@ export const RESOURCES: Resource[] = [
   "enquiries",
   "followups",
   "nursing",
+  "mrd",
+  "consents",
+  "cssd",
+  "hr",
+  "payroll",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -116,6 +126,10 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Super Admin": ALL_WRITE,
   "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
+    payroll: "none",
+    cssd: "write",
+    consents: "write",
+    documents: "write",
     followups: "write",
     nursing: "write",
     attendance: "none",
@@ -137,6 +151,10 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     reports: "none",
   }),
   "Head Nurse": withOverrides(NONE, {
+    hr: "read",
+    cssd: "write",
+    consents: "write",
+    documents: "write",
     nursing: "write",
     followups: "read",
     patients: "read",
@@ -152,6 +170,8 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     staff: "read",
   }),
   Receptionist: withOverrides(NONE, {
+    consents: "write",
+    documents: "write",
     followups: "write",
     enquiries: "write",
     patients: "read",
@@ -191,10 +211,24 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     prescriptions: "read",
   }),
   "Lab Technician": withOverrides(NONE, {
+    bloodbank: "write",
     lab: "write",
     radiology: "write",
     patients: "read",
   }),
+  /** Medical records department: patient files, retention, consent signatures, coding and the statutory registers. */
+  "MRD Officer": withOverrides(NONE, {
+    mrd: "write",
+    consents: "write",
+    documents: "write",
+    patients: "read",
+    ipd: "read",
+    doctors: "read",
+  }),
+  /** Human resources: the staff directory, leave, shifts and roster, and payroll. */
+  "HR Manager": withOverrides(NONE, { hr: "write", payroll: "write", staff: "write", documents: "write", doctors: "read", patients: "none" }),
+  /** Central sterile services: packs, sterilizes and issues instrument sets. */
+  "CSSD Technician": withOverrides(NONE, { cssd: "write", patients: "read", ot: "read" }),
   Driver: withOverrides(NONE, { ambulance: "read" }),
   /** External imaging centre: sees only the radiology worklist and uploads reports. */
   "Radiology Partner": withOverrides(NONE, { radiology: "write" }),

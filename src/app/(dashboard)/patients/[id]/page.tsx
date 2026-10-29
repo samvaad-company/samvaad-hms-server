@@ -9,7 +9,7 @@ import { parseDisplayDate, formatDate } from "@/lib/dates";
 import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
-import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
+import { PatientDocuments } from "@/components/patients/PatientDocuments";
 import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
 import {
   AlertCircle, Check, ChevronDown, ChevronLeft, Loader2, Copy, IdCard, ShieldCheck, Phone,
@@ -449,6 +449,10 @@ function OverviewTab({ patient, now }: { patient: PatientDetail; now: number }) 
         <Field label="Date of birth" value={patient.dob ? formatDate(patient.dob) : null} />
         <Field label="Gender" value={patient.gender} />
         <Field label="Blood group" value={patient.bloodGroup} />
+        <Field label="Patient category" value={patient.patientCategory} />
+        <Field label="Income group" value={patient.incomeGroup} />
+        <Field label="Visit purpose" value={patient.visitPurpose} />
+        <Field label="Referred by" value={patient.referralSource} />
         <Field label="Marital status" value={patient.maritalStatus} />
         <Field label="Anniversary" value={patient.anniversary ? formatDate(patient.anniversary) : null} />
         <Field label="Religion" value={patient.religion} />
@@ -561,7 +565,7 @@ function VitalsTab({ patientId }: { patientId: number }) {
 
 const MAIN_TABS = [
   { id: "overview", label: "Overview" },
-  { id: "documents", label: "Documents" },
+  { id: "documents", label: "Documents & consents" },
   { id: "history", label: "Medical history" },
   { id: "visits", label: "Visits" },
   { id: "vitals", label: "Vitals" },
@@ -667,6 +671,7 @@ export default function PatientDetailPage() {
                 </span>
               )}
               <StatusBadge status={patient.status} />
+              {patient.patientCategory && <span className="inline-flex items-center rounded-full border border-[color:var(--line)] bg-[color:var(--subtle)] px-[10px] py-[2px] text-[12px] text-[color:var(--ink)]">{patient.patientCategory}</span>}
             </div>
             <div className="text-[14px] font-normal text-[color:var(--ink-soft)]">{summary}</div>
             <div className="flex items-center gap-2 text-[13px] text-[color:var(--ink-soft)]">
@@ -692,7 +697,7 @@ export default function PatientDetailPage() {
         <PatientTabs active={tab} onChange={setTab} />
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
           {tab === "overview"     && <OverviewTab patient={patient} now={now} />}
-          {tab === "documents"    && <DocumentsPanel ownerType="patient" ownerId={patient.id} />}
+          {tab === "documents"    && <PatientDocuments patient={{ id: patient.id, name: patient.name, language: patient.language }} />}
           {tab === "history"      && <MedicalHistoryTab patient={patient} />}
           {tab === "visits"       && <VisitsTab patient={patient} />}
           {tab === "vitals"       && <VitalsTab patientId={patient.id} />}

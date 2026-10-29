@@ -1,184 +1,232 @@
 "use client";
 
+/**
+ * A staff member's HR file: profile (ID, qualification, licence, emergency contact), their leave, rostered shifts,
+ * salary, documents and the month's attendance. Leave and shifts need "hr"; salary needs "payroll".
+ */
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Phone, Mail, MapPin, Calendar, GraduationCap, IdCard, ShieldAlert } from "lucide-react";
 import { tw } from "@/lib/design-system";
-import { useItem } from "@/lib/api/hooks";
+import { formatDate } from "@/lib/dates";
+import { useAuth } from "@/lib/auth-context";
+import { useItem, useList } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import type { StaffDTO } from "@/types/api";
+import type { HrLeaveRequestDTO, HrLeaveTypeDTO, HrRosterDTO, HrSalaryDTO, HrShiftDTO, HrStaffBalanceDTO, StaffDTO } from "@/types/api";
 import { TabBar } from "@/components/shared/TabBar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Phone, Mail, MapPin, Calendar, GraduationCap, Clock } from "lucide-react";
+import { DocumentsPanel } from "@/components/shared/DocumentsPanel";
+import { dmy, Empty, outlineBtn, Pill, primaryBtn, softBtn, todayLocal } from "@/components/mrd/shared";
+import { addDaysIso, clock12, monthLabel, rupees, weekdayOf } from "@/components/hr/shared";
+import { ApplyLeaveDialog, SalaryDialog } from "@/components/hr/HrDialogs";
+import { StaffProfileDialog } from "@/components/hr/StaffProfileDialog";
+import { shiftTone } from "@/components/hr/RosterViews";
+import { AttendanceMonth } from "@/components/hr/AttendanceMonth";
 
-// ─── Mock extended data ───────────────────────────────────────────────────────
+const STAFF_DOC_CATEGORIES = ["ID proof", "Appointment letter", "Qualification certificate", "Licence", "Experience letter", "Contract", "Other"];
+const card = `${tw.surface.card} ${tw.radius.card}`;
 
-const STAFF_EXT: Record<number, { dob: string; address: string; education: string; shift: string; empId: string; emergencyContact: string }> = {
-  1:  { dob: "12 Jun 1988", address: "45, Indiranagar, Bengaluru", education: "B.Sc Nursing, RGUHS", shift: "Morning (7 AM – 3 PM)", empId: "EMP-1001", emergencyContact: "+91 9988776655" },
-  2:  { dob: "3 Feb 1992",  address: "78, Koramangala, Bengaluru", education: "B.Sc Med. Lab Technology", shift: "Morning (8 AM – 4 PM)", empId: "EMP-1002", emergencyContact: "+91 9988776656" },
-  3:  { dob: "19 Nov 1995", address: "12, JP Nagar, Bengaluru", education: "B.Pharm, Rajiv Gandhi University", shift: "Rotational", empId: "EMP-1003", emergencyContact: "+91 9988776657" },
-  4:  { dob: "7 Jul 1990",  address: "3, Malleshwaram, Bengaluru", education: "MBA Healthcare Admin", shift: "General (9 AM – 6 PM)", empId: "EMP-1004", emergencyContact: "+91 9988776658" },
-  5:  { dob: "25 Mar 1993", address: "66, Whitefield, Bengaluru", education: "B.Sc Nursing, RGUHS", shift: "Evening (2 PM – 10 PM)", empId: "EMP-1005", emergencyContact: "+91 9988776659" },
-  6:  { dob: "11 Oct 1987", address: "29, Rajajinagar, Bengaluru", education: "B.Com, Bangalore University", shift: "General (9 AM – 6 PM)", empId: "EMP-1006", emergencyContact: "+91 9988776660" },
-  7:  { dob: "8 Aug 1991",  address: "55, HSR Layout, Bengaluru", education: "ITI Diploma", shift: "Morning (7 AM – 3 PM)", empId: "EMP-1007", emergencyContact: "+91 9988776661" },
-  8:  { dob: "14 Jan 1989", address: "82, BTM Layout, Bengaluru", education: "B.Sc Nutrition & Dietetics", shift: "General (10 AM – 7 PM)", empId: "EMP-1008", emergencyContact: "+91 9988776662" },
-  9:  { dob: "5 Sep 1985",  address: "14, Yeshwanthpur, Bengaluru", education: "12th + Security Training", shift: "Day (8 AM – 8 PM)", empId: "EMP-1009", emergencyContact: "+91 9988776663" },
-  10: { dob: "22 Dec 1998", address: "37, Electronic City, Bengaluru", education: "10th + Housekeeping Diploma", shift: "Morning (6 AM – 2 PM)", empId: "EMP-1010", emergencyContact: "+91 9988776664" },
-};
-
-const MONTHLY_ATT = [
-  { day: 1, status: "P" }, { day: 2, status: "P" }, { day: 3, status: "P" }, { day: 4, status: "P" },
-  { day: 5, status: "P" }, { day: 6, status: "P" }, { day: 7, status: "A" }, { day: 8, status: "P" },
-  { day: 9, status: "P" }, { day: 10, status: "P" }, { day: 11, status: "L" }, { day: 12, status: "L" },
-  { day: 13, status: "P" }, { day: 14, status: "P" }, { day: 15, status: "P" }, { day: 16, status: "P" },
-  { day: 17, status: "P" }, { day: 18, status: "P" }, { day: 19, status: "P" }, { day: 20, status: "P" },
-  { day: 21, status: "P" }, { day: 22, status: "P" }, { day: 23, status: "P" }, { day: 24, status: "P" },
-  { day: 25, status: "P" }, { day: 26, status: "A" }, { day: 27, status: "P" }, { day: 28, status: "P" },
-  { day: 29, status: "P" }, { day: 30, status: "P" },
-];
-
-const ATT_CLR: Record<string, string> = {
-  P: "bg-[#dffff3] text-[#00955c]",
-  A: "bg-[#ffe9e9] text-[#ff0004]",
-  L: "bg-[#fff2e0] text-[#ff9000]",
-};
-
-const TABS = [
-  { id: "details",    label: "Details" },
-  { id: "attendance", label: "Attendance" },
-  { id: "performance",label: "Performance" },
-];
+function daysUntil(iso: string): number {
+  return Math.round((new Date(`${iso}T00:00:00Z`).getTime() - new Date(`${todayLocal()}T00:00:00Z`).getTime()) / 86_400_000);
+}
 
 export default function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [tab, setTab] = useState("details");
+  const { can } = useAuth();
+  const canHr = can("hr");
+  const canHrWrite = can("hr", "write");
+  const canPayroll = can("payroll");
+  const canEdit = can("staff", "write");
+  const [tab, setTab] = useState("profile");
+  const [editing, setEditing] = useState(false);
   const { item: staff, loading } = useItem<StaffDTO>(`/staff/${id}`);
   useBreadcrumb("/staff", "Staff", staff?.name ?? "Staff Profile");
 
-  if (loading) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Loading…</p></div>;
-  }
-  if (!staff) {
-    return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] font-normal text-[color:var(--ink-soft)]">Staff member not found.</p></div>;
-  }
+  if (loading) return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] text-[color:var(--ink-soft)]">Loading…</p></div>;
+  if (!staff) return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] text-[color:var(--ink-soft)]">Staff member not found.</p></div>;
 
-  const ext = STAFF_EXT[staff.id] ?? STAFF_EXT[1];
-  const present = MONTHLY_ATT.filter(d => d.status === "P").length;
-  const absent  = MONTHLY_ATT.filter(d => d.status === "A").length;
-  const leave   = MONTHLY_ATT.filter(d => d.status === "L").length;
+  const TABS = [
+    { id: "profile", label: "Profile" },
+    ...(canHr ? [{ id: "leave", label: "Leave" }, { id: "shifts", label: "Shifts" }] : []),
+    ...(canPayroll ? [{ id: "salary", label: "Salary" }] : []),
+    { id: "documents", label: "Documents" },
+    { id: "attendance", label: "Attendance" },
+  ];
+  const left = daysUntil(staff.licenceExpiry ?? "9999-12-31");
+  const licenceAlert = staff.licenceExpiry && left <= 60;
 
   return (
-    <>
-
-      <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className="flex gap-5 items-start">
-          {/* Left: card */}
-          <div className="flex flex-col gap-4 shrink-0" style={{ width: 280 }}>
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col items-center gap-3`}>
-              <div className="w-16 h-16 rounded-full bg-[color:var(--subtle-2)] flex items-center justify-center text-[22px] font-medium text-[color:var(--ink-soft)]">
-                {staff.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-              </div>
-              <div className="text-center">
-                <p className="text-[16px] font-medium text-[color:var(--ink)]">{staff.name}</p>
-                <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{staff.role}</p>
-                <p className="text-[12px] font-light text-[color:var(--ink-soft)]">{ext.empId}</p>
-              </div>
-              <StatusBadge status={staff.status} />
+    <div className={`${tw.gutterX} mb-[30px]`}>
+      <div className="flex items-start gap-5">
+        <div className="flex shrink-0 flex-col gap-4" style={{ width: 280 }}>
+          <div className={`${card} flex flex-col items-center gap-3 p-5`}>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--subtle-2)] text-[22px] font-medium text-[color:var(--ink-soft)]">
+              {staff.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
             </div>
-
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>
-              {[
-                { icon: Phone,         label: "Phone",      value: staff.phone },
-                { icon: Mail,          label: "Email",      value: staff.email },
-                { icon: MapPin,        label: "Address",    value: ext.address },
-                { icon: Calendar,      label: "Date of Birth", value: ext.dob },
-                { icon: GraduationCap, label: "Education",  value: ext.education },
-                { icon: Clock,         label: "Shift",      value: ext.shift },
-              ].map(row => (
-                <div key={row.label} className="flex items-start gap-3">
-                  <row.icon size={13} className="text-[color:var(--ink-soft)] mt-[3px] shrink-0" strokeWidth={1.5} />
-                  <div>
-                    <p className="text-[10px] font-normal text-[color:var(--ink-soft)] uppercase tracking-wider">{row.label}</p>
-                    <p className="text-[12px] font-normal text-[color:var(--ink)] leading-[16px]">{row.value}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center">
+              <p className="text-[16px] font-medium text-[color:var(--ink)]">{staff.name}</p>
+              <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{staff.role}</p>
+              <p className="font-mono text-[12px] text-[color:var(--ink-soft)]">{staff.employeeNo}</p>
             </div>
+            <StatusBadge status={staff.status} />
           </div>
+          <div className={`${card} flex flex-col gap-3 p-5`}>
+            {[
+              { icon: Phone, label: "Phone", value: staff.phone },
+              { icon: Mail, label: "Email", value: staff.email },
+              { icon: MapPin, label: "Address", value: staff.address },
+              { icon: Calendar, label: "Date of birth", value: staff.dob ? dmy(staff.dob) : "" },
+              { icon: GraduationCap, label: "Qualification", value: staff.qualification },
+              { icon: IdCard, label: "Licence", value: staff.licenceNo ? `${staff.licenceNo}${staff.licenceExpiry ? ` · valid to ${dmy(staff.licenceExpiry)}` : ""}` : "" },
+            ].map((row) => (
+              <div key={row.label} className="flex items-start gap-3">
+                <row.icon size={13} className="mt-[3px] shrink-0 text-[color:var(--ink-soft)]" strokeWidth={1.5} />
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-[color:var(--ink-soft)]">{row.label}</p>
+                  <p className="text-[12px] leading-[16px] text-[color:var(--ink)]">{row.value || "—"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          {/* Right: tabs */}
-          <div className={`flex-1 ${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 500 }}>
-            <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
-            {tab === "details" && (
-              <div className="p-5 flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Department",        value: staff.department },
-                    { label: "Role",              value: staff.role },
-                    { label: "Join Date",         value: staff.joinDate },
-                    { label: "Employee ID",       value: ext.empId },
-                    { label: "Shift",             value: ext.shift },
-                    { label: "Emergency Contact", value: ext.emergencyContact },
-                  ].map(f => (
-                    <div key={f.label} className="p-4 border border-[color:var(--line)] rounded-[10px]">
-                      <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">{f.label}</p>
-                      <p className="text-[14px] font-normal text-[color:var(--ink)]">{f.value}</p>
-                    </div>
-                  ))}
+        <div className={`min-w-0 flex-1 ${card} overflow-hidden`} style={{ minHeight: 500 }}>
+          <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          {tab === "profile" && (
+            <div className="flex flex-col gap-4 p-5">
+              {licenceAlert && (
+                <div role="alert" className="flex items-center gap-2 rounded-[8px] border border-[#f3cf7d] bg-[#fff8e6] px-4 py-3 text-[14px] text-[#8a5300]">
+                  <ShieldAlert size={16} /> {left < 0 ? `Licence ${staff.licenceNo} lapsed ${-left} ${-left === 1 ? "day" : "days"} ago (${dmy(staff.licenceExpiry)}).` : `Licence ${staff.licenceNo} lapses ${left === 0 ? "today" : `in ${left} ${left === 1 ? "day" : "days"}`} (${dmy(staff.licenceExpiry)}).`}
                 </div>
-              </div>
-            )}
-            {tab === "attendance" && (
-              <div className="p-5 flex flex-col gap-4">
-                {/* Summary */}
-                <div className="flex items-center gap-6">
-                  {[{ l: "Present", v: present, c: "text-[#00955c]" }, { l: "Absent", v: absent, c: "text-[#ff0004]" }, { l: "On Leave", v: leave, c: "text-[#ff9000]" }].map(s => (
-                    <div key={s.l} className="flex items-center gap-2">
-                      <span className={`text-[22px] font-medium ${s.c}`}>{s.v}</span>
-                      <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.l}</span>
-                    </div>
-                  ))}
-                  <span className="text-[12px] font-normal text-[color:var(--ink-soft)] ml-auto">November 2025</span>
-                </div>
-                {/* Calendar grid */}
-                <div className="grid grid-cols-10 gap-1">
-                  {MONTHLY_ATT.map(d => (
-                    <div key={d.day} className={`flex flex-col items-center gap-[2px] p-2 rounded-[6px] ${ATT_CLR[d.status]}`}>
-                      <span className="text-[10px] font-medium">{d.day}</span>
-                      <span className="text-[9px] font-normal">{d.status}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-4">
-                  {[{ k: "P", l: "Present" }, { k: "A", l: "Absent" }, { k: "L", l: "Leave" }].map(s => (
-                    <div key={s.k} className="flex items-center gap-1">
-                      <span className={`w-3 h-3 rounded-[3px] ${ATT_CLR[s.k]}`} />
-                      <span className="text-[11px] text-[color:var(--ink-soft)]">{s.l}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {tab === "performance" && (
-              <div className="p-5 grid grid-cols-2 gap-4">
+              )}
+              {canEdit && <div className="flex justify-end"><button onClick={() => setEditing(true)} className={outlineBtn + " !h-[36px]"}>Edit profile</button></div>}
+              <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: "Tasks Completed", value: "148", sub: "This month" },
-                  { label: "Shift Adherence", value: "96%",  sub: "On-time check-ins" },
-                  { label: "Patient Feedback", value: "4.7★", sub: "Average rating" },
-                  { label: "Leave Taken",      value: `${leave} days`, sub: "November 2025" },
-                  { label: "Training Completed", value: "3",  sub: "Modules this quarter" },
-                  { label: "Overtime Hours",   value: "12 hrs", sub: "November 2025" },
-                ].map(s => (
-                  <div key={s.label} className="p-4 border border-[color:var(--line)] rounded-[10px] flex flex-col gap-1">
-                    <p className="text-[12px] font-normal text-[color:var(--ink-soft)]">{s.label}</p>
-                    <p className="text-[24px] font-medium text-[color:var(--ink)]">{s.value}</p>
-                    <p className="text-[11px] font-light text-[color:var(--ink-soft)]">{s.sub}</p>
+                  { label: "Department", value: staff.department },
+                  { label: "Role", value: staff.role },
+                  { label: "Join date", value: formatDate(staff.joinDate) },
+                  { label: "Employee ID", value: staff.employeeNo },
+                  { label: "Gender", value: staff.gender },
+                  { label: "Emergency contact", value: staff.emergencyName ? `${staff.emergencyName}${staff.emergencyPhone ? ` · ${staff.emergencyPhone}` : ""}` : staff.emergencyPhone },
+                ].map((f) => (
+                  <div key={f.label} className="rounded-[10px] border border-[color:var(--line)] p-4">
+                    <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-[color:var(--ink-soft)]">{f.label}</p>
+                    <p className="text-[14px] text-[color:var(--ink)]">{f.value || "—"}</p>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          {tab === "leave" && canHr && <LeaveTab staff={staff} canWrite={canHrWrite} />}
+          {tab === "shifts" && canHr && <ShiftsTab staffId={staff.id} />}
+          {tab === "salary" && canPayroll && <SalaryTab staffId={staff.id} canWrite={can("payroll", "write")} />}
+          {tab === "documents" && <div className="p-5"><DocumentsPanel ownerType="staff" ownerId={staff.id} categories={STAFF_DOC_CATEGORIES} /></div>}
+          {tab === "attendance" && <AttendanceMonth staffId={staff.id} />}
         </div>
       </div>
-    </>
+      {editing && <StaffProfileDialog staff={staff} onClose={() => setEditing(false)} />}
+    </div>
+  );
+}
+
+function LeaveTab({ staff, canWrite }: { staff: StaffDTO; canWrite: boolean }) {
+  const year = todayLocal().slice(0, 4);
+  const { items: types } = useList<HrLeaveTypeDTO>("/hr/leave-types");
+  const { items: balances } = useList<HrStaffBalanceDTO>("/hr/leave/balances", { year });
+  const { items: requests } = useList<HrLeaveRequestDTO>("/hr/leave", { staffId: staff.id });
+  const [applying, setApplying] = useState(false);
+  const mine = balances.find((b) => b.staffId === staff.id)?.balances ?? [];
+  return (
+    <div className="flex flex-col gap-4 p-5">
+      <div className="flex items-center gap-3">
+        <h3 className="text-[14px] font-semibold text-[color:var(--ink)]">Leave balance — {year}</h3>
+        {canWrite && <button onClick={() => setApplying(true)} className={primaryBtn + " ml-auto"}>+ Apply for leave</button>}
+      </div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+        {mine.map((b) => (
+          <div key={b.typeId} className="rounded-[10px] border border-[color:var(--line)] px-4 py-3">
+            <p className="text-[13px] text-[color:var(--ink-soft)]">{b.name}</p>
+            <p className="mt-1 font-mono text-[24px] font-bold text-[color:var(--ink)]">{b.allocated > 0 ? b.remaining : b.used}<span className="ml-1 text-[12px] font-normal text-[color:var(--ink-soft)]">{b.allocated > 0 ? `left of ${b.allocated}` : "taken"}</span></p>
+            <p className="text-[12px] text-[color:var(--ink-soft)]">{b.allocated > 0 ? `${b.used} taken` : ""}{b.pending > 0 ? `${b.allocated > 0 ? ", " : ""}${b.pending} waiting` : ""}</p>
+          </div>
+        ))}
+      </div>
+      <h3 className="text-[14px] font-semibold text-[color:var(--ink)]">Requests</h3>
+      {requests.length === 0 ? <Empty>No leave has been requested.</Empty> : (
+        <ul className="divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
+          {requests.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-[14px]">
+              <span className="font-medium">{r.typeName}</span>
+              <span>{r.fromDate === r.toDate ? dmy(r.fromDate) : `${dmy(r.fromDate)} – ${dmy(r.toDate)}`}</span>
+              <span className="text-[color:var(--ink-soft)]">{r.days} {r.days === 1 ? "day" : "days"}</span>
+              {r.reason && <span className="truncate text-[color:var(--ink-soft)]">&ldquo;{r.reason}&rdquo;</span>}
+              <span className="ml-auto"><Pill>{r.status}</Pill></span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link href="/hr/leave" className={softBtn + " self-start"}>Manage all leave</Link>
+      {applying && <ApplyLeaveDialog types={types} presetStaffId={staff.id} onClose={() => setApplying(false)} />}
+    </div>
+  );
+}
+
+function ShiftsTab({ staffId }: { staffId: number }) {
+  const today = todayLocal();
+  const to = addDaysIso(today, 13);
+  const { items: shifts } = useList<HrShiftDTO>("/hr/shifts");
+  const { item: roster } = useItem<HrRosterDTO>(`/hr/roster?from=${today}&to=${to}`);
+  const days = Array.from({ length: 14 }, (_, i) => addDaysIso(today, i));
+  return (
+    <div className="flex flex-col gap-4 p-5">
+      <div className="flex items-center gap-3">
+        <h3 className="text-[14px] font-semibold text-[color:var(--ink-soft)]">Next two weeks</h3>
+        <Link href="/hr/roster" className={softBtn + " ml-auto"}>Open roster</Link>
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}>
+        {days.map((d) => {
+          const e = roster?.entries.find((x) => x.staffId === staffId && x.date === d);
+          const leave = roster?.leaveDays.find((x) => x.staffId === staffId && x.date === d);
+          const shift = e ? shifts.find((s) => s.id === e.shiftId) : undefined;
+          return (
+            <div key={d} className="rounded-[10px] border border-[color:var(--line)] px-3 py-2">
+              <p className="text-[12px] text-[color:var(--ink-soft)]">{weekdayOf(d)} {Number(d.slice(8))}{d === today ? " · today" : ""}</p>
+              {leave ? <p className="mt-1 text-[13px] text-[#8a5300]">On leave · {leave.code}</p>
+                : shift ? <p className="mt-1 text-[13px]"><span className={`rounded-full px-2 py-[1px] text-[12px] ${shiftTone(shifts, shift.id)}`}>{shift.code}</span> <span className="text-[color:var(--ink-soft)]">{clock12(shift.start)}–{clock12(shift.end)}</span></p>
+                : <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">Off</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SalaryTab({ staffId, canWrite }: { staffId: number; canWrite: boolean }) {
+  const { items, reload } = useList<HrSalaryDTO>("/hr/salaries");
+  const [editing, setEditing] = useState(false);
+  const s = items.find((x) => x.staffId === staffId);
+  if (!s) return <Empty>Loading…</Empty>;
+  const rows: [string, string][] = s.set
+    ? [["Basic", rupees(s.basic)], ["House rent allowance", rupees(s.hra)], ["Other allowances", rupees(s.allowances)], ["Gross a month", rupees(s.gross)], ["Provident fund", `${s.pfPercent}% of basic`], ["Professional tax", rupees(s.profTax)], ["Other deduction", rupees(s.otherDeduction)]]
+    : [];
+  return (
+    <div className="flex flex-col gap-4 p-5">
+      <div className="flex items-center gap-3">
+        <h3 className="text-[14px] font-semibold text-[color:var(--ink)]">Salary structure</h3>
+        <div className="ml-auto flex gap-2">
+          <Link href="/hr/payroll" className={outlineBtn + " !h-[36px]"}>Payroll runs</Link>
+          {canWrite && <button onClick={() => setEditing(true)} className={primaryBtn}>{s.set ? "Edit salary" : "Set salary"}</button>}
+        </div>
+      </div>
+      {!s.set ? <Empty>No salary has been set, so this person isn&apos;t in payroll.</Empty> : (
+        <dl className="divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
+          {rows.map(([k, v]) => <div key={k} className="flex justify-between px-4 py-3 text-[14px]"><dt className="text-[color:var(--ink-soft)]">{k}</dt><dd className="font-mono font-medium">{v}</dd></div>)}
+        </dl>
+      )}
+      <p className="text-[12px] text-[color:var(--ink-soft)]">Monthly figures. Payslips for {monthLabel(todayLocal().slice(0, 7))} and earlier are under Payroll.</p>
+      {editing && <SalaryDialog salary={s} onClose={() => { setEditing(false); reload(); }} />}
+    </div>
   );
 }

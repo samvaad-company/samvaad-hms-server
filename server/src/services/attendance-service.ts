@@ -13,6 +13,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@
 import { signPayload, verifyPayload } from "@/auth/session";
 import { isoDate } from "@/services/helpers";
 import { audit } from "@/services/audit";
+import { approvedLeaveDays } from "@/services/hr-leave-service";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
 
@@ -407,9 +408,10 @@ export async function attendanceToday(actor: Session) {
     ),
   ]);
   const active = staffRes.rows.filter((s) => s.status !== "Inactive");
+  const approved = new Set((await approvedLeaveDays(today, today, actor)).map((l) => l.staffId));
   const byStaff = new Map(attRes.rows.map((r) => [r.staff_id, r]));
   const present = active.filter((s) => byStaff.has(s.id)).length;
-  const onLeave = active.filter((s) => !byStaff.has(s.id) && s.status === "On Leave").length;
+  const onLeave = active.filter((s) => !byStaff.has(s.id) && (s.status === "On Leave" || approved.has(s.id))).length;
   const recent = [...attRes.rows]
     .sort((a, b) => b.id - a.id)
     .slice(0, 6)
@@ -441,7 +443,7 @@ export async function attendanceSummary(monthInput: string | null, actor: Sessio
   const first = `${month}-01`;
   const last = `${month}-${String(daysInMonth).padStart(2, "0")}`;
 
-  const [staffRes, attRes] = await Promise.all([
+  const [staffRes, attRes, leaveDays] = await Promise.all([
     staffRepo.listRows(scopeToHospital({ unpaged: true }, actor)),
     staffAttendanceRepo.listRows(
       scopeToHospital(
@@ -455,7 +457,13 @@ export async function attendanceSummary(monthInput: string | null, actor: Sessio
         actor,
       ),
     ),
+    approvedLeaveDays(first, last, actor),
   ]);
+  const leaveByStaff = new Map<number, Set<string>>();
+  for (const l of leaveDays) {
+    if (!leaveByStaff.has(l.staffId)) leaveByStaff.set(l.staffId, new Set());
+    leaveByStaff.get(l.staffId)!.add(l.date);
+  }
 
   const recsByStaff = new Map<number, Map<string, StaffAttendanceRow>>();
   for (const r of attRes.rows) {
@@ -477,7 +485,11 @@ export async function attendanceSummary(monthInput: string | null, actor: Sessio
         const date = `${month}-${String(d).padStart(2, "0")}`;
         // Days before someone joined aren't absences.
         if (joined && date < joined) continue;
-        const cell = cellFor(recs.get(date), date, today, s.status === "On Leave");
+        const onLeave = leaveByStaff.get(s.id)?.has(date) ?? false;
+        // A day of approved leave is not an absence, and shows even when no one is punching (past or planned).
+        const cell = onLeave && !recs.has(date)
+          ? { status: "On Leave" as DayStatus, punchIn: "", punchOut: "", minutes: 0, method: "", inDistanceM: null, outDistanceM: null }
+          : cellFor(recs.get(date), date, today, s.status === "On Leave");
         if (!cell) continue;
         days[String(d)] = cell;
         if (cell.status === "Absent") absentDays++;

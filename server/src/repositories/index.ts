@@ -30,8 +30,39 @@ import type {
   PlatformBillRow,
   AuditLogRow,
   BloodDonorRow,
-  BloodStockRow,
-  BloodIssueRow,
+  BloodUnitRow,
+  BloodCrossmatchRow,
+  BloodTransfusionRow,
+  MrdLocationRow,
+  MrdFileRow,
+  MrdFileMovementRow,
+  MrdFileRequestRow,
+  MrdRetentionPolicyRow,
+  MrdFolderRow,
+  MrdCodingCaseRow,
+  MrdDeficiencyRow,
+  MrdRegisterEntryRow,
+  SignatureRequestRow,
+  ConsentTemplateRow,
+  CssdSterilizerRow,
+  CssdSetRow,
+  CssdCycleRow,
+  CssdIssueRow,
+  CssdSettingsRow,
+  HrLeaveTypeRow,
+  HrLeaveRequestRow,
+  HrShiftRow,
+  SetupRecordRow,
+  PharmacyBatchRow,
+  BillItemRow,
+  BillPayoutRow,
+  PharmacyDispenseRow,
+  PharmacyDispenseLineRow,
+  PharmacyReturnRow,
+  HrRosterRow,
+  HrSalaryRow,
+  HrPayrollRunRow,
+  HrPayslipRow,
   RadiologyTestRow,
   AmbulanceRow,
   AmbulanceCallRow,
@@ -41,6 +72,8 @@ import type {
   TpaClaimRow,
   EnquiryRow,
   FollowUpRow,
+  OtRoomRow,
+  OtEquipmentRow,
   IpdVitalRow,
   IpdIvLineRow,
   IpdDoseLogRow,
@@ -87,8 +120,19 @@ import {
   toDepartmentDTO,
   toMedicineDTO,
   toBloodDonorDTO,
-  toBloodStockDTO,
-  toBloodIssueDTO,
+  toMrdLocationDTO,
+  toMrdFileDTO,
+  toMrdFileMovementDTO,
+  toMrdFileRequestDTO,
+  toMrdRetentionPolicyDTO,
+  toMrdFolderDTO,
+  toMrdCodingCaseDTO,
+  toMrdDeficiencyDTO,
+  toMrdRegisterEntryDTO,
+  toConsentDTO,
+  toBloodUnitDTO,
+  toBloodCrossmatchDTO,
+  toBloodTransfusionDTO,
   toRadiologyDTO,
   toAmbulanceDTO,
   toAmbulanceCallDTO,
@@ -98,6 +142,8 @@ import {
   toTpaClaimDTO,
   toEnquiryDTO,
   toFollowUpDTO,
+  toOtRoomDTO,
+  toOtEquipmentDTO,
   toIpdVitalDTO,
   toIpdIvLineDTO,
   toIpdDoseLogDTO,
@@ -187,16 +233,50 @@ export const medicinesRepo = createRepository<MedicineRow, ReturnType<typeof toM
 
 export const bloodDonorsRepo = createRepository<BloodDonorRow, ReturnType<typeof toBloodDonorDTO>>(
   TABLES.bloodDonors,
-  toBloodDonorDTO,
+  (r) => toBloodDonorDTO(r),
 );
-export const bloodStockRepo = createRepository<BloodStockRow, ReturnType<typeof toBloodStockDTO>>(
-  TABLES.bloodStock,
-  toBloodStockDTO,
+export const bloodUnitsRepo = createRepository<BloodUnitRow, ReturnType<typeof toBloodUnitDTO>>(
+  TABLES.bloodUnits,
+  (r) => toBloodUnitDTO(r),
 );
-export const bloodIssuesRepo = createRepository<BloodIssueRow, ReturnType<typeof toBloodIssueDTO>>(
-  TABLES.bloodIssues,
-  toBloodIssueDTO,
+export const bloodCrossmatchesRepo = createRepository<BloodCrossmatchRow, ReturnType<typeof toBloodCrossmatchDTO>>(
+  TABLES.bloodCrossmatches,
+  toBloodCrossmatchDTO,
 );
+export const bloodTransfusionsRepo = createRepository<BloodTransfusionRow, ReturnType<typeof toBloodTransfusionDTO>>(
+  TABLES.bloodTransfusions,
+  toBloodTransfusionDTO,
+);
+export const mrdLocationsRepo = createRepository<MrdLocationRow, ReturnType<typeof toMrdLocationDTO>>(TABLES.mrdLocations, (r) => toMrdLocationDTO(r));
+export const mrdFilesRepo = createRepository<MrdFileRow, ReturnType<typeof toMrdFileDTO>>(TABLES.mrdFiles, (r) => toMrdFileDTO(r));
+export const mrdFileRequestsRepo = createRepository<MrdFileRequestRow, ReturnType<typeof toMrdFileRequestDTO>>(TABLES.mrdFileRequests, toMrdFileRequestDTO);
+export const mrdFileMovementsRepo = createRepository<MrdFileMovementRow, ReturnType<typeof toMrdFileMovementDTO>>(TABLES.mrdFileMovements, toMrdFileMovementDTO);
+export const mrdRetentionPoliciesRepo = createRepository<MrdRetentionPolicyRow, ReturnType<typeof toMrdRetentionPolicyDTO>>(TABLES.mrdRetentionPolicies, toMrdRetentionPolicyDTO);
+export const mrdFoldersRepo = createRepository<MrdFolderRow, ReturnType<typeof toMrdFolderDTO>>(TABLES.mrdFolders, (r) => toMrdFolderDTO(r));
+export const mrdCodingCasesRepo = createRepository<MrdCodingCaseRow, ReturnType<typeof toMrdCodingCaseDTO>>(TABLES.mrdCodingCases, (r) => toMrdCodingCaseDTO(r));
+export const mrdDeficienciesRepo = createRepository<MrdDeficiencyRow, ReturnType<typeof toMrdDeficiencyDTO>>(TABLES.mrdDeficiencies, toMrdDeficiencyDTO);
+export const mrdRegisterEntriesRepo = createRepository<MrdRegisterEntryRow, ReturnType<typeof toMrdRegisterEntryDTO>>(TABLES.mrdRegisterEntries, toMrdRegisterEntryDTO);
+export const signatureRequestsRepo = createRepository<SignatureRequestRow, ReturnType<typeof toConsentDTO>>(TABLES.signatureRequests, toConsentDTO);
+export const consentTemplatesRepo = createRepository<ConsentTemplateRow, ConsentTemplateRow>(TABLES.consentTemplates, (r) => r);
+export const cssdSterilizersRepo = createRepository<CssdSterilizerRow, CssdSterilizerRow>(TABLES.cssdSterilizers, (r) => r);
+export const cssdSetsRepo = createRepository<CssdSetRow, CssdSetRow>(TABLES.cssdSets, (r) => r);
+export const cssdCyclesRepo = createRepository<CssdCycleRow, CssdCycleRow>(TABLES.cssdCycles, (r) => r);
+export const cssdIssuesRepo = createRepository<CssdIssueRow, CssdIssueRow>(TABLES.cssdIssues, (r) => r);
+export const cssdSettingsRepo = createRepository<CssdSettingsRow, CssdSettingsRow>(TABLES.cssdSettings, (r) => r);
+export const hrLeaveTypesRepo = createRepository<HrLeaveTypeRow, HrLeaveTypeRow>(TABLES.hrLeaveTypes, (r) => r);
+export const hrLeaveRequestsRepo = createRepository<HrLeaveRequestRow, HrLeaveRequestRow>(TABLES.hrLeaveRequests, (r) => r);
+export const billItemsRepo = createRepository<BillItemRow, BillItemRow>(TABLES.billItems, (r) => r);
+export const billPayoutsRepo = createRepository<BillPayoutRow, BillPayoutRow>(TABLES.billPayouts, (r) => r);
+export const pharmacyBatchesRepo = createRepository<PharmacyBatchRow, PharmacyBatchRow>(TABLES.pharmacyBatches, (r) => r);
+export const pharmacyDispensesRepo = createRepository<PharmacyDispenseRow, PharmacyDispenseRow>(TABLES.pharmacyDispenses, (r) => r);
+export const pharmacyDispenseLinesRepo = createRepository<PharmacyDispenseLineRow, PharmacyDispenseLineRow>(TABLES.pharmacyDispenseLines, (r) => r);
+export const pharmacyReturnsRepo = createRepository<PharmacyReturnRow, PharmacyReturnRow>(TABLES.pharmacyReturns, (r) => r);
+export const setupRecordsRepo = createRepository<SetupRecordRow, SetupRecordRow>(TABLES.setupRecords, (r) => r);
+export const hrShiftsRepo = createRepository<HrShiftRow, HrShiftRow>(TABLES.hrShifts, (r) => r);
+export const hrRosterRepo = createRepository<HrRosterRow, HrRosterRow>(TABLES.hrRoster, (r) => r);
+export const hrSalariesRepo = createRepository<HrSalaryRow, HrSalaryRow>(TABLES.hrSalaries, (r) => r);
+export const hrPayrollRunsRepo = createRepository<HrPayrollRunRow, HrPayrollRunRow>(TABLES.hrPayrollRuns, (r) => r);
+export const hrPayslipsRepo = createRepository<HrPayslipRow, HrPayslipRow>(TABLES.hrPayslips, (r) => r);
 export const radiologyRepo = createRepository<RadiologyTestRow, ReturnType<typeof toRadiologyDTO>>(
   TABLES.radiologyTests,
   toRadiologyDTO,
@@ -285,6 +365,8 @@ export const ipdHandoversRepo = createRepository<IpdHandoverRow, ReturnType<type
 export const ipdAlertAcksRepo = createRepository<IpdAlertAckRow, ReturnType<typeof toIpdAlertAckDTO>>(TABLES.ipdAlertAcks, toIpdAlertAckDTO);
 export const ipdChecklistTemplatesRepo = createRepository<IpdChecklistTemplateRow, ReturnType<typeof toIpdChecklistTemplateDTO>>(TABLES.ipdChecklistTemplates, toIpdChecklistTemplateDTO);
 export const ipdChecklistsRepo = createRepository<IpdChecklistRow, ReturnType<typeof toIpdChecklistDTO>>(TABLES.ipdChecklists, toIpdChecklistDTO);
+export const otRoomsRepo = createRepository<OtRoomRow, ReturnType<typeof toOtRoomDTO>>(TABLES.otRooms, (r) => toOtRoomDTO(r));
+export const otEquipmentRepo = createRepository<OtEquipmentRow, ReturnType<typeof toOtEquipmentDTO>>(TABLES.otEquipment, toOtEquipmentDTO);
 export const documentsRepo = createRepository<DocumentRow, ReturnType<typeof toDocumentDTO>>(
   TABLES.documents,
   toDocumentDTO,

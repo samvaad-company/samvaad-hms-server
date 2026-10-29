@@ -23,8 +23,17 @@ const DATE_COLUMNS: Record<string, string[]> = {
   [TABLES.otSchedules]: ["scheduled_date"],
   [TABLES.staff]: ["join_date"],
   [TABLES.radiologyTests]: ["test_date"],
-  [TABLES.bloodDonors]: ["last_donation_date"],
-  [TABLES.bloodIssues]: ["issue_date"],
+  [TABLES.bloodDonors]: ["last_donation_date", "dob"],
+  [TABLES.hrLeaveRequests]: ["from_date", "to_date"],
+  [TABLES.hrRoster]: ["work_date"],
+  [TABLES.cssdSets]: ["sterile_until"],
+  [TABLES.mrdFiles]: ["due_on", "archived_on"],
+  [TABLES.mrdFileRequests]: ["requested_on"],
+  [TABLES.mrdFileMovements]: ["due_on"],
+  [TABLES.mrdCodingCases]: ["admitted_on"],
+  [TABLES.mrdRegisterEntries]: ["entry_date"],
+  [TABLES.documents]: ["retain_until"],
+  [TABLES.bloodUnits]: ["collected_on", "expiry_on", "left_on"],
   [TABLES.ambulanceCalls]: ["call_date"],
   [TABLES.birthRecords]: ["birth_date"],
   [TABLES.deathRecords]: ["death_date"],
@@ -63,6 +72,21 @@ async function normalizeTable(adapter: DatabaseAdapter, table: string, columns: 
 
   await Promise.all(updates);
   return updates.length;
+}
+
+/**
+ * Enquiry leads used to have a status called "Follow-up"; it is now "Contacted" (so "follow-up" only ever
+ * means a patient's return visit). Rewrites any lead still carrying the old name. Idempotent.
+ */
+export async function renameLegacyEnquiryStatus(adapter: DatabaseAdapter): Promise<number> {
+  try {
+    const { rows } = await adapter.list<Row>(TABLES.enquiries, { unpaged: true, filters: [{ column: "status", op: "eq", value: "Follow-up" }] });
+    await Promise.all(rows.map((r) => adapter.update(TABLES.enquiries, r.id, { status: "Contacted" })));
+    if (rows.length > 0) logger.info("enquiries.status_renamed", { rows: rows.length });
+    return rows.length;
+  } catch {
+    return 0; // table may not exist on this backend yet
+  }
 }
 
 export async function normalizeStoredDates(adapter: DatabaseAdapter): Promise<void> {

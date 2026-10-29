@@ -17,7 +17,20 @@
     "test:enquiries": "tsx scripts/test-enquiries.ts",
     "test:followups": "tsx scripts/test-followups.ts",
     "test:rxreview": "tsx scripts/test-prescription-review.ts",
-    "test:ipd": "tsx scripts/test-ipd.ts"
+    "test:ipd": "tsx scripts/test-ipd.ts",
+    "test:ot": "tsx scripts/test-ot.ts",
+    "test:labpriority": "tsx scripts/test-lab-priority.ts",
+    "test:bloodbank": "tsx scripts/test-bloodbank.ts",
+    "test:mrd": "tsx scripts/test-mrd.ts",
+    "test:consents": "tsx scripts/test-consents.ts",
+    "test:cssd": "tsx scripts/test-cssd.ts",
+    "test:hr": "tsx scripts/test-hr.ts",
+    "test:setup": "tsx scripts/test-setup.ts",
+    "test:dispense": "tsx scripts/test-dispense.ts",
+    "test:inuse": "tsx scripts/test-masters-in-use.ts",
+    "test:idformats": "tsx scripts/test-id-formats.ts",
+    "test:wardmasters": "tsx scripts/test-ward-masters.ts",
+    "test:coverage": "tsx scripts/test-coverage.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

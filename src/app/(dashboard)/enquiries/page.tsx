@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Enquiries — leads before registration. Capture who asked about what, follow up (each contact is
+ * Enquiries — leads before registration. Capture who asked about what, contact them (each contact is
  * counted), then convert the lead into a registered patient or close it.
  */
 import { useState } from "react";
@@ -16,11 +16,11 @@ import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { DepartmentDTO, EnquiryDTO, EnquirySummaryDTO } from "@/types/api";
 
-const FILTERS = ["All", "Open", "Follow-up", "Converted", "Closed"] as const;
+const FILTERS = ["All", "Open", "Contacted", "Converted", "Closed"] as const;
 const SOURCES = ["Walk-in", "Phone call", "Referred by doctor", "Referred by patient", "Website / online", "Camp or event", "Advertisement", "Other"];
 
 const STATUS_STYLE: Record<string, string> = {
-  "Follow-up": "bg-[#fff6d6] text-[#9a5b00] border-[#f5df8a]",
+  Contacted: "bg-[#fff6d6] text-[#9a5b00] border-[#f5df8a]",
   Open: "bg-[color:var(--subtle-2)] text-[color:var(--ink)] border-transparent",
   Converted: "bg-[#e8fbef] text-[#0b7a3b] border-[#b6e8cf]",
   Closed: "bg-[color:var(--surface)] text-[color:var(--ink-soft)] border-[color:var(--line)]",
@@ -28,11 +28,11 @@ const STATUS_STYLE: Record<string, string> = {
 
 const money = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-function Row({ e, canWrite, onFollowUp, onConvert, onClose }: {
+function Row({ e, canWrite, onContact, onConvert, onClose }: {
   e: EnquiryDTO; canWrite: boolean;
-  onFollowUp: (e: EnquiryDTO) => void; onConvert: (e: EnquiryDTO) => void; onClose: (e: EnquiryDTO) => void;
+  onContact: (e: EnquiryDTO) => void; onConvert: (e: EnquiryDTO) => void; onClose: (e: EnquiryDTO) => void;
 }) {
-  const due = e.followUpOn && e.followUpOn <= todayIso();
+  const due = e.callBackOn && e.callBackOn <= todayIso();
   const actionBtn = "h-[24px] px-[10px] rounded-[6px] text-[11.5px] leading-none whitespace-nowrap cursor-pointer transition-colors";
   return (
     <div className="flex items-center gap-3 px-[11px] py-[7px] border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
@@ -44,9 +44,9 @@ function Row({ e, canWrite, onFollowUp, onConvert, onClose }: {
           <span className="inline-flex items-center gap-1 text-[11.5px] font-mono text-[color:var(--ink-soft)]"><Phone size={11} strokeWidth={1.5} />{e.mobile}</span>
         )}
         <span className="text-[12px] font-mono font-semibold text-[color:var(--ink)]">{money(e.estimatedValue)}</span>
-        {e.followUpOn && (
+        {e.callBackOn && (
           <span className={`text-[11.5px] font-mono ${due ? "text-[#e0001b]" : "text-[color:var(--ink-soft)]"}`}>
-            due {formatDate(e.followUpOn).replace(/^(\d) /, "0$1 ")}
+            call back {formatDate(e.callBackOn).replace(/^(\d) /, "0$1 ")}
           </span>
         )}
         <span title="Times contacted so far" className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-[6px] rounded-full bg-[color:var(--subtle-2)] text-[11px] text-[color:var(--ink)]">{e.contacts}</span>
@@ -59,7 +59,7 @@ function Row({ e, canWrite, onFollowUp, onConvert, onClose }: {
           ) : null
         ) : canWrite ? (
           <>
-            <button type="button" onClick={() => onFollowUp(e)} className={`${actionBtn} border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]`}>Follow up</button>
+            <button type="button" onClick={() => onContact(e)} className={`${actionBtn} border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]`}>Log contact</button>
             <button type="button" onClick={() => onConvert(e)} className={`${actionBtn} bg-[color:var(--brand-soft)] text-[color:var(--brand)] font-medium hover:brightness-95`}>Convert</button>
             {e.status !== "Closed" && (
               <button type="button" onClick={() => onClose(e)} className={`${actionBtn} text-[color:var(--ink)] hover:bg-[color:var(--subtle)]`}>Close</button>
@@ -71,7 +71,7 @@ function Row({ e, canWrite, onFollowUp, onConvert, onClose }: {
   );
 }
 
-const BLANK = { name: "", mobile: "", department: "", interestedIn: "", source: "", estimatedValue: "", followUpOn: "", notes: "" };
+const BLANK = { name: "", mobile: "", department: "", interestedIn: "", source: "", estimatedValue: "", callBackOn: "", notes: "" };
 
 function NewEnquiryModal({ departments, onClose, onSaved }: { departments: DepartmentDTO[]; onClose: () => void; onSaved: () => void }) {
   const { run, loading, error } = useMutation();
@@ -108,7 +108,7 @@ function NewEnquiryModal({ departments, onClose, onSaved }: { departments: Depar
           <FormSelect value={form.source} onChange={v => set("source", v)} placeholder="Referred by…" options={SOURCES.map(s => ({ value: s, label: s }))} />
         </FormRow>
         <FormRow label="Estimated value ₹"><FormInput type="number" value={form.estimatedValue} onChange={v => set("estimatedValue", v)} /></FormRow>
-        <FormRow label="Follow up on"><FormInput type="date" value={form.followUpOn} min={todayIso()} onChange={v => set("followUpOn", v)} /></FormRow>
+        <FormRow label="Call back on"><FormInput type="date" value={form.callBackOn} min={todayIso()} onChange={v => set("callBackOn", v)} /></FormRow>
         <FormRow label="Notes"><FormInput value={form.notes} onChange={v => set("notes", v)} /></FormRow>
       </div>
       {error && <p className="mt-3 text-[12px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</p>}
@@ -116,25 +116,25 @@ function NewEnquiryModal({ departments, onClose, onSaved }: { departments: Depar
   );
 }
 
-function FollowUpModal({ enquiry, onClose, onSaved }: { enquiry: EnquiryDTO; onClose: () => void; onSaved: () => void }) {
+function ContactModal({ enquiry, onClose, onSaved }: { enquiry: EnquiryDTO; onClose: () => void; onSaved: () => void }) {
   const { run, loading, error } = useMutation();
   const [note, setNote] = useState("");
   const [nextOn, setNextOn] = useState("");
 
   async function save() {
-    await run(() => api.post(`/enquiries/${enquiry.id}/follow-up`, { note, nextOn }));
+    await run(() => api.post(`/enquiries/${enquiry.id}/contact`, { note, nextOn }));
     onSaved();
     onClose();
   }
 
   return (
-    <Modal open onClose={onClose} title={`Follow up — ${enquiry.name}`} width={440}
+    <Modal open onClose={onClose} title={`Log contact — ${enquiry.name}`} width={440}
       footer={
         <>
           <button onClick={onClose} className="text-[13px] text-[color:var(--ink)] border border-[color:var(--line)] px-4 py-[6px] rounded-[8px] hover:bg-[color:var(--subtle)] cursor-pointer">Cancel</button>
           <button onClick={save} disabled={loading}
             className="text-[13px] font-medium text-white bg-[color:var(--brand)] px-4 py-[6px] rounded-[8px] hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
-            {loading ? "Saving…" : "Log follow-up"}
+            {loading ? "Saving…" : "Log contact"}
           </button>
         </>
       }>
@@ -152,7 +152,7 @@ function FollowUpModal({ enquiry, onClose, onSaved }: { enquiry: EnquiryDTO; onC
           </ul>
         )}
         <FormRow label="What was said"><FormInput placeholder="e.g. Called, will decide on Friday" value={note} onChange={setNote} /></FormRow>
-        <FormRow label="Next follow-up on" hint="Leave empty if nothing is planned."><FormInput type="date" value={nextOn} min={todayIso()} onChange={setNextOn} /></FormRow>
+        <FormRow label="Call back on" hint="Leave empty if nothing is planned."><FormInput type="date" value={nextOn} min={todayIso()} onChange={setNextOn} /></FormRow>
         {error && <p className="text-[12px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</p>}
       </div>
     </Modal>
@@ -181,7 +181,7 @@ function CloseModal({ enquiry, onClose, onSaved }: { enquiry: EnquiryDTO; onClos
         </>
       }>
       <div className="flex flex-col gap-3">
-        <p className="text-[13px] text-[color:var(--ink-soft)]">The lead stays on file. You can follow up or convert it later.</p>
+        <p className="text-[13px] text-[color:var(--ink-soft)]">The lead stays on file. You can contact or convert it later.</p>
         <FormRow label="Reason (optional)"><FormInput placeholder="e.g. Went to another hospital" value={reason} onChange={setReason} /></FormRow>
         {error && <p className="text-[12px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</p>}
       </div>
@@ -194,7 +194,7 @@ export default function EnquiriesPage() {
   const { can } = useAuth();
   const canWrite = can("enquiries", "write");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
-  const [modal, setModal] = useState<null | { kind: "new" } | { kind: "follow"; e: EnquiryDTO } | { kind: "close"; e: EnquiryDTO }>(null);
+  const [modal, setModal] = useState<null | { kind: "new" } | { kind: "contact"; e: EnquiryDTO } | { kind: "close"; e: EnquiryDTO }>(null);
 
   const params = filter === "All" ? { all: true } : { all: true, status: filter };
   const { items, loading, reload } = useList<EnquiryDTO>("/enquiries", params);
@@ -217,7 +217,7 @@ export default function EnquiriesPage() {
         <Inbox size={15} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
         <h1 className="text-[14px] font-semibold text-[color:var(--ink)] shrink-0">Enquiries</h1>
         <p className="text-[12px] text-[color:var(--ink-soft)] truncate min-w-0">
-          Leads before registration — capture, follow up, convert.{due > 0 && ` ${due} due today.`}
+          Leads before registration — capture, contact, convert.{due > 0 && ` ${due} due today.`}
         </p>
         {canWrite && (
           <button onClick={() => setModal({ kind: "new" })}
@@ -249,13 +249,13 @@ export default function EnquiriesPage() {
             </div>
           ) : items.map(e => (
             <Row key={e.id} e={e} canWrite={canWrite}
-              onFollowUp={e => setModal({ kind: "follow", e })} onConvert={convert} onClose={e => setModal({ kind: "close", e })} />
+              onContact={e => setModal({ kind: "contact", e })} onConvert={convert} onClose={e => setModal({ kind: "close", e })} />
           ))}
         </div>
       </div>
 
       {modal?.kind === "new" && <NewEnquiryModal departments={departments} onClose={() => setModal(null)} onSaved={refresh} />}
-      {modal?.kind === "follow" && <FollowUpModal enquiry={modal.e} onClose={() => setModal(null)} onSaved={refresh} />}
+      {modal?.kind === "contact" && <ContactModal enquiry={modal.e} onClose={() => setModal(null)} onSaved={refresh} />}
       {modal?.kind === "close" && <CloseModal enquiry={modal.e} onClose={() => setModal(null)} onSaved={refresh} />}
     </>
   );

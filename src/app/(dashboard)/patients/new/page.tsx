@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Check, Info, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api/client";
-import { useMutation } from "@/lib/api/hooks";
+import { useList, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import {
@@ -27,7 +27,6 @@ const RELIGIONS = opts(["Hindu", "Muslim", "Christian", "Sikh", "Buddhist", "Jai
 const LANGUAGES = opts(["Hindi", "English", "Marathi", "Gujarati", "Bengali", "Tamil", "Telugu", "Kannada", "Malayalam", "Punjabi", "Urdu", "Other"]);
 const NATIONALITIES = opts(["Indian", "Nepali", "Bangladeshi", "Sri Lankan", "American", "British", "Other"]);
 const EDUCATION = opts(["Illiterate", "Primary", "Secondary", "Higher secondary", "Graduate", "Postgraduate", "Doctorate", "Other"]);
-const REFERRAL = opts(["Walk-in", "Doctor referral", "Friend / family", "Website", "Social media", "Advertisement", "Insurance / TPA", "Health camp", "Other"]);
 const RELATIONS = [...["Spouse", "Parent", "Child", "Sibling", "Guardian", "Other"].map(r => ({ value: r.toLowerCase(), label: r }))];
 const PAYER_TYPES = opts(["Insurance", "Corporate", "TPA", "Government scheme"]);
 const COVID_STATUS = opts(["Not vaccinated", "Partially vaccinated", "Fully vaccinated", "Booster taken"]);
@@ -37,11 +36,11 @@ const GENDERS = [
   { value: "Other", key: "O" },
 ] as const;
 
-interface PayerRow { type: string; name: string; policyNumber: string; validUntil: string }
+interface PayerRow { type: string; name: string; policyNumber: string; validUntil: string; contractId: string }
 interface DocRow { type: IdentityType; number: string }
 
 const INITIAL = {
-  name: "", gender: "", years: "", months: "", dob: "", mobile: "", reason: "", referralSource: "",
+  name: "", gender: "", years: "", months: "", dob: "", mobile: "", reason: "", referralSource: "", patientCategory: "", incomeGroup: "", visitPurpose: "",
   medicoLegal: false, temporary: false, dataConsent: false,
   alternatePhone: "", email: "", address: "", addressLine2: "", pincode: "", city: "", state: "",
   title: "", guardianName: "", careOf: "", anniversary: "", bloodGroup: "", maritalStatus: "", religion: "",
@@ -116,7 +115,18 @@ export default function NewPatientPage() {
   return <Suspense fallback={null}><NewPatientForm /></Suspense>;
 }
 
+/** The names of a Setup master's active entries, as dropdown options. */
+function useMasterOptions(kind: string) {
+  const { items } = useList<{ id: number; name: string }>(`/setup/${kind}`, { active: 1 });
+  return items.map((i) => ({ value: i.name, label: i.name }));
+}
+
 function NewPatientForm() {
+  const visitPurposes = useMasterOptions("visit_purpose");
+  const categories = useMasterOptions("patient_category");
+  const incomeGroups = useMasterOptions("income_group");
+  const referrals = useMasterOptions("referral_source");
+  const contractOptions = useList<{ id: number; name: string }>("/payer-contracts").items.map(c => ({ value: String(c.id), label: c.name }));
   const router = useRouter();
   const params = useSearchParams();
   const { can, loading: authLoading } = useAuth();
@@ -130,7 +140,7 @@ function NewPatientForm() {
     reason: params.get("interest") ?? "",
   }));
   const [exactDate, setExactDate] = useState(false);
-  const [payers, setPayers] = useState<PayerRow[]>([{ type: "Insurance", name: "", policyNumber: "", validUntil: "" }]);
+  const [payers, setPayers] = useState<PayerRow[]>([{ type: "Insurance", name: "", policyNumber: "", validUntil: "", contractId: "" }]);
   const [docs, setDocs] = useState<DocRow[]>([{ type: "Aadhaar", number: "" }]);
   const [showCovid, setShowCovid] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -182,7 +192,7 @@ function NewPatientForm() {
       gender: form.gender,
       phone: form.mobile.trim(),
       reason: clean(form.reason),
-      referralSource: clean(form.referralSource),
+      referralSource: clean(form.referralSource), patientCategory: clean(form.patientCategory), incomeGroup: clean(form.incomeGroup), visitPurpose: clean(form.visitPurpose),
       medicoLegal: form.medicoLegal, temporary: form.temporary, dataConsent: form.dataConsent,
       email: clean(form.email), alternatePhone: clean(form.alternatePhone),
       address: clean(form.address), addressLine2: clean(form.addressLine2),
@@ -201,8 +211,8 @@ function NewPatientForm() {
       if (form.years) payload.age = Number(form.years);
       if (form.months) payload.ageMonths = Number(form.months);
     }
-    const cleanPayers = payers.filter(p => p.name.trim() || p.policyNumber.trim());
-    if (cleanPayers.length) payload.payers = cleanPayers.map(p => ({ ...p, validUntil: p.validUntil || "" }));
+    const cleanPayers = payers.filter(p => p.name.trim() || p.policyNumber.trim() || p.contractId);
+    if (cleanPayers.length) payload.payers = cleanPayers.map(p => ({ ...p, validUntil: p.validUntil || "", contractId: p.contractId ? Number(p.contractId) : null }));
     const cleanDocs = docs.filter(d => d.number.trim());
     if (cleanDocs.length) payload.identityDocuments = cleanDocs;
     if (showCovid && (form.covidVaccination || form.covidLastDose || form.covidInfected)) {
@@ -370,8 +380,17 @@ function NewPatientForm() {
             <Field label="Primary complaint" span={2}>
               <FormInput placeholder="Reason for the visit" value={form.reason} onChange={v => set("reason", v)} />
             </Field>
+            <Field label="Visit purpose">
+              <FormSelect placeholder="Not recorded" options={visitPurposes} value={form.visitPurpose} onChange={v => set("visitPurpose", v)} />
+            </Field>
+            <Field label="Patient category">
+              <FormSelect placeholder="Not recorded" options={categories} value={form.patientCategory} onChange={v => set("patientCategory", v)} />
+            </Field>
+            <Field label="Income group">
+              <FormSelect placeholder="Not recorded" options={incomeGroups} value={form.incomeGroup} onChange={v => set("incomeGroup", v)} />
+            </Field>
             <Field label="How did they come?">
-              <FormSelect placeholder="Not recorded" options={REFERRAL} value={form.referralSource} onChange={v => set("referralSource", v)} />
+              <FormSelect placeholder="Not recorded" options={referrals} value={form.referralSource} onChange={v => set("referralSource", v)} />
             </Field>
             <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center gap-x-6 gap-y-3 pt-6">
               <Toggle label="Medico-legal case" hint="Mark if this visit may need police or court documentation" checked={form.medicoLegal} onChange={v => set("medicoLegal", v)} />
@@ -446,18 +465,21 @@ function NewPatientForm() {
           <div className="mt-5 border border-[color:var(--line)] rounded-[10px] p-4 flex flex-col gap-3">
             <span className="text-[13px] font-medium text-[color:var(--ink)]">Payer / coverage</span>
             {payers.map((p, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-[170px_1fr_1fr_170px_auto] gap-3 items-center">
+              <div key={i} className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[170px_1fr_1fr_170px_auto] gap-3 items-center">
                 <FormSelect options={PAYER_TYPES} value={p.type} onChange={v => setPayer(i, { type: v })} />
                 <FormInput placeholder="Payer name" value={p.name} onChange={v => setPayer(i, { name: v })} />
                 <FormInput placeholder="Policy / proposal no." value={p.policyNumber} onChange={v => setPayer(i, { policyNumber: v })} />
                 <FormInput type="date" value={p.validUntil} onChange={v => setPayer(i, { validUntil: v })} />
                 <button type="button" aria-label="Remove payer" disabled={payers.length === 1 && !p.name && !p.policyNumber}
-                  onClick={() => setPayers(rows => (rows.length === 1 ? [{ type: "Insurance", name: "", policyNumber: "", validUntil: "" }] : rows.filter((_, j) => j !== i)))}
+                  onClick={() => setPayers(rows => (rows.length === 1 ? [{ type: "Insurance", name: "", policyNumber: "", validUntil: "", contractId: "" }] : rows.filter((_, j) => j !== i)))}
                   className="p-2 text-[color:var(--ink-soft)] hover:text-[#ff0004] disabled:opacity-30 cursor-pointer"><Trash2 size={15} strokeWidth={1.5} /></button>
+              </div>
+              <FormSelect options={[{ value: "", label: "No sponsor contract (the bill is not split)" }, ...contractOptions]} value={p.contractId} onChange={v => setPayer(i, { contractId: v })} />
               </div>
             ))}
             <div>
-              <button type="button" className={addBtn} data-field onClick={() => setPayers(rows => [...rows, { type: "Insurance", name: "", policyNumber: "", validUntil: "" }])}>
+              <button type="button" className={addBtn} data-field onClick={() => setPayers(rows => [...rows, { type: "Insurance", name: "", policyNumber: "", validUntil: "", contractId: "" }])}>
                 <Plus size={14} /> Add payer
               </button>
             </div>

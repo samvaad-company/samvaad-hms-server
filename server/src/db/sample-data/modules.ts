@@ -1,13 +1,9 @@
 /**
- * Seed data for the service modules: blood bank, radiology, ambulance,
+ * Seed data for the service modules: radiology, ambulance,
  * birth/death records, TPA, finance, and general inventory.
  */
 import type {
   Gender,
-  BloodGroup,
-  BloodComponent,
-  DonorStatus,
-  BloodIssueStatus,
   RadiologyStatus,
   AmbulanceStatus,
   AmbulanceCallStatus,
@@ -15,55 +11,6 @@ import type {
   ClaimStatus,
   InventoryStatus,
 } from "@shared/types";
-
-// ── Blood bank ───────────────────────────────────────────────────────────────
-
-export interface BloodDonorSeed {
-  id: number; name: string; age: number; gender: Gender; bloodGroup: BloodGroup;
-  phone: string; lastDonationDate: string; totalDonations: number; status: DonorStatus;
-}
-
-export const bloodDonors: BloodDonorSeed[] = [
-  { id: 1, name: "Vikram Singh",    age: 32, gender: "Male",   bloodGroup: "O+",  phone: "+91 98220 11223", lastDonationDate: "12 Sep 2025", totalDonations: 8, status: "Eligible" },
-  { id: 2, name: "Anita Deshmukh",  age: 28, gender: "Female", bloodGroup: "A+",  phone: "+91 99870 44556", lastDonationDate: "3 Oct 2025",  totalDonations: 4, status: "Eligible" },
-  { id: 3, name: "Ravi Patil",      age: 41, gender: "Male",   bloodGroup: "B+",  phone: "+91 98500 77889", lastDonationDate: "18 Aug 2025", totalDonations: 12, status: "Eligible" },
-  { id: 4, name: "Meera Kulkarni",  age: 35, gender: "Female", bloodGroup: "AB+", phone: "+91 97650 22334", lastDonationDate: "25 Oct 2025", totalDonations: 6, status: "Deferred" },
-  { id: 5, name: "Sanjay Gupta",    age: 45, gender: "Male",   bloodGroup: "O-",  phone: "+91 98230 55667", lastDonationDate: "9 Jul 2025",  totalDonations: 15, status: "Eligible" },
-  { id: 6, name: "Pooja Sharma",    age: 26, gender: "Female", bloodGroup: "B-",  phone: "+91 99220 88990", lastDonationDate: "1 Nov 2025",  totalDonations: 2, status: "Eligible" },
-];
-
-export interface BloodStockSeed {
-  id: number; bloodGroup: BloodGroup; component: BloodComponent; units: number;
-}
-
-export const bloodStock: BloodStockSeed[] = [
-  { id: 1,  bloodGroup: "A+",  component: "Whole Blood", units: 12 },
-  { id: 2,  bloodGroup: "A-",  component: "Whole Blood", units: 3 },
-  { id: 3,  bloodGroup: "B+",  component: "Whole Blood", units: 9 },
-  { id: 4,  bloodGroup: "B-",  component: "Whole Blood", units: 2 },
-  { id: 5,  bloodGroup: "AB+", component: "Whole Blood", units: 5 },
-  { id: 6,  bloodGroup: "AB-", component: "Whole Blood", units: 1 },
-  { id: 7,  bloodGroup: "O+",  component: "Whole Blood", units: 15 },
-  { id: 8,  bloodGroup: "O-",  component: "Whole Blood", units: 4 },
-  { id: 9,  bloodGroup: "A+",  component: "Plasma",      units: 6 },
-  { id: 10, bloodGroup: "B+",  component: "Plasma",      units: 4 },
-  { id: 11, bloodGroup: "O+",  component: "Plasma",      units: 8 },
-  { id: 12, bloodGroup: "A+",  component: "Platelets",   units: 3 },
-  { id: 13, bloodGroup: "O+",  component: "Platelets",   units: 5 },
-  { id: 14, bloodGroup: "B+",  component: "RBC",         units: 4 },
-  { id: 15, bloodGroup: "O+",  component: "RBC",         units: 6 },
-];
-
-export interface BloodIssueSeed {
-  id: number; patientName: string; bloodGroup: BloodGroup; component: BloodComponent;
-  units: number; doctor: string; date: string; amount: number; status: BloodIssueStatus;
-}
-
-export const bloodIssues: BloodIssueSeed[] = [
-  { id: 1, patientName: "Rajan Mehta",   bloodGroup: "B+", component: "Whole Blood", units: 2, doctor: "Dr. Priya Sharma",  date: "2 Nov 2025", amount: 3000, status: "Issued" },
-  { id: 2, patientName: "Noah Carter",   bloodGroup: "O+", component: "Platelets",   units: 1, doctor: "Dr. Arjun Patel",   date: "4 Nov 2025", amount: 2200, status: "Issued" },
-  { id: 3, patientName: "Grace Mitchell",bloodGroup: "A+", component: "Plasma",      units: 2, doctor: "Dr. Kavita Reddy",  date: "6 Nov 2025", amount: 2800, status: "Pending" },
-];
 
 // ── Radiology ────────────────────────────────────────────────────────────────
 

@@ -375,6 +375,8 @@ function BedStatusView({
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2 group">
                   <h2 className="text-[16px] font-medium text-[color:var(--ink)] leading-5">{wardName}</h2>
+                  {ward.wardClass && <span className="rounded-full border border-[color:var(--line)] bg-[color:var(--subtle)] px-2 py-[1px] text-[11px] text-[color:var(--ink-soft)]">{ward.wardClass}</span>}
+                  {ward.facilityArea && <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{ward.facilityArea}</span>}
                   {canWrite && (
                     <>
                       <button onClick={() => onEditWard(ward)} title="Rename ward"
@@ -445,6 +447,12 @@ function TransfersView({ transfers }: { transfers: BedTransferDTO[] }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+/** What to tell the user about the rate while they fill in a ward. */
+function wardCatalogueHint(form: { wardClassId: string }, classes: { id: number; name: string }[]): string {
+  const cls = classes.find((c) => String(c.id) === form.wardClassId);
+  return cls ? `Leave blank to charge the catalogue's bed rate for ${cls.name}` : "Pick a ward class to use the catalogue's bed rate, or enter a rate here";
+}
+
 export default function BedsPage() {
   const { can } = useAuth();
   const canWrite = can("beds", "write");
@@ -462,7 +470,9 @@ export default function BedsPage() {
   const [managedBed, setManagedBed] = useState<BedDTO | null>(null);
 
   const [bedForm, setBedForm] = useState({ bedNumber: "", ward: "", status: "Available" });
-  const [wardForm, setWardForm] = useState({ name: "", capacity: "", dailyRate: "" });
+  const [wardForm, setWardForm] = useState({ name: "", capacity: "", dailyRate: "", wardClassId: "", facilityAreaId: "" });
+  const { items: wardClasses } = useList<{ id: number; name: string }>("/setup/ward_class", { active: 1 });
+  const { items: areas } = useList<{ id: number; name: string; data: { type?: string } }>("/setup/facility_area", { active: 1 });
 
   function reloadAll() {
     reloadBeds();
@@ -482,13 +492,15 @@ export default function BedsPage() {
       name: wardForm.name,
       capacity: wardForm.capacity ? Number(wardForm.capacity) : 0,
       dailyRate: wardForm.dailyRate ? Number(wardForm.dailyRate) : 0,
+      wardClassId: wardForm.wardClassId ? Number(wardForm.wardClassId) : null,
+      facilityAreaId: wardForm.facilityAreaId ? Number(wardForm.facilityAreaId) : null,
     };
     await run(() =>
       editingWard ? api.patch(`/wards/${editingWard.id}`, body) : api.post("/wards", body),
     );
     setShowWardModal(false);
     setEditingWard(null);
-    setWardForm({ name: "", capacity: "", dailyRate: "" });
+    setWardForm({ name: "", capacity: "", dailyRate: "", wardClassId: "", facilityAreaId: "" });
     reloadAll();
   }
 
@@ -502,14 +514,14 @@ export default function BedsPage() {
   function openAddWard() {
     reset();
     setEditingWard(null);
-    setWardForm({ name: "", capacity: "", dailyRate: "" });
+    setWardForm({ name: "", capacity: "", dailyRate: "", wardClassId: "", facilityAreaId: "" });
     setShowWardModal(true);
   }
 
   function openEditWard(w: WardDTO) {
     reset();
     setEditingWard(w);
-    setWardForm({ name: w.name, capacity: String(w.capacity || ""), dailyRate: String(w.dailyRate || "") });
+    setWardForm({ name: w.name, capacity: String(w.capacity || ""), dailyRate: String(w.ownRate || ""), wardClassId: w.wardClassId ? String(w.wardClassId) : "", facilityAreaId: w.facilityAreaId ? String(w.facilityAreaId) : "" });
     setShowWardModal(true);
   }
 
@@ -558,7 +570,9 @@ export default function BedsPage() {
         <div className="grid grid-cols-2 gap-4">
           <FormRow label="Ward Name *"><FormInput placeholder="e.g. Pediatrics Ward" value={wardForm.name} onChange={v => setWardForm(f => ({ ...f, name: v }))} /></FormRow>
           <FormRow label="Capacity"><FormInput type="number" placeholder="e.g. 12" value={wardForm.capacity} onChange={v => setWardForm(f => ({ ...f, capacity: v }))} /></FormRow>
-          <div className="col-span-2"><FormRow label="Bed rate (₹ per day)" hint="Shown on the bed cards when admitting a patient"><FormInput type="number" placeholder="e.g. 1200" value={wardForm.dailyRate} onChange={v => setWardForm(f => ({ ...f, dailyRate: v }))} /></FormRow></div>
+          <FormRow label="Ward class" hint="Sets which rate plans and bed charge apply (Setup → Masters)"><FormSelect value={wardForm.wardClassId} onChange={v => setWardForm(f => ({ ...f, wardClassId: v }))} options={[{ value: "", label: "Not set" }, ...wardClasses.map(c => ({ value: String(c.id), label: c.name }))]} /></FormRow>
+          <FormRow label="Facility area" hint="Where in the hospital the ward is"><FormSelect value={wardForm.facilityAreaId} onChange={v => setWardForm(f => ({ ...f, facilityAreaId: v }))} options={[{ value: "", label: "Not set" }, ...areas.filter(a => ["Ward", "ICU", "Emergency", "Other"].includes(String(a.data?.type))).map(a => ({ value: String(a.id), label: a.name }))]} /></FormRow>
+          <div className="col-span-2"><FormRow label="Bed rate (₹ per day)" hint={wardCatalogueHint(wardForm, wardClasses)}><FormInput type="number" placeholder="Leave blank to use the catalogue price" value={wardForm.dailyRate} onChange={v => setWardForm(f => ({ ...f, dailyRate: v }))} /></FormRow></div>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
       </Modal>

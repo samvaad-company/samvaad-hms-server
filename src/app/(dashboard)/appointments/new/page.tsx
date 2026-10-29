@@ -59,6 +59,8 @@ function BookAppointment() {
   const [type, setType] = useState("Booked");
   const [slotsKey, setSlotsKey] = useState(0);
   const [reason, setReason] = useState("");
+  const [visitPurpose, setVisitPurpose] = useState("");
+  const { items: purposeList } = useList<{ id: number; name: string }>("/setup/visit_purpose", { active: 1 });
 
 
   /** A different doctor, day or kind of visit means different open times, so the picked one no longer applies. */
@@ -104,6 +106,7 @@ function BookAppointment() {
         time: isWalkIn ? new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : slotLabel,
         type,
         reason,
+        visitPurpose: visitPurpose || undefined,
         status: "Upcoming",
       });
     });
@@ -217,6 +220,9 @@ function BookAppointment() {
             {/* Step 3 — Reason & Confirm */}
             {step === 3 && (
               <div className="flex flex-col gap-3 max-w-[620px]">
+                <FormRow label="Visit purpose">
+                  <FormSelect placeholder="Not recorded" options={purposeList.map((p) => ({ value: p.name, label: p.name }))} value={visitPurpose} onChange={setVisitPurpose} />
+                </FormRow>
                 <FormRow label="Reason for Visit">
                   <FormInput placeholder="Brief reason" value={reason} onChange={setReason} />
                 </FormRow>
@@ -236,6 +242,7 @@ function BookAppointment() {
                       { l: "Date",      v: date || "—" },
                       { l: "Doctor",    v: doctor?.name ?? "—" },
                       { l: "Specialty", v: doctor?.specialty ?? "—" },
+                      { l: "Visit purpose", v: visitPurpose || "—" },
                       { l: "Reason",    v: reason || "—" },
                     ].map(f => (
                       <div key={f.l} className="min-w-0">

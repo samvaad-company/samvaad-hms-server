@@ -25,6 +25,7 @@ import { checkInOpd } from "@/services/opd-service";
 import { isoDate } from "@/services/helpers";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
+import { canonicalMaster } from "@/services/setup-service";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 
 const createSchema = {
@@ -37,6 +38,7 @@ const createSchema = {
   time: { type: "string", required: true, max: 20 },
   type: { type: "enum", required: false, values: ["Walk-in", "Booked"], default: "Booked" },
   reason: { type: "string", required: false, max: 240, default: "" },
+  visitPurpose: { type: "string", required: false, max: 80 },
   status: {
     type: "enum",
     required: false,
@@ -66,6 +68,7 @@ export async function getAppointment(id: number, actor: Session) {
 
 export async function createAppointment(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
+  const visitPurpose = await canonicalMaster("visit_purpose", data.visitPurpose, actor, "visitPurpose");
 
   let patientName = data.patientName;
   let patientAge = data.patientAge ?? 0;
@@ -95,6 +98,7 @@ export async function createAppointment(input: unknown, actor: Session) {
       doctor, hospital, date: isoDate(data.date), minutes, reason: data.reason ?? "", status: data.status,
     });
     await audit(actor, "create", "appointment", created.id);
+    if (visitPurpose) return toAppointmentDTO((await appointmentsRepo.update(created.id, { visit_purpose: visitPurpose })) as AppointmentRow);
     return toAppointmentDTO(created);
   }
 
@@ -109,6 +113,7 @@ export async function createAppointment(input: unknown, actor: Session) {
     appointment_time: data.time,
     type: data.type,
     reason: data.reason,
+    visit_purpose: visitPurpose || null,
     status: data.status,
   });
   await audit(actor, "create", "appointment", row.id);
@@ -126,6 +131,7 @@ export async function updateAppointment(id: number, input: unknown, actor: Sessi
   if ("time" in data) patch.appointment_time = data.time;
   if ("type" in data) patch.type = data.type;
   if ("reason" in data) patch.reason = data.reason;
+  if ("visitPurpose" in data) patch.visit_purpose = (await canonicalMaster("visit_purpose", data.visitPurpose, actor, "visitPurpose", existing.visit_purpose)) || null;
   if ("status" in data) patch.status = data.status;
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;

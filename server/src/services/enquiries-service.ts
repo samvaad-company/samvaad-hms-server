@@ -1,10 +1,13 @@
 /**
  * Enquiries — leads captured before registration. Someone asks about a service; the front desk
- * records them, follows up (each contact is counted and kept in the history), and either converts
+ * records them, contacts them (each contact is counted and kept in the history), and either converts
  * them into a registered patient or closes the lead.
  *
- *   Open ──follow up──▶ Follow-up ──convert──▶ Converted
- *     └────────────────────close────────────▶ Closed ──(follow up / convert reopens)
+ *   Open ──log contact──▶ Contacted ──convert──▶ Converted
+ *     └────────────────────close────────────▶ Closed ──(logging a contact / convert reopens)
+ *
+ * Not to be confused with Follow-ups (followups-service.ts): those are planned return visits of existing
+ * patients. A lead is contacted and called back; a patient is followed up.
  */
 import { enquiriesRepo, patientsRepo } from "@/repositories";
 import { toEnquiryDTO } from "@/repositories/mappers";
@@ -17,11 +20,11 @@ import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
 
-/** Both allow an empty value: a mobile or a follow-up date is optional. */
+/** Both allow an empty value: a mobile or a call-back date is optional. */
 const ISO_DAY = /^(\d{4}-\d{2}-\d{2})?$/;
 const PHONE = /^(\+?\d[\d\s-]{5,17})?$/;
 
-export const ENQUIRY_STATUSES = ["Open", "Follow-up", "Converted", "Closed"] as const;
+export const ENQUIRY_STATUSES = ["Open", "Contacted", "Converted", "Closed"] as const;
 
 const enquirySchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -30,10 +33,12 @@ const enquirySchema = {
   interestedIn: { type: "string", required: false, max: 160, default: "" },
   source: { type: "string", required: false, max: 80, default: "" },
   estimatedValue: { type: "number", required: false, min: 0, max: 1_000_000_000, default: 0 },
-  followUpOn: { type: "string", required: false, default: "", pattern: ISO_DAY },
+  callBackOn: { type: "string", required: false, default: "", pattern: ISO_DAY },
   notes: { type: "string", required: false, max: 1000, default: "" },
 } as const;
 
+// The stored column is still `follow_up_on` (renaming it would need a data migration for no visible gain);
+// everything the API and the screens show calls it the call-back date.
 export const ENQUIRY_LIST_CONFIG = {
   searchColumns: ["name", "mobile", "interested_in", "source"],
   filterable: ["status", "department", "source"],
@@ -41,8 +46,8 @@ export const ENQUIRY_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "desc" as const }],
 };
 
-/** Leads that still need work come first (soonest follow-up on top), then converted, then closed. */
-const RANK: Record<string, number> = { "Follow-up": 0, Open: 1, Converted: 2, Closed: 3 };
+/** Leads that still need work come first (soonest call-back on top), then converted, then closed. */
+const RANK: Record<string, number> = { Contacted: 0, Open: 1, Converted: 2, Closed: 3 };
 
 export async function listEnquiries(options: QueryOptions, actor: Session) {
   const { rows } = await enquiriesRepo.listRows({ ...scopeToHospital(options, actor), unpaged: true });
@@ -60,11 +65,11 @@ export async function listEnquiries(options: QueryOptions, actor: Session) {
 export async function getEnquirySummary(actor: Session) {
   const { rows } = await enquiriesRepo.listRows({ ...scopeToHospital({}, actor), unpaged: true });
   const today = isoDate();
-  const counts = { Open: 0, "Follow-up": 0, Converted: 0, Closed: 0 };
+  const counts = { Open: 0, Contacted: 0, Converted: 0, Closed: 0 };
   let dueToday = 0;
   for (const r of rows) {
     if (r.status in counts) counts[r.status as keyof typeof counts]++;
-    if ((r.status === "Open" || r.status === "Follow-up") && r.follow_up_on && r.follow_up_on <= today) dueToday++;
+    if ((r.status === "Open" || r.status === "Contacted") && r.follow_up_on && r.follow_up_on <= today) dueToday++;
   }
   return { total: rows.length, ...counts, dueToday };
 }
@@ -81,7 +86,7 @@ export async function getEnquiry(id: number, actor: Session) {
 
 export async function createEnquiry(input: unknown, actor: Session) {
   const data = validate(enquirySchema, input);
-  const followUpOn = data.followUpOn || null;
+  const callBackOn = data.callBackOn || null;
   const row = await enquiriesRepo.create({
     hospital_id: requireHospitalId(actor),
     name: data.name,
@@ -90,10 +95,10 @@ export async function createEnquiry(input: unknown, actor: Session) {
     interested_in: data.interestedIn,
     source: data.source,
     estimated_value: data.estimatedValue,
-    follow_up_on: followUpOn,
+    follow_up_on: callBackOn,
     notes: data.notes,
-    // A lead with a follow-up already planned is in follow-up from the start.
-    status: followUpOn ? "Follow-up" : "Open",
+    // A lead with a call back already planned has been contacted (the enquiry itself was the first contact).
+    status: callBackOn ? "Contacted" : "Open",
     contacts: 1,
     converted_patient_id: null,
     history: [],
@@ -111,7 +116,7 @@ export async function updateEnquiry(id: number, input: unknown, actor: Session) 
     source: "source", estimatedValue: "estimated_value", notes: "notes",
   };
   for (const [k, col] of Object.entries(map)) if (k in data) patch[col] = (data as Record<string, unknown>)[k];
-  if ("followUpOn" in data) patch.follow_up_on = data.followUpOn || null;
+  if ("callBackOn" in data) patch.follow_up_on = data.callBackOn || null;
   const row = await enquiriesRepo.update(id, patch);
   await audit(actor, "update", "enquiries", id, patch);
   return toEnquiryDTO(row as EnquiryRow);
@@ -123,25 +128,25 @@ export async function deleteEnquiry(id: number, actor: Session) {
   await audit(actor, "delete", "enquiries", id);
 }
 
-const followUpSchema = {
+const contactSchema = {
   note: { type: "string", required: false, max: 500, default: "" },
   nextOn: { type: "string", required: false, default: "", pattern: ISO_DAY },
 } as const;
 
-/** Log a contact: counts it, remembers what was said, and sets (or clears) the next follow-up date. */
-export async function followUpEnquiry(id: number, input: unknown, actor: Session) {
+/** Log a contact: counts it, remembers what was said, and sets (or clears) the next call-back date. */
+export async function logEnquiryContact(id: number, input: unknown, actor: Session) {
   const row = await owned(id, actor);
   if (row.status === "Converted") throw new ConflictError("This lead has already become a patient");
-  const data = validate(followUpSchema, input);
+  const data = validate(contactSchema, input);
   const nextOn = data.nextOn || null;
   if (nextOn && nextOn < isoDate()) throw new ValidationError([{ field: "nextOn", message: "can't be in the past" }]);
   const updated = await enquiriesRepo.update(id, {
-    status: "Follow-up",
+    status: "Contacted",
     contacts: Number(row.contacts ?? 1) + 1,
     follow_up_on: nextOn,
     history: [...(row.history ?? []), { at: new Date().toISOString(), by: actor.name, note: data.note, nextOn }],
   });
-  await audit(actor, "follow-up", "enquiries", id);
+  await audit(actor, "contact", "enquiries", id);
   return toEnquiryDTO(updated as EnquiryRow);
 }
 

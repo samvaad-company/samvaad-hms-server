@@ -26,6 +26,8 @@ export const TABLES = {
   beds: "beds",
   ipdAdmissions: "ipd_admissions",
   otSchedules: "ot_schedules",
+  otRooms: "ot_rooms",
+  otEquipment: "ot_equipment",
   hospitals: "hospitals",
   radiologyCenters: "radiology_centers",
   hospitalRadiologyLinks: "hospital_radiology_links",
@@ -34,8 +36,39 @@ export const TABLES = {
   platformBills: "platform_bills",
   auditLogs: "audit_logs",
   bloodDonors: "blood_donors",
-  bloodStock: "blood_stock",
-  bloodIssues: "blood_issues",
+  bloodUnits: "blood_units",
+  bloodCrossmatches: "blood_crossmatches",
+  bloodTransfusions: "blood_transfusions",
+  mrdLocations: "mrd_locations",
+  mrdFiles: "mrd_files",
+  mrdFileRequests: "mrd_file_requests",
+  mrdFileMovements: "mrd_file_movements",
+  mrdRetentionPolicies: "mrd_retention_policies",
+  mrdFolders: "mrd_folders",
+  mrdCodingCases: "mrd_coding_cases",
+  mrdDeficiencies: "mrd_deficiencies",
+  mrdRegisterEntries: "mrd_register_entries",
+  signatureRequests: "signature_requests",
+  consentTemplates: "consent_templates",
+  cssdSterilizers: "cssd_sterilizers",
+  cssdSets: "cssd_sets",
+  cssdCycles: "cssd_cycles",
+  cssdIssues: "cssd_issues",
+  cssdSettings: "cssd_settings",
+  hrLeaveTypes: "hr_leave_types",
+  hrLeaveRequests: "hr_leave_requests",
+  setupRecords: "setup_records",
+  billItems: "bill_items",
+  billPayouts: "bill_payouts",
+  pharmacyBatches: "pharmacy_batches",
+  pharmacyDispenses: "pharmacy_dispenses",
+  pharmacyDispenseLines: "pharmacy_dispense_lines",
+  pharmacyReturns: "pharmacy_returns",
+  hrShifts: "hr_shifts",
+  hrRoster: "hr_roster",
+  hrSalaries: "hr_salaries",
+  hrPayrollRuns: "hr_payroll_runs",
+  hrPayslips: "hr_payslips",
   radiologyTests: "radiology_tests",
   ambulances: "ambulances",
   ambulanceCalls: "ambulance_calls",
@@ -106,6 +139,11 @@ export interface DepartmentRow extends Row {
   name: string;
   head: string;
   extension: string;
+  /** Setup → Masters: a short code, the clinical specialty, whether it sees patients, and whether it is in use. */
+  code?: string | null;
+  specialty?: string | null;
+  clinical?: boolean | null;
+  active?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -142,6 +180,16 @@ export interface StaffRow extends Row {
   email: string;
   join_date: string;
   status: string;
+  /** EMP-1001; older rows have none (the DTO derives one). */
+  employee_no?: string;
+  gender?: string;
+  dob?: string | null;
+  address?: string;
+  qualification?: string;
+  licence_no?: string;
+  licence_expiry?: string | null;
+  emergency_name?: string;
+  emergency_phone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -179,6 +227,10 @@ export interface PatientRow extends Row {
   // Wider profile (all optional) — see services/patient-profile.ts
   age_months?: number | null;
   referral_source?: string | null;
+  /** Names from Setup → Masters (patient categories, income groups, visit purposes). */
+  patient_category?: string | null;
+  income_group?: string | null;
+  visit_purpose?: string | null;
   medico_legal?: boolean | null;
   is_temporary?: boolean | null;
   data_consent?: boolean | null;
@@ -218,6 +270,8 @@ export interface AppointmentRow extends Row {
   appointment_time: string;
   type: string;
   reason: string;
+  /** A visit purpose from Setup → Masters. */
+  visit_purpose?: string | null;
   status: string;
   /** Tele-consult: the video link (Google Meet, or one pasted manually), once available. */
   video_url?: string | null;
@@ -326,6 +380,83 @@ export interface PharmacyItemRow extends Row {
   expiry_date: string;
   supplier: string;
   status: string;
+  /** ₹ per unit the counter charges; remembered from the first price entered at dispensing when unset. */
+  unit_price?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A lot of one medicine in stock. The batches of an item add up to its `stock`. */
+export interface PharmacyBatchRow extends Row {
+  id: number;
+  hospital_id: number;
+  item_id: number;
+  batch_no: string;
+  /** YYYY-MM-DD, or empty when the pack carries none. */
+  expiry_date: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One trip to the dispensing counter: who it was for, how it was billed, and what went out. */
+export interface PharmacyDispenseRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** DSP/26/00001 */
+  dispense_no: string;
+  patient_id: number | null;
+  patient_name: string;
+  walk_in_note: string;
+  prescription_id: number | null;
+  rx_number: string;
+  /** none | separate | patient */
+  billing: string;
+  bill_id: number | null;
+  bill_number: string | null;
+  admission_id: number | null;
+  admission_no: string | null;
+  subtotal: number;
+  /** Dispensed | Part returned | Returned */
+  status: string;
+  dispensed_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One batch drawn from: a single medicine may span several lines when its stock sits in more than one batch. */
+export interface PharmacyDispenseLineRow extends Row {
+  id: number;
+  hospital_id: number;
+  dispense_id: number;
+  item_id: number;
+  medicine_name: string;
+  batch_id: number | null;
+  batch_no: string;
+  expiry_date: string;
+  quantity: number;
+  returned_qty: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PharmacyReturnRow extends Row {
+  id: number;
+  hospital_id: number;
+  dispense_id: number;
+  line_id: number;
+  medicine_name: string;
+  batch_no: string;
+  quantity: number;
+  /** Usable | Damaged | Expired — usable goes back into its batch, the others are written off. */
+  condition: string;
+  /** CN/26/00001 when the dispense was billed; empty otherwise. */
+  credit_note_no: string;
+  credit_value: number;
+  reason: string;
+  returned_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -378,6 +509,60 @@ export interface BillRow extends Row {
   gst: number;
   total: number;
   status: string;
+  /** A payment mode from Setup → Masters, recorded when the bill is settled at the counter. */
+  payment_mode?: string | null;
+  /** The doctor the bill is in the name of — payout rules for doctors follow this. */
+  doctor_id?: number | null;
+  doctor_name?: string | null;
+  /** The sponsor contract the bill was raised under (Setup → Sponsors), and what each side owes. */
+  contract_id?: number | null;
+  contract_name?: string | null;
+  payer_share?: number;
+  patient_share?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One charge on an invoice: a service from the catalogue (with its price and tax as they were billed) or a custom line. */
+export interface BillItemRow extends Row {
+  id: number;
+  hospital_id: number;
+  bill_id: number;
+  service_id: number | null;
+  code: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  gst_rate: number;
+  hsn_sac: string;
+  amount: number;
+  /** What the contract pays for this line (0 on a self-pay bill). */
+  payer_amount?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What a payout rule earns someone from one bill (a doctor, a referrer, an outside lab). */
+export interface BillPayoutRow extends Row {
+  id: number;
+  hospital_id: number;
+  bill_id: number;
+  bill_number: string;
+  bill_date: string;
+  rule_id: number | null;
+  rule_name: string;
+  role: string;
+  /** doctor | referral | centre */
+  payee_type: string;
+  payee_id: number | null;
+  payee_name: string;
+  basis: number;
+  value_kind: string;
+  value: number;
+  amount: number;
+  /** Pending | Paid | Void */
+  status: string;
+  paid_on: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -389,6 +574,10 @@ export interface WardRow extends Row {
   capacity: number;
   /** ₹ per day for a bed in this ward; shown when picking a bed at admission. */
   daily_rate?: number;
+  /** Setup → Ward classes; decides which rate plans and bed-charge service apply to a stay here. */
+  ward_class_id?: number | null;
+  /** Setup → Facility areas: where in the building the ward is. */
+  facility_area_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -470,6 +659,62 @@ export interface OtScheduleRow extends Row {
   scheduled_date: string;
   scheduled_time: string;
   status: string;
+  /** OT/2026/0008 — issued when the surgery is booked. */
+  booking_no?: string;
+  /** Elective | Emergency | Outdoor */
+  case_type?: string;
+  /** What the surgery is called on the register ("Open Appendectomy"); `procedure` keeps the free-text description. */
+  surgery_name?: string;
+  /** Major | Minor | Daycare */
+  category?: string;
+  procedure_code?: string;
+  /** Planned length of the surgery, in minutes (the turnaround buffer is not included). */
+  duration_min?: number;
+  room_id?: number | null;
+  co_surgeon_id?: number | null;
+  co_surgeon?: string;
+  anesthetist_id?: number | null;
+  /** General (GA) | Spinal | Epidural | Local | Sedation (MAC) */
+  anaesthesia_type?: string;
+  scrub_nurse_id?: number | null;
+  scrub_nurse?: string;
+  circulating_nurse_id?: number | null;
+  circulating_nurse?: string;
+  technician_ids?: number[];
+  technicians?: string[];
+  equipment_ids?: number[];
+  equipment?: string[];
+  special_requirements?: string;
+  /** The booker chose to skip the room / surgeon / equipment conflict check. */
+  allow_overlap?: boolean;
+  /** Pending | Fit | Unfit — anaesthetic fitness. Never blocks booking; blocks starting (emergencies excepted). */
+  fitness?: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A theatre. */
+export interface OtRoomRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** Major | Minor | Daycare */
+  kind: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A piece of theatre equipment that can be booked with a surgery, or taken out of use for maintenance. */
+export interface OtEquipmentRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** Available | Maintenance */
+  status: string;
+  note: string;
   created_at: string;
   updated_at: string;
 }
@@ -610,41 +855,136 @@ export interface AuditLogRow extends Row {
 export interface BloodDonorRow extends Row {
   id: number;
   hospital_id: number;
+  /** BD/26/00080 — issued at registration. */
+  donor_no?: string;
   name: string;
+  /** Kept for donors registered before the date of birth was captured; newer ones derive age from `dob`. */
   age: number;
   gender: string;
+  /** "A+", "O-", … */
   blood_group: string;
   phone: string;
-  aadhaar_number: string;
+  dob?: string | null;
+  /**
+   * Only the TYPE and the LAST FOUR characters of the ID proof are ever stored — never the full number.
+   * `aadhaar_number` is the old field and is no longer written.
+   */
+  id_proof_type?: string;
+  id_proof_last4?: string;
+  aadhaar_number?: string;
   last_donation_date: string;
   total_donations: number;
+  /** Eligible | Deferred */
   status: string;
+  deferral_reason?: string;
+  /** yyyy-mm-dd the deferral ends, or null for an open-ended one. */
+  deferred_until?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface BloodStockRow extends Row {
+export interface SerologyResult {
+  hiv: string;
+  hbsag: string;
+  hcv: string;
+  malaria: string;
+  syphilis: string;
+}
+
+/** One bag of blood or one blood component, from collection until it is transfused or discarded. */
+export interface BloodUnitRow extends Row {
   id: number;
   hospital_id: number;
+  /** BU/26/00262 — minted on the server at collection. */
+  unit_no: string;
+  /** Donation | Purchased */
+  source: string;
+  donor_id: number | null;
+  donor_no: string;
+  /** Where a purchased unit came from. */
+  supplier: string;
+  bag_no: string;
   blood_group: string;
+  /** Whole blood | PRBC | Platelets | Plasma | Cryoprecipitate */
   component: string;
-  units: number;
+  volume_ml: number;
+  collected_on: string;
+  expiry_on: string;
+  /** "" = not tested yet, else Negative | Reactive, for each of the five mandatory tests. */
+  serology: SerologyResult;
+  serology_by: string | null;
+  serology_on: string | null;
+  /** Quarantined | Available | Cross-matched | Issued | Processed | Discarded */
+  status: string;
+  /** The donation this unit came from — a processed whole blood and its components share it, and so share serology. */
+  root_unit_id: number | null;
+  parent_unit_id: number | null;
+  /** The day the unit left stock (issued, processed or discarded), for the "as on a date" stock register. */
+  left_on: string | null;
+  discard_reason: string;
+  discarded_by: string | null;
+  created_by: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface BloodIssueRow extends Row {
+/** A request to cross-match a unit against a patient; the unit is held for it while it is open. */
+export interface BloodCrossmatchRow extends Row {
   id: number;
   hospital_id: number;
+  /** XM/26/00012 */
+  xm_no: string;
   patient_id: number | null;
   patient_name: string;
-  blood_group: string;
-  component: string;
-  units: number;
-  doctor: string;
-  issue_date: string;
-  amount: number;
+  patient_code: string;
+  unit_id: number;
+  unit_no: string;
+  unit_group: string;
+  unit_component: string;
+  requested_at: string;
+  requested_by: string;
+  /** pending | compatible | incompatible */
+  result: string;
+  result_by: string | null;
+  result_at: string | null;
+  /** requested | resulted | issued | cancelled */
   status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransfusionReaction {
+  at: string;
+  by: string;
+  kind: string;
+  /** Mild | Moderate | Severe */
+  severity: string;
+  note: string;
+}
+
+/** A compatible, cross-matched unit handed over for a patient, and what became of it. */
+export interface BloodTransfusionRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** BI/26/00027 */
+  issue_no: string;
+  crossmatch_id: number;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  unit_id: number;
+  unit_no: string;
+  unit_group: string;
+  unit_component: string;
+  issued_at: string;
+  issued_by: string;
+  /** When the transfusion finished, or null while it hasn't. */
+  transfused_at: string | null;
+  transfused_by: string | null;
+  /** "" | "returned · restock" | "returned · wasted" */
+  disposition: string;
+  returned_at: string | null;
+  reactions: TransfusionReaction[];
   created_at: string;
   updated_at: string;
 }
@@ -816,9 +1156,10 @@ export interface EnquiryRow extends Row {
   source: string;
   estimated_value: number;
   /** When to contact them next (yyyy-mm-dd), or null when nothing is scheduled. */
+  /** yyyy-mm-dd the lead is to be called back (named for the old "follow up" wording; not a patient follow-up). */
   follow_up_on: string | null;
   notes: string;
-  /** Open → Follow-up → Converted (became a patient) or Closed (lost). */
+  /** Open → Contacted → Converted (became a patient) or Closed (lost). */
   status: string;
   /** How many times they have been contacted so far, counting the first enquiry. */
   contacts: number;
@@ -1191,6 +1532,19 @@ export interface DocumentRow extends Row {
   size_bytes: number;
   storage_key: string;
   uploaded_by: string;
+  /** The name shown in lists; defaults to the file name. */
+  title?: string | null;
+  /** A paper's own reference or certificate number. */
+  reference_no?: string | null;
+  /** MRD folder the file is kept in (null = not filed). */
+  folder_id?: number | null;
+  /** Retention state: Active | Due | Extended. A null state means Active. (A disposed document is deleted; its audit entry is the record.) */
+  retention_state?: string | null;
+  /** Extended to this date by a reviewer; until then the policy's years decide. */
+  retain_until?: string | null;
+  retention_note?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1325,6 +1679,504 @@ export interface TeleconsultPaymentRow extends Row {
   refunded_at: string | null;
   /** Webhook / confirmation events seen for this payment, for de-duplication and audit. */
   events: { event: string; id: string | null; at: string }[];
+  created_at: string;
+  updated_at: string;
+}
+
+// ── MRD (medical records department) ─────────────────────────────────────────
+
+/** A named home a patient file can live in: a rack, an archive room, a nurse station, a doctor's cabin. */
+export interface MrdLocationRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** MRD rack | Archive room | Operation theatre | Nurse station | Doctor cabin | Other */
+  kind: string;
+  code: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One physical patient file (folder of papers). `status` and `location_id` say where it is right now. */
+export interface MrdFileRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** F/2026/00017 */
+  file_no: string;
+  patient_id: number;
+  patient_name: string;
+  patient_code: string;
+  /** OPD | IPD */
+  file_type: string;
+  /** Available | Checked out | In transit | Archived */
+  status: string;
+  location_id: number | null;
+  location_name: string;
+  /** Where it goes back to on return / retrieve — normally the rack its UHID range belongs to. */
+  home_location_id: number | null;
+  holder_name: string | null;
+  due_on: string | null;
+  checked_out_at: string | null;
+  archived_on: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A ward or doctor asking MRD for a file. */
+export interface MrdFileRequestRow extends Row {
+  id: number;
+  hospital_id: number;
+  file_id: number;
+  file_no: string;
+  patient_id: number;
+  patient_name: string;
+  /** Routine | Urgent */
+  urgency: string;
+  /** Pending | Dispatched | Returned | Cancelled */
+  status: string;
+  requested_on: string;
+  requested_by: string;
+  /** Who the file is for (a person or a department). */
+  requested_for: string;
+  destination_id: number | null;
+  destination_name: string;
+  note: string;
+  dispatched_at: string | null;
+  dispatched_by: string | null;
+  returned_at: string | null;
+  returned_by: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The trail of a file: every time it was created, handed out, brought back, moved or archived. */
+export interface MrdFileMovementRow extends Row {
+  id: number;
+  hospital_id: number;
+  file_id: number;
+  file_no: string;
+  /** Created | Checked out | Dispatched | Returned | Moved | Archived | Retrieved */
+  action: string;
+  from_location: string;
+  to_location: string;
+  holder_name: string | null;
+  due_on: string | null;
+  note: string;
+  by_name: string;
+  at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** How long a class of documents is kept before it is flagged for review. */
+export interface MrdRetentionPolicyRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** Clinical | Financial | KYC | Statutory */
+  class: string;
+  retention_years: number;
+  /** Document categories this policy covers (lower-cased match). */
+  categories: string[];
+  /** What a reviewer is expected to do once due: Review | Destroy */
+  action_after: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MrdFolderRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** Clinical | Financial | KYC | Statutory | General */
+  class: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MrdCodingDiagnosis {
+  /** ICD-10-CM code, e.g. E03.9 */
+  code: string;
+  text: string;
+}
+
+/** A discharged admission waiting for its diagnosis and procedure codes (ICD-10) and a sign-off. */
+export interface MrdCodingCaseRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  admission_no: string;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  doctor: string;
+  admitted_on: string;
+  /** Pending | In review | Deficient | Coded | Signed off */
+  status: string;
+  principal_dx_code: string;
+  principal_dx_text: string;
+  secondary_dx: MrdCodingDiagnosis[];
+  procedures: MrdCodingDiagnosis[];
+  coder_name: string | null;
+  coded_at: string | null;
+  signed_off_by: string | null;
+  signed_off_at: string | null;
+  queued_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Something missing from the chart that stops it being coded or signed off. */
+export interface MrdDeficiencyRow extends Row {
+  id: number;
+  hospital_id: number;
+  case_id: number;
+  kind: string;
+  note: string;
+  /** Open | Resolved */
+  status: string;
+  raised_by: string;
+  raised_at: string;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * One line of a statutory register (birth, death). Entries are permanent: a correction is a new entry that
+ * `amends_id` the old one, and the old one is marked `superseded_by`. Nothing is edited in place.
+ */
+export interface MrdRegisterEntryRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** birth | death */
+  register: string;
+  /** BR/2026/00001 */
+  entry_no: string;
+  entry_date: string;
+  /** The register's own fields (mother's name, weight, cause of death…). */
+  data: Record<string, string>;
+  report_to: string;
+  filed_by: string;
+  filed_at: string;
+  amends_id: number | null;
+  superseded_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A consent / declaration form for a patient. It is made first (Draft), can be printed for signing on paper, or a
+ * link is created for the patient to sign on a phone (Waiting) — the link's random token is the credential. A link
+ * can be cancelled or expire and a new one made; a form signed on paper is recorded with its scanned copy.
+ */
+export interface SignatureRequestRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  patient_phone: string;
+  /** Key of the form: a built-in one from consent-catalog.ts or `custom-…` for the hospital's own; blank for older rows. */
+  template_key?: string;
+  /** The form's wording in every language it has, as it was when this consent was made (placeholders filled in). */
+  template_texts?: Record<string, { title: string; body: string }> | null;
+  form_title: string;
+  form_body: string;
+  /** English | Hindi | Gujarati */
+  language: string;
+  /** Show / print the English text after the patient's language. */
+  include_english?: boolean;
+  /** The live link's token; null until a link is made. */
+  token: string | null;
+  /** Draft | Waiting | Signed | Refused | Cancelled  (Expired is Waiting past `expires_at`) */
+  status: string;
+  /** Who made the form. */
+  sent_by: string;
+  /** When the form was made. */
+  sent_at: string;
+  /** When the live link stops working; null until a link is made. */
+  expires_at: string | null;
+  link_sent_at?: string | null;
+  /** qr | email | whatsapp | device */
+  delivery?: string | null;
+  opened_at?: string | null;
+  signed_at: string | null;
+  signer_name: string | null;
+  signer_relation?: string | null;
+  /** phone | paper */
+  signed_via?: string | null;
+  signed_language?: string | null;
+  witness_name?: string | null;
+  /** The scanned paper copy (a documents row). */
+  signed_document_id?: number | null;
+  /** PNG data URL of the drawn signature (phone signing). */
+  signature_data: string | null;
+  refused_reason: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A consent form the hospital wrote itself (the built-in ones live in code). `{{patient_name}}`, `{{age}}` and `{{date}}` are filled in when a consent is made. */
+export interface ConsentTemplateRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** custom-ab12cd34 */
+  key: string;
+  /** Title per language (English required). */
+  titles: Record<string, string>;
+  /** Body per language (English required). */
+  bodies: Record<string, string>;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── CSSD ─────────────────────────────────────────────────────────────────────
+
+export interface CssdSterilizerRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  /** One of STERILIZATION_METHODS. */
+  method: string;
+  location: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An instrument set that goes round and round: used → dirty → packed → in a cycle → sterile → issued → returned. */
+export interface CssdSetRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** CS-00009 — for the life of the set. */
+  set_no: string;
+  name: string;
+  type: string;
+  department_id: number | null;
+  department_name: string;
+  instruments: { name: string; qty: number }[];
+  usage_charge: number;
+  /** Dirty | Packed | In cycle | Sterile | Issued  (a Sterile set past `sterile_until` reads as "Expired sterility") */
+  status: string;
+  packaging: string | null;
+  sterile_until: string | null;
+  last_cycle_id: number | null;
+  times_processed: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CssdCycleRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** CC/26/00035 */
+  cycle_no: string;
+  sterilizer_id: number;
+  sterilizer_name: string;
+  method: string;
+  started_at: string;
+  started_by: string;
+  set_ids: number[];
+  temp_c: number;
+  pressure_psi: number;
+  exposure_min: number;
+  /** pending | pass | fail */
+  indicator: string;
+  /** Running | Passed | Failed | Quarantined */
+  status: string;
+  result_by: string | null;
+  result_at: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A request for a set and, once fulfilled, its issue to a patient and return. */
+export interface CssdIssueRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** CI/26/00001 — minted at issue. */
+  issue_no: string | null;
+  set_id: number;
+  set_no: string;
+  set_name: string;
+  patient_id: number | null;
+  patient_name: string;
+  department_name: string;
+  case_id: number | null;
+  case_label: string;
+  /** Requested | Issued | Returned | Cancelled */
+  status: string;
+  requested_at: string;
+  requested_by: string;
+  issued_at: string | null;
+  issued_by: string | null;
+  expected_back: string | null;
+  returned_at: string | null;
+  returned_by: string | null;
+  investigate: boolean;
+  return_note: string;
+  charge: number;
+  bill_number: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A hospital's changes to the default shelf lives: { "Dry heat": { "Wrapped": 10 } }. */
+export interface CssdSettingsRow extends Row {
+  id: number;
+  hospital_id: number;
+  shelf_life: Record<string, Record<string, number>>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── HR ───────────────────────────────────────────────────────────────────────
+
+export interface HrLeaveTypeRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  code: string;
+  /** Days a person gets each calendar year; 0 on a type that is not paid means no limit. */
+  days_per_year: number;
+  paid: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrLeaveRequestRow extends Row {
+  id: number;
+  hospital_id: number;
+  staff_id: number;
+  staff_name: string;
+  department: string;
+  leave_type_id: number;
+  type_name: string;
+  type_code: string;
+  paid: boolean;
+  from_date: string;
+  to_date: string;
+  days: number;
+  reason: string;
+  /** Pending | Approved | Rejected | Cancelled */
+  status: string;
+  applied_by: string;
+  applied_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrShiftRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  code: string;
+  /** HH:MM, 24-hour */
+  start: string;
+  end: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One person's shift on one date. A person has at most one shift a day. */
+export interface HrRosterRow extends Row {
+  id: number;
+  hospital_id: number;
+  staff_id: number;
+  work_date: string;
+  shift_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrSalaryRow extends Row {
+  id: number;
+  hospital_id: number;
+  staff_id: number;
+  basic: number;
+  hra: number;
+  allowances: number;
+  pf_percent: number;
+  prof_tax: number;
+  other_deduction: number;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrPayrollRunRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** YYYY-MM */
+  month: string;
+  /** Draft | Finalized */
+  status: string;
+  staff_count: number;
+  total_gross: number;
+  total_net: number;
+  created_by: string;
+  finalized_by: string | null;
+  finalized_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HrPayslipRow extends Row {
+  id: number;
+  hospital_id: number;
+  run_id: number;
+  staff_id: number;
+  staff_name: string;
+  employee_no: string;
+  role: string;
+  department: string;
+  month: string;
+  month_days: number;
+  paid_days: number;
+  unpaid_leave_days: number;
+  lop_adjust: number;
+  absent_days: number;
+  basic: number;
+  hra: number;
+  allowances: number;
+  gross: number;
+  pf: number;
+  prof_tax: number;
+  other_deduction: number;
+  net_pay: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * One entry of a Setup master (a service, a rate plan, a ward class…) or a configuration singleton. `kind` names the master
+ * (see SETUP_KINDS in src/types/setup.ts); `data` holds the fields that master needs beyond code, name and active.
+ */
+export interface SetupRecordRow extends Row {
+  id: number;
+  hospital_id: number;
+  kind: string;
+  /** Short code, unique within a kind (empty for kinds without one). */
+  code: string;
+  name: string;
+  active: boolean;
+  sort_order: number;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

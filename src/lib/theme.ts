@@ -33,6 +33,9 @@ export const DEFAULT_THEME: ThemeKey = "teal";
 /** Where the last-used colour is remembered, so the next page load paints in it straight away. */
 export const THEME_STORAGE_KEY = "samvaad.themeHex";
 
+/** A colour chosen for this device only (Settings → Appearance); it wins over the hospital's. */
+export const MY_COLOR_KEY = "samvaad.myColor";
+
 export const themeHex = (key: string | null | undefined): string =>
   THEME_COLORS.find((c) => c.key === key)?.hex ?? THEME_COLORS[0].hex;
 

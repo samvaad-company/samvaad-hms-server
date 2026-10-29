@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
@@ -10,30 +10,12 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { printElement, downloadElement, shareDocument } from "@/lib/print";
-import type { BillDTO, PatientDTO } from "@/types/api";
+import type { BillDTO, BillingCatalogDTO, PatientDTO } from "@/types/api";
+import { FormSelect } from "@/components/shared/FormRow";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/shared/DocumentLetterhead";
 import Link from "next/link";
-
-const LINE_ITEMS: Record<string, { description: string; qty: number; rate: number }[]> = {
-  "OPD":      [{ description: "OPD Consultation", qty: 1, rate: 500 }],
-  "Lab":      [{ description: "Lab Test — Blood Panel", qty: 1, rate: 800 }, { description: "Sample Collection", qty: 1, rate: 100 }],
-  "Pharmacy": [{ description: "Medicines (Rx)", qty: 1, rate: 1000 }, { description: "Injection / IV", qty: 1, rate: 240 }],
-  "IPD":      [
-    { description: "Room Charges (5 nights)", qty: 5, rate: 2000 },
-    { description: "Doctor Visits", qty: 5, rate: 500 },
-    { description: "Nursing Care", qty: 1, rate: 3000 },
-    { description: "Medicines", qty: 1, rate: 5000 },
-    { description: "Investigations", qty: 1, rate: 3000 },
-    { description: "Procedure Charges", qty: 1, rate: 5000 },
-  ],
-};
-
-const PAYMENT_MODE: Record<number, string> = {
-  1: "Cash", 2: "UPI", 3: "Card", 4: "Cash + Card (Split)",
-  5: "UPI", 6: "Insurance + Card (Split)", 7: "Pending", 8: "Cash", 9: "Refunded", 10: "UPI",
-};
 
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +27,9 @@ export default function BillingDetailPage() {
   const { run, loading: acting } = useMutation();
   const docRef = useRef<HTMLDivElement>(null);
   const hospital = useHospital();
-  const recordPayment = () => run(() => api.patch(`/billing/${id}`, { status: "Paid" })).then(reload);
+  const { item: catalog } = useItem<BillingCatalogDTO>(bill?.status === "Pending" ? "/billing/catalog" : null);
+  const [payMode, setPayMode] = useState("");
+  const recordPayment = () => run(() => api.patch(`/billing/${id}`, { status: "Paid", paymentMode: payMode || undefined })).then(reload);
   const docTitle = bill ? `Invoice ${bill.billNumber}` : "Invoice";
   const printInvoice = () => printElement(docRef.current, docTitle);
   /** Save the invoice as a self-contained file, without the print dialog. */
@@ -66,7 +50,11 @@ export default function BillingDetailPage() {
   }
 
   const patient = patients.find(p => p.name === bill.patientName);
-  const items = LINE_ITEMS[bill.type] ?? [{ description: `${bill.type} Charges`, qty: 1, rate: bill.amount }];
+  // Lines saved with the bill; older bills (and ones raised by pharmacy, CSSD…) were saved as a single amount.
+  const items = bill.items?.length
+    ? bill.items.map(i => ({ description: i.name, code: i.code, qty: i.quantity, rate: i.unitPrice, amount: i.amount, gstRate: i.gstRate }))
+    : [{ description: `${bill.type} charges`, code: "", qty: 1, rate: bill.amount, amount: bill.amount, gstRate: 0 }];
+  const itemised = !!bill.items?.length;
   const subtotal = bill.amount;
   const net = bill.total;
 
@@ -126,8 +114,20 @@ export default function BillingDetailPage() {
               </div>
               <div className="flex justify-between text-[13px] mb-1">
                 <span className="text-[color:var(--ink-soft)]">Payment Mode</span>
-                <span className="text-[color:var(--ink)]">{PAYMENT_MODE[bill.id] ?? "—"}</span>
+                <span className="text-[color:var(--ink)]">{bill.paymentMode ?? "—"}</span>
               </div>
+              {bill.contractName && (
+                <div className="flex justify-between gap-3 text-[13px] mb-1">
+                  <span className="text-[color:var(--ink-soft)]">Billed to</span>
+                  <span className="text-right text-[color:var(--ink)]">{bill.contractName}</span>
+                </div>
+              )}
+              {bill.doctorName && (
+                <div className="flex justify-between text-[13px] mb-1">
+                  <span className="text-[color:var(--ink-soft)]">Doctor</span>
+                  <span className="text-[color:var(--ink)]">{bill.doctorName}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -140,6 +140,7 @@ export default function BillingDetailPage() {
                   <th className="text-left pb-3">Description</th>
                   <th className="text-right pb-3">Qty</th>
                   <th className="text-right pb-3">Rate (₹)</th>
+                  {itemised && <th className="text-right pb-3">GST</th>}
                   <th className="text-right pb-3">Amount (₹)</th>
                 </tr>
               </thead>
@@ -147,10 +148,11 @@ export default function BillingDetailPage() {
                 {items.map((item, i) => (
                   <tr key={i} className="text-[14px]" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
                     <td className="py-3 text-[color:var(--ink-soft)]">{i + 1}</td>
-                    <td className="py-3 text-[color:var(--ink)]">{item.description}</td>
+                    <td className="py-3 text-[color:var(--ink)]">{item.description}{item.code && <span className="ml-2 font-mono text-[11px] text-[color:var(--ink-soft)]">{item.code}</span>}</td>
                     <td className="py-3 text-right text-[color:var(--ink-soft)]">{item.qty}</td>
                     <td className="py-3 text-right text-[color:var(--ink-soft)]">{item.rate.toLocaleString("en-IN")}</td>
-                    <td className="py-3 text-right text-[color:var(--ink)] font-medium">{(item.qty * item.rate).toLocaleString("en-IN")}</td>
+                    {itemised && <td className="py-3 text-right text-[color:var(--ink-soft)]">{item.gstRate ? `${item.gstRate}%` : "—"}</td>}
+                    <td className="py-3 text-right text-[color:var(--ink)] font-medium">{item.amount.toLocaleString("en-IN")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -172,7 +174,7 @@ export default function BillingDetailPage() {
               )}
               {bill.gst > 0 && (
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-[color:var(--ink-soft)]">GST (9%)</span>
+                  <span className="text-[color:var(--ink-soft)]">GST</span>
                   <span className="text-[color:var(--ink)]">₹{bill.gst.toLocaleString("en-IN")}</span>
                 </div>
               )}
@@ -181,11 +183,26 @@ export default function BillingDetailPage() {
                 <span className="text-[color:var(--ink)]">Total</span>
                 <span className="text-[color:var(--brand)]">₹{net.toLocaleString("en-IN")}</span>
               </div>
+              {bill.contractId && (
+                <>
+                  <div className="flex justify-between text-[13px]">
+                    <span className="text-[color:var(--ink-soft)]">Payer pays</span>
+                    <span className="text-[color:var(--ink)]">₹{(bill.payerShare ?? 0).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-[14px] font-medium">
+                    <span className="text-[color:var(--ink)]">Patient pays</span>
+                    <span className="text-[color:var(--ink)]">₹{(bill.patientShare ?? net).toLocaleString("en-IN")}</span>
+                  </div>
+                </>
+              )}
               {bill.status === "Pending" && canWrite && (
-                <button onClick={recordPayment} disabled={acting}
-                  className="mt-3 w-full text-[13px] font-normal text-white bg-[color:var(--brand)] py-2 rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
-                  {acting ? "Recording…" : "Record Payment"}
-                </button>
+                <div className="mt-3 flex flex-col gap-2 no-print">
+                  <FormSelect placeholder="Payment mode" value={payMode} onChange={setPayMode} options={[{ value: "", label: "Payment mode (optional)" }, ...(catalog?.paymentModes ?? []).map(m => ({ value: m, label: m }))]} />
+                  <button onClick={recordPayment} disabled={acting}
+                    className="w-full text-[13px] font-normal text-white bg-[color:var(--brand)] py-2 rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
+                    {acting ? "Recording…" : "Record Payment"}
+                  </button>
+                </div>
               )}
             </div>
           </div>

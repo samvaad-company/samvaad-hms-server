@@ -21,10 +21,9 @@ import type {
   Gender,
   BloodGroup,
   DonorStatus,
-  BloodIssueStatus,
-  BloodComponent,
   RadiologyStatus,
   RadiologyPriority,
+  LabPriority,
   AmbulanceStatus,
   AmbulanceCallStatus,
   TpaStatus,
@@ -76,6 +75,10 @@ export interface PatientDTO extends Patient {
   doctorId: number | null;
   ageMonths: number | null;
   referralSource: string | null;
+  /** Names from Setup → Masters. */
+  patientCategory: string | null;
+  incomeGroup: string | null;
+  visitPurpose: string | null;
   medicoLegal: boolean;
   temporary: boolean;
   dataConsent: boolean;
@@ -221,6 +224,8 @@ export interface SlotsDTO {
 }
 
 export interface AppointmentDTO extends Appointment {
+  /** A visit purpose from Setup → Masters. */
+  visitPurpose: string | null;
   patientId: number | null;
   doctorId: number | null;
   /** Tele-consult only: the join link, once created (Google Meet or pasted by staff). */
@@ -310,7 +315,10 @@ export interface LabTestDTO extends LabTest {
   requestedBy: string;
   doctorId: number | null;
   doctor: string;
-  priority: string;
+  /** Set by the ordering doctor; the worklist sorts and tags on it. */
+  priority: LabPriority;
+  /** The patient's hospital ID (UHID), when the test is linked to a patient record. */
+  patientCode: string | null;
   collectionDate: string;
   /** The price is the routed-to center's call, not the hospital's — only a discount is captured here. */
   discount: number;
@@ -357,8 +365,79 @@ export interface LabReportFileDTO {
   uploadedAt: string | null;
 }
 
+export interface BillItemDTO {
+  /** What the contract pays for this line (only on an insured bill). */
+  payerAmount?: number;
+  id: number;
+  serviceId: number | null;
+  code: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  gstRate: number;
+  hsnSac: string;
+  amount: number;
+}
+
 export interface BillDTO extends Bill {
   patientId: number | null;
+  /** A payment mode from Setup → Masters, when the bill was settled at the counter. */
+  paymentMode?: string | null;
+  /** The lines of an invoice raised from the service catalogue (only on a single bill, not in lists). */
+  items?: BillItemDTO[];
+  /** The doctor the bill is in the name of. */
+  doctorName?: string;
+  /** Set when the bill was raised under a sponsor contract: who the payer is and what each side owes. */
+  contractId?: number;
+  contractName?: string;
+  payerShare?: number;
+  patientShare?: number;
+}
+
+/** One service the billing counter can pick, priced from the patient's rate plan and taxed from its GST mapping. */
+export interface BillingServiceDTO {
+  id: number;
+  code: string;
+  name: string;
+  group: string;
+  unit: string;
+  price: number;
+  gstApplies: boolean;
+  gstRate: number;
+  hsnSac: string;
+  /** The service's group and its parents, nearest first — copay rules are per group. */
+  groupIds: number[];
+  groupNames: string[];
+}
+
+/** A sponsor contract the patient is covered under, with the rules that split an invoice. */
+export interface BillingContractDTO {
+  id: number;
+  name: string;
+  sponsor: string;
+  sponsorType: string;
+  validFrom: string | null;
+  validTo: string | null;
+  /** The plan this contract prices from, when it names one. */
+  ratePlan: string;
+  terms: import("./coverage").CoverageTerms;
+  past: import("./coverage").CoveragePast;
+}
+
+export interface BillingCatalogDTO {
+  /** The rate plan prices came from; null when the hospital has none. */
+  planId: number | null;
+  planName: string;
+  services: BillingServiceDTO[];
+  /** Active payment modes from Setup → Masters. */
+  paymentModes: string[];
+  settings: { gstOnBills: boolean; pricesInclusive: boolean; roundOff: boolean; invoicePrefix: string };
+  /** Contracts the patient is covered under today (empty for self-pay patients). */
+  contracts: BillingContractDTO[];
+  /** The contract the prices above came from, if one was chosen. */
+  contractId: number | null;
+  /** Doctors a bill can be raised in the name of. */
+  doctors: { id: number; name: string }[];
 }
 
 export type IpdAdmissionType = "Emergency" | "Planned" | "Day care" | "Maternity" | "Transfer in";
@@ -553,9 +632,83 @@ export interface IpdChecklistDTO {
   requiredLeft: number;
 }
 
+export type OtCaseType = "Elective" | "Emergency" | "Outdoor";
+export type OtCategory = "Major" | "Minor" | "Daycare";
+export type OtFitness = "Pending" | "Fit" | "Unfit";
+export const OT_ANAESTHESIA_TYPES = ["General (GA)", "Spinal", "Epidural", "Local", "Sedation (MAC)"] as const;
+
 export interface OtRecordDTO extends OtRecord {
   patientId: number | null;
   surgeonId: number | null;
+  /** The patient's hospital ID (UHID), when linked to a patient record. */
+  patientCode: string | null;
+  /** OT/2026/0008 */
+  bookingNo: string;
+  caseType: OtCaseType;
+  /** What the register calls it; `procedure` is the free-text description. */
+  surgeryName: string;
+  category: OtCategory;
+  procedureCode: string;
+  /** Planned length in minutes (turnaround excluded). */
+  durationMin: number;
+  /** Actual length once started and finished, else null. */
+  actualMin: number | null;
+  roomId: number | null;
+  coSurgeonId: number | null;
+  coSurgeon: string;
+  anesthetistId: number | null;
+  anaesthesiaType: string;
+  scrubNurseId: number | null;
+  scrubNurse: string;
+  circulatingNurseId: number | null;
+  circulatingNurse: string;
+  technicianIds: number[];
+  technicians: string[];
+  equipmentIds: number[];
+  equipment: string[];
+  specialRequirements: string;
+  allowOverlap: boolean;
+  fitness: OtFitness;
+  startedAt: string | null;
+  endedAt: string | null;
+  /** Start and end as minutes after midnight on `scheduledDate` (hospital time); null when the time can't be read. */
+  startMinute: number | null;
+  endMinute: number | null;
+}
+
+export interface OtRoomDTO {
+  id: number;
+  name: string;
+  kind: OtCategory;
+  active: boolean;
+  /** Surgeries booked in it, so a room in use can't be deleted. */
+  bookings: number;
+}
+
+export interface OtEquipmentDTO {
+  id: number;
+  name: string;
+  status: "Available" | "Maintenance";
+  note: string;
+}
+
+/** What the Book dialog offers — one call, so roles without staff access can still pick a team. */
+export interface OtOptionsDTO {
+  rooms: OtRoomDTO[];
+  equipment: OtEquipmentDTO[];
+  doctors: { id: number; name: string }[];
+  nurses: { id: number; name: string }[];
+  technicians: { id: number; name: string }[];
+  /** Minutes of turnaround kept free after every surgery. */
+  bufferMin: number;
+}
+
+export interface OtConflictDTO {
+  kind: "room" | "surgeon" | "equipment";
+  bookingId: number;
+  /** The equipment or doctor that clashes, so the dialog can mark it. */
+  refId?: number;
+  message: string;
 }
 
 export interface BedDTO extends Bed {
@@ -568,7 +721,17 @@ export interface WardDTO {
   id: number;
   name: string;
   capacity: number;
+  /** ₹ per day a bed costs: the ward's own rate, else the catalogue's bed charge for its class. */
   dailyRate: number;
+  /** The rate set on the ward itself (0 = none, the catalogue price is used). */
+  ownRate: number;
+  rateSource: "ward" | "catalogue" | "none";
+  /** The catalogue service the rate comes from, when `rateSource` is "catalogue". */
+  rateService: string;
+  wardClassId: number | null;
+  wardClass: string;
+  facilityAreaId: number | null;
+  facilityArea: string;
 }
 
 export interface BedTransferDTO {
@@ -583,6 +746,17 @@ export interface BedTransferDTO {
 
 export interface StaffDTO extends Staff {
   departmentId: number | null;
+  /** EMP-1001 */
+  employeeNo: string;
+  gender: string;
+  dob: string | null;
+  address: string;
+  qualification: string;
+  licenceNo: string;
+  /** When the professional licence (nursing / pharmacy / lab) runs out. */
+  licenceExpiry: string | null;
+  emergencyName: string;
+  emergencyPhone: string;
 }
 
 export interface PharmacyItemDTO extends PharmacyItem {}
@@ -592,6 +766,11 @@ export interface DepartmentDTO {
   name: string;
   head: string;
   ext: string;
+  /** Setup → Masters: short code, clinical specialty, whether it sees patients, whether it is in use. */
+  code: string;
+  specialty: string;
+  clinical: boolean;
+  active: boolean;
 }
 
 export interface MedicineDTO {
@@ -632,38 +811,146 @@ export interface SessionUserDTO {
   permissions: Record<string, "none" | "read" | "write">;
 }
 
+export const BLOOD_COMPONENTS = ["Whole blood", "PRBC", "Platelets", "Plasma", "Cryoprecipitate"] as const;
+export type BloodComponent = (typeof BLOOD_COMPONENTS)[number];
+export type BloodUnitStatus = "Quarantined" | "Available" | "Cross-matched" | "Issued" | "Processed" | "Discarded";
+export type SerologyFlag = "" | "Negative" | "Reactive";
+
+/** The five tests every unit must clear before it can be used. */
+export const SEROLOGY_TESTS = [
+  { key: "hiv", label: "HIV" },
+  { key: "hbsag", label: "HBsAg" },
+  { key: "hcv", label: "HCV" },
+  { key: "malaria", label: "Malaria" },
+  { key: "syphilis", label: "Syphilis" },
+] as const;
+export type SerologyKey = (typeof SEROLOGY_TESTS)[number]["key"];
+export type SerologyDTO = Record<SerologyKey, SerologyFlag>;
+
+export const DONOR_ID_PROOFS = ["aadhaar", "pan", "voter_id", "driving_licence", "passport"] as const;
+
 export interface BloodDonorDTO {
   id: number;
+  /** BD/26/00080 */
+  donorNo: string;
   name: string;
-  age: number;
-  gender: Gender;
+  gender: string;
   bloodGroup: BloodGroup;
   phone: string;
-  aadhaarNumber: string;
-  lastDonationDate: string;
+  dob: string | null;
+  age: number;
+  /** Only the type and the last four characters are kept — never the full number. */
+  idProofType: string;
+  idProofLast4: string;
   totalDonations: number;
+  lastDonationDate: string;
+  /** Deferred only while a deferral is in force; a temporary one lapses by itself. */
   status: DonorStatus;
+  deferralReason: string;
+  deferredUntil: string | null;
+  /** Earliest day they may donate again, given the last donation. */
+  nextEligibleOn: string | null;
 }
 
-export interface BloodStockDTO {
+export interface BloodUnitDTO {
   id: number;
+  /** BU/26/00262 */
+  unitNo: string;
+  source: "Donation" | "Purchased";
+  donorId: number | null;
+  donorNo: string;
+  supplier: string;
+  bagNo: string;
   bloodGroup: BloodGroup;
   component: BloodComponent;
-  units: number;
+  volumeMl: number;
+  collectedOn: string;
+  expiryOn: string;
+  expired: boolean;
+  /** Days until expiry (negative once expired). */
+  daysToExpiry: number;
+  serology: SerologyDTO;
+  /** All five tests have a result. */
+  serologyDone: boolean;
+  status: BloodUnitStatus;
+  rootUnitId: number | null;
+  parentUnitId: number | null;
+  discardReason: string;
 }
 
-export interface BloodIssueDTO {
+export interface BloodStockGroupDTO {
+  bloodGroup: BloodGroup;
+  /** Usable units: Available and not expired. */
+  available: number;
+  /** Of those, how many expire within a week. */
+  expiringSoon: number;
+  byComponent: Record<string, number>;
+}
+
+export interface BloodStockSummaryDTO {
+  groups: BloodStockGroupDTO[];
+  quarantined: number;
+  expiredInStock: number;
+}
+
+export interface BloodCrossmatchDTO {
   id: number;
+  /** XM/26/00012 */
+  xmNo: string;
   patientId: number | null;
   patientName: string;
-  bloodGroup: BloodGroup;
-  component: BloodComponent;
-  units: number;
-  doctor: string;
-  date: string;
-  amount: number;
-  status: BloodIssueStatus;
+  patientCode: string;
+  unitId: number;
+  unitNo: string;
+  unitGroup: BloodGroup;
+  unitComponent: string;
+  requestedAt: string;
+  requestedBy: string;
+  result: "pending" | "compatible" | "incompatible";
+  resultBy: string | null;
+  resultAt: string | null;
+  status: "requested" | "resulted" | "issued" | "cancelled";
 }
+
+export interface BloodReactionDTO {
+  at: string;
+  by: string;
+  kind: string;
+  severity: "Mild" | "Moderate" | "Severe";
+  note: string;
+}
+
+export interface BloodTransfusionDTO {
+  id: number;
+  /** BI/26/00027 */
+  issueNo: string;
+  crossmatchId: number;
+  patientId: number | null;
+  patientName: string;
+  patientCode: string;
+  unitId: number;
+  unitNo: string;
+  unitGroup: BloodGroup;
+  unitComponent: string;
+  issuedAt: string;
+  issuedBy: string;
+  transfusedAt: string | null;
+  transfusedBy: string | null;
+  disposition: string;
+  returnedAt: string | null;
+  reactions: BloodReactionDTO[];
+}
+
+/** A statutory register as plain rows, so the printed copy is the same every time for the same data. */
+export interface BloodRegisterDTO {
+  kind: "donor" | "stock" | "issue" | "discard" | "serology";
+  title: string;
+  /** yyyy-mm-dd the register is for ("as on" for stock). */
+  date: string;
+  columns: string[];
+  rows: string[][];
+}
+
 
 export interface RadiologyTestDTO {
   orderNumber: string;
@@ -868,7 +1155,7 @@ export interface FollowUpAnalyticsDTO {
   byDoctor: { doctorId: number | null; doctor: string; total: number; done: number; missed: number; due: number; upcoming: number; keptRate: number | null }[];
 }
 
-export type EnquiryStatus = "Open" | "Follow-up" | "Converted" | "Closed";
+export type EnquiryStatus = "Open" | "Contacted" | "Converted" | "Closed";
 
 /** A lead captured before registration. */
 export interface EnquiryDTO {
@@ -879,8 +1166,8 @@ export interface EnquiryDTO {
   interestedIn: string;
   source: string;
   estimatedValue: number;
-  /** yyyy-mm-dd of the next planned contact, or null. */
-  followUpOn: string | null;
+  /** yyyy-mm-dd the lead is to be called back, or null. */
+  callBackOn: string | null;
   notes: string;
   status: EnquiryStatus;
   /** Times contacted so far, counting the first enquiry. */
@@ -893,10 +1180,10 @@ export interface EnquiryDTO {
 export interface EnquirySummaryDTO {
   total: number;
   Open: number;
-  "Follow-up": number;
+  Contacted: number;
   Converted: number;
   Closed: number;
-  /** Open or follow-up leads whose follow-up date is today or earlier. */
+  /** Open or contacted leads whose call-back date is today or earlier. */
   dueToday: number;
 }
 
@@ -1130,6 +1417,13 @@ export interface DocumentDTO {
   ownerType: string;
   ownerId: number;
   category: string;
+  /** The name shown in lists (defaults to the file name). */
+  title: string;
+  /** The MRD folder it is filed in, if any. */
+  folderId: number | null;
+  folderName: string;
+  /** A paper's own reference or certificate number. */
+  referenceNo: string;
   fileName: string;
   mimeType: string;
   sizeBytes: number;
@@ -1203,4 +1497,669 @@ export interface DashboardStatsDTO {
   lowStock: number;
   pendingLabs: number;
   revenue: number;
+}
+
+// ── MRD (medical records department) ─────────────────────────────────────────
+
+export const MRD_LOCATION_KINDS = ["MRD rack", "Archive room", "Operation theatre", "Nurse station", "Doctor cabin", "Other"] as const;
+export type MrdLocationKind = (typeof MRD_LOCATION_KINDS)[number];
+
+export interface MrdLocationDTO {
+  id: number;
+  name: string;
+  kind: MrdLocationKind;
+  code: string;
+  active: boolean;
+  /** Files that are there right now. */
+  fileCount: number;
+}
+
+export const MRD_FILE_STATUSES = ["Available", "Checked out", "In transit", "Archived"] as const;
+export type MrdFileStatus = (typeof MRD_FILE_STATUSES)[number];
+
+export interface MrdFileDTO {
+  id: number;
+  fileNo: string;
+  patientId: number;
+  patientName: string;
+  patientCode: string;
+  fileType: "OPD" | "IPD";
+  status: MrdFileStatus;
+  locationId: number | null;
+  locationName: string;
+  homeLocationId: number | null;
+  holderName: string | null;
+  dueOn: string | null;
+  /** Checked out or in transit past its due date. */
+  overdue: boolean;
+  updatedAt: string;
+}
+
+export const MRD_MOVEMENT_ACTIONS = ["Created", "Checked out", "Dispatched", "Returned", "Moved", "Archived", "Retrieved"] as const;
+export interface MrdFileMovementDTO {
+  id: number;
+  fileId: number;
+  fileNo: string;
+  action: (typeof MRD_MOVEMENT_ACTIONS)[number];
+  fromLocation: string;
+  toLocation: string;
+  holderName: string | null;
+  dueOn: string | null;
+  note: string;
+  byName: string;
+  at: string;
+}
+
+export type MrdUrgency = "Routine" | "Urgent";
+export type MrdRequestStatus = "Pending" | "Dispatched" | "Returned" | "Cancelled";
+export interface MrdFileRequestDTO {
+  id: number;
+  fileId: number;
+  fileNo: string;
+  patientId: number;
+  patientName: string;
+  urgency: MrdUrgency;
+  status: MrdRequestStatus;
+  requestedOn: string;
+  requestedBy: string;
+  requestedFor: string;
+  destinationId: number | null;
+  destinationName: string;
+  note: string;
+  dispatchedAt: string | null;
+  returnedAt: string | null;
+}
+
+export interface MrdFileSummaryDTO {
+  available: number;
+  checkedOut: number;
+  inTransit: number;
+  overdue: number;
+  pendingRequests: number;
+  archived: number;
+}
+
+export const MRD_DOC_CLASSES = ["Clinical", "Financial", "KYC", "Statutory"] as const;
+export type MrdDocClass = (typeof MRD_DOC_CLASSES)[number];
+
+export interface MrdRetentionPolicyDTO {
+  id: number;
+  name: string;
+  class: MrdDocClass;
+  retentionYears: number;
+  categories: string[];
+  actionAfter: "Review" | "Destroy";
+  active: boolean;
+}
+
+export interface MrdFolderDTO {
+  id: number;
+  name: string;
+  class: MrdDocClass | "General";
+  description: string;
+  documentCount: number;
+}
+
+export interface MrdRetentionItemDTO {
+  id: number;
+  fileName: string;
+  category: string;
+  class: MrdDocClass;
+  ownerType: string;
+  ownerId: number;
+  patientName: string;
+  folderName: string;
+  policyName: string;
+  uploadedOn: string;
+  dueOn: string;
+  actionAfter: "Review" | "Destroy";
+}
+
+export interface MrdRetentionQueueDTO {
+  clinicalDue: number;
+  financialDue: number;
+  kycDue: number;
+  statutoryDue: number;
+  items: MrdRetentionItemDTO[];
+}
+
+export interface MrdFolderDocumentDTO {
+  id: number;
+  fileName: string;
+  category: string;
+  ownerType: string;
+  ownerId: number;
+  patientName: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  uploadedOn: string;
+  retentionState: "Active" | "Due" | "Extended";
+}
+
+// ── Consents and signatures ──────────────────────────────────────────────────
+
+export type ConsentStatus = "Draft" | "Waiting" | "Signed" | "Refused" | "Cancelled" | "Expired";
+export const CONSENT_DELIVERIES = ["qr", "email", "whatsapp", "device"] as const;
+export type ConsentDelivery = (typeof CONSENT_DELIVERIES)[number];
+
+/** What staff read off a consent: "Not signed yet", "Sent to phone", "Opened on phone", "Signed on phone / paper"… */
+export type ConsentStage = "Not signed yet" | "Sent to phone" | "Opened on phone" | "Signed on phone" | "Signed on paper" | "Declined" | "Link cancelled" | "Link expired";
+
+export interface ConsentDTO {
+  id: number;
+  patientId: number | null;
+  patientName: string;
+  patientCode: string;
+  templateKey: string;
+  formTitle: string;
+  /** The text in the language it was made in. */
+  formBody: string;
+  language: string;
+  /** Print / show the English text after the patient's language. */
+  includeEnglish: boolean;
+  status: ConsentStatus;
+  stage: ConsentStage;
+  madeBy: string;
+  madeAt: string;
+  /** Who is expected to sign (set when a link is made), then who did. */
+  signerName: string | null;
+  signerRelation: string | null;
+  delivery: ConsentDelivery | null;
+  linkSentAt: string | null;
+  expiresAt: string | null;
+  openedAt: string | null;
+  signedAt: string | null;
+  signedVia: "phone" | "paper" | null;
+  witnessName: string | null;
+  refusedReason: string | null;
+  /** The scanned copy filed when it was signed on paper. */
+  signedDocumentId: number | null;
+  /** Path of the page the patient opens (/sign/<token>); only while the link is live. */
+  link: string | null;
+}
+
+/** A form a consent can be made from: one of the built-in ones, or one the hospital wrote. */
+export interface ConsentTemplateDTO {
+  /** Built-in key, or `custom-…`. */
+  key: string;
+  /** Database id of a custom template; null for a built-in one. */
+  id: number | null;
+  builtIn: boolean;
+  titles: Record<string, string>;
+  bodies: Record<string, string>;
+  /** The languages this form has text in. */
+  languages: string[];
+  active: boolean;
+}
+
+export interface ConsentCountsDTO {
+  draft: number;
+  waiting: number;
+  signed: number;
+  refused: number;
+  expiredOrCancelled: number;
+  all: number;
+}
+
+export interface ConsentTextDTO { title: string; body: string }
+
+/** What the patient's phone sees when it opens the link. */
+export interface PublicConsentDTO {
+  hospitalName: string;
+  patientName: string;
+  /** The language the form was made in (the page opens in it). */
+  language: string;
+  includeEnglish: boolean;
+  /** The form in each language it exists in, so the patient can switch. */
+  texts: Record<string, ConsentTextDTO>;
+  status: ConsentStatus;
+  expiresAt: string | null;
+  signedAt: string | null;
+  signerName: string | null;
+}
+
+/** Everything a printed form or signed copy shows. */
+export interface ConsentDocumentDTO {
+  hospital: { name: string; address: string; phone: string; email: string; gstNumber: string };
+  patient: { name: string; code: string; age: number | null; gender: string };
+  language: string;
+  includeEnglish: boolean;
+  texts: Record<string, ConsentTextDTO>;
+  status: ConsentStatus;
+  madeAt: string;
+  signerName: string | null;
+  signerRelation: string | null;
+  signedAt: string | null;
+  signedVia: "phone" | "paper" | null;
+  /** The language the signer had the page in when they signed (the copy opens in it by default). */
+  signedLanguage: string | null;
+  witnessName: string | null;
+  /** The drawn signature (PNG data URL), when it was signed on a phone. */
+  signatureData: string | null;
+}
+
+export const CODING_STATUSES = ["Pending", "In review", "Deficient", "Coded", "Signed off"] as const;
+export type CodingStatus = (typeof CODING_STATUSES)[number];
+
+export interface CodeEntryDTO {
+  code: string;
+  text: string;
+}
+
+export interface MrdDeficiencyDTO {
+  id: number;
+  caseId: number;
+  kind: string;
+  note: string;
+  status: "Open" | "Resolved";
+  raisedBy: string;
+  raisedAt: string;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+}
+
+export const DEFICIENCY_KINDS = [
+  "Discharge summary missing",
+  "Consent form missing",
+  "Diagnosis not specified",
+  "Procedure note missing",
+  "Doctor signature missing",
+  "Investigation report missing",
+  "Other",
+] as const;
+
+export interface MrdCodingCaseDTO {
+  id: number;
+  admissionId: number;
+  admissionNo: string;
+  patientId: number | null;
+  patientName: string;
+  patientCode: string;
+  doctor: string;
+  admittedOn: string;
+  status: CodingStatus;
+  principalDxCode: string;
+  principalDxText: string;
+  secondaryDx: CodeEntryDTO[];
+  procedures: CodeEntryDTO[];
+  coderName: string | null;
+  codedAt: string | null;
+  signedOffBy: string | null;
+  signedOffAt: string | null;
+  queuedAt: string;
+  openDeficiencies: number;
+}
+
+export interface MrdCodingSummaryDTO {
+  awaitingCoding: number;
+  pending: number;
+  deficient: number;
+  coded: number;
+  signedOff: number;
+  openDeficiencies: number;
+  pendingFileRequests: number;
+}
+
+export const MRD_REGISTERS = [
+  { kind: "birth", title: "Birth register" },
+  { kind: "death", title: "Death register" },
+] as const;
+export type MrdRegisterKind = (typeof MRD_REGISTERS)[number]["kind"];
+
+export interface MrdRegisterEntryDTO {
+  id: number;
+  register: MrdRegisterKind;
+  entryNo: string;
+  entryDate: string;
+  data: Record<string, string>;
+  reportTo: string;
+  filedBy: string;
+  filedAt: string;
+  amendsId: number | null;
+  supersededBy: number | null;
+}
+
+export interface MrdRegisterFieldDTO {
+  key: string;
+  label: string;
+  required: boolean;
+  kind: "text" | "select" | "number" | "time";
+  options?: string[];
+  /** Suggestions for a free-text field (shown as a datalist). */
+  suggestions?: string[];
+}
+
+export interface MrdRegisterDTO {
+  kind: MrdRegisterKind;
+  title: string;
+  /** The register's own fields, in form and print order. */
+  fields: MrdRegisterFieldDTO[];
+  entries: MrdRegisterEntryDTO[];
+}
+
+// ── CSSD (central sterile services) ──────────────────────────────────────────
+
+export type CssdSetStatus = "Dirty" | "Packed" | "In cycle" | "Sterile" | "Issued" | "Expired sterility";
+
+export interface CssdInstrumentDTO { name: string; qty: number }
+
+export interface CssdSetDTO {
+  id: number;
+  setNo: string;
+  name: string;
+  type: string;
+  departmentId: number | null;
+  departmentName: string;
+  instruments: CssdInstrumentDTO[];
+  /** ₹ posted to the patient's bill when the set is issued. */
+  usageCharge: number;
+  status: CssdSetStatus;
+  packaging: string | null;
+  /** The date it stops being sterile. */
+  sterileUntil: string | null;
+  /** Whole days left (negative once expired); null unless it is sterile. */
+  daysLeft: number | null;
+  timesProcessed: number;
+}
+
+export interface CssdSterilizerDTO { id: number; name: string; method: string; location: string; active: boolean; running: boolean }
+
+export type CssdCycleStatus = "Running" | "Passed" | "Failed" | "Quarantined";
+export interface CssdCycleDTO {
+  id: number;
+  cycleNo: string;
+  sterilizerId: number;
+  sterilizerName: string;
+  method: string;
+  startedAt: string;
+  load: number;
+  setNos: string[];
+  tempC: number;
+  pressurePsi: number;
+  exposureMin: number;
+  indicator: "pending" | "pass" | "fail";
+  status: CssdCycleStatus;
+  startedBy: string;
+  resultBy: string | null;
+  resultAt: string | null;
+  note: string;
+}
+
+export type CssdIssueStatus = "Requested" | "Issued" | "Returned" | "Cancelled";
+export interface CssdIssueDTO {
+  id: number;
+  /** Minted when the set is issued; null while it is only requested. */
+  issueNo: string | null;
+  setId: number;
+  setNo: string;
+  setName: string;
+  patientId: number | null;
+  patientName: string;
+  departmentName: string;
+  caseLabel: string;
+  status: CssdIssueStatus;
+  requestedAt: string;
+  requestedBy: string;
+  issuedAt: string | null;
+  expectedBack: string | null;
+  /** Issued and past its expected return. */
+  overdue: boolean;
+  returnedAt: string | null;
+  /** Returned with something to look into (missing or damaged instruments, a recalled cycle). */
+  investigate: boolean;
+  returnNote: string;
+  charge: number;
+  billNumber: string | null;
+}
+
+export interface CssdSummaryDTO {
+  sterile: number;
+  inCycle: number;
+  packed: number;
+  dirty: number;
+  issuedOut: number;
+  requests: number;
+  expiring7d: number;
+  expired: number;
+  /** Set numbers issued out past their expected return. */
+  overdueSets: string[];
+}
+
+/** Effective shelf life in days for each method × packaging, and which cells the hospital has changed. */
+export interface CssdShelfLifeDTO {
+  days: Record<string, Record<string, number>>;
+  overridden: Record<string, Record<string, boolean>>;
+}
+
+export interface CssdCaseDTO { id: number; patientId: number | null; patientName: string; procedure: string; scheduledDate: string; room: string }
+
+// ── HR: leave, roster, payroll ───────────────────────────────────────────────
+
+export interface HrLeaveTypeDTO { id: number; name: string; code: string; daysPerYear: number; paid: boolean; active: boolean }
+
+export type HrLeaveStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
+export interface HrLeaveRequestDTO {
+  id: number;
+  staffId: number;
+  staffName: string;
+  department: string;
+  leaveTypeId: number;
+  typeName: string;
+  typeCode: string;
+  paid: boolean;
+  fromDate: string;
+  toDate: string;
+  /** Calendar days, first and last included. */
+  days: number;
+  reason: string;
+  status: HrLeaveStatus;
+  appliedBy: string;
+  appliedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string;
+}
+
+export interface HrLeaveBalanceDTO { typeId: number; code: string; name: string; paid: boolean; allocated: number; used: number; pending: number; remaining: number | null }
+export interface HrStaffBalanceDTO { staffId: number; name: string; role: string; department: string; balances: HrLeaveBalanceDTO[] }
+
+export interface HrLeaveCalendarDTO {
+  month: string;
+  daysInMonth: number;
+  staff: { staffId: number; name: string; role: string; department: string; days: Record<string, { status: "Approved" | "Pending"; code: string; paid: boolean }> }[];
+}
+
+export interface HrShiftDTO { id: number; name: string; code: string; start: string; end: string; active: boolean }
+
+export interface HrRosterDTO {
+  from: string;
+  to: string;
+  entries: { staffId: number; date: string; shiftId: number }[];
+  /** Days a person is on approved leave, so the roster can show it and refuse a shift there. */
+  leaveDays: { staffId: number; date: string; code: string }[];
+}
+
+export interface HrDutyListDTO {
+  date: string;
+  shifts: { shift: HrShiftDTO; departments: { department: string; staff: { id: number; name: string; role: string }[] }[]; count: number }[];
+  onLeave: { id: number; name: string; role: string; department: string; code: string }[];
+  /** Active staff with no shift on this date. */
+  unrostered: number;
+}
+
+export interface HrSalaryDTO {
+  staffId: number;
+  name: string;
+  role: string;
+  department: string;
+  employeeNo: string;
+  /** False until a salary has been set. */
+  set: boolean;
+  basic: number;
+  hra: number;
+  allowances: number;
+  pfPercent: number;
+  profTax: number;
+  otherDeduction: number;
+  gross: number;
+}
+
+export interface HrPayslipDTO {
+  id: number;
+  runId: number;
+  staffId: number;
+  staffName: string;
+  employeeNo: string;
+  role: string;
+  department: string;
+  month: string;
+  monthDays: number;
+  paidDays: number;
+  unpaidLeaveDays: number;
+  /** Extra days HR chose to dock (absences not covered by leave). */
+  lopAdjust: number;
+  /** Days with no attendance punch and no leave, for HR's information. */
+  absentDays: number;
+  basic: number;
+  hra: number;
+  allowances: number;
+  gross: number;
+  pf: number;
+  profTax: number;
+  otherDeduction: number;
+  netPay: number;
+}
+
+export interface HrPayrollRunDTO {
+  id: number;
+  month: string;
+  status: "Draft" | "Finalized";
+  staffCount: number;
+  totalGross: number;
+  totalNet: number;
+  createdBy: string;
+  createdAt: string;
+  finalizedBy: string | null;
+  finalizedAt: string | null;
+}
+
+export interface HrPayrollRunDetailDTO extends HrPayrollRunDTO {
+  payslips: HrPayslipDTO[];
+  /** Staff left out because they have no salary set (or had not joined by the month's end). */
+  skipped: { staffId: number; name: string; reason: string }[];
+}
+
+export interface HrOverviewDTO {
+  today: string;
+  staff: { total: number; active: number; onLeave: number };
+  pendingLeave: number;
+  leaveToday: { staffId: number; name: string; role: string; code: string }[];
+  licences: { staffId: number; name: string; role: string; licenceNo: string; expiry: string; daysLeft: number }[];
+  roster: { shift: string; code: string; count: number }[];
+  unrosteredToday: number;
+  payroll: { month: string; status: "Draft" | "Finalized" | null; totalNet: number } | null;
+}
+
+// ── Pharmacy dispensing ──────────────────────────────────────────────────────
+
+export type DispenseBilling = "none" | "separate" | "patient";
+export type ReturnCondition = "Usable" | "Damaged" | "Expired";
+
+/** A medicine the counter can pick: what is on the shelf and fit to dispense. */
+export interface DispenseStockDTO {
+  itemId: number;
+  name: string;
+  category: string;
+  /** Units in date and on the shelf — what can actually go out. */
+  available: number;
+  unitPrice: number;
+  /** The earliest expiry among the units in date, YYYY-MM-DD, or "" when none is recorded. */
+  nextExpiry: string;
+}
+
+export interface DispenseLineDTO {
+  id: number;
+  itemId: number;
+  medicineName: string;
+  batchNo: string;
+  expiryDate: string;
+  quantity: number;
+  returnedQty: number;
+  returnable: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface DispenseReturnDTO {
+  id: number;
+  lineId: number;
+  medicineName: string;
+  batchNo: string;
+  quantity: number;
+  condition: ReturnCondition;
+  creditNoteNo: string;
+  creditValue: number;
+  reason: string;
+  returnedBy: string;
+  at: string;
+}
+
+export interface DispenseDTO {
+  id: number;
+  dispenseNo: string;
+  patientId: number | null;
+  patientName: string;
+  walkInNote: string;
+  rxNumber: string;
+  billing: DispenseBilling;
+  /** "Not billed", "On stay ADM/2026/00001", "Billed INV-00000012" or "Added to bill INV-00000012". */
+  billLabel: string;
+  billNumber: string | null;
+  admissionNo: string | null;
+  subtotal: number;
+  status: "Dispensed" | "Part returned" | "Returned";
+  dispensedBy: string;
+  /** ISO instant. */
+  at: string;
+  /** The first medicine, and how many more went with it ("Fepanil 500 +2 more"). */
+  summary: string;
+  lines: DispenseLineDTO[];
+  returns: DispenseReturnDTO[];
+  /** Set when the dispense went through but the bill could not be raised. */
+  billingWarning?: string;
+}
+
+export interface DispenseRxLineDTO {
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  /** From frequency × duration. */
+  quantity: number;
+  /** The stock item it matched, or null when the pharmacy doesn't stock it. */
+  itemId: number | null;
+  itemName: string;
+  available: number;
+  unitPrice: number;
+}
+
+export interface DispenseRxDTO {
+  prescriptionId: number;
+  rxNumber: string;
+  doctor: string;
+  diagnosis: string;
+  date: string;
+  lines: DispenseRxLineDTO[];
+}
+
+/** What a payout rule earned someone on one invoice. */
+export interface PayoutDTO {
+  id: number; billId: number; billNumber: string; date: string; rule: string; role: string;
+  payeeType: "doctor" | "referral" | "centre"; payee: string;
+  basis: number; valueKind: string; value: number; amount: number; status: "Pending" | "Paid" | "Void"; paidOn: string | null;
+}
+export interface PayoutsDTO {
+  rows: PayoutDTO[];
+  payees: { payee: string; payeeType: string; pending: number; paid: number; count: number }[];
+  totals: { pending: number; paid: number };
 }

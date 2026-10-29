@@ -2,6 +2,7 @@
  * IPD service — inpatient admissions wired to bed occupancy. Admitting a
  * patient occupies a bed; discharging frees it.
  */
+import { queueForCoding } from "@/services/mrd-coding-service";
 import {
   ipdRepo,
   bedsRepo,
@@ -19,12 +20,13 @@ import { type IpdAdmissionRow } from "@/db/tables";
 import { ConflictError, BadRequestError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { validateNotPast } from "@/lib/field-rules";
-import { displayDate, isoDate, nextCode } from "@/services/helpers";
+import { displayDate, isoDate } from "@/services/helpers";
 import { localDate } from "@/lib/clock";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
+import { nextNumber } from "@/services/id-service";
 
 export const ADMISSION_TYPES = ["Emergency", "Planned", "Day care", "Maternity", "Transfer in"] as const;
 export const DEPOSIT_MODES = ["Cash", "UPI", "Card"] as const;
@@ -89,11 +91,11 @@ async function resolveNurse(nurseId: number | undefined, actor: Session): Promis
   return { id: nurse.id, name: nurse.name };
 }
 
-/** ADM/2026/00003 — numbered per hospital, restarting each year. */
+/** ADM/2026/00003 by default — the "Admission no." format in Setup decides. */
 async function nextAdmissionNo(actor: Session): Promise<string> {
   const prefix = `ADM/${localDate().slice(0, 4)}/`;
   const { rows } = await ipdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextCode(rows.map((r) => r.admission_no ?? ""), prefix, 5);
+  return nextNumber("admission", actor, rows.map((r) => r.admission_no ?? ""), { prefix, pad: 5 });
 }
 
 export async function admitPatient(input: unknown, actor: Session) {
@@ -240,6 +242,8 @@ export async function dischargePatient(id: number, actor: Session) {
     return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged" });
   });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id });
+  // The chart now waits in the MRD coding queue.
+  await queueForCoding(row as IpdAdmissionRow);
   return toIpdDTO(row as IpdAdmissionRow);
 }
 

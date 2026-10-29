@@ -85,7 +85,7 @@ test("an age in years and months is kept when there is no date of birth", async 
 test("every profile field is stored and returned", async () => {
   const body = {
     name: "Ravi Menon", gender: "Male", phone: mobile(), dob: "1985-03-12", email: "ravi@example.com", reason: "Chest pain",
-    referralSource: "Doctor referral", medicoLegal: true, temporary: false, dataConsent: true,
+    referralSource: "Walk-in", medicoLegal: true, temporary: false, dataConsent: true,
     alternatePhone: "9876543210", address: "12 MG Road", addressLine2: "Near the park", city: "Pune", state: "Maharashtra", pincode: "411001",
     title: "Mr", guardianName: "K. Menon", careOf: "S. Menon", anniversary: "2012-11-20", bloodGroup: "B+", maritalStatus: "Married",
     religion: "Hindu", language: "Malayalam", nationality: "Indian", education: "Graduate", abhaId: "12345678901234", notes: "Prefers morning slots",

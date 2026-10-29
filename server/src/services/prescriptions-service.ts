@@ -166,7 +166,7 @@ export async function updatePrescription(id: number, input: unknown, actor: Sess
 }
 
 /** Comparable form of a medicine name: lowercase, no strength or packaging. */
-function medicineKey(name: string): string {
+export function medicineKey(name: string): string {
   return name
     .toLowerCase()
     .replace(/\b\d+(\.\d+)?\s*(mg|mcg|ml|g|iu|%)\b/g, " ") // strip strength

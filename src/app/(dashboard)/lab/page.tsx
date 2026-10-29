@@ -22,6 +22,9 @@ import type {
   DoctorDTO,
 } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { PRIORITIES } from "@/components/shared/PriorityBadge";
+import { LabWorklist } from "@/components/lab/LabWorklist";
+import type { TestPriority } from "@/types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { DataTable } from "@/components/shared/DataTable";
@@ -495,11 +498,6 @@ const COMMON_TESTS = [
   { name: "Echocardiography", category: "Cardiology" },
   { name: "IgE Allergy Panel", category: "Immunology" },
 ];
-const LAB_PRIORITY_OPTS = [
-  { value: "Routine", label: "Routine" },
-  { value: "Urgent",  label: "Urgent" },
-  { value: "STAT",    label: "STAT (Emergency)" },
-];
 
 const DISCOUNT_TYPE_OPTS = [
   { value: "amount",  label: "₹" },
@@ -541,6 +539,7 @@ function BookingView({
   initialPatientId,
   initialDoctorId,
   initialLabCenterId,
+  initialPriority,
 }: {
   patients: PatientDTO[];
   onBooked: () => void;
@@ -549,6 +548,8 @@ function BookingView({
   initialDoctorId?: string;
   /** Destination chosen on the OPD/Appointments hand-off — defaults to In-house when absent. */
   initialLabCenterId?: string;
+  /** Priority carried over from the hand-off, if any. */
+  initialPriority?: TestPriority;
 }) {
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -556,7 +557,8 @@ function BookingView({
   const [doctorId, setDoctorId] = useState(initialDoctorId ?? "");
   const [labCenterId, setLabCenterId] = useState(initialLabCenterId ?? "");
   const [requestedBy, setRequestedBy] = useState("");
-  const [priority, setPriority] = useState("Routine");
+  // Set by the ordering doctor; applies to every test in this order.
+  const [priority, setPriority] = useState<TestPriority>(initialPriority ?? "Routine");
   const [collectionDate, setCollectionDate] = useState("");
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState("amount");
@@ -623,8 +625,18 @@ function BookingView({
           />
         </FormRow>
         <FormRow label="Priority">
-          <FormSelect placeholder="Select priority" value={priority} onChange={setPriority}
-            options={LAB_PRIORITY_OPTS} />
+          <div className="flex gap-2" role="radiogroup" aria-label="Order priority">
+            {PRIORITIES.map(p => (
+              <button key={p} type="button" role="radio" aria-checked={priority === p} onClick={() => setPriority(p)}
+                className={`h-[42px] flex-1 rounded-[8px] border text-[13px] font-normal cursor-pointer transition-colors ${
+                  priority === p
+                    ? p === "STAT" ? "bg-[#ffe9b8] border-[#f3cf7d] text-[#8a5300] font-semibold" : "bg-[color:var(--brand)] border-[color:var(--brand)] text-white"
+                    : "bg-[color:var(--surface)] border-[color:var(--line)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
+                }`}>
+                {p}
+              </button>
+            ))}
+          </div>
         </FormRow>
         <FormRow label="Discount">
           <DiscountInput value={discount} onChange={setDiscount} type={discountType} onTypeChange={setDiscountType} />
@@ -928,8 +940,9 @@ function LabPageInner() {
   const handoffPatientId = searchParams.get("patientId") ?? undefined;
   const handoffDoctorId = searchParams.get("doctorId") ?? undefined;
   const handoffLabCenterId = searchParams.get("labCenterId") ?? undefined;
+  const handoffPriority = PRIORITIES.find(p => p === searchParams.get("priority"));
 
-  const [tab, setTab] = useState(handoffPatientId ? "booking" : "tests");
+  const [tab, setTab] = useState(handoffPatientId ? "booking" : "worklist");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRangeId>("all");
@@ -947,7 +960,8 @@ function LabPageInner() {
   const { dialog, remove, mutate } = useRowActions("lab", reload);
 
   const TABS = [
-    { id: "tests",   label: "All Tests",  count: tests.length },
+    { id: "worklist", label: "Worklist", count: tests.filter(t => t.status === "Pending" || t.status === "Sample Collected").length },
+    { id: "tests",   label: "By Patient", count: tests.length },
     ...(canBook ? [{ id: "booking", label: "New Booking" }] : []),
     { id: "reports", label: "Reports",    count: tests.filter(t => t.reportStatus === "Ready").length },
     ...(isCenter ? [{ id: "links", label: "Linked Hospitals" }, { id: "about", label: "About" }] : []),
@@ -1011,6 +1025,24 @@ function LabPageInner() {
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 400 }}>
           <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          {tab === "worklist" && (
+            <LabWorklist
+              tests={tests.filter(t => inDateRange(t.date, range))}
+              canWrite={canWrite}
+              canUpload={canUploadReport}
+              canDelete={canWrite && !isPartner}
+              showHospital={isCenter}
+              showDateRange={false}
+              onViewPatient={setViewingPatient}
+              onViewReport={setViewing}
+              onUpload={setUploadFor}
+              onCollectSample={(t) => mutate(() => api.patch(`/lab/${t.id}`, { sampleStatus: "Collected" }))}
+              onPrintBarcode={setBarcodeFor}
+              onSetPriority={(t, priority) => mutate(() => api.patch(`/lab/${t.id}`, { priority }))}
+              onCancel={(t) => mutate(() => api.patch(`/lab/${t.id}`, { status: "Cancelled" }))}
+              onDelete={(t) => remove(t.id, t.testName)}
+            />
+          )}
           {tab === "tests" && (
             <>
               <FilterBar filters={FILTERS} searchPlaceholder="Search by patient name or test name..."
@@ -1031,9 +1063,9 @@ function LabPageInner() {
             </>
           )}
           {tab === "booking" && canBook && (
-            <BookingView patients={patients} onBooked={() => { reload(); setTab("tests"); }}
+            <BookingView patients={patients} onBooked={() => { reload(); setTab("worklist"); }}
               initialPatientId={handoffPatientId} initialDoctorId={handoffDoctorId}
-              initialLabCenterId={handoffLabCenterId} />
+              initialLabCenterId={handoffLabCenterId} initialPriority={handoffPriority} />
           )}
           {tab === "reports" && <ReportsView tests={tests} onUpload={setUploadFor} onView={setViewing} canUpload={canUploadReport} />}
           {tab === "links" && isCenter && <LinkedHospitalsView />}

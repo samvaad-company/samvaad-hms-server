@@ -1,13 +1,4 @@
 import { itemRoute } from "@/http/crud";
-import {
-  getDonor,
-  updateDonor,
-  deleteDonor,
-} from "@/services/bloodbank-service";
+import { getDonor, updateDonor, deleteDonor } from "@/services/bloodbank-service";
 
-export const { GET, PUT, PATCH, DELETE } = itemRoute({
-  resource: "bloodbank",
-  get: getDonor,
-  update: updateDonor,
-  remove: deleteDonor,
-});
+export const { GET, PUT, PATCH, DELETE } = itemRoute({ resource: "bloodbank", get: getDonor, update: updateDonor, remove: deleteDonor });

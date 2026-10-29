@@ -5,13 +5,16 @@ import { tw } from "@/lib/design-system";
 import { BarChart3, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useList, useMutation } from "@/lib/api/hooks";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { BillDTO, PatientDTO } from "@/types/api";
+import type { BillDTO, BillingCatalogDTO, PatientDTO } from "@/types/api";
+import { priceLines, r2 } from "@/types/billing";
+import { splitCoverage } from "@/types/coverage";
+import { PayoutsView } from "@/components/billing/PayoutsView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FilterBar } from "@/components/shared/FilterBar";
@@ -70,44 +73,60 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
 
 // ─── New Bill ─────────────────────────────────────────────────────────────────
 
-type LineItem = { id: number; description: string; qty: number; rate: number; gstPct: number };
-const GST_RATES = [0, 5, 12, 18];
-const SERVICES = [
-  "Consultation", "OPD Visit", "Emergency Consultation", "ECG", "Ultrasound",
-  "X-Ray", "Blood Test - CBC", "Blood Test - LFT", "Blood Test - KFT",
-  "Room Charge - General", "Room Charge - Semi-Private", "Room Charge - Private", "ICU Charge",
-  "Operation Theatre", "Nursing Charge", "Diet Charge", "Physiotherapy Session",
-  "Dressing & Bandage", "IV Fluids", "Oxygen Charge",
-];
-const PAYMENT_MODES = [
-  { value: "cash", label: "Cash" }, { value: "upi", label: "UPI" },
-  { value: "card", label: "Credit / Debit Card" }, { value: "neft", label: "NEFT / RTGS" },
-  { value: "cheque", label: "Cheque" }, { value: "insurance", label: "Insurance" },
-  { value: "split", label: "Split Payment" },
-];
+/** A line on the bill being built: a catalogue service (priced and taxed by the server's rate plan) or a custom charge. */
+interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number }
+const GST_RATES = [0, 5, 12, 18, 28];
+const CUSTOM = "custom";
+const blankLine = (): LineItem => ({ id: Date.now() + Math.random(), serviceId: "", description: "", qty: 1, rate: 0, gstPct: 0 });
+const rupee = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreated: () => void }) {
-  const [items, setItems] = useState<LineItem[]>([
-    { id: 1, description: "", qty: 1, rate: 0, gstPct: 0 },
-  ]);
+  const [items, setItems] = useState<LineItem[]>([blankLine()]);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
   const [payMode, setPayMode] = useState("");
   const [patientId, setPatientId] = useState("");
   const [billType, setBillType] = useState("OPD");
   const { run, loading, error } = useMutation();
+  // Prices, GST and payment modes come from Setup → Masters; the patient's category picks the rate plan.
+  const { item: base } = useItem<BillingCatalogDTO>(patientId ? `/billing/catalog?patientId=${patientId}` : "/billing/catalog");
+  // A patient covered by a sponsor contract is billed under it unless the cashier says self-pay; a contract that names its own
+  // rate plan prices the bill from that plan.
+  const [choice, setChoice] = useState<string | undefined>(undefined);
+  const [doctorId, setDoctorId] = useState("");
+  const contracts = base?.contracts ?? [];
+  const contract = choice === "self" ? null : contracts.find(c => String(c.id) === choice) ?? (choice === undefined ? contracts[0] : undefined) ?? null;
+  const { item: viaContract } = useItem<BillingCatalogDTO>(patientId && contract?.ratePlan ? `/billing/catalog?patientId=${patientId}&contractId=${contract.id}` : null);
+  const catalog = contract?.ratePlan && viaContract ? viaContract : base;
+  const services = catalog?.services ?? [];
+  const settings = catalog?.settings ?? { gstOnBills: true, pricesInclusive: false, roundOff: true, invoicePrefix: "" };
 
-  const addRow = () => setItems(prev => [...prev, { id: Date.now(), description: "", qty: 1, rate: 0, gstPct: 0 }]);
-  const removeRow = (id: number) => setItems(prev => prev.filter(i => i.id !== id));
-  const updateRow = (id: number, field: keyof LineItem, value: string | number) =>
-    setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+  const updateRow = (id: number, patch: Partial<LineItem>) => setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+  const pick = (id: number, value: string) => {
+    if (value === CUSTOM) return updateRow(id, { serviceId: CUSTOM, description: "", rate: 0, gstPct: 0 });
+    const svc = services.find(s => String(s.id) === value);
+    if (svc) updateRow(id, { serviceId: value, description: svc.name, rate: svc.price, gstPct: svc.gstRate });
+  };
+  // A price list is per patient, so changing the patient re-prices the catalogue lines already on the bill.
+  const priced = items.map(i => {
+    if (i.serviceId && i.serviceId !== CUSTOM) {
+      const svc = services.find(s => String(s.id) === i.serviceId);
+      if (svc) return { ...i, rate: svc.price, gstPct: svc.gstRate };
+    }
+    return i;
+  });
+  const filled = priced.filter(i => i.serviceId && (i.serviceId !== CUSTOM || (i.description.trim() && i.rate >= 0)));
 
-  const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
-  const gstTotal = items.reduce((s, i) => s + (i.qty * i.rate * i.gstPct) / 100, 0);
-  const discAmt = discountType === "percent"
-    ? subtotal * (Math.min(100, Math.max(0, discount)) / 100)
-    : Math.max(0, discount);
-  const grandTotal = subtotal + gstTotal - discAmt;
+  const subtotal = filled.reduce((s, i) => s + i.qty * i.rate, 0);
+  const discAmt = Math.min(subtotal, discountType === "percent" ? subtotal * (Math.min(100, Math.max(0, discount)) / 100) : Math.max(0, discount));
+  const totals = priceLines(filled.map(i => ({ quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct })), r2(discAmt), settings);
+
+  // Who pays what, by the contract's rules — the server works it out again when the bill is saved.
+  const split = contract ? splitCoverage(contract.terms, filled.map((i, n) => {
+    const svc = services.find(x => String(x.id) === i.serviceId);
+    return { name: i.description || svc?.name || "", code: svc?.code ?? "", groupIds: svc?.groupIds ?? [], groupNames: svc?.groupNames ?? [], quantity: i.qty, total: totals.totals[n] };
+  }), contract.past, { today: new Date().toLocaleDateString("en-CA"), contractFrom: contract.validFrom }) : null;
+  const payerShare = split ? Math.min(split.payer, totals.total) : 0;
 
   async function generate() {
     const patient = patients.find(p => String(p.id) === patientId);
@@ -116,23 +135,29 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         patientId: Number(patientId),
         patientName: patient?.name ?? "",
         type: billType,
-        amount: subtotal,
-        discount: Math.round(discAmt),
+        ...(contract ? { contractId: contract.id } : {}),
+        ...(doctorId ? { doctorId: Number(doctorId) } : {}),
+        discount: r2(discAmt),
         status: payMode ? "Paid" : "Pending",
+        paymentMode: payMode || undefined,
+        items: filled.map(i => i.serviceId === CUSTOM
+          ? { description: i.description, quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct }
+          : { serviceId: Number(i.serviceId), quantity: i.qty }),
       }),
     );
     onCreated();
   }
 
+  const input = "h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors";
   return (
     <div className="p-5 flex flex-col gap-5">
       {/* Patient & type */}
       <div className="grid grid-cols-4 gap-4">
-        <FormRow label="Patient *">
+        <FormRow label="Patient *" hint={catalog?.planName ? `Prices from ${catalog.planName}` : undefined}>
           <SearchSelect
             placeholder="Search patient by name, ID or phone…"
             value={patientId}
-            onChange={setPatientId}
+            onChange={v => { setPatientId(v); setChoice(undefined); }}
             options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
           />
         </FormRow>
@@ -142,74 +167,72 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         <FormRow label="Bill Date *">
           <FormInput type="date" />
         </FormRow>
-        <FormRow label="Doctor / Reference">
-          <FormInput placeholder="Referring doctor" />
+        <FormRow label="Doctor" hint="Doctor payout rules follow the doctor named here">
+          <FormSelect value={doctorId} onChange={setDoctorId} options={[{ value: "", label: "None" }, ...(catalog?.doctors ?? []).map(d => ({ value: String(d.id), label: d.name }))]} />
         </FormRow>
       </div>
+      {contracts.length > 0 && (
+        <div className="grid grid-cols-4 gap-4">
+          <div className="col-span-2">
+            <FormRow label="Bill to" hint={contract ? `${contract.sponsor}${contract.validTo ? ` · valid to ${contract.validTo}` : ""}` : "The patient pays the whole bill"}>
+              <FormSelect value={contract ? String(contract.id) : "self"} onChange={v => setChoice(v)} options={[...contracts.map(c => ({ value: String(c.id), label: c.name })), { value: "self", label: "Self pay" }]} />
+            </FormRow>
+          </div>
+        </div>
+      )}
 
       {/* Line items */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Line Items</h3>
-          <button onClick={addRow} className="flex items-center gap-[5px] text-[12px] font-normal text-[color:var(--brand)] hover:underline">
+          <button onClick={() => setItems(prev => [...prev, blankLine()])} className="flex items-center gap-[5px] text-[12px] font-normal text-[color:var(--brand)] hover:underline">
             <Plus size={13} /> Add Item
           </button>
         </div>
-        {/* Header */}
-        <div className="grid grid-cols-[2fr_80px_100px_100px_120px_40px] gap-2 px-3">
-          {["Description", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
+        <div className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 px-3">
+          {["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
             <span key={h} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
           ))}
         </div>
-        {/* Rows */}
         <div className="flex flex-col gap-2">
-          {items.map(item => (
-            <div key={item.id} className="grid grid-cols-[2fr_80px_100px_100px_120px_40px] gap-2 items-center">
-              <select
-                value={item.description}
-                onChange={e => updateRow(item.id, "description", e.target.value)}
-                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
-              >
-                <option value="">Select service...</option>
-                {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <input
-                type="number" min={1} value={item.qty}
-                onChange={e => updateRow(item.id, "qty", Number(e.target.value))}
-                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors text-center"
-              />
-              <input
-                type="number" min={0} value={item.rate || ""}
-                onChange={e => updateRow(item.id, "rate", Number(e.target.value))}
-                placeholder="0"
-                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
-              />
-              <select
-                value={item.gstPct}
-                onChange={e => updateRow(item.id, "gstPct", Number(e.target.value))}
-                className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
-              >
-                {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
-              </select>
-              <span className="text-[13px] font-medium text-[color:var(--ink)] px-3">
-                ₹{(item.qty * item.rate * (1 + item.gstPct / 100)).toLocaleString("en-IN")}
-              </span>
-              {items.length > 1 ? (
-                <button onClick={() => removeRow(item.id)} className="flex items-center justify-center text-[#ff0004] hover:text-red-700 transition-colors">
-                  <Trash2 size={15} />
-                </button>
-              ) : <div />}
-            </div>
-          ))}
+          {priced.map((item, idx) => {
+            const custom = item.serviceId === CUSTOM;
+            const raw = items[idx];
+            return (
+              <div key={item.id} className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 items-center">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <SearchSelect
+                    placeholder="Select service…"
+                    value={raw.serviceId}
+                    onChange={v => pick(item.id, v)}
+                    options={[...services.map(s => ({ value: String(s.id), label: s.name, hint: `${s.code} ${s.group}` })), { value: CUSTOM, label: "Custom charge…", hint: "not in the catalogue" }]}
+                  />
+                  {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value })} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
+                </div>
+                <input type="number" min={1} value={item.qty} onChange={e => updateRow(item.id, { qty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} className={`${input} text-center`} aria-label="Quantity" />
+                {custom
+                  ? <input type="number" min={0} value={raw.rate || ""} onChange={e => updateRow(item.id, { rate: Number(e.target.value) })} placeholder="0" className={input} aria-label="Rate" />
+                  : <span className="text-[13px] text-[color:var(--ink)] px-3" title="Set by the rate plan">{item.serviceId ? rupee(item.rate) : "—"}</span>}
+                {custom
+                  ? <select value={raw.gstPct} onChange={e => updateRow(item.id, { gstPct: Number(e.target.value) })} className={input} aria-label="GST rate">{GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select>
+                  : <span className="text-[13px] text-[color:var(--ink-soft)] px-3">{item.serviceId ? (settings.gstOnBills ? `${item.gstPct}%` : "off") : "—"}</span>}
+                <span className="text-[13px] font-medium text-[color:var(--ink)] px-3">{rupee(item.qty * item.rate)}</span>
+                {items.length > 1 ? (
+                  <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} aria-label="Remove line" className="flex items-center justify-center text-[#ff0004] hover:text-red-700 transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                ) : <div />}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Payment & totals */}
       <div className="grid grid-cols-2 gap-6">
-        {/* Payment mode */}
         <div className="flex flex-col gap-4">
-          <FormRow label="Payment Mode *">
-            <FormSelect placeholder="Select payment mode" options={PAYMENT_MODES} />
+          <FormRow label="Payment Mode" hint="Leave empty to raise the bill as Pending; choose a mode to record it as paid.">
+            <FormSelect placeholder="Select payment mode" value={payMode} onChange={setPayMode} options={[{ value: "", label: "Not paid yet (Pending)" }, ...(catalog?.paymentModes ?? []).map(m => ({ value: m, label: m }))]} />
           </FormRow>
           <FormRow label="Discount">
             <div className="flex items-center gap-2">
@@ -243,12 +266,11 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             />
           </FormRow>
         </div>
-        {/* Total summary */}
         <div className="border border-[color:var(--line)] rounded-[10px] p-5 flex flex-col gap-3 bg-[color:var(--subtle)] h-fit">
           {[
-            { label: "Subtotal",    value: `₹${subtotal.toLocaleString("en-IN")}` },
-            { label: "GST",         value: `₹${gstTotal.toFixed(0)}` },
-            { label: discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-₹${Math.round(discAmt).toLocaleString("en-IN")}` : "—" },
+            { label: "Subtotal", value: rupee(totals.amount) },
+            { label: settings.pricesInclusive ? "GST (included in prices)" : "GST", value: settings.gstOnBills ? rupee(totals.gst) : "Off" },
+            { label: discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-${rupee(r2(discAmt))}` : "—" },
           ].map(r => (
             <div key={r.label} className="flex justify-between text-[13px]">
               <span className="font-normal text-[color:var(--ink-soft)]">{r.label}</span>
@@ -257,9 +279,20 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           ))}
           <div className="border-t border-[color:var(--line)] pt-3 flex justify-between">
             <span className="text-[16px] font-medium text-[color:var(--ink)]">Grand Total</span>
-            <span className="text-[16px] font-medium text-[color:var(--brand)]">₹{grandTotal.toLocaleString("en-IN")}</span>
+            <span className="text-[16px] font-medium text-[color:var(--brand)]">{rupee(totals.total)}</span>
           </div>
-          <button onClick={generate} disabled={loading || !patientId || subtotal <= 0}
+          {split && contract && (
+            <div className="flex flex-col gap-1 rounded-[8px] border border-[color:var(--line)] bg-white px-3 py-2" data-testid="coverage-split">
+              <div className="flex justify-between text-[13px]"><span className="text-[color:var(--ink-soft)]">{contract.sponsor || "Payer"} pays</span><span className="font-medium text-[color:var(--ink)]">{rupee(payerShare)}</span></div>
+              <div className="flex justify-between text-[13px]"><span className="text-[color:var(--ink-soft)]">Patient pays</span><span className="font-medium text-[color:var(--ink)]">{rupee(r2(totals.total - payerShare))}</span></div>
+              {split.lines.some(l => l.patient > 0) && (
+                <ul className="mt-1 flex flex-col gap-[2px] text-[11px] text-[color:var(--ink-soft)]">
+                  {split.lines.map((l, n) => l.patient > 0 && <li key={n}>{filled[n].description || services.find(x => String(x.id) === filled[n].serviceId)?.name}: patient {rupee(l.patient)} — {l.note}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+          <button onClick={generate} disabled={loading || !patientId || filled.length === 0}
             className="w-full mt-2 bg-[color:var(--brand)] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Generating…" : "Generate Bill"}
           </button>
@@ -356,6 +389,7 @@ export default function BillingPage() {
     { id: "all",     label: "All Bills", count: bills.length },
     ...(canWrite ? [{ id: "new", label: "New Bill" }] : []),
     { id: "lookup",  label: "Bill Lookup" },
+    { id: "payouts", label: "Payouts" },
   ];
 
   const revenue = bills
@@ -408,6 +442,7 @@ export default function BillingPage() {
           )}
           {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}
           {tab === "lookup" && <LookupView bills={bills} />}
+          {tab === "payouts" && <PayoutsView canWrite={canWrite} />}
         </div>
       </div>
     </>

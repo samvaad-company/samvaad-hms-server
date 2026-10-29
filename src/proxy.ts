@@ -20,6 +20,8 @@ export function proxy(request: NextRequest): NextResponse {
   if (pathname === "/login" || pathname.startsWith("/login/")) return NextResponse.next();
   // Patients open this from a link a tele-caller sent; the link's signed token is the credential.
   if (pathname.startsWith("/book-video/")) return NextResponse.next();
+  // Same for a consent form sent to a patient's phone to sign: the link's random token is the credential.
+  if (pathname.startsWith("/sign/")) return NextResponse.next();
   if (request.cookies.get(COOKIE)?.value) return NextResponse.next();
 
   const loginUrl = new URL("/login", request.url);

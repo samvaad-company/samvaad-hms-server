@@ -7,7 +7,12 @@
  */
 import { type Row } from "@/db/adapter";
 import { TABLES } from "@/db/tables";
+import { randomBytes } from "node:crypto";
 import { hashPassword } from "@/auth/password";
+import { defaultLocationPlan, rackFor, DEFAULT_FOLDERS, DEFAULT_POLICIES } from "@/services/mrd-defaults";
+import { consentForm } from "@shared/types/consent-catalog";
+import { DEFAULT_STERILIZERS } from "@shared/types/cssd";
+import { DEFAULT_LEAVE_TYPES, DEFAULT_SHIFTS } from "@shared/types/hr";
 
 import { patients as patientsData } from "@/db/sample-data/patients";
 import { doctors as doctorsData } from "@/db/sample-data/doctors";
@@ -28,9 +33,6 @@ import {
   hospitalSettings,
 } from "@/db/sample-data/admin";
 import {
-  bloodDonors as bloodDonorsData,
-  bloodStock as bloodStockData,
-  bloodIssues as bloodIssuesData,
   radiologyTests as radiologyData,
   ambulances as ambulancesData,
   ambulanceCalls as ambulanceCallsData,
@@ -305,6 +307,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     expiry_date: p.expiryDate,
     supplier: p.supplier,
     status: p.status,
+    unit_price: 4 + ((p.id * 37) % 46) + (p.id % 3) * 0.5,
     created_at: ts,
     updated_at: ts,
   }));
@@ -321,7 +324,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     requested_by: "",
     doctor_id: null,
     doctor: "",
-    priority: "Routine",
+    // A couple of demo tests carry a doctor-set priority so the worklist tags show up.
+    priority: ({ 2: "STAT", 3: "Urgent", 5: "Urgent" } as Record<number, string>)[l.id] ?? "Routine",
     collection_date: "",
     discount: 0,
     sample_status: l.sampleStatus,
@@ -538,6 +542,73 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     created_at: ts,
     updated_at: ts,
   }));
+
+  // ── OT rooms, equipment and a few current bookings ───────────────────────
+  const otRooms: Row[] = [
+    { name: "Major OT-1", kind: "Major" }, { name: "Major OT-2", kind: "Major" }, { name: "Major OT-3", kind: "Major" }, { name: "Minor OT", kind: "Minor" },
+  ].map((r, i) => ({ id: i + 1, hospital_id: 1, ...r, active: true, created_at: ts, updated_at: ts }));
+  const otEquipment: Row[] = [
+    ["Anaesthesia Workstation (Drager)", "Available"], ["Arthroscopy System", "Available"], ["Boyle's Apparatus", "Available"],
+    ["C-Arm Image Intensifier", "Available"], ["Cardiac Monitor (multipara)", "Available"], ["Defibrillator", "Available"],
+    ["Electrosurgical Unit / Diathermy", "Maintenance"], ["Harmonic Scalpel Generator", "Available"],
+    ["Laparoscopy Tower (Karl Storz)", "Available"], ["Operating Microscope (Zeiss)", "Available"],
+  ].map(([name, status], i) => ({ id: i + 1, hospital_id: 1, name, status, note: status === "Maintenance" ? "Under service until further notice" : "", created_at: ts, updated_at: ts }));
+  // A few surgeries around today (dates relative to it) so the Day, Week and Register views have something on them.
+  const dayOffset = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("en-CA"); };
+  const nextOtId = otSchedules.length + 1;
+  const nowOt = [
+    { off: 0, time: "09:00", min: 90, room: 1, name: "Laparoscopic Cholecystectomy", cat: "Major", status: "Scheduled", eq: [9, 1], p: 0 },
+    { off: 0, time: "11:30", min: 60, room: 2, name: "Knee Arthroscopy", cat: "Major", status: "Scheduled", eq: [2], p: 1 },
+    { off: 0, time: "10:00", min: 30, room: 4, name: "Cyst Excision", cat: "Minor", status: "Scheduled", eq: [], p: 2 },
+    { off: 1, time: "08:00", min: 120, room: 1, name: "Total Knee Replacement", cat: "Major", status: "Scheduled", eq: [4], p: 3 },
+    { off: 2, time: "14:00", min: 75, room: 3, name: "Open Appendectomy", cat: "Major", status: "Scheduled", eq: [], p: 4 },
+    { off: -3, time: "09:30", min: 87, room: 1, name: "Open Appendectomy", cat: "Major", status: "Completed", eq: [], p: 5 },
+    { off: -4, time: "08:00", min: 110, room: 2, name: "Laparoscopic Cholecystectomy", cat: "Major", status: "Completed", eq: [9], p: 6 },
+    { off: -4, time: "12:00", min: 121, room: 3, name: "Total Knee Replacement", cat: "Major", status: "Completed", eq: [4], p: 7 },
+  ];
+  const otCurrent: Row[] = nowOt.map((o, i) => {
+    const pat = patients[o.p % patients.length] as { id: number; name: string };
+    const doc = doctors[i % doctors.length] as { id: number; name: string };
+    const anaes = doctors[(i + 1) % doctors.length] as { id: number; name: string };
+    const start = Date.parse(`${dayOffset(o.off)}T${o.time}:00`);
+    const done = o.status === "Completed";
+    return {
+      id: nextOtId + i,
+      hospital_id: 1,
+      patient_id: pat.id,
+      patient_name: pat.name,
+      procedure: o.name,
+      surgery_name: o.name,
+      case_type: "Elective",
+      category: o.cat,
+      procedure_code: "",
+      ot_room: (otRooms.find((r) => r.id === o.room) as Row).name,
+      room_id: o.room,
+      duration_min: o.min,
+      surgeon_id: doc.id,
+      surgeon: doc.name,
+      co_surgeon_id: null,
+      co_surgeon: "",
+      anesthetist_id: anaes.id,
+      anesthetist: anaes.name,
+      anaesthesia_type: o.cat === "Minor" ? "Local" : "General (GA)",
+      scrub_nurse_id: null, scrub_nurse: "", circulating_nurse_id: null, circulating_nurse: "",
+      technician_ids: [], technicians: [],
+      equipment_ids: o.eq,
+      equipment: o.eq.map((e) => (otEquipment.find((x) => x.id === e) as Row).name),
+      special_requirements: "",
+      allow_overlap: false,
+      fitness: done || o.off <= 0 ? "Fit" : "Pending",
+      booking_no: `OT/${dayOffset(0).slice(0, 4)}/${String(nextOtId + i).padStart(4, "0")}`,
+      scheduled_date: dayOffset(o.off),
+      scheduled_time: o.time,
+      status: o.status,
+      started_at: done ? new Date(start).toISOString() : null,
+      ended_at: done ? new Date(start + o.min * 60_000).toISOString() : null,
+      created_at: ts,
+      updated_at: ts,
+    };
+  });
 
   // ── Hospitals ────────────────────────────────────────────────────────────
   // Hospital 1 is today's single tenant, carried over unchanged. Hospital 2
@@ -798,47 +869,120 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
   };
 
   // ── Service modules ──────────────────────────────────────────────────────
-  const bloodDonors: Row[] = bloodDonorsData.map((d) => ({
-    id: d.id,
-    hospital_id: 1,
-    name: d.name,
-    age: d.age,
-    gender: d.gender,
-    blood_group: d.bloodGroup,
-    phone: d.phone,
-    aadhaar_number: "",
-    last_donation_date: d.lastDonationDate,
-    total_donations: d.totalDonations,
-    status: d.status,
-    created_at: ts,
-    updated_at: ts,
-  }));
+  // ── Blood bank ───────────────────────────────────────────────────────────
+  // Donors, bags of blood and components in every state (quarantined, available, held for a cross-match, issued,
+  // discarded), the cross-matches and the transfusions — dates relative to today, so it always looks current.
+  const bbDay = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("en-CA"); };
+  const bbAt = (daysAgo: number, hour: number) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, (daysAgo * 7) % 60, 0, 0); return d.toISOString(); };
+  let bbSeed = 7;
+  const bbRand = () => { bbSeed = (bbSeed * 9301 + 49297) % 233280; return bbSeed / 233280; };
+  const bbPick = <T,>(a: readonly T[]): T => a[Math.floor(bbRand() * a.length)];
+  const bbYY = bbDay(0).slice(2, 4);
+  const bbGroups = ["O+", "O+", "O+", "B+", "B+", "A+", "A+", "AB+", "O-", "A-", "B-", "AB-"] as const;
+  const donorNames = ["Vikram Singh", "Anita Deshmukh", "Ravi Patil", "Meera Kulkarni", "Sanjay Gupta", "Pooja Sharma", "Harit Varma", "Bala Gandhi", "Aasha Ahluwalia", "Sukanya Kaur", "Deepan Chattopadhyay",
+    "Jagmeet Kaul", "Tejas Guneta", "Ojaswini Agarwal", "Asha Kaul", "Upendra Reddy", "Ganaka Marar", "Vasudev Kakkar", "Niro Guneta", "Dhruv Kakkar", "Charuvrat Kakkar", "Rohana Khan",
+    "Navin Namboothiri", "Bhagwati Kapoor", "Akshita Arora", "Kiran Joshi", "Tara Menon", "Imran Qureshi", "Lata Bhosale", "Sunil Yadav"];
+  const idProofs = ["aadhaar", "pan", "voter_id", "driving_licence", "passport"] as const;
+  const bloodDonors: Row[] = donorNames.map((name, i) => {
+    const gender = i % 4 === 3 ? "Female" : i % 3 === 0 ? "Female" : "Male";
+    const donations = Math.floor(bbRand() * 14);
+    const deferred = i === 8 || i === 9 || i === 24;
+    return {
+      id: i + 1,
+      hospital_id: 1,
+      donor_no: `BD/${bbYY}/${String(i + 1).padStart(5, "0")}`,
+      name,
+      age: 22 + (i % 30),
+      gender,
+      blood_group: bbGroups[i % bbGroups.length],
+      phone: `9${String(100000000 + Math.floor(bbRand() * 899999999))}`,
+      dob: bbDay(-365 * (22 + (i % 30)) - 40),
+      id_proof_type: idProofs[i % idProofs.length],
+      id_proof_last4: String(1000 + Math.floor(bbRand() * 8999)),
+      aadhaar_number: "",
+      last_donation_date: donations === 0 ? "" : bbDay(-(130 + Math.floor(bbRand() * 260))),
+      total_donations: donations,
+      status: deferred ? "Deferred" : "Eligible",
+      deferral_reason: deferred ? "Low haemoglobin" : "",
+      deferred_until: null,
+      created_at: ts,
+      updated_at: ts,
+    };
+  });
 
-  const bloodStock: Row[] = bloodStockData.map((s) => ({
-    id: s.id,
-    hospital_id: 1,
-    blood_group: s.bloodGroup,
-    component: s.component,
-    units: s.units,
-    created_at: ts,
-    updated_at: ts,
-  }));
-
-  const bloodIssues: Row[] = bloodIssuesData.map((i) => ({
-    id: i.id,
-    hospital_id: 1,
-    patient_id: findPatientByName(i.patientName)?.id ?? null,
-    patient_name: i.patientName,
-    blood_group: i.bloodGroup,
-    component: i.component,
-    units: i.units,
-    doctor: i.doctor,
-    issue_date: i.date,
-    amount: i.amount,
-    status: i.status,
-    created_at: ts,
-    updated_at: ts,
-  }));
+  const SHELF: Record<string, number> = { "Whole blood": 35, PRBC: 42, Platelets: 5, Plasma: 365, Cryoprecipitate: 365 };
+  const VOL: Record<string, number> = { "Whole blood": 350, PRBC: 280, Platelets: 60, Plasma: 200, Cryoprecipitate: 20 };
+  const clear = { hiv: "Negative", hbsag: "Negative", hcv: "Negative", malaria: "Negative", syphilis: "Negative" };
+  const untested = { hiv: "", hbsag: "", hcv: "", malaria: "", syphilis: "" };
+  const bloodUnits: Row[] = [];
+  const unitNo = () => `BU/${bbYY}/${String(bloodUnits.length + 1).padStart(5, "0")}`;
+  const addUnit = (o: { group: string; component: string; ageDays: number; status: string; donor?: number; serology?: Record<string, string>; reason?: string; parent?: number; vol?: number }) => {
+    const id = bloodUnits.length + 1;
+    const collected = bbDay(-o.ageDays);
+    const d = o.donor ? (bloodDonors[o.donor - 1] as Row) : null;
+    bloodUnits.push({
+      id, hospital_id: 1, unit_no: unitNo(), source: d ? "Donation" : "Purchased", donor_id: d ? (d.id as number) : null, donor_no: d ? (d.donor_no as string) : "",
+      supplier: d ? "" : "City Blood Centre", bag_no: o.parent ? "" : `BAG-${1000 + id}`, blood_group: o.group, component: o.component, volume_ml: o.vol ?? VOL[o.component],
+      collected_on: collected, expiry_on: bbDay(-o.ageDays + SHELF[o.component]),
+      serology: o.serology ?? (o.status === "Quarantined" ? untested : clear), serology_by: o.status === "Quarantined" ? null : "Rekha Menon", serology_on: o.status === "Quarantined" ? null : collected,
+      status: o.status, root_unit_id: o.parent ? ((bloodUnits[o.parent - 1] as Row).root_unit_id as number) : id, parent_unit_id: o.parent ?? null,
+      left_on: ["Issued", "Processed", "Discarded"].includes(o.status) ? bbDay(-Math.max(0, o.ageDays - 1)) : null,
+      discard_reason: o.reason ?? "", discarded_by: o.status === "Discarded" ? "Rekha Menon" : null, created_by: "Rekha Menon", created_at: ts, updated_at: ts,
+    });
+    return id;
+  };
+  // Usable stock, some of it close to expiry
+  for (let i = 0; i < 34; i++) {
+    const component = i % 9 === 0 ? "Platelets" : i % 4 === 0 ? "PRBC" : i % 11 === 0 ? "Plasma" : "Whole blood";
+    const life = SHELF[component];
+    const age = component === "Platelets" ? Math.floor(bbRand() * 3) : Math.floor(bbRand() * Math.min(life - 8, 26)) + (i % 5 === 0 ? Math.max(0, life - 7 - 4) : 0);
+    addUnit({ group: bbPick(bbGroups), component, ageDays: Math.min(age, life - 1), status: "Available", donor: (i % donorNames.length) + 1 });
+  }
+  addUnit({ group: "O+", component: "Whole blood", ageDays: 40, status: "Available", donor: 3 }); // expired, still on the shelf
+  addUnit({ group: "B+", component: "Platelets", ageDays: 9, status: "Available", donor: 5 });
+  for (let i = 0; i < 4; i++) addUnit({ group: bbPick(bbGroups), component: "Whole blood", ageDays: i, status: "Quarantined", donor: 10 + i });
+  const parentWb = addUnit({ group: "A+", component: "Whole blood", ageDays: 3, status: "Processed", donor: 12 });
+  addUnit({ group: "A+", component: "PRBC", ageDays: 3, status: "Available", parent: parentWb });
+  addUnit({ group: "A+", component: "Plasma", ageDays: 3, status: "Available", parent: parentWb });
+  for (const [g, reason, ser] of [["B+", "Reactive serology: HIV", { ...clear, hiv: "Reactive" }], ["O+", "Expired", undefined], ["A+", "Bag leak or damage", undefined], ["O+", "Cold chain break", undefined]] as const) {
+    addUnit({ group: g, component: "PRBC", ageDays: 12, status: "Discarded", donor: 14, serology: ser as Record<string, string> | undefined, reason });
+  }
+  // Issued units, each with its cross-match and transfusion
+  const bloodCrossmatches: Row[] = [];
+  const bloodTransfusions: Row[] = [];
+  const xmNo = () => `XM/${bbYY}/${String(bloodCrossmatches.length + 1).padStart(5, "0")}`;
+  const patientRow = (i: number) => patients[i % patients.length] as Row;
+  const addXm = (unitId: number, patientIdx: number, result: string, status: string, daysAgo: number) => {
+    const u = bloodUnits[unitId - 1] as Row; const p = patientRow(patientIdx);
+    const id = bloodCrossmatches.length + 1;
+    bloodCrossmatches.push({
+      id, hospital_id: 1, xm_no: xmNo(), patient_id: p.id as number, patient_name: p.name as string, patient_code: (p.patient_code as string) ?? "",
+      unit_id: unitId, unit_no: u.unit_no as string, unit_group: u.blood_group as string, unit_component: u.component as string,
+      requested_at: bbAt(daysAgo, 9), requested_by: "Rekha Menon", result, result_by: result === "pending" ? null : "Rekha Menon", result_at: result === "pending" ? null : bbAt(daysAgo, 10),
+      status, created_at: ts, updated_at: ts,
+    });
+    return id;
+  };
+  for (let i = 0; i < 9; i++) {
+    const unitId = addUnit({ group: bbPick(["O+", "A+", "B+"] as const), component: i % 3 === 0 ? "PRBC" : "Whole blood", ageDays: 6 + i, status: "Issued", donor: 15 + i });
+    const xm = addXm(unitId, i, "compatible", "issued", 5 + i);
+    const u = bloodUnits[unitId - 1] as Row; const p = patientRow(i);
+    const returned = i === 7;
+    bloodTransfusions.push({
+      id: bloodTransfusions.length + 1, hospital_id: 1, issue_no: `BI/${bbYY}/${String(bloodTransfusions.length + 1).padStart(5, "0")}`, crossmatch_id: xm,
+      patient_id: p.id as number, patient_name: p.name as string, patient_code: (p.patient_code as string) ?? "", unit_id: unitId, unit_no: u.unit_no as string,
+      unit_group: u.blood_group as string, unit_component: u.component as string, issued_at: bbAt(5 + i, 11), issued_by: "Rekha Menon",
+      transfused_at: returned ? null : bbAt(5 + i, 14), transfused_by: returned ? null : "Rekha Menon", disposition: returned ? "returned · wasted" : "", returned_at: returned ? bbAt(5 + i, 13) : null,
+      reactions: i === 2 ? [{ at: bbAt(5 + i, 15), by: "Rekha Menon", kind: "Febrile non-haemolytic", severity: "Mild", note: "Settled with paracetamol" }] : [],
+      created_at: ts, updated_at: ts,
+    });
+    if (returned) { u.status = "Discarded"; u.discard_reason = "Returned unused — outside window"; }
+  }
+  // Open cross-matches: one waiting for its result, one compatible and ready to issue, one incompatible (unit released)
+  const xmUnits = [addUnit({ group: "O+", component: "Whole blood", ageDays: 5, status: "Cross-matched", donor: 26 }), addUnit({ group: "B+", component: "PRBC", ageDays: 4, status: "Cross-matched", donor: 27 })];
+  addXm(xmUnits[0], 9, "pending", "requested", 0);
+  addXm(xmUnits[1], 3, "compatible", "resulted", 0);
+  addXm(addUnit({ group: "A+", component: "PRBC", ageDays: 6, status: "Available", donor: 28 }), 4, "incompatible", "resulted", 1);
 
   const radiologyTests: Row[] = radiologyData.map((r) => ({
     id: r.id,
@@ -1071,6 +1215,267 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     return rows;
   })();
 
+
+  // ── MRD demo data ────────────────────────────────────────────────────────
+  // Locations, one file per patient in every state (available, checked out — some overdue, in transit, archived),
+  // requests, each file's movement trail, document folders, consent signatures, discharge coding and register entries.
+  const mrdDay = bbDay;
+  const mrdYY = mrdDay(0).slice(2, 4);
+  const mrdLocations: Row[] = defaultLocationPlan(departments.map((d) => String(d.name)), doctors.map((d) => String(d.name))).map((l, i) => ({
+    id: i + 1, hospital_id: 1, name: l.name, kind: l.kind, code: l.code, active: true, created_at: ts, updated_at: ts,
+  }));
+  const mrdRacks = mrdLocations.filter((l) => l.kind === "MRD rack");
+  const mrdArchive = mrdLocations.filter((l) => l.kind === "Archive room");
+  const mrdOut = mrdLocations.filter((l) => l.kind === "Nurse station" || l.kind === "Doctor cabin");
+  const admittedIds = new Set(ipdAdmissions.map((a) => a.patient_id as number | null).filter((x): x is number => x != null));
+  const hospitalPatients = patients.filter((p) => p.hospital_id === 1);
+  const mrdFiles: Row[] = [];
+  const mrdMovements: Row[] = [];
+  const mrdRequests: Row[] = [];
+  const holderPool = doctors.map((d) => String(d.name));
+  const trail = (f: Row, action: string, from: string, to: string, holder: string | null, dueOn: string | null, note: string, by: string, daysAgo: number) =>
+    mrdMovements.push({
+      id: mrdMovements.length + 1, hospital_id: 1, file_id: f.id, file_no: f.file_no, action, from_location: from, to_location: to,
+      holder_name: holder, due_on: dueOn, note, by_name: by, at: new Date(Date.now() - daysAgo * 86_400_000).toISOString(), created_at: ts, updated_at: ts,
+    });
+  hospitalPatients.forEach((p, i) => {
+    const home = rackFor(String(p.patient_code), mrdRacks.map((r) => ({ name: String(r.name), id: r.id }))) as { name: string; id: number | string } | null;
+    const fileNo = `F/${mrdYY}/${String(i + 1).padStart(5, "0")}`;
+    const file: Row = {
+      id: i + 1, hospital_id: 1, file_no: fileNo, patient_id: p.id, patient_name: p.name, patient_code: p.patient_code,
+      file_type: admittedIds.has(p.id as number) ? "IPD" : "OPD", status: "Available",
+      location_id: home?.id ?? null, location_name: (home?.name as string) ?? "", home_location_id: home?.id ?? null,
+      holder_name: null, due_on: null, checked_out_at: null, archived_on: null, created_at: ts, updated_at: ts,
+    };
+    trail(file, "Created", "", String(file.location_name), null, null, "File opened", "Deepak Nair", 60 + (i % 40));
+    const out = mrdOut[i % mrdOut.length];
+    const holder = holderPool[i % holderPool.length];
+    if (i % 5 === 1) {
+      // checked out — every third of them is past its due date
+      const due = i % 3 === 0 ? mrdDay(-(2 + (i % 4))) : mrdDay(1 + (i % 6));
+      Object.assign(file, { status: "Checked out", location_id: out.id, location_name: out.name, holder_name: holder, due_on: due, checked_out_at: new Date(Date.now() - 4 * 86_400_000).toISOString() });
+      trail(file, "Checked out", String(home?.name ?? ""), String(out.name), holder, due, "", "Deepak Nair", 4);
+    } else if (i % 11 === 4) {
+      const due = i % 2 === 0 ? mrdDay(-1) : mrdDay(2);
+      Object.assign(file, { status: "In transit", location_id: out.id, location_name: out.name, holder_name: holder, due_on: due, checked_out_at: new Date(Date.now() - 2 * 86_400_000).toISOString() });
+      trail(file, "Dispatched", String(home?.name ?? ""), String(out.name), holder, due, "Request by Ward desk", "Deepak Nair", 2);
+      mrdRequests.push({
+        id: mrdRequests.length + 1, hospital_id: 1, file_id: file.id, file_no: fileNo, patient_id: p.id, patient_name: p.name, urgency: i % 2 === 0 ? "Urgent" : "Routine",
+        status: "Dispatched", requested_on: mrdDay(-3), requested_by: "Ward desk", requested_for: holder, destination_id: out.id, destination_name: out.name,
+        note: "", dispatched_at: new Date(Date.now() - 2 * 86_400_000).toISOString(), dispatched_by: "Deepak Nair", returned_at: null, returned_by: null, cancelled_at: null,
+        created_at: ts, updated_at: ts,
+      });
+    } else if (i % 7 === 3) {
+      const room = mrdArchive[i % mrdArchive.length];
+      Object.assign(file, { status: "Archived", location_id: room.id, location_name: room.name, archived_on: mrdDay(-30) });
+      trail(file, "Archived", String(home?.name ?? ""), String(room.name), null, null, "Closed episode", "Deepak Nair", 30);
+    }
+    mrdFiles.push(file);
+  });
+  // Requests waiting for MRD to dispatch (against files that are on the shelf), and two that came back.
+  const onShelf = mrdFiles.filter((f) => f.status === "Available");
+  [[0, "Urgent", "Dr. Ava Johnson"], [3, "Routine", "Ward desk"], [6, "Routine", "Casualty desk"]].forEach(([k, urgency, who], n) => {
+    const f = onShelf[k as number];
+    if (!f) return;
+    const dest = mrdOut[(n + 2) % mrdOut.length];
+    mrdRequests.push({
+      id: mrdRequests.length + 1, hospital_id: 1, file_id: f.id, file_no: f.file_no, patient_id: f.patient_id, patient_name: f.patient_name, urgency, status: "Pending",
+      requested_on: mrdDay(-(n % 2)), requested_by: String(who), requested_for: String(who), destination_id: dest.id, destination_name: dest.name, note: "",
+      dispatched_at: null, dispatched_by: null, returned_at: null, returned_by: null, cancelled_at: null, created_at: ts, updated_at: ts,
+    });
+  });
+  [[8, 12], [10, 20]].forEach(([k, daysAgo]) => {
+    const f = onShelf[k];
+    if (!f) return;
+    mrdRequests.push({
+      id: mrdRequests.length + 1, hospital_id: 1, file_id: f.id, file_no: f.file_no, patient_id: f.patient_id, patient_name: f.patient_name, urgency: "Routine", status: "Returned",
+      requested_on: mrdDay(-daysAgo), requested_by: "Ward desk", requested_for: "Ward desk", destination_id: null, destination_name: "", note: "",
+      dispatched_at: new Date(Date.now() - daysAgo * 86_400_000).toISOString(), dispatched_by: "Deepak Nair", returned_at: new Date(Date.now() - (daysAgo - 3) * 86_400_000).toISOString(), returned_by: "Deepak Nair",
+      cancelled_at: null, created_at: ts, updated_at: ts,
+    });
+    trail(f, "Dispatched", String(f.location_name), "Ward desk", "Ward desk", mrdDay(-daysAgo + 7), "", "Deepak Nair", daysAgo);
+    trail(f, "Returned", "Ward desk", String(f.location_name), "Ward desk", null, "", "Deepak Nair", daysAgo - 3);
+  });
+
+  const mrdFolders: Row[] = DEFAULT_FOLDERS.map((f, i) => ({ id: i + 1, hospital_id: 1, name: f.name, class: f.class, description: f.description, created_at: ts, updated_at: ts }));
+
+  const mrdPolicies: Row[] = DEFAULT_POLICIES.map((p, i) => ({ id: i + 1, hospital_id: 1, name: p.name, class: p.class, retention_years: p.years, categories: p.categories, action_after: "Review", active: true, created_at: ts, updated_at: ts }));
+
+  const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+  const sigPatients = hospitalPatients.slice(0, 6);
+  const tinyPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg==";
+  const consentTitle = (key: string, lang: "English" | "Hindi" | "Gujarati") => consentForm(key)!.title[lang];
+  const consentBody = (key: string, lang: "English" | "Hindi" | "Gujarati") => consentForm(key)!.body[lang];
+  const signatureRequests: Row[] = [
+    { key: "general-consent", lang: "Hindi", status: "Draft", madeH: -3 },
+    { key: "general-consent", lang: "English", status: "Waiting", madeH: -2, delivery: "whatsapp", expH: 70, extra: {} },
+    { key: "surgery-consent", lang: "English", status: "Signed", madeH: -50, delivery: "qr", expH: -2, extra: { signed_via: "phone", signed_at: inHours(-48), signer_name: String(sigPatients[2]?.name ?? ""), signer_relation: "Self", signature_data: tinyPng, opened_at: inHours(-49) } },
+    { key: "transfusion-consent", lang: "Gujarati", status: "Refused", madeH: -26, delivery: "email", expH: 40, extra: { refused_reason: "Wants to talk to family first", opened_at: inHours(-25) } },
+    { key: "admission-consent", lang: "Hindi", status: "Cancelled", madeH: -30, delivery: "whatsapp", expH: 40, extra: { cancelled_at: inHours(-29) } },
+    { key: "photography-consent", lang: "Gujarati", status: "Signed", madeH: -20, extra: { signed_via: "paper", signed_at: inHours(-19), signer_name: String(sigPatients[5]?.name ?? ""), signer_relation: "Self", witness_name: "Deepak Nair" } },
+  ].map((r, i) => {
+    const p = sigPatients[i] ?? sigPatients[0];
+    const lang = r.lang as "English" | "Hindi" | "Gujarati";
+    const linked = r.status !== "Draft" && r.status !== "Signed" || r.extra?.signed_via === "phone";
+    return {
+      id: i + 1, hospital_id: 1, patient_id: p.id, patient_name: p.name, patient_code: p.patient_code, patient_phone: p.phone ?? "",
+      template_key: r.key, form_title: consentTitle(r.key, lang), form_body: consentBody(r.key, lang), language: lang, include_english: lang !== "English" && i % 2 === 0,
+      token: linked ? randomBytes(24).toString("base64url") : null, status: r.status,
+      sent_by: "Dr. Kevin Carter", sent_at: inHours(r.madeH), expires_at: linked ? inHours(r.expH ?? 70) : null,
+      link_sent_at: linked ? inHours(r.madeH) : null, delivery: linked ? r.delivery ?? null : null, opened_at: null,
+      signed_at: null, signer_name: null, signer_relation: null, signed_via: null, signed_language: null, witness_name: null, signed_document_id: null,
+      signature_data: null, refused_reason: null, cancelled_at: null, ...r.extra, created_at: ts, updated_at: ts,
+    };
+  });
+
+  const dischargedAdmissions = ipdAdmissions.filter((a) => a.status === "Discharged");
+  const mrdCases: Row[] = dischargedAdmissions.map((a, i) => ({
+    id: i + 1, hospital_id: 1, admission_id: a.id, admission_no: a.admission_no, patient_id: a.patient_id, patient_name: a.patient_name, patient_code: a.patient_code,
+    doctor: a.doctor, admitted_on: a.admission_date,
+    status: i === 0 ? "Signed off" : "Pending",
+    principal_dx_code: i === 0 ? "O80" : "", principal_dx_text: i === 0 ? "Encounter for full-term uncomplicated delivery" : String(a.diagnosis ?? ""),
+    secondary_dx: i === 0 ? [{ code: "Z37.0", text: "Single live birth" }] : [], procedures: [],
+    coder_name: i === 0 ? "Deepak Nair" : null, coded_at: i === 0 ? mrdDay(-5) : null, signed_off_by: i === 0 ? "Dr. Kevin Carter" : null, signed_off_at: i === 0 ? mrdDay(-4) : null,
+    queued_at: ts, created_at: ts, updated_at: ts,
+  }));
+
+  const entryAt = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+  const mrdRegisterEntries: Row[] = [
+    { register: "birth", entry_date: mrdDay(-9), data: { motherName: String(hospitalPatients[3]?.name ?? "Meena Reddy"), babySex: "female", weightG: "3100", timeOfBirth: "04:35", deliveryType: "Normal vaginal", attendant: "Dr. Sophia Adams", fatherName: "Ramesh Reddy", address: "Hyderabad" }, report_to: "Municipal registrar" },
+    { register: "birth", entry_date: mrdDay(-2), data: { motherName: String(hospitalPatients[8]?.name ?? "Anita Rao"), babySex: "male", weightG: "2850", timeOfBirth: "19:10", deliveryType: "Caesarean section", attendant: "Dr. Sophia Adams", fatherName: "Vikram Rao", address: "Secunderabad" }, report_to: "Municipal registrar" },
+    { register: "death", entry_date: mrdDay(-6), data: { deceasedName: "Rajan Mehta", sex: "male", age: "62", timeOfDeath: "02:20", causeOfDeath: "Acute myocardial infarction", placeOfDeath: "ICU", certifiedBy: "Dr. Noah Carter", informant: "Family member" }, report_to: "Municipal registrar" },
+  ].map((r, i, all) => {
+    const nth = all.slice(0, i + 1).filter((x) => x.register === r.register).length;
+    return { id: i + 1, hospital_id: 1, ...r, entry_no: `${r.register === "birth" ? "BR" : "DR"}/${mrdYY}/${String(nth).padStart(5, "0")}`, filed_by: "Deepak Nair", filed_at: entryAt(-(r.entry_date < mrdDay(-5) ? 6 : 2)), amends_id: null, superseded_by: null, created_at: ts, updated_at: ts };
+  });
+
+
+  // ── CSSD demo data ───────────────────────────────────────────────────────
+  // Sterilizers, instrument sets in every state (sterile, expiring, expired, packed, dirty, in a running cycle, issued — two
+  // of those overdue), passed / failed / quarantined cycles, and requests, issues and returns.
+  const cssdSterilizers: Row[] = DEFAULT_STERILIZERS.map((st, i) => ({ id: i + 1, hospital_id: 1, ...st, active: true, created_at: ts, updated_at: ts }));
+  const setKinds: [string, string, number][] = [
+    ["LSCS / Caesarean Set", "Obstetric", 850], ["Minor OT Procedure Set", "Procedure", 600], ["ENT Endoscopy Set", "Endoscopy", 979], ["Cystoscopy Set", "Endoscopy", 1038],
+    ["Ortho Implant Set", "Orthopaedic", 2500], ["General Surgery Major Set", "Surgical", 410], ["Episiotomy / Delivery Set", "Obstetric", 960], ["Suture Removal / Dressing Set", "Dressing", 676],
+    ["Appendicectomy Set", "Surgical", 322], ["Laparoscopy Set", "Surgical", 958],
+  ];
+  const wraps = ["Pouched", "Wrapped", "Rigid container"];
+  const cssdSets: Row[] = [];
+  const cssdCycles: Row[] = [];
+  const cssdIssues: Row[] = [];
+  const cycleNo = () => `CC/${mrdYY}/${String(cssdCycles.length + 1).padStart(5, "0")}`;
+  const addCycle = (sterilizerIdx: number, status: string, hoursAgo: number, setIds: number[], note = "") => {
+    const st = cssdSterilizers[sterilizerIdx];
+    const id = cssdCycles.length + 1;
+    cssdCycles.push({
+      id, hospital_id: 1, cycle_no: cycleNo(), sterilizer_id: st.id, sterilizer_name: st.name, method: st.method, started_at: inHours(-hoursAgo), started_by: "Deepak Nair",
+      set_ids: setIds, temp_c: 134, pressure_psi: 30, exposure_min: 20, indicator: status === "Running" ? "pending" : status === "Failed" ? "fail" : "pass", status,
+      result_by: status === "Running" ? null : "Deepak Nair", result_at: status === "Running" ? null : inHours(-hoursAgo + 2), note, created_at: ts, updated_at: ts,
+    });
+    return id;
+  };
+  const dept = (i: number) => departments[i % departments.length] as Row;
+  for (let i = 0; i < 24; i++) {
+    const [name, type, charge] = setKinds[i % setKinds.length];
+    const d = dept(i);
+    const base: Row = {
+      id: i + 1, hospital_id: 1, set_no: `CS-${String(i + 1).padStart(5, "0")}`, name, type, department_id: d.id, department_name: String(d.name),
+      instruments: [{ name: "Artery forceps", qty: 6 }, { name: "Needle holder", qty: 2 }, { name: "Scissors", qty: 2 }], usage_charge: charge,
+      status: "Dirty", packaging: null, sterile_until: null, last_cycle_id: null, times_processed: 1 + (i % 5), created_at: ts, updated_at: ts,
+    };
+    cssdSets.push(base);
+  }
+  const put = (i: number, patch: Record<string, unknown>) => Object.assign(cssdSets[i], patch);
+  // 0-5 sterile and in date (two expiring this week), 6-10 sterile but past their date
+  for (let i = 0; i <= 5; i++) put(i, { status: "Sterile", packaging: wraps[i % 3], sterile_until: mrdDay(i < 2 ? 3 + i : 14 + i * 5) });
+  for (let i = 6; i <= 10; i++) put(i, { status: "Sterile", packaging: wraps[i % 3], sterile_until: mrdDay(-(i - 4)) });
+  for (let i = 11; i <= 13; i++) put(i, { status: "Packed", packaging: wraps[i % 3] });
+  // 14-15 dirty (as registered)
+  for (let i = 16; i <= 18; i++) put(i, { status: "In cycle", packaging: wraps[i % 3] });
+  for (let i = 19; i <= 22; i++) put(i, { status: "Sterile", packaging: wraps[i % 3], sterile_until: mrdDay(20) });
+  // The cycles that made the sterile ones sterile, plus a failed and a quarantined one, and the running cycle.
+  const passed = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9, 10], [19, 20, 21, 22]];
+  passed.forEach((ids, n) => {
+    const cid = addCycle(n % 6, "Passed", 30 + n * 20, ids.map((x) => x + 1));
+    ids.forEach((x) => put(x, { last_cycle_id: cid }));
+  });
+  addCycle(5, "Failed", 14, [12, 13]);
+  addCycle(3, "Quarantined", 400, [14], "Biological indicator read late");
+  const running = addCycle(0, "Running", 1, [17, 18, 19]);
+  for (const i of [16, 17, 18]) put(i, { last_cycle_id: running });
+  // Issues: two requests waiting; four sets out (two overdue); a history of returns.
+  const people = hospitalPatients;
+  const issueNo = () => `CI/${mrdYY}/${String(cssdIssues.filter((x) => x.issue_no).length + 1).padStart(5, "0")}`;
+  const addIssue = (setIdx: number, status: string, hoursAgo: number, who: number, extra: Record<string, unknown> = {}) => {
+    const set = cssdSets[setIdx];
+    const p = people[who % people.length];
+    const issued = status === "Issued" || status === "Returned";
+    cssdIssues.push({
+      id: cssdIssues.length + 1, hospital_id: 1, issue_no: issued ? issueNo() : null, set_id: set.id, set_no: set.set_no, set_name: set.name,
+      patient_id: p.id, patient_name: p.name, department_name: set.department_name, case_id: null, case_label: "", status, requested_at: inHours(-hoursAgo - 1), requested_by: "Ward desk",
+      issued_at: issued ? inHours(-hoursAgo) : null, issued_by: issued ? "Deepak Nair" : null, expected_back: issued ? inHours(-hoursAgo + 24) : null,
+      returned_at: status === "Returned" ? inHours(-hoursAgo + 20) : null, returned_by: status === "Returned" ? "Deepak Nair" : null,
+      investigate: false, return_note: "", charge: set.usage_charge, bill_number: null, created_at: ts, updated_at: ts, ...extra,
+    });
+  };
+  [[2, 100], [3, 150], [4, 200], [5, 260], [6, 330], [7, 410], [8, 500], [9, 600]].forEach(([set, h], n) => addIssue(set, "Returned", h, n, n === 2 || n === 5 ? { investigate: true, return_note: "One artery forceps missing from the count" } : {}));
+  for (const [set, h, who] of [[19, 52, 0], [20, 51, 1], [21, 30, 2], [22, 28, 3]] as const) { addIssue(set, "Issued", h, who); put(set, { status: "Issued" }); }
+  addIssue(11, "Requested", 3, 4);
+  addIssue(12, "Requested", 2, 5);
+
+  // ── HR demo data ─────────────────────────────────────────────────────────
+  // Profile details (some licences close to lapsing), the four usual leave types and shifts, a few leave requests (one
+  // waiting, one running now, two past — one unpaid), this week's duty roster and a salary for everyone on the books.
+  const hrProfile: Record<number, Record<string, unknown>> = {
+    1: { qualification: "B.Sc Nursing, ICU diploma", licence_no: "GNC-48211", licence_expiry: bbDay(40), gender: "Female" },
+    2: { qualification: "B.Pharm", licence_no: "GPC-90133", licence_expiry: bbDay(300), gender: "Male" },
+    3: { qualification: "DMLT, B.Sc MLT", licence_no: "LT-5521", licence_expiry: bbDay(-12), gender: "Female" },
+    5: { qualification: "GNM", licence_no: "GNC-61920", licence_expiry: bbDay(25), gender: "Female" },
+    9: { qualification: "B.Sc Radiography", licence_no: "AERB-7714", licence_expiry: bbDay(200), gender: "Female" },
+  };
+  for (const st of staff) {
+    st.employee_no = `EMP-${1000 + Number(st.id)}`;
+    st.emergency_name = "Family contact";
+    st.emergency_phone = `+91 98000000${String(st.id).padStart(2, "0")}`;
+    Object.assign(st, hrProfile[Number(st.id)] ?? {});
+  }
+  const hrLeaveTypes: Row[] = DEFAULT_LEAVE_TYPES.map((t, i) => ({ id: i + 1, hospital_id: 1, name: t.name, code: t.code, days_per_year: t.daysPerYear, paid: t.paid, active: true, created_at: ts, updated_at: ts }));
+  const hrShifts: Row[] = DEFAULT_SHIFTS.map((t, i) => ({ id: i + 1, hospital_id: 1, ...t, active: true, created_at: ts, updated_at: ts }));
+  const leaveRows: Row[] = [];
+  const addLeave = (staffId: number, typeIdx: number, from: number, to: number, status: string, reason: string, note = "") => {
+    const st = staff.find((x) => x.id === staffId)!;
+    const t = hrLeaveTypes[typeIdx];
+    leaveRows.push({
+      id: leaveRows.length + 1, hospital_id: 1, staff_id: staffId, staff_name: st.name, department: st.department, leave_type_id: t.id, type_name: t.name, type_code: t.code, paid: t.paid,
+      from_date: bbDay(from), to_date: bbDay(to), days: to - from + 1, reason, status, applied_by: st.name, applied_at: bbAt(Math.max(1, -from + 3), 10),
+      decided_by: status === "Pending" ? null : "Dr. Kevin Carter", decided_at: status === "Pending" ? null : bbAt(Math.max(1, -from + 2), 11), decision_note: note, created_at: ts, updated_at: ts,
+    });
+  };
+  addLeave(3, 0, 5, 6, "Pending", "Family function");
+  addLeave(9, 1, -1, 2, "Approved", "Viral fever");
+  addLeave(5, 0, -20, -19, "Approved", "Travel");
+  addLeave(8, 3, -10, -9, "Approved", "Personal work");
+  const hrRoster: Row[] = [];
+  const mondayOffset = -((new Date().getDay() + 6) % 7);
+  const onLeaveOn = (id: number, date: string) => leaveRows.some((l) => l.staff_id === id && l.status === "Approved" && String(l.from_date) <= date && date <= String(l.to_date));
+  const rotation = [1, 2, 3]; // morning, evening, night
+  const nursing = [1, 5, 8];
+  for (const st of staff) {
+    if (st.status === "Inactive") continue;
+    for (let d = 0; d < 7; d++) {
+      const date = bbDay(mondayOffset + d);
+      if (onLeaveOn(Number(st.id), date) || (d === 6)) continue; // Sunday off
+      const nurseIdx = nursing.indexOf(Number(st.id));
+      const shiftId = nurseIdx >= 0 ? rotation[(Math.floor(d / 2) + nurseIdx) % 3] : 4;
+      hrRoster.push({ id: hrRoster.length + 1, hospital_id: 1, staff_id: st.id, work_date: date, shift_id: shiftId, created_at: ts, updated_at: ts });
+    }
+  }
+  const basics: Record<number, number> = { 1: 42000, 2: 38000, 3: 30000, 4: 24000, 5: 32000, 6: 34000, 7: 28000, 8: 18000, 9: 36000, 10: 52000, 11: 30000, 12: 20000 };
+  const hrSalaries: Row[] = staff.filter((x) => x.status !== "Inactive").map((x, i) => {
+    const basic = basics[Number(x.id)] ?? 25000;
+    return { id: i + 1, hospital_id: 1, staff_id: x.id, basic, hra: Math.round(basic * 0.4), allowances: Math.round(basic * 0.15), pf_percent: 12, prof_tax: 200, other_deduction: 0, updated_by: "Dr. Kevin Carter", created_at: ts, updated_at: ts };
+  });
+
   return {
     [TABLES.departments]: [...departments, h2Department],
     [TABLES.doctors]: [...doctors, h2Doctor],
@@ -1092,13 +1497,16 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.wards]: wards,
     [TABLES.beds]: beds,
     [TABLES.ipdAdmissions]: ipdAdmissions,
-    [TABLES.otSchedules]: otSchedules,
+    [TABLES.otSchedules]: [...otSchedules, ...otCurrent],
+    [TABLES.otRooms]: otRooms,
+    [TABLES.otEquipment]: otEquipment,
     [TABLES.hospitals]: hospitals,
     [TABLES.platformBills]: platformBills,
     [TABLES.auditLogs]: [],
     [TABLES.bloodDonors]: bloodDonors,
-    [TABLES.bloodStock]: bloodStock,
-    [TABLES.bloodIssues]: bloodIssues,
+    [TABLES.bloodUnits]: bloodUnits,
+    [TABLES.bloodCrossmatches]: bloodCrossmatches,
+    [TABLES.bloodTransfusions]: bloodTransfusions,
     [TABLES.radiologyTests]: radiologyTests,
     [TABLES.ambulances]: ambulances,
     [TABLES.ambulanceCalls]: ambulanceCalls,
@@ -1112,6 +1520,28 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.inventoryItems]: inventoryItems,
     [TABLES.inventoryIssues]: inventoryIssues,
     [TABLES.documents]: [],
+    [TABLES.mrdLocations]: mrdLocations,
+    [TABLES.mrdFiles]: mrdFiles,
+    [TABLES.mrdFileRequests]: mrdRequests,
+    [TABLES.mrdFileMovements]: mrdMovements,
+    [TABLES.mrdRetentionPolicies]: mrdPolicies,
+    [TABLES.mrdFolders]: mrdFolders,
+    [TABLES.mrdCodingCases]: mrdCases,
+    [TABLES.mrdDeficiencies]: [],
+    [TABLES.mrdRegisterEntries]: mrdRegisterEntries,
+    [TABLES.signatureRequests]: signatureRequests,
+    [TABLES.cssdSterilizers]: cssdSterilizers,
+    [TABLES.cssdSets]: cssdSets,
+    [TABLES.cssdCycles]: cssdCycles,
+    [TABLES.cssdIssues]: cssdIssues,
+    [TABLES.cssdSettings]: [],
+    [TABLES.hrLeaveTypes]: hrLeaveTypes,
+    [TABLES.hrLeaveRequests]: leaveRows,
+    [TABLES.hrShifts]: hrShifts,
+    [TABLES.hrRoster]: hrRoster,
+    [TABLES.hrSalaries]: hrSalaries,
+    [TABLES.hrPayrollRuns]: [],
+    [TABLES.hrPayslips]: [],
     [TABLES.staffAttendance]: [],
     [TABLES.teleconsultBookings]: [],
     [TABLES.googleConnections]: [],

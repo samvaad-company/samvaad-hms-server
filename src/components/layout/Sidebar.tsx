@@ -40,6 +40,20 @@ import {
   Video,
   HeartPulse,
   ListChecks,
+  FolderSearch,
+  FolderOpen,
+  FileSignature,
+  Biohazard,
+  CalendarOff,
+  Banknote,
+  CalendarRange,
+  BriefcaseBusiness,
+  Layers,
+  Building2,
+  GitBranch,
+  BadgeCheck,
+  Gift,
+  PillBottle,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -62,6 +76,8 @@ interface NavItem {
   hiddenForRoles?: string[];
   /** Show only to these roles (a personal page that isn't a permission on a shared resource). */
   onlyForRoles?: string[];
+  /** Active only on this exact path (not on pages below it): an overview page that sits above its siblings. */
+  exact?: boolean;
   /** Single-key shortcut that opens this page (shown as a badge). Must be unique. */
   key?: string;
 }
@@ -97,7 +113,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/appointments",  label: "Appointments",  icon: Calendar,     resource: "appointments", key: "A" },
       { href: "/teleconsult",   label: "Video Consults", icon: Video,       resource: "teleconsult", key: "V" },
-      { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy", key: "M" },
+      { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy", exact: true, key: "M" },
       { href: "/lab",           label: "Lab",           icon: FlaskConical, resource: "lab", key: "L" },
       { href: "/radiology",     label: "Radiology",     icon: ScanLine,     resource: "radiology", key: "X" },
       { href: "/tasks",         label: "Task Board",    icon: ClipboardList, resource: "tasks", key: "T" },
@@ -118,8 +134,24 @@ const groups: NavGroup[] = [
     items: [
       { href: "/blood-bank",    label: "Blood Bank",    icon: Droplets,  resource: "bloodbank", key: "K" },
       { href: "/ambulance",     label: "Ambulance",     icon: Ambulance, resource: "ambulance", key: "E" },
-      { href: "/inventory",     label: "Inventory",     icon: Boxes,     resource: "inventory", key: "N" },
       { href: "/records",       label: "Birth & Death", icon: Baby,      resource: "records", key: "W" },
+    ],
+  },
+  {
+    label: "Stores",
+    items: [
+      { href: "/inventory",     label: "Inventory",     icon: Boxes,     resource: "inventory", key: "N" },
+      { href: "/cssd",          label: "CSSD",          icon: Biohazard, resource: "cssd", key: "-" },
+      { href: "/pharmacy/dispense", label: "Dispense",  icon: PillBottle, resource: "pharmacy" },
+    ],
+  },
+  {
+    label: "MRD",
+    items: [
+      { href: "/file-tracking", label: "File tracking", icon: FolderSearch,   resource: "mrd", key: "7" },
+      { href: "/documents",     label: "Documents",     icon: FolderOpen,     resource: "mrd", key: "8" },
+      { href: "/signatures",    label: "Signatures",    icon: FileSignature,  resource: "consents", key: "9" },
+      { href: "/mrd",           label: "MRD coding",    icon: ClipboardCheck, resource: "mrd", key: "0" },
     ],
   },
   {
@@ -132,12 +164,31 @@ const groups: NavGroup[] = [
     ],
   },
   {
-    label: "Admin",
+    label: "HR",
     items: [
+      { href: "/hr",            label: "HR overview",   icon: BriefcaseBusiness, resource: "hr", exact: true },
       { href: "/staff",         label: "Staff",         icon: Users2,    resource: "staff", hiddenForRoles: ["Head Nurse"], key: "Z" },
       { href: "/attendance",    label: "Attendance",    icon: CalendarCheck, resource: "staff", hiddenForRoles: ["Head Nurse"], key: "1" },
+      { href: "/hr/leave",      label: "Leave",         icon: CalendarOff,   resource: "hr" },
+      { href: "/hr/roster",     label: "Shifts & roster", icon: CalendarRange, resource: "hr" },
+      { href: "/hr/payroll",    label: "Payroll",       icon: Banknote,  resource: "payroll" },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin", key: "2" },
-      { href: "/settings",      label: "Settings",      icon: Settings,  resource: "admin", key: "," },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [
+      { href: "/settings",       label: "Settings",       icon: Settings,   resource: "admin", key: "," },
+      { href: "/masters",        label: "Masters",        icon: Layers,     resource: "admin" },
+      { href: "/hospital-setup", label: "Hospital setup", icon: Building2,  resource: "admin" },
+      { href: "/branches",       label: "Branches",       icon: GitBranch,  resource: "admin" },
+      { href: "/plan",           label: "Plan & licence", icon: BadgeCheck, resource: "admin" },
+      { href: "/refer",          label: "Refer & earn",   icon: Gift,       resource: "admin" },
     ],
   },
 ];
@@ -231,7 +282,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
         {visibleGroups.map((group) => {
           const isFolded = !collapsed && folded.has(group.label);
           // A folded section still shows the page you are on, so you never lose your place.
-          const shown = isFolded ? group.items.filter((item) => pathname === item.href || pathname.startsWith(item.href + "/")) : group.items;
+          const shown = isFolded ? group.items.filter((item) => pathname === item.href || (!item.exact && pathname.startsWith(item.href + "/"))) : group.items;
           return (
           <div key={group.label} className="flex flex-col gap-[2px]">
             {!collapsed && (
@@ -248,7 +299,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
             )}
             {collapsed && <div className="h-[1px] bg-[color:var(--line)] my-[6px] mx-1" />}
             {shown.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = pathname === item.href || (!item.exact && pathname.startsWith(item.href + "/"));
               const Icon = item.icon;
               return (
                 <div key={item.href} className="relative group/nav">

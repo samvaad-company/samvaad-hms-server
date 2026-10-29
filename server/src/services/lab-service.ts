@@ -24,7 +24,7 @@ import { type LabTestRow } from "@/db/tables";
 import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { validateNotPast } from "@/lib/field-rules";
-import { displayDate, displayTime, isoDate, nextCode } from "@/services/helpers";
+import { displayDate, displayTime, isoDate } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
@@ -36,6 +36,7 @@ import {
   type LabReportFileDTO,
   type LabTestDTO,
 } from "@shared/types/api";
+import { nextNumber } from "@/services/id-service";
 
 export const LAB_PRIORITIES = ["Routine", "Urgent", "STAT"] as const;
 export const LAB_DISCOUNT_TYPES = ["percent", "amount"] as const;
@@ -102,15 +103,19 @@ function scopeLabList(options: QueryOptions, actor: Session): QueryOptions {
 export async function enrichLab(rows: LabTestRow[]): Promise<LabTestDTO[]> {
   const hospitalIds = [...new Set(rows.map((r) => r.hospital_id))];
   const centerIds = [...new Set(rows.map((r) => r.lab_center_id).filter((v): v is number => v != null))];
-  const [hospitals, centers] = await Promise.all([
+  const patientIds = [...new Set(rows.map((r) => r.patient_id).filter((v): v is number => v != null))];
+  const [hospitals, centers, patients] = await Promise.all([
     Promise.all(hospitalIds.map((id) => hospitalsRepo.getRow(id))),
     Promise.all(centerIds.map((id) => labCentersRepo.getRow(id))),
+    Promise.all(patientIds.map((id) => patientsRepo.getRow(id))),
   ]);
+  const patientCode = new Map(patients.filter((p) => p != null).map((p) => [p.id, p.patient_code]));
   const hospitalName = new Map(hospitals.filter((h) => h != null).map((h) => [h.id, h.name]));
   const centerName = new Map(centers.filter((c) => c != null).map((c) => [c.id, c.name]));
 
   return rows.map((r) => ({
     ...toLabDTO(r),
+    patientCode: r.patient_id != null ? (patientCode.get(r.patient_id) ?? null) : null,
     hospitalName: hospitalName.get(r.hospital_id) ?? null,
     labCenterName: r.lab_center_id != null ? (centerName.get(r.lab_center_id) ?? null) : null,
   }));
@@ -213,7 +218,7 @@ export async function listRoutableCenters(actor: Session) {
 /** Next order number, shared by every test booked in one go. */
 async function nextOrderNumber(actor: Session): Promise<string> {
   const { rows } = await labRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextCode(rows.map((r) => r.order_number ?? ""), "LAB-", 4);
+  return nextNumber("lab_order", actor, rows.map((r) => r.order_number ?? ""), { prefix: "LAB-", pad: 4 });
 }
 
 export async function createLab(input: unknown, actor: Session, uow?: UnitOfWork) {

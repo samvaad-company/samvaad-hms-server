@@ -12,6 +12,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Modal } from "@/components/shared/Modal";
 import { FormInput, FormRow } from "@/components/shared/FormRow";
 import { THEME_COLORS, applyTheme } from "@/lib/theme";
+import Link from "next/link";
+import { ImportDialog } from "@/components/setup/CatalogViews";
+import { AppearanceTab, BillingTab, NotificationsTab, ProtocolsTab, SecurityTab } from "@/components/setup/SettingsTabs";
 
 interface HospitalSettings {
   name: string; regNumber: string; gstNumber: string; panNumber: string;
@@ -20,7 +23,7 @@ interface HospitalSettings {
   themeColor: string;
 }
 
-const TABS = ["Profile & branding"] as const;
+const TABS = ["Profile & branding", "Billing", "Notifications", "Security", "Appearance", "Protocols"] as const;
 
 function Value({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -142,12 +145,19 @@ export default function SettingsPage() {
   const { item: settings, loading, reload } = useItem<HospitalSettings>("/admin/settings");
   const [tab, setTab] = useState<(typeof TABS)[number]>(TABS[0]);
   const [editing, setEditing] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   return (
     <div className="min-h-full bg-[color:var(--surface)]">
       <div className="flex items-center gap-3 px-6 h-[52px] border-b border-[color:var(--line)]">
         <SettingsIcon size={16} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[15px] font-medium text-[color:var(--ink)]">Settings</h1>
+        {canEdit && (
+          <div className="ml-auto flex items-center gap-2">
+            <button onClick={() => setImporting(true)} className="h-[32px] rounded-[8px] border border-[color:var(--line)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer">Data import</button>
+            <Link href="/signatures" className="inline-flex h-[32px] items-center rounded-[8px] border border-[color:var(--line)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]">Consent forms</Link>
+          </div>
+        )}
       </div>
 
       <div className="px-6 border-b border-[color:var(--line)] flex gap-6">
@@ -162,7 +172,12 @@ export default function SettingsPage() {
       <div className="p-6 max-w-[760px] flex flex-col gap-5">
         {loading || !settings ? (
           <p className="text-[14px] text-[color:var(--ink-soft)]">Loading settings…</p>
-        ) : (
+        ) : tab === "Billing" ? <BillingTab canEdit={canEdit} />
+        : tab === "Notifications" ? <NotificationsTab canEdit={canEdit} />
+        : tab === "Security" ? <SecurityTab canEdit={canEdit} />
+        : tab === "Appearance" ? <AppearanceTab hospitalColour={settings.themeColor} />
+        : tab === "Protocols" ? <ProtocolsTab canEdit={canEdit} />
+        : (
           <>
             <Card eyebrow="Branding">
               <ThemePicker current={settings.themeColor} canEdit={canEdit} onChanged={reload} />
@@ -204,6 +219,7 @@ export default function SettingsPage() {
       </div>
 
       {editing && settings && <EditProfile settings={settings} onClose={() => setEditing(false)} onSaved={reload} />}
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>
   );
 }

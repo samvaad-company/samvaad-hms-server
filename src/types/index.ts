@@ -14,16 +14,16 @@ export type OtStatus = "Scheduled" | "In Progress" | "Completed" | "Cancelled";
 export type BedStatus = "Available" | "Occupied" | "Reserved" | "Maintenance";
 export type StaffStatus = "Active" | "On Leave" | "Inactive";
 export type DonorStatus = "Eligible" | "Deferred";
-export type BloodIssueStatus = "Issued" | "Pending" | "Cancelled";
-/** Set by the ordering doctor; STAT is read first, then Urgent, then Routine. */
-export type RadiologyPriority = "Routine" | "Urgent" | "STAT";
+/** Set by the ordering doctor on a lab or imaging order; STAT is read first, then Urgent, then Routine. */
+export type TestPriority = "Routine" | "Urgent" | "STAT";
+export type RadiologyPriority = TestPriority;
+export type LabPriority = TestPriority;
 export type RadiologyStatus = "Pending" | "Scan Done" | "Report Ready" | "Cancelled";
 export type AmbulanceStatus = "Available" | "On Call" | "Maintenance";
 export type AmbulanceCallStatus = "Dispatched" | "Completed" | "Cancelled";
 export type TpaStatus = "Active" | "Inactive";
 export type ClaimStatus = "Submitted" | "In Review" | "Approved" | "Rejected" | "Settled";
 export type InventoryStatus = "In Stock" | "Low Stock" | "Out of Stock";
-export type BloodComponent = "Whole Blood" | "Plasma" | "Platelets" | "RBC";
 export type TaskStatus = "To Do" | "In Progress" | "Blocked" | "Done";
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 export type ScribeStatus = "Draft" | "Saved" | "Signed";

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search, FileText, Upload, ScanLine, CalendarDays } from "lucide-react";
 import { formatDate, parseDisplayDate, inDateRange, DATE_RANGES, type DateRangeId } from "@/lib/dates";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import { PriorityBadge, PRIORITIES, PRIORITY_RANK } from "@/components/radiology/PriorityBadge";
+import { PriorityBadge, PRIORITIES, PRIORITY_RANK } from "@/components/shared/PriorityBadge";
 import type { RadiologyTestDTO } from "@/types/api";
 import type { RadiologyPriority, RadiologyStatus } from "@/types";
 

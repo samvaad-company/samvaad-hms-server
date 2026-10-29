@@ -1,13 +1,9 @@
 import { collectionRoute } from "@/http/crud";
-import {
-  listIssues,
-  createIssue,
-  ISSUES_LIST_CONFIG,
-} from "@/services/bloodbank-service";
+import { listTransfusions, TRANSFUSION_LIST_CONFIG } from "@/services/bloodbank-flow-service";
 
-export const { GET, POST } = collectionRoute({
+/** Issues are created by issuing a compatible cross-match, never directly. */
+export const { GET } = collectionRoute({
   resource: "bloodbank",
-  listConfig: ISSUES_LIST_CONFIG,
-  list: listIssues,
-  create: createIssue,
+  listConfig: TRANSFUSION_LIST_CONFIG,
+  list: listTransfusions,
 });

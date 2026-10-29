@@ -27,6 +27,7 @@ import Link from "next/link";
 
 const COLUMNS = [
   { label: "Staff Member", width: "minmax(150px,1.4fr)" },
+  { label: "Employee ID",  width: "100px" },
   { label: "Role",         width: "minmax(120px,1.1fr)" },
   { label: "Department",   width: "minmax(120px,1fr)" },
   { label: "Phone",        width: "150px" },
@@ -39,12 +40,13 @@ const FILTERS = [
   { id: "All", label: "All" }, { id: "Active", label: "Active" },
   { id: "OnLeave", label: "On Leave" }, { id: "Inactive", label: "Inactive" },
 ];
-const MIN_WIDTH = 1180;
+const MIN_WIDTH = 1290;
 
 function StaffRow({ row, actions }: { row: Staff; actions: RowAction[] }) {
   return (
     <Link href={`/staff/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
       <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="font-mono text-[12px] text-[color:var(--ink-soft)] truncate">{(row as StaffDTO).employeeNo}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.role}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.department}</span>
       <div className="flex items-center gap-[5px] min-w-0">
@@ -207,8 +209,8 @@ export default function StaffPage() {
       </Modal>
 
       <PageHeader
-        title="Staff"
-        subtitle="Manage hospital staff — nurses, technicians, admin personnel, and support staff."
+        title="Staff directory"
+        subtitle="HR · the people on the books — nurses, technicians, admin and support staff. Leave, shifts and payroll are under HR."
         stats={[{ icon: Users2, value: `${visible.length}`, label: "Total Staff" }]}
         action={canWrite ? { label: "Add Staff", icon: Plus, onClick: () => setShowModal(true) } : undefined}
         dateRange={false}
@@ -227,7 +229,7 @@ export default function StaffPage() {
                   <StaffRow key={r.id} row={r} actions={[
                     { label: "View profile", onClick: () => router.push(`/staff/${r.id}`) },
                     ...(canWrite ? [
-                      { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave", onClick: () => mutate(() => api.patch(`/staff/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
+                      { label: r.status === "On Leave" ? "Mark Active" : "Mark On Leave (manual)", onClick: () => mutate(() => api.patch(`/staff/${r.id}`, { status: r.status === "On Leave" ? "Active" : "On Leave" })) },
                       { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
                     ] : []),
                   ]} />

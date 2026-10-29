@@ -37,6 +37,7 @@ import { computePharmacyStatus } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
+import { nextNumber } from "@/services/id-service";
 
 export const PO_STATUSES = ["Pending", "Received", "Cancelled"] as const;
 export const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Insurance"] as const;
@@ -92,7 +93,7 @@ export async function createPurchaseOrder(input: unknown, actor: Session) {
   const { rows: existing } = await purchaseOrdersRepo.listRows(
     scopeToHospital({ unpaged: true }, actor),
   );
-  const poNumber = nextCode(existing.map((r) => r.po_number), "PO-", 4);
+  const poNumber = await nextNumber("purchase_order", actor, existing.map((r) => r.po_number), { prefix: "PO-", pad: 4 });
 
   const total = lines.reduce(
     (sum, l) => sum + Number(l.quantity) * Number(l.unitCost ?? 0),
@@ -334,7 +335,7 @@ export async function createSale(input: unknown, actor: Session) {
   );
   const saleNumber = nextCode(existing.map((r) => r.sale_number), "SALE-", 4);
   const { rows: bills } = await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  const billNumber = nextCode(bills.map((b) => b.bill_number), "INV-", 8);
+  const billNumber = await nextNumber("invoice", actor, bills.map((b) => b.bill_number), { prefix: "INV-", pad: 8 });
 
   // Sale, line items, stock levels and the bill must land together — a partial
   // write here would decrement stock for a sale that was never recorded.

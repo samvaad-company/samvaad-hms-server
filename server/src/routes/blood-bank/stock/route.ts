@@ -1,13 +1,7 @@
-import { collectionRoute } from "@/http/crud";
-import {
-  listStock,
-  addStock,
-  STOCK_LIST_CONFIG,
-} from "@/services/bloodbank-service";
+import { withRoute } from "@/http/handler";
+import { ok } from "@/http/response";
+import { requirePermission } from "@/auth/server";
+import { stockSummary } from "@/services/bloodbank-service";
 
-export const { GET, POST } = collectionRoute({
-  resource: "bloodbank",
-  listConfig: STOCK_LIST_CONFIG,
-  list: listStock,
-  create: addStock,
-});
+/** Usable units per ABO × Rh group, and how many expire within a week. */
+export const GET = withRoute(async () => ok(await stockSummary(await requirePermission("bloodbank", "read"))));

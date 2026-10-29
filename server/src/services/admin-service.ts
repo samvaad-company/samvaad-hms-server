@@ -135,6 +135,10 @@ const deptSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
   head: { type: "string", required: false, max: 120, default: "" },
   ext: { type: "string", required: false, max: 12, default: "" },
+  code: { type: "string", required: false, max: 12, pattern: /^[A-Za-z0-9._-]*$/ },
+  specialty: { type: "string", required: false, max: 80, default: "" },
+  clinical: { type: "boolean", required: false },
+  active: { type: "boolean", required: false },
 } as const;
 
 export async function listDepartments(actor: Session) {
@@ -151,6 +155,10 @@ export async function createDepartment(input: unknown, actor: Session) {
     name: data.name,
     head: data.head,
     extension: data.ext,
+    code: data.code ? data.code.toUpperCase() : null,
+    specialty: data.specialty || null,
+    clinical: data.clinical ?? true,
+    active: data.active ?? true,
   });
   await audit(actor, "create", "department", row.id);
   return toDepartmentDTO(row);
@@ -164,6 +172,10 @@ export async function updateDepartment(id: number, input: unknown, actor: Sessio
   if ("name" in data) patch.name = data.name;
   if ("head" in data) patch.head = data.head;
   if ("ext" in data) patch.extension = data.ext;
+  if ("code" in data) patch.code = data.code ? data.code.toUpperCase() : null;
+  if ("specialty" in data) patch.specialty = data.specialty || null;
+  if ("clinical" in data) patch.clinical = data.clinical;
+  if ("active" in data) patch.active = data.active;
   const row = await departmentsRepo.update(id, patch);
   await audit(actor, "update", "department", id, patch);
   return toDepartmentDTO(row!);

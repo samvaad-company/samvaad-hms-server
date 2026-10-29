@@ -18,6 +18,9 @@ const pastDate = (label: string) => (value: unknown): string | null => {
 export const PROFILE_COLUMNS = {
   ageMonths: "age_months",
   referralSource: "referral_source",
+  patientCategory: "patient_category",
+  incomeGroup: "income_group",
+  visitPurpose: "visit_purpose",
   medicoLegal: "medico_legal",
   temporary: "is_temporary",
   dataConsent: "data_consent",
@@ -43,6 +46,9 @@ export const PROFILE_COLUMNS = {
 export const profileSchema = {
   ageMonths: { type: "number", required: false, min: 0, max: 11 },
   referralSource: { type: "string", required: false, max: 60 },
+  patientCategory: { type: "string", required: false, max: 80 },
+  incomeGroup: { type: "string", required: false, max: 80 },
+  visitPurpose: { type: "string", required: false, max: 80 },
   medicoLegal: { type: "boolean", required: false },
   temporary: { type: "boolean", required: false },
   dataConsent: { type: "boolean", required: false },
@@ -70,6 +76,8 @@ export interface Payer {
   name: string;
   policyNumber: string;
   validUntil: string | null;
+  /** The sponsor contract (Setup → Sponsors) this cover is under; billing splits an invoice by its rules. */
+  contractId?: number | null;
 }
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -87,8 +95,10 @@ export function parsePayers(input: unknown): Payer[] {
       name: str(p.name, 120),
       policyNumber: str(p.policyNumber, 80),
       validUntil: str(p.validUntil, 40) || null,
+      contractId: p.contractId === null || p.contractId === undefined || p.contractId === "" ? null : Number(p.contractId),
     };
-    if (!payer.name && !payer.policyNumber) continue;
+    if (payer.contractId != null && (!Number.isInteger(payer.contractId) || payer.contractId < 1)) throw new BadRequestError("A payer's contract isn't valid");
+    if (!payer.name && !payer.policyNumber && !payer.contractId) continue;
     if (payer.validUntil && Number.isNaN(new Date(payer.validUntil).getTime())) throw new BadRequestError("A payer's validity date isn't a valid date");
     out.push(payer);
   }

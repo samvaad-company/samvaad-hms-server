@@ -13,7 +13,7 @@ import { MongoAdapter } from "@/db/mongo-adapter";
 import { ensureIndexes, reconcileCounters } from "@/db/mongo-indexes";
 import { buildSeed } from "@/db/seed";
 import { seedIfEmpty } from "@/db/seed-runner";
-import { normalizeStoredDates } from "@/db/normalize-dates";
+import { normalizeStoredDates, renameLegacyEnquiryStatus } from "@/db/normalize-dates";
 import { getConfig } from "@/config/env";
 import { logger } from "@/lib/logger";
 
@@ -27,7 +27,13 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // table's real max id, fixing E11000 collisions on tables whose rows
 // predate (or otherwise bypassed) the counter-bump logic.
 // v3: unique partial indexes for tele-consult (one appointment per booking, one ledger row per payment).
-const MONGO_SCHEMA_VERSION = 3;
+// v4: enquiry status "Follow-up" renamed "Contacted"; new IPD nurse-station and checklist collections.
+// v5: blood bank, MRD, consents and CSSD collections and indexes.
+// v6: HR collections and indexes (leave, shifts, roster, salaries, payroll).
+// v7: Setup records (masters, hospital setup, branches).
+// v8: pharmacy batches, dispenses and returns.
+// v9: bill line items.
+const MONGO_SCHEMA_VERSION = 10;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {
@@ -58,6 +64,7 @@ async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
       }
     }
     await normalizeStoredDates(mongo);
+    await renameLegacyEnquiryStatus(mongo);
 
     await meta.updateOne(
       { _id: "schema" },

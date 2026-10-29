@@ -32,7 +32,7 @@ import { listStaff, STAFF_LIST_CONFIG } from "@/services/staff-service";
 import { listItems, ITEMS_LIST_CONFIG } from "@/services/inventory-service";
 import { listTasks, TASKS_LIST_CONFIG } from "@/services/tasks-service";
 import { listCalls, CALLS_LIST_CONFIG } from "@/services/ambulance-service";
-import { listStock, STOCK_LIST_CONFIG } from "@/services/bloodbank-service";
+import { listUnits, UNITS_LIST_CONFIG } from "@/services/bloodbank-service";
 import { listClaims, CLAIMS_LIST_CONFIG } from "@/services/tpa-service";
 import { listDocuments, DOCUMENTS_LIST_CONFIG } from "@/services/documents-service";
 import { incomeService, expenseService } from "@/services/finance-service";
@@ -131,7 +131,7 @@ export const CHAT_DOMAINS: ChatDomain[] = [
   makeListDomain("query_inventory", "inventory", "Search/list inventory items and stock levels.", ITEMS_LIST_CONFIG.searchColumns, listItems),
   makeListDomain("query_tasks", "tasks", "Search/list the staff task board.", TASKS_LIST_CONFIG.searchColumns, listTasks),
   makeListDomain("query_ambulance_calls", "ambulance", "Search/list ambulance call logs.", CALLS_LIST_CONFIG.searchColumns, listCalls),
-  makeListDomain("query_blood_stock", "bloodbank", "Search/list blood bank stock by group/component.", STOCK_LIST_CONFIG.searchColumns, listStock),
+  makeListDomain("query_blood_stock", "bloodbank", "Search/list blood bank units by group, component or status (Quarantined, Available, Cross-matched, Issued, Discarded).", UNITS_LIST_CONFIG.searchColumns, listUnits),
   makeListDomain("query_tpa_claims", "tpa", "Search/list TPA/insurance claims.", CLAIMS_LIST_CONFIG.searchColumns, listClaims, "patient_id"),
   makeListDomain("query_documents", "documents", "Search/list uploaded documents.", DOCUMENTS_LIST_CONFIG.searchColumns, listDocuments),
   makeListDomain("query_finance_income", "finance", "Search/list finance income entries.", ["category", "description", "invoice_number"], incomeService.list),

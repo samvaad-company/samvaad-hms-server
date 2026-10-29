@@ -350,7 +350,7 @@ function generatePassword(): string {
   return Array.from(bytes, b => chars[b % chars.length]).join("") + "#7";
 }
 
-const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Tele Caller","Billing Exec","Lab Technician","Pharmacist","IT Admin","Radiology Partner","Lab Partner"];
+const ROLE_OPTIONS = ["Super Admin","Doctor","Head Nurse","Receptionist","Tele Caller","Billing Exec","Lab Technician","Pharmacist","IT Admin","MRD Officer","CSSD Technician","HR Manager","Radiology Partner","Lab Partner"];
 
 function ChangeRoleModal({ user, onClose, onSaved }: { user: AdminUserDTO; onClose: () => void; onSaved: () => void }) {
   const { run, loading, error } = useMutation();

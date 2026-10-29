@@ -22,9 +22,9 @@ import type { Doctor } from "@/types";
 const COLUMNS = [
   { label: "Doctor",         width: "minmax(150px,1.4fr)" },
   { label: "Specialty",      width: "minmax(150px,1.3fr)" },
-  { label: "Phone",          width: "150px" },
-  { label: "Department",     width: "minmax(120px,1fr)" },
-  { label: "Experience",     width: "100px" },
+  { label: "Phone",          width: "150px", hideBelow: 860 },
+  { label: "Department",     width: "minmax(120px,1fr)", hideBelow: 980 },
+  { label: "Experience",     width: "100px", hideBelow: 1100 },
   { label: "Patients Today", width: "120px", align: "center" as const },
   { label: "Status",         width: "110px" },
   { label: "Action",         width: "52px", align: "right" as const },

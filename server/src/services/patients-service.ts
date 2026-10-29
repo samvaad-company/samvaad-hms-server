@@ -13,7 +13,8 @@ import {
   ipdRepo,
   otRepo,
   bedsRepo,
-  bloodIssuesRepo,
+  bloodCrossmatchesRepo,
+  bloodTransfusionsRepo,
   tpaClaimsRepo,
   pharmacySalesRepo,
   scribeNotesRepo,
@@ -23,12 +24,7 @@ import { type QueryOptions, type Row } from "@/db/adapter";
 import { type PatientRow } from "@/db/tables";
 import { type Repository } from "@/repositories/base";
 import { validate, validatePartial } from "@/lib/validation";
-import {
-  ageFromDob,
-  displayDate,
-  displayTime,
-  nextCode,
-} from "@/services/helpers";
+import { ageFromDob, displayDate, displayTime } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { toPrescriptionDTO } from "@/repositories/mappers";
@@ -36,9 +32,11 @@ import { mobileRule, dobRule, optionalMobileRule } from "@/lib/field-rules";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { enrichLab } from "@/services/lab-service";
 import { enrichRadiology } from "@/services/radiology-service";
-import { PROFILE_COLUMNS, profileSchema, parsePayers, parseCovid } from "@/services/patient-profile";
+import { assertMasterId, canonicalMaster } from "@/services/setup-service";
+import { PROFILE_COLUMNS, profileSchema, parsePayers, parseCovid, type Payer } from "@/services/patient-profile";
 import { toStoredDocuments } from "@/lib/identity-documents";
 import { ConflictError } from "@/lib/errors";
+import { nextNumber } from "@/services/id-service";
 
 const createSchema = {
   name: { type: "string", required: true, min: 2, max: 120 },
@@ -159,7 +157,8 @@ const PATIENT_NAME_CASCADE_REPOS: Repository<Row, unknown>[] = [
   ipdRepo,
   otRepo,
   bedsRepo,
-  bloodIssuesRepo,
+  bloodCrossmatchesRepo,
+  bloodTransfusionsRepo,
   tpaClaimsRepo,
   pharmacySalesRepo,
   scribeNotesRepo,
@@ -186,6 +185,28 @@ function profileColumns(data: Record<string, unknown>): Record<string, unknown> 
   return out;
 }
 
+/** The fields that name an entry in a Setup master. Whatever was typed is replaced by the master's own spelling, or refused. */
+const MASTER_FIELDS: { key: "patientCategory" | "incomeGroup" | "referralSource" | "visitPurpose"; kind: "patient_category" | "income_group" | "referral_source" | "visit_purpose"; col: string }[] = [
+  { key: "patientCategory", kind: "patient_category", col: "patient_category" },
+  { key: "incomeGroup", kind: "income_group", col: "income_group" },
+  { key: "referralSource", kind: "referral_source", col: "referral_source" },
+  { key: "visitPurpose", kind: "visit_purpose", col: "visit_purpose" },
+];
+async function normaliseMasters(data: Record<string, unknown>, actor: Session, existing?: PatientRow): Promise<void> {
+  for (const f of MASTER_FIELDS) {
+    if (!(f.key in data) || data[f.key] === undefined) continue;
+    data[f.key] = await canonicalMaster(f.kind, data[f.key], actor, f.key, existing ? (existing as unknown as Record<string, unknown>)[f.col] : undefined);
+  }
+}
+
+/** A payer's contract must be one of the hospital's active sponsor contracts (one already on the patient stays as it is). */
+async function assertPayerContracts(payers: Payer[], actor: Session, current: Payer[] = []): Promise<void> {
+  for (const p of payers) {
+    if (!p.contractId || current.some((c) => c.contractId === p.contractId)) continue;
+    await assertMasterId("contract", p.contractId, actor, "payers");
+  }
+}
+
 /** The same identity document can't be registered under two patients of one hospital. */
 async function assertNoDuplicateDocuments(
   docs: { type: string; fingerprint: string }[],
@@ -200,13 +221,10 @@ async function assertNoDuplicateDocuments(
 
 export async function createPatient(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
+  await normaliseMasters(data as Record<string, unknown>, actor);
 
   const existing = await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  const code = nextCode(
-    existing.rows.map((r) => r.patient_code),
-    "HMS-",
-    4,
-  );
+  const code = await nextNumber("uhid", actor, existing.rows.map((r) => r.patient_code), { prefix: "HMS-", pad: 4 }, { gender: String(data.gender ?? "") });
 
   const age = data.age ?? (data.dob ? ageFromDob(String(data.dob)) : 0);
   const doctorName = await resolveDoctor(data.doctorId, actor);
@@ -215,6 +233,7 @@ export async function createPatient(input: unknown, actor: Session) {
   const identityDocuments = toStoredDocuments(body.identityDocuments);
   await assertNoDuplicateDocuments(identityDocuments, existing.rows, null);
   const payers = parsePayers(body.payers);
+  await assertPayerContracts(payers, actor);
   const covid = parseCovid(body.covid);
   const firstInsurance = payers.find((p) => p.type === "Insurance" && p.name);
 
@@ -261,6 +280,7 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
   const existing = await patientsRepo.getRow(id);
   assertOwnedByHospital(existing, actor, "Patient");
   const data = validatePartial(createSchema, input);
+  await normaliseMasters(data as Record<string, unknown>, actor, existing as PatientRow);
 
   const patch: Record<string, unknown> = {};
   const map: Record<string, string> = {
@@ -291,7 +311,11 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
   }
   Object.assign(patch, profileColumns(data as Record<string, unknown>));
   const body = (input ?? {}) as Record<string, unknown>;
-  if ("payers" in body) patch.payers = parsePayers(body.payers);
+  if ("payers" in body) {
+    const payers = parsePayers(body.payers);
+    await assertPayerContracts(payers, actor, (existing as { payers?: Payer[] }).payers);
+    patch.payers = payers;
+  }
   if ("covid" in body) patch.covid_details = parseCovid(body.covid);
   if ("identityDocuments" in body) {
     // Adding documents never drops the ones already on file.
