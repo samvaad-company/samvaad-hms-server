@@ -191,6 +191,29 @@ stationery and Treatment sheet buttons on Settings, logo upload.
   `test:idformats` (8), `test:wardmasters` (7), `test:coverage` (21).
 - Pharmacy OTC sales keep their own payment-mode enum.
 
+### Reports group (Analytics, AI monitor, Reports, Audit)
+- Sidebar group "Reports" → `/analytics` (tabs Dashboard / Reports / AI monitor), `/ai-monitor`, `/reports`, `/audit`. Screens: `src/components/reports/*`, `src/app/(dashboard)/{analytics,ai-monitor,reports,audit}`.
+- Server: `services/analytics-service.ts` (trends day/week/month vs the previous period, today's figures), `ai-monitor-service.ts` (scribe / AI chat / WhatsApp bot counts — never message text), `report-engine.ts` (the catalogue: 92 reports in 7 categories, ~70 run on live data; the rest are listed with `available: false` and a reason, e.g. TDS, cheque details, incident forms), `audit-trail-service.ts`. Routes: `/api/analytics`, `/api/analytics/ai`, `/api/reports/catalog`, `/api/reports/run`, `/api/audit` (+ `/verify`, `/export`).
+- `audit()` now writes `hospital_id` and chains each entry to the previous one (`meta._chain = {prev, hash}`, per hospital, under a key lock); entries written before this have no chain and are shown as "older entries". The audit screen verifies the chain on load. The old `/api/reports` route is no longer used by the UI.
+- Tests: `npm run test:reports` (server), `e2e/sections/11-reports.spec.ts`.
+
+### Housekeeping group (Housekeeping, Dietary, Waste & IC, Ambulance)
+- `/housekeeping`: Tasks board (Pending → In progress → Completed → Verified), Room readiness (every bed: Ready / Cleaning / To verify / Occupied), Linen ledger (store → wards → soiled → laundry; refuses moves of more than the source holds). Server `services/housekeeping-service.ts`, routes `/api/housekeeping/*`, tables `hk_tasks`, `hk_linen_categories`, `hk_linen_moves` (migration `0049`, Mongo schema version 12), tests `npm run test:housekeeping`, `e2e/sections/12-housekeeping.spec.ts`.
+- One routine clean per ward per day is raised the first time the board is opened that day; discharging a patient raises a bed turnaround for their bed (`ipd-service.dischargePatient` → `raiseBedTurnaround`).
+- `/dietary` (Dietary & kitchen): Board (a ward's active diet orders for the day + the kitchen sheet: Generate/Regenerate → Print → Mark dispatched → Confirm receipt), Orders, Kitchen (production plan), Canteen (menu + the day's sales), Diets (diet master). Server `services/dietary-service.ts`, routes `/api/dietary/*`, tables `diet_types`, `diet_orders`, `diet_sheets`, `diet_sheet_lines`, `canteen_items`, `canteen_sales` (migration `0050`, Mongo schema version 13), tests `npm run test:dietary`, `e2e/sections/13-dietary.spec.ts`. Discharge ends a patient's diet order; a bed transfer moves it. Regenerating only adds meals not yet on the sheet; a dispatched sheet is closed.
+- `/waste` (Waste & infection control): Collection (bin entries by ward and colour: white sharps / red / yellow / blue), Disposal (loads to the vendor — refused if more than is waiting for that colour), Infection control (infection events, Open → Resolved; hand-hygiene audits), Dashboard (7/30/90 days), "Print register". Server `services/waste-ic-service.ts`, routes `/api/waste/*`, tables `waste_collections`, `waste_disposals`, `ic_events`, `hand_hygiene_audits` (migration `0051`, Mongo schema version 14), permission resource `cssd`, tests `npm run test:waste`, `e2e/sections/14-waste.spec.ts`.
+- `/ambulance` (now Dispatch / Calls / Fleet / Dashboard): a call is Queued (no vehicle) or Dispatched (en route to pickup) → At scene → Transporting → Completed / Cancelled, each step timed; calls are numbered `AMB/yy/nnnnn` by the new "Ambulance call no." ID format; vehicles have a board code (AMB-01) and a type; completing a call with a fare raises an Ambulance bill. Stored vehicle statuses are unchanged (`On Call` shows as Dispatched, `Maintenance` as Off road). Server `services/ambulance-service.ts`, new routes `/api/ambulance/calls/[id]/{dispatch,arrive,transport,complete,cancel}` and `/api/ambulance/dashboard` (the old PATCH `{status}` still works), migration `0052`, tests `npm run test:ambulance`.
+- The sidebar group "Housekeeping" holds Housekeeping, Dietary, Waste & IC and Ambulance (Ambulance moved out of Services).
+
+### End-to-end tests (Playwright) — `e2e/`, `playwright.config.ts`
+- `npm run test:e2e` (also `:ui`, `:report`): a real Chrome (the installed one — no browser download; `E2E_CHANNEL=chromium` after `npx playwright install chromium`)
+  against the running app (:3005) and API (:4000), started if not up (`E2E_BASE_URL`, `E2E_API_URL`, `E2E_APP_PORT`, `E2E_API_PORT`). Read-only: the tests sign in and
+  look, so they are safe on the dev database.
+- `e2e/auth.setup.ts` signs in once (hospital admin) and stores the session; `e2e/sections/*.spec.ts` has **one test per sidebar section** (47): reached by clicking its
+  sidebar link, its heading, its controls and tabs, and a section-specific step (switch tabs, open and close a dialog). Every test also fails on a page script error or a
+  5xx from the API (`support/test.ts`). `login.spec.ts`, `access.spec.ts` (what a doctor / receptionist see), `public.spec.ts` (patient-facing pages) run without a session.
+- 107 tests (47 section tests incl. the four Reports screens, 44 spacing checks, and the sign-in / access / public specs), about 1½ minutes. A dev server compiles each page the first time it is opened, so the first run is slower.
+
 ### WhatsApp (Meta Cloud API) — Setup → WhatsApp (`/whatsapp`), `docs/WHATSAPP_SETUP.md`
 - One number per hospital in `whatsapp_accounts` (token AES-256-GCM encrypted with a key from `SESSION_SECRET`, never returned) plus a
   `whatsapp_messages` log (in/out, delivery status). Connect by Meta Embedded Signup (`POST /api/whatsapp/callback` swaps the code for a token and

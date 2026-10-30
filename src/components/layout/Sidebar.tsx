@@ -55,6 +55,12 @@ import {
   MessageCircle,
   Gift,
   PillBottle,
+  Cpu,
+  FileBarChart,
+  ScrollText,
+  SprayCan,
+  UtensilsCrossed,
+  Recycle,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -134,8 +140,16 @@ const groups: NavGroup[] = [
     label: "Services",
     items: [
       { href: "/blood-bank",    label: "Blood Bank",    icon: Droplets,  resource: "bloodbank", key: "K" },
-      { href: "/ambulance",     label: "Ambulance",     icon: Ambulance, resource: "ambulance", key: "E" },
       { href: "/records",       label: "Birth & Death", icon: Baby,      resource: "records", key: "W" },
+    ],
+  },
+  {
+    label: "Housekeeping",
+    items: [
+      { href: "/housekeeping",  label: "Housekeeping",  icon: SprayCan,  resource: "beds" },
+      { href: "/dietary",       label: "Dietary",       icon: UtensilsCrossed, resource: "ipd" },
+      { href: "/waste",         label: "Waste & IC",    icon: Recycle, resource: "cssd" },
+      { href: "/ambulance",     label: "Ambulance",     icon: Ambulance, resource: "ambulance", key: "E" },
     ],
   },
   {
@@ -161,7 +175,15 @@ const groups: NavGroup[] = [
       { href: "/billing",       label: "Billing",          icon: Receipt,     resource: "billing", key: "G" },
       { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance", key: "F" },
       { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa", key: "J" },
-      { href: "/reports",       label: "Reports",          icon: BarChart3,   resource: "reports", key: "S" },
+    ],
+  },
+  {
+    label: "Reports",
+    items: [
+      { href: "/analytics",     label: "Analytics",     icon: BarChart3,    resource: "reports", key: "S" },
+      { href: "/ai-monitor",    label: "AI monitor",    icon: Cpu,          resource: "reports" },
+      { href: "/reports",       label: "Reports",       icon: FileBarChart, resource: "reports" },
+      { href: "/audit",         label: "Audit",         icon: ScrollText,   resource: "admin" },
     ],
   },
   {

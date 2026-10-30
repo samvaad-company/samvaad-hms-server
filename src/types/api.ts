@@ -1022,6 +1022,10 @@ export interface AmbulanceDTO {
   driverName: string;
   driverPhone: string;
   status: AmbulanceStatus;
+  /** AMB-01 */
+  code: string;
+  /** Basic Life Support (BLS), Neonatal … */
+  vehicleType: string;
 }
 
 export interface AmbulanceCallDTO {
@@ -1037,6 +1041,24 @@ export interface AmbulanceCallDTO {
   time: string;
   amount: number;
   status: AmbulanceCallStatus;
+  /** AMB/26/00041 */
+  callNo: string;
+  callType: string;
+  patientId: number | null;
+  openedAt: string;
+  dispatchedAt: string | null;
+  atSceneAt: string | null;
+  closedAt: string | null;
+}
+
+export interface AmbulanceDashboardDTO {
+  days: number; from: string; to: string;
+  calls: { total: number; completed: number; cancelled: number; active: number; queued: number; revenue: number };
+  response: { dispatchMin: number | null; sceneMin: number | null; tripMin: number | null };
+  byType: { type: string; count: number }[];
+  byVehicle: { code: string; vehicleType: string; calls: number; completed: number }[];
+  series: { date: string; calls: number }[];
+  fleet: { available: number; dispatched: number; offRoad: number; total: number };
 }
 
 export interface BirthRecordDTO {
@@ -2238,4 +2260,123 @@ export interface PayoutsDTO {
   rows: PayoutDTO[];
   payees: { payee: string; payeeType: string; pending: number; paid: number; count: number }[];
   totals: { pending: number; paid: number };
+}
+
+// ── Reports → Analytics ─────────────────────────────────────────────────────
+
+export type AnalyticsRange = "day" | "week" | "month";
+
+/** One headline figure for the period, and the same figure for the period before it. */
+export interface AnalyticsTrendStat { key: string; label: string; kind: "money" | "count"; value: number | null; previous: number | null; /** % change; null when there is nothing to compare with. */ change: number | null }
+
+export interface AnalyticsDTO {
+  today: string;
+  range: AnalyticsRange;
+  /** "this month so far (30 of 31 days) vs last" */
+  rangeNote: string;
+  stats: AnalyticsTrendStat[];
+  series: { label: string; patients: number; collected: number }[];
+  revenue: { collected: number; billsRaised: number; outstanding: number };
+  opd: { appointments: number; arrived: number; completed: number; noShow: number };
+  ipd: { admitted: number; admissionsToday: number; dischargesToday: number; occupancyPct: number; occupied: number; beds: number };
+  stores: { lowStock: number; nearExpiry: number; labPending: number; labReportedToday: number };
+}
+
+// ── Reports → Reports (the catalogue and a run) ─────────────────────────────
+
+export interface ReportMetaDTO { id: string; title: string; category: string; description: string; param: "range" | "day" | "asof" | "patient" | "none"; available: boolean }
+export interface ReportCatalogDTO { categories: string[]; reports: ReportMetaDTO[] }
+export interface ReportColumnDTO { key: string; label: string; fmt?: "text" | "int" | "money" | "date" | "pct" }
+export interface ReportRunDTO {
+  id: string; title: string; from: string; to: string; param: ReportMetaDTO["param"];
+  columns: ReportColumnDTO[]; rows: Record<string, string | number | null>[]; totals?: Record<string, string | number | null>;
+  summary?: { label: string; value: string | number | null; fmt?: ReportColumnDTO["fmt"] }[]; note?: string;
+}
+
+// ── Reports → Audit ─────────────────────────────────────────────────────────
+
+export interface AuditEntryDTO {
+  id: number; at: string; action: string; actionLabel: string; summary: string; actor: string; module: string; entity: string; entityId: string;
+  details: { label: string; value: string }[];
+}
+export interface AuditChainDTO { checkedOn: string; entries: number; unchained: number; intact: boolean; brokenAt: number | null }
+export interface AuditPageDTO {
+  rows: AuditEntryDTO[]; total: number; page: number; pageSize: number; modules: string[]; actions: { value: string; label: string }[]; actors: string[]; chain: AuditChainDTO;
+}
+
+// ── Reports → AI monitor ────────────────────────────────────────────────────
+
+export interface AiMonitorDTO {
+  days: number;
+  since: string;
+  series: { date: string; scribe: number; chat: number; whatsapp: number }[];
+  scribe: {
+    notes: number; minutes: number; patients: number;
+    byDoctor: { name: string; notes: number }[]; byLanguage: { name: string; notes: number }[]; byStatus: { name: string; notes: number }[];
+    recent: { id: number; at: string; patient: string; doctor: string; language: string; seconds: number; status: string }[];
+  };
+  chat: { threads: number; questions: number; answers: number; users: number };
+  whatsapp: { received: number; sent: number; failed: number; people: number; recent: { id: number; at: string; direction: string; kind: string; status: string }[] };
+}
+
+// ── Housekeeping ────────────────────────────────────────────────────────────
+
+export interface HkTaskDTO {
+  id: number; kind: string; source: string; title: string; ward: string; location: string; assignee: string; notes: string;
+  status: "Pending" | "In progress" | "Completed" | "Verified"; date: string; startedAt: string | null; completedAt: string | null; completionNotes: string; verifiedBy: string;
+}
+export interface HkRoomDTO { id: number; ward: string; wardId: number | null; label: string; number: string; state: "Ready" | "Occupied" | "Cleaning" | "To verify" | "Unavailable"; patient: string; taskId: number | null }
+export interface HkBoardDTO {
+  counts: { pending: number; cleaning: number; toVerify: number; ready: number; beds: number };
+  tasks: HkTaskDTO[]; rooms: HkRoomDTO[];
+  wards: { id: number; name: string }[]; beds: { id: number; wardId: number | null; label: string }[]; staff: { id: number; name: string; role: string }[];
+}
+export interface HkLinenCategoryDTO { id: number; name: string; unit: string; reorderAt: number; store: number; wards: number; soiled: number; laundry: number; total: number; low: boolean }
+export interface HkLinenMoveDTO { id: number; kind: string; label: string; category: string; quantity: number; from: string; to: string; fromBalance: number | null; toBalance: number | null; notes: string; at: string; by: string }
+export interface HkLinenDTO {
+  categories: HkLinenCategoryDTO[]; moves: HkLinenMoveDTO[]; wards: { id: number; name: string }[];
+  kinds: { kind: string; label: string; hint: string; needsWard: boolean }[];
+}
+
+// ── Dietary & kitchen ───────────────────────────────────────────────────────
+
+export const DIET_MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks", "Supplements"] as const;
+export interface DietTypeDTO { id: number; name: string; instructions: string; meals: string[]; active: boolean; inUse: number }
+export interface DietOrderDTO {
+  id: number; admissionId: number; patient: string; patientCode: string; wardId: number | null; ward: string; bed: string; diet: string; dietTypeId: number | null;
+  meals: string[]; instructions: string; status: "Active" | "Stopped"; startDate: string; stoppedOn: string | null;
+}
+export interface DietSheetDTO { id: number; status: "Draft" | "Dispatched" | "Received"; lines: number; dispatchedAt: string | null; dispatchedBy: string; receivedAt: string | null; receivedBy: string }
+export interface DietBoardDTO { date: string; wards: { id: number; name: string }[]; wardId: number | null; orders: (DietOrderDTO & { onSheet: string[] })[]; sheet: DietSheetDTO | null }
+export interface DietPrintDTO { hospital: string; ward: string; date: string; status: string; rows: { meal: string; patient: string; code: string; bed: string; diet: string; instructions: string }[] }
+export interface KitchenDTO {
+  date: string; meals: string[]; diets: ({ diet: string; total: number } & Record<string, number | string>)[]; totals: Record<string, number>;
+  wards: { ward: string; patients: number; meals: number; sheet: string }[]; patients: number;
+}
+export interface CanteenDTO {
+  date: string;
+  items: { id: number; name: string; price: number; active: boolean; soldToday: number }[];
+  sales: { id: number; item: string; quantity: number; unitPrice: number; total: number; buyerType: string; buyer: string; at: string; by: string }[];
+  totals: { sales: number; quantity: number; amount: number };
+}
+
+// ── Waste & infection control ───────────────────────────────────────────────
+
+export type WasteCategoryKey = "white" | "red" | "yellow" | "blue";
+export interface WasteCollectionDTO { id: number; date: string; time: string; wardId: number | null; ward: string; category: WasteCategoryKey; categoryLabel: string; quantityKg: number; bags: number; notes: string; by: string }
+export interface WasteCollectionListDTO { rows: WasteCollectionDTO[]; total: number; kg: number; bags: number }
+export interface WasteDisposalDTO { id: number; date: string; category: WasteCategoryKey; categoryLabel: string; quantityKg: number; vendor: string; manifestNo: string; vehicle: string; notes: string; by: string }
+export interface WasteDisposalListDTO { rows: WasteDisposalDTO[]; pending: { category: WasteCategoryKey; label: string; kg: number }[]; vendors: string[] }
+export interface IcEventDTO { id: number; date: string; wardId: number | null; ward: string; patient: string; patientCode: string; type: string; organism: string; deviceProcedure: string; status: "Open" | "Resolved"; resolvedOn: string | null; notes: string; by: string }
+export interface HandHygieneDTO { id: number; date: string; wardId: number | null; ward: string; observed: number; compliant: number; pct: number; auditor: string; notes: string }
+export interface InfectionControlDTO { events: IcEventDTO[]; audits: HandHygieneDTO[]; types: string[]; open: number }
+export interface WasteDashboardDTO {
+  days: number; from: string; to: string;
+  waste: { kg: number; bags: number; entries: number; byCategory: { category: WasteCategoryKey; label: string; kg: number; bags: number; pending: number }[]; byWard: { ward: string; kg: number }[]; series: { date: string; kg: number }[]; disposedKg: number };
+  infection: { events: number; open: number; resolved: number; byType: { type: string; count: number }[]; byWard: { ward: string; count: number }[] };
+  handHygiene: { audits: number; observed: number; compliant: number; pct: number | null; byWard: { ward: string; observed: number; pct: number }[] };
+}
+export interface WasteRegisterDTO {
+  hospital: string; from: string; to: string; collections: WasteCollectionDTO[]; disposals: WasteDisposalDTO[];
+  totals: { category: WasteCategoryKey; label: string; collectedKg: number; disposedKg: number }[];
 }

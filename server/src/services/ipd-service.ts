@@ -3,6 +3,8 @@
  * patient occupies a bed; discharging frees it.
  */
 import { queueForCoding } from "@/services/mrd-coding-service";
+import { raiseBedTurnaround } from "@/services/housekeeping-service";
+import { endOrdersForAdmission, moveOrdersForAdmission } from "@/services/dietary-service";
 import {
   ipdRepo,
   bedsRepo,
@@ -242,6 +244,11 @@ export async function dischargePatient(id: number, actor: Session) {
     return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged" });
   });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id });
+  if (admission.hospital_id) await endOrdersForAdmission(id, admission.hospital_id);
+  // The bed goes to housekeeping for a terminal clean before the next admission.
+  if (admission.bed_id && admission.hospital_id) {
+    await raiseBedTurnaround({ id: admission.bed_id, hospitalId: admission.hospital_id, ward: admission.ward, wardId: admission.ward_id, label: admission.bed ? `${admission.ward} · ${admission.bed}` : admission.ward });
+  }
   // The chart now waits in the MRD coding queue.
   await queueForCoding(row as IpdAdmissionRow);
   return toIpdDTO(row as IpdAdmissionRow);
@@ -284,6 +291,8 @@ export async function transferBed(id: number, newBedId: number, actor: Session) 
       ward_id: target.ward_id,
     });
   });
+  // The kitchen has to find them in the new bed.
+  await moveOrdersForAdmission(row as IpdAdmissionRow);
   await bedTransfersRepo.create({
     hospital_id: actor.hospitalId,
     patient_name: admission.patient_name,

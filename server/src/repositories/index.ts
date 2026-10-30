@@ -58,6 +58,19 @@ import type {
   BillPayoutRow,
   WhatsappAccountRow,
   WhatsappMessageRow,
+  HkTaskRow,
+  DietTypeRow,
+  WasteCollectionRow,
+  WasteDisposalRow,
+  IcEventRow,
+  HandHygieneAuditRow,
+  DietOrderRow,
+  DietSheetRow,
+  DietSheetLineRow,
+  CanteenItemRow,
+  CanteenSaleRow,
+  HkLinenCategoryRow,
+  HkLinenMoveRow,
   PharmacyDispenseRow,
   PharmacyDispenseLineRow,
   PharmacyReturnRow,
@@ -451,3 +464,19 @@ export const teleconsultPaymentsRepo = createRepository<TeleconsultPaymentRow, T
   TABLES.teleconsultPayments,
   (row) => row,
 );
+
+export const hkTasksRepo = createRepository<HkTaskRow, HkTaskRow>(TABLES.hkTasks, (r) => r);
+export const hkLinenCategoriesRepo = createRepository<HkLinenCategoryRow, HkLinenCategoryRow>(TABLES.hkLinenCategories, (r) => r);
+export const hkLinenMovesRepo = createRepository<HkLinenMoveRow, HkLinenMoveRow>(TABLES.hkLinenMoves, (r) => r);
+
+export const dietTypesRepo = createRepository<DietTypeRow, DietTypeRow>(TABLES.dietTypes, (r) => r);
+export const dietOrdersRepo = createRepository<DietOrderRow, DietOrderRow>(TABLES.dietOrders, (r) => r);
+export const dietSheetsRepo = createRepository<DietSheetRow, DietSheetRow>(TABLES.dietSheets, (r) => r);
+export const dietSheetLinesRepo = createRepository<DietSheetLineRow, DietSheetLineRow>(TABLES.dietSheetLines, (r) => r);
+export const canteenItemsRepo = createRepository<CanteenItemRow, CanteenItemRow>(TABLES.canteenItems, (r) => r);
+export const canteenSalesRepo = createRepository<CanteenSaleRow, CanteenSaleRow>(TABLES.canteenSales, (r) => r);
+
+export const wasteCollectionsRepo = createRepository<WasteCollectionRow, WasteCollectionRow>(TABLES.wasteCollections, (r) => r);
+export const wasteDisposalsRepo = createRepository<WasteDisposalRow, WasteDisposalRow>(TABLES.wasteDisposals, (r) => r);
+export const icEventsRepo = createRepository<IcEventRow, IcEventRow>(TABLES.icEvents, (r) => r);
+export const handHygieneAuditsRepo = createRepository<HandHygieneAuditRow, HandHygieneAuditRow>(TABLES.handHygieneAudits, (r) => r);

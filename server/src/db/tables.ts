@@ -109,6 +109,19 @@ export const TABLES = {
   teleconsultBookings: "teleconsult_bookings",
   googleConnections: "google_connections",
   teleconsultPayments: "teleconsult_payments",
+  hkTasks: "hk_tasks",
+  hkLinenCategories: "hk_linen_categories",
+  hkLinenMoves: "hk_linen_moves",
+  dietTypes: "diet_types",
+  dietOrders: "diet_orders",
+  dietSheets: "diet_sheets",
+  dietSheetLines: "diet_sheet_lines",
+  canteenItems: "canteen_items",
+  canteenSales: "canteen_sales",
+  wasteCollections: "waste_collections",
+  wasteDisposals: "waste_disposals",
+  icEvents: "ic_events",
+  handHygieneAudits: "hand_hygiene_audits",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -1079,7 +1092,12 @@ export interface AmbulanceRow extends Row {
   model: string;
   driver_name: string;
   driver_phone: string;
+  /** "Available" | "On Call" (shown as Dispatched) | "Maintenance" (shown as Off road) */
   status: string;
+  /** The short name the dispatch board shows (AMB-01). Older rows have none; the DTO derives one. */
+  code?: string;
+  /** Basic Life Support (BLS), Neonatal … */
+  vehicle_type?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1097,7 +1115,15 @@ export interface AmbulanceCallRow extends Row {
   call_date: string;
   call_time: string;
   amount: number;
+  /** "Queued" | "Dispatched" (en route to pickup) | "At scene" | "Transporting" | "Completed" | "Cancelled" */
   status: string;
+  /** AMB/26/00041 — older rows have none. */
+  call_no?: string;
+  call_type?: string;
+  patient_id?: number | null;
+  dispatched_at?: string | null;
+  at_scene_at?: string | null;
+  closed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2226,6 +2252,238 @@ export interface SetupRecordRow extends Row {
   active: boolean;
   sort_order: number;
   data: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Housekeeping ────────────────────────────────────────────────────────────
+
+/** A cleaning job: a scheduled routine clean of a ward, a bed turnaround raised on discharge, or an ad hoc job. */
+export interface HkTaskRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** "Routine clean" | "Bed turnaround" | "Ad hoc" */
+  kind: string;
+  /** "Scheduled" | "Discharge" | "Manual" */
+  source: string;
+  title: string;
+  ward_id: number | null;
+  ward: string;
+  bed_id: number | null;
+  location: string;
+  assignee: string;
+  notes: string;
+  /** "Pending" | "In progress" | "Completed" | "Verified" */
+  status: string;
+  task_date: string;
+  started_at: string | null;
+  completed_at: string | null;
+  completion_notes: string;
+  verified_by: string;
+  verified_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HkLinenCategoryRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  unit: string;
+  reorder_at: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One movement of linen between the store, the wards, the soiled hold and the laundry. The balances are the sum of these. */
+export interface HkLinenMoveRow extends Row {
+  id: number;
+  hospital_id: number;
+  category_id: number;
+  category: string;
+  /** "new_stock" | "collect_soiled" | "send_laundry" | "receive_clean" | "issue_ward" | "discard" */
+  kind: string;
+  quantity: number;
+  /** Where it left and where it went: "store" | "ward" | "soiled" | "laundry" | "" (outside / discarded). */
+  from_bucket: string;
+  to_bucket: string;
+  ward_id: number | null;
+  ward: string;
+  notes: string;
+  /** The category's balance in each bucket after the move. */
+  from_balance: number | null;
+  to_balance: number | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Dietary & kitchen ───────────────────────────────────────────────────────
+
+export interface DietTypeRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  instructions: string;
+  /** The meals this diet is served at by default: Breakfast, Lunch, Dinner, Snacks, Supplements. */
+  meals: string[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** What an admitted patient is to be fed: one live order per patient, changed by stopping it and raising another. */
+export interface DietOrderRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  patient_id: number | null;
+  patient_name: string;
+  patient_code: string;
+  ward_id: number | null;
+  ward: string;
+  bed_id: number | null;
+  bed: string;
+  diet_type_id: number | null;
+  diet_name: string;
+  meals: string[];
+  instructions: string;
+  /** "Active" | "Stopped" */
+  status: string;
+  start_date: string;
+  stopped_on: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** The kitchen's sheet for one ward on one day. */
+export interface DietSheetRow extends Row {
+  id: number;
+  hospital_id: number;
+  sheet_date: string;
+  ward_id: number | null;
+  ward: string;
+  /** "Draft" | "Dispatched" | "Received" */
+  status: string;
+  generated_by: string;
+  dispatched_at: string | null;
+  dispatched_by: string;
+  received_at: string | null;
+  received_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DietSheetLineRow extends Row {
+  id: number;
+  hospital_id: number;
+  sheet_id: number;
+  order_id: number;
+  meal: string;
+  patient_name: string;
+  patient_code: string;
+  bed: string;
+  diet_name: string;
+  instructions: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CanteenItemRow extends Row {
+  id: number;
+  hospital_id: number;
+  name: string;
+  price: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CanteenSaleRow extends Row {
+  id: number;
+  hospital_id: number;
+  item_id: number;
+  item: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  /** "Staff" | "Attendant" | "Visitor" | "Patient" */
+  buyer_type: string;
+  buyer: string;
+  sale_date: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Waste & infection control ───────────────────────────────────────────────
+
+/** Biomedical waste put into a colour-coded bin on a ward. `category` is one of white | red | yellow | blue. */
+export interface WasteCollectionRow extends Row {
+  id: number;
+  hospital_id: number;
+  collected_on: string;
+  collected_time: string;
+  ward_id: number | null;
+  ward: string;
+  category: string;
+  quantity_kg: number;
+  bags: number;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A load handed to the authorised waste treatment vendor. */
+export interface WasteDisposalRow extends Row {
+  id: number;
+  hospital_id: number;
+  disposed_on: string;
+  category: string;
+  quantity_kg: number;
+  vendor: string;
+  manifest_no: string;
+  vehicle: string;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A healthcare-associated infection (or outbreak signal) noticed on a ward. */
+export interface IcEventRow extends Row {
+  id: number;
+  hospital_id: number;
+  event_date: string;
+  ward_id: number | null;
+  ward: string;
+  patient_name: string;
+  patient_code: string;
+  infection_type: string;
+  organism: string;
+  device_procedure: string;
+  /** "Open" | "Resolved" */
+  status: string;
+  resolved_on: string | null;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HandHygieneAuditRow extends Row {
+  id: number;
+  hospital_id: number;
+  audit_date: string;
+  ward_id: number | null;
+  ward: string;
+  observed: number;
+  compliant: number;
+  auditor: string;
+  notes: string;
   created_at: string;
   updated_at: string;
 }

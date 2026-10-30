@@ -33,7 +33,7 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // v7: Setup records (masters, hospital setup, branches).
 // v8: pharmacy batches, dispenses and returns.
 // v9: bill line items.
-const MONGO_SCHEMA_VERSION = 11;
+const MONGO_SCHEMA_VERSION = 14;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {

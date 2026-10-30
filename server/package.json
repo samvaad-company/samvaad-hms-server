@@ -32,6 +32,11 @@
     "test:wardmasters": "tsx scripts/test-ward-masters.ts",
     "test:coverage": "tsx scripts/test-coverage.ts",
     "test:overview": "tsx scripts/test-overview.ts",
+    "test:reports": "tsx scripts/test-reports.ts",
+    "test:housekeeping": "tsx scripts/test-housekeeping.ts",
+    "test:dietary": "tsx scripts/test-dietary.ts",
+    "test:waste": "tsx scripts/test-waste.ts",
+    "test:ambulance": "tsx scripts/test-ambulance.ts",
     "test:whatsapp": "tsx scripts/test-whatsapp.ts"
   },
   "dependencies": {

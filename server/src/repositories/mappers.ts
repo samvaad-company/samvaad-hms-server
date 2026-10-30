@@ -872,6 +872,8 @@ export function toAmbulanceDTO(r: AmbulanceRow): AmbulanceDTO {
     driverName: r.driver_name,
     driverPhone: r.driver_phone,
     status: r.status as AmbulanceStatus,
+    code: r.code || `AMB-${String(r.id).padStart(2, "0")}`,
+    vehicleType: r.vehicle_type ?? "",
   };
 }
 
@@ -889,6 +891,13 @@ export function toAmbulanceCallDTO(r: AmbulanceCallRow): AmbulanceCallDTO {
     time: r.call_time,
     amount: Number(r.amount),
     status: r.status as AmbulanceCallStatus,
+    callNo: r.call_no ?? "",
+    callType: r.call_type || "Emergency pickup",
+    patientId: r.patient_id ?? null,
+    openedAt: r.created_at,
+    dispatchedAt: r.dispatched_at ?? null,
+    atSceneAt: r.at_scene_at ?? null,
+    closedAt: r.closed_at ?? null,
   };
 }
 
