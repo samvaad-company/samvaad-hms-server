@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "server": "npm --prefix server run dev",
-    "test:store": "server/node_modules/.bin/tsx scripts/test-cache.mts"
+    "test:store": "server/node_modules/.bin/tsx scripts/test-cache.mts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -34,6 +37,7 @@
     "jose": "^4.15.9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
