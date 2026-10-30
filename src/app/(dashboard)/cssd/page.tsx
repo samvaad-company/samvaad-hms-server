@@ -34,7 +34,7 @@ export default function CssdPage() {
   const [dialog, setDialog] = useState<"register" | "request" | "cycle" | null>(null);
 
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
         <div className="flex flex-wrap items-center gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Biohazard size={16} className="text-[color:var(--ink-soft)]" />

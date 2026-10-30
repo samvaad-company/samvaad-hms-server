@@ -95,7 +95,7 @@ function OtPageInner() {
   return (
     <>
       {dialog}
-      <div className={`${tw.gutterX} mb-[30px]`}>
+      <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 360 }}>
           <div className="flex items-center gap-3 flex-wrap border-b border-[color:var(--line)] px-5 py-4">
             <Stethoscope size={18} className="text-[color:var(--ink-soft)]" />

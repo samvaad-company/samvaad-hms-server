@@ -24,7 +24,7 @@ export default function BloodBankPage() {
   const [tab, setTab] = useSavedChoice<Tab>("samvaad.bloodbank.tab", TABS, "stock");
 
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
         <div className="flex items-center gap-3 flex-wrap border-b border-[color:var(--line)] px-5 py-3">
           <Droplet size={16} className="text-[color:var(--ink-soft)]" />

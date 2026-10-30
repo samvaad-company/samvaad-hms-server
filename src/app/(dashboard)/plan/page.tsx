@@ -21,7 +21,7 @@ export default function PlanPage() {
   const until = String(item?.validUntil ?? "");
   const daysLeft = until ? Math.round((new Date(`${until}T00:00:00Z`).getTime() - new Date(`${todayLocal()}T00:00:00Z`).getTime()) / 86_400_000) : null;
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 360 }}>
         <div className="flex items-center gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <BadgeCheck size={16} className="text-[color:var(--ink-soft)]" />

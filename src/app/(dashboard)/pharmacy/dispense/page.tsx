@@ -12,7 +12,7 @@ export default function DispensePage() {
   if (loading) return null;
   if (!can("pharmacy", "read")) return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] text-[color:var(--ink-soft)]">The dispensing counter is for pharmacy staff.</p></div>;
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 560 }}>
         <div className="flex items-center gap-3 px-5 pt-3">
           <PillBottle size={16} className="text-[color:var(--ink-soft)]" />

@@ -32,7 +32,7 @@ export default function ReferPage() {
     if (await attempt(run(() => api.put("/setup/config/referral", { referred: lines, rewardNote: reward })))) { setEditing(false); reload(); }
   }
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 360 }}>
         <div className="flex items-center gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Gift size={16} className="text-[color:var(--ink-soft)]" />

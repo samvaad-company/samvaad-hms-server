@@ -51,7 +51,7 @@ export default function NurseStationPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} pt-1 pb-3 flex items-center gap-3 flex-wrap`}>
+      <div className={`${tw.gutterX} pt-[16px] pb-3 flex items-center gap-3 flex-wrap`}>
         <HeartPulse size={18} className="text-[color:var(--ink-soft)]" />
         <div>
           <h1 className="text-[17px] font-semibold text-[color:var(--ink)] leading-[22px]">Nurse station</h1>

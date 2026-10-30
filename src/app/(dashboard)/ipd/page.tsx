@@ -171,7 +171,7 @@ function IpdPageInner() {
       {dialog}
       <AdmitDialog open={admitOpen} onClose={() => setAdmitOpen(false)} onAdmitted={refresh} />
 
-      <div className={`${tw.gutterX} pt-1 pb-3 flex items-center gap-3 flex-wrap`}>
+      <div className={`${tw.gutterX} pt-[16px] pb-3 flex items-center gap-3 flex-wrap`}>
         <BedDouble size={18} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[17px] font-semibold text-[color:var(--ink)]">Inpatients</h1>
         <span className="text-[13px] text-[color:var(--ink-soft)]">{admitted.length} admitted</span>

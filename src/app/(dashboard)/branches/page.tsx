@@ -27,7 +27,7 @@ export default function BranchesPage() {
   async function remove() { if (!removing) return; await attempt(run(() => api.del(`/setup/branch/${removing.id}`))); setRemoving(null); branches.reload(); }
 
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
         <div className="flex items-center gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Building size={16} className="text-[color:var(--ink-soft)]" />

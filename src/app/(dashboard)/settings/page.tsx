@@ -148,7 +148,7 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
 
   return (
-    <div className="min-h-full bg-[color:var(--surface)]">
+    <div className="min-h-[calc(100%-16px)] mt-[16px] border-t border-[color:var(--line)] bg-[color:var(--surface)]">
       <div className="flex items-center gap-3 px-6 h-[52px] border-b border-[color:var(--line)]">
         <SettingsIcon size={16} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[15px] font-medium text-[color:var(--ink)]">Settings</h1>
