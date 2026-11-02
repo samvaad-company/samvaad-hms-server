@@ -181,7 +181,7 @@ function IpdPageInner() {
             Rounds: {board.rounds.seen} of {board.rounds.total} seen
           </span>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <select value={ward} onChange={(e) => setWard(e.target.value)} aria-label="Ward"
             className="h-[34px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] cursor-pointer">
             <option value="">All wards</option>
@@ -210,7 +210,7 @@ function IpdPageInner() {
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, UHID, ADM"
                 className="h-[34px] w-full rounded-[8px] bg-[color:var(--surface)] border border-[color:var(--line)] pl-[32px] pr-3 text-[13px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] focus:outline-none focus:border-[color:var(--brand)]" />
             </div>
-            <div role="group" aria-label="Admission status" className="inline-flex p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
+            <div role="group" aria-label="Admission status" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
               {([["admitted", "Admitted now", admitted.length], ["discharged", "Discharged", discharged.length], ["all", "All", records.length]] as const).map(([id, label, n]) => (
                 <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id}
                   className={`h-[28px] px-3 rounded-[6px] text-[13px] cursor-pointer ${tab === id ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)]"}`}>

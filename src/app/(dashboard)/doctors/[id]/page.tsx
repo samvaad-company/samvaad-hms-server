@@ -172,7 +172,7 @@ export default function DoctorDetailPage() {
         {/* Right content */}
         <div className="flex-1 min-w-0">
           {/* Stat row */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <StatCard icon={Users} value={String(doc.patientsToday)} label="Patients Today" color="#009598" />
             <StatCard icon={Star} value="4.8" label="Patient Rating" color="#ff9000" />
             <StatCard icon={TrendingUp} value={doc.experience} label="Experience" color="#007cff" />

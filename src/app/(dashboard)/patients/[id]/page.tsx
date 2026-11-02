@@ -549,7 +549,7 @@ function VitalsTab({ patientId }: { patientId: number }) {
             <span className="text-[13px] font-medium text-[color:var(--ink)]">{v.tokenNumber} · {v.doctor}</span>
             <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{v.checkInTime}</span>
           </div>
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <Field label="Blood pressure" value={v.vitals.bpSystolic != null ? `${v.vitals.bpSystolic}/${cell(v.vitals.bpDiastolic)} mmHg` : null} />
             <Field label="Pulse" value={v.vitals.pulse != null ? `${v.vitals.pulse} bpm` : null} />
             <Field label="Temperature" value={v.vitals.temperature != null ? `${v.vitals.temperature} °F` : null} />

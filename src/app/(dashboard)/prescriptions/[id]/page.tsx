@@ -101,7 +101,7 @@ export default function PrescriptionDetailPage() {
             {formatDate(rx.date)} · {rx.rxNumber} · {rx.doctor}
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <StatusBadge status={rx.status} />
           <button onClick={() => downloadElement(docRef.current, title)} className="inline-flex items-center gap-2 h-[34px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer transition-colors">
             <Download size={14} /> Download Rx

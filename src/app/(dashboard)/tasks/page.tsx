@@ -288,7 +288,7 @@ export default function TasksPage() {
         </div>
 
         {view === "board" ? (
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             {STATUSES.map((status) => {
               const clr = COLUMN_CLR[status];
               const list = byStatus(status);
@@ -303,7 +303,7 @@ export default function TasksPage() {
                     setDragOver(null);
                     if (id) moveTask(id, status);
                   } : undefined}
-                  className={`rounded-[12px] p-3 min-h-[400px] transition-colors ${
+                  className={`rounded-[12px] p-3 min-h-[400px] max-lg:min-h-[120px] transition-colors ${
                     dragOver === status ? "bg-[color:var(--brand-soft)]" : "bg-[color:var(--canvas)]"
                   }`}
                 >

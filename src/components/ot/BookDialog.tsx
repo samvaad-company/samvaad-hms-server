@@ -219,7 +219,7 @@ export function BookDialog({ open, onClose, onSaved, slot, editing }: {
             </div>
             <div className="flex flex-col gap-2"><span className={label}>Scrub nurse</span>{person("scrubNurseId", nurses)}</div>
             <div className="flex flex-col gap-2"><span className={label}>Circulating nurse</span>{person("circulatingNurseId", nurses)}</div>
-            <div className="col-span-2 grid grid-cols-3 gap-4">
+            <div className="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {(["tech1", "tech2", "tech3"] as const).map((k, i) => (
                 <div key={k} className="flex flex-col gap-2"><span className={label}>Technician {i + 1}</span>{person(k, techs)}</div>
               ))}

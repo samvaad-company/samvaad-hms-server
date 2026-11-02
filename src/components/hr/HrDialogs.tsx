@@ -166,12 +166,12 @@ export function SalaryDialog({ salary, onClose }: { salary: HrSalaryDTO; onClose
     <Modal open onClose={close} width={480} title={`Salary — ${salary.name}`} subtitle={`${salary.employeeNo} · ${salary.role}. Monthly figures. A change applies to payroll runs worked out from now on.`}
       footer={<DialogButtons onCancel={close} onConfirm={() => submit(() => api.put(`/hr/salaries/${salary.staffId}`, { basic: n(basic), hra: n(hra), allowances: n(allow), pfPercent: n(pf), profTax: n(pt), otherDeduction: n(other) }))} label="Save salary" loading={loading} disabled={n(basic) <= 0} />}>
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {field("Basic (₹)", <FormInput type="number" min="0" value={basic} onChange={setBasic} />)}
           {field("HRA (₹)", <FormInput type="number" min="0" value={hra} onChange={setHra} />)}
           {field("Allowances (₹)", <FormInput type="number" min="0" value={allow} onChange={setAllow} />)}
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {field("PF (% of basic)", <FormInput type="number" min="0" value={pf} onChange={setPf} />)}
           {field("Prof. tax (₹)", <FormInput type="number" min="0" value={pt} onChange={setPt} />)}
           {field("Other deduction (₹)", <FormInput type="number" min="0" value={other} onChange={setOther} />)}

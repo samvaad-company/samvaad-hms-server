@@ -99,7 +99,7 @@ export function ClaimForm({
           <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Insurer / TPA
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="TPA Name" value={claim.tpaName} />
             <Field label="TPA Code" value={tpa?.code ?? ""} />
             <Field label="Contact" value={tpa?.phone ?? ""} />
@@ -111,7 +111,7 @@ export function ClaimForm({
           <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Patient / Insured
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Name" value={claim.patientName} />
             <Field label="Hospital ID" value={patient?.patientId ?? ""} />
             <Field label="Age / Gender" value={patient ? `${patient.age} yrs · ${patient.gender}` : ""} />
@@ -126,7 +126,7 @@ export function ClaimForm({
           <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">
             Claim Details
           </p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Bill Number" value={claim.billNumber} />
             <Field label="Claim Date" value={formatDate(claim.date)} />
             <Field label="Status" value={claim.status} />

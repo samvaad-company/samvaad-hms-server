@@ -39,7 +39,7 @@ export default function CssdPage() {
         <div className="flex flex-wrap items-center gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Biohazard size={16} className="text-[color:var(--ink-soft)]" />
           <h1 className="text-[15px] font-semibold text-[color:var(--ink)]">CSSD</h1>
-          <div role="tablist" aria-label="CSSD" className="inline-flex p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
+          <div role="tablist" aria-label="CSSD" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
             {TABS.map((t) => (
               <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
                 className={`h-[30px] px-3 rounded-[8px] text-[14px] cursor-pointer transition-colors ${tab === t.id ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>{t.label}</button>

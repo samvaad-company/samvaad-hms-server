@@ -3,8 +3,9 @@
 /**
  * Keeps one live connection to the server (GET /api/events/stream, Server-Sent Events) for as long as a person who can see
  * appointments is signed in. A new appointment made by anyone in the hospital — a doctor's own, if this is a doctor — arrives
- * here within a moment: it goes into the Redux store (store/liveSlice) so the dashboards show it at once, and every query on screen is refreshed so
- * counts and lists catch up with the server.
+ * here within a moment: it goes into the Redux store (store/liveSlice) so the dashboards show it at once, a notification pops up
+ * (components/live/LiveToasts) for everyone but the person who made it, and every query on screen is refreshed so counts and lists
+ * catch up with the server.
  *
  * The browser reconnects by itself after a dropped connection (the server asks it to wait 5 s). Anything that happened while the
  * connection was down is picked up by the refresh that follows every reconnect.
@@ -14,7 +15,19 @@ import { useAuth } from "@/lib/auth-context";
 import { useAppDispatch } from "@/store";
 import { invalidateAll } from "@/store/cacheSlice";
 import { appointmentReceived, connectionChanged, liveCleared } from "@/store/liveSlice";
+import { receivesLiveAppointments } from "@/lib/live/roles";
 import type { AppointmentDTO } from "@/types/api";
+
+type LiveSource = "staff" | "patient-app" | "whatsapp" | "video-consult" | "other";
+
+/** The notification's "who/what": empty when unknown. */
+function viaText(source: LiveSource, by: { name: string } | null): string {
+  if (source === "staff") return by ? `booked by ${by.name}` : "booked at the desk";
+  if (source === "patient-app") return "via the patient app";
+  if (source === "whatsapp") return "via WhatsApp";
+  if (source === "video-consult") return "video consultation";
+  return "";
+}
 
 const STREAM_URL = "/api/events/stream";
 /** If the browser gives up (a refused connection ends the stream for good), try again after this long, doubling up to the cap. */
@@ -24,7 +37,8 @@ const RETRY_MAX_MS = 60_000;
 export function LiveAppointmentsListener() {
   const { user, can } = useAuth();
   const dispatch = useAppDispatch();
-  const listens = !!user && can("appointments");
+  // Only the hospital admin, the front desk and doctors are sent these (the server enforces it too, and sends a doctor only their own).
+  const listens = !!user && can("appointments") && receivesLiveAppointments(user.role);
   const userId = user?.id ?? null;
 
   useEffect(() => {
@@ -50,8 +64,10 @@ export function LiveAppointmentsListener() {
 
       es.addEventListener("appointment.created", (ev) => {
         try {
-          const event = JSON.parse((ev as MessageEvent<string>).data) as { at: string; data: AppointmentDTO };
-          dispatch(appointmentReceived({ appointment: event.data, at: event.at }));
+          const event = JSON.parse((ev as MessageEvent<string>).data) as { at: string; source?: LiveSource; by?: { userId: number; name: string } | null; data: AppointmentDTO };
+          // The person who just made it is looking at it already; everyone else is told.
+          const madeByMe = event.by != null && event.by.userId === userId;
+          dispatch(appointmentReceived({ appointment: event.data, at: event.at, ...(madeByMe ? {} : { notify: { via: viaText(event.source ?? "other", event.by ?? null) } }) }));
           dispatch(invalidateAll());
         } catch {
           /* a malformed event is ignored; the next refresh shows the truth */

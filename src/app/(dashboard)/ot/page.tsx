@@ -100,7 +100,7 @@ function OtPageInner() {
           <div className="flex items-center gap-3 flex-wrap border-b border-[color:var(--line)] px-5 py-4">
             <Stethoscope size={18} className="text-[color:var(--ink-soft)]" />
             <h1 className="text-[17px] font-semibold text-[color:var(--ink)]">Operation Theatre</h1>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
               <button onClick={() => setEquipOpen(true)} className={`${btn.base} ${btn.ghost}`}><Wrench size={14} /> Equipment</button>
               <button onClick={() => setRoomsOpen(true)} className={`${btn.base} ${btn.ghost}`}><DoorOpen size={14} /> Rooms</button>
               {hydrated && canWrite && <button onClick={() => openBook()} className={`${btn.base} ${btn.solid}`}><Plus size={14} /> Book</button>}
@@ -108,7 +108,7 @@ function OtPageInner() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap border-b border-[color:var(--line)] px-5 py-3">
-            <div role="tablist" aria-label="OT view" className="inline-flex p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
+            <div role="tablist" aria-label="OT view" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
               {VIEWS.map((v) => (
                 <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
                   className={`h-[30px] px-4 rounded-[8px] text-[14px] cursor-pointer transition-colors ${view === v ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>
@@ -117,7 +117,7 @@ function OtPageInner() {
               ))}
             </div>
             {(view === "day" || view === "week") && (
-              <div className="ml-auto flex items-center gap-3">
+              <div className="ml-auto flex flex-wrap items-center gap-3">
                 <button onClick={() => setDate(addDays(date, -step))} aria-label={view === "week" ? "Previous week" : "Previous day"} className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer"><ChevronLeft size={16} /></button>
                 <button onClick={() => setDate(todayLocal())} className={`${btn.base} ${btn.ghost} !h-[36px] font-medium`}>Today</button>
                 <button onClick={() => setDate(addDays(date, step))} aria-label={view === "week" ? "Next week" : "Next day"} className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer"><ChevronRight size={16} /></button>

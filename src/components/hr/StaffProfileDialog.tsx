@@ -26,7 +26,7 @@ export function StaffProfileDialog({ staff, onClose }: { staff: StaffDTO; onClos
     <Modal open onClose={close} width={600} title={`Edit profile — ${staff.name}`}
       footer={<DialogButtons onCancel={close} onConfirm={() => submit(() => api.patch(`/staff/${staff.id}`, body))} label="Save profile" loading={loading} disabled={f.employeeNo.trim().length < 1} />}>
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {field("Employee ID", <FormInput value={f.employeeNo} onChange={set("employeeNo")} />)}
           {field("Gender", <FormSelect value={f.gender} onChange={set("gender")} placeholder="—" options={[{ value: "", label: "—" }, ...["Female", "Male", "Other"].map((g) => ({ value: g, label: g }))]} />)}
           {field("Date of birth", <FormInput type="date" value={f.dob} onChange={set("dob")} />)}

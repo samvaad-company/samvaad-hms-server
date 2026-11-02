@@ -88,7 +88,7 @@ export function RatePlansView() {
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <SearchBox value={query} onChange={setQuery} placeholder="Search services..." />
               {dirty > 0 && (
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex flex-wrap items-center gap-2">
                   <span className="text-[13px] text-[color:var(--ink-soft)]">{dirty} unsaved {dirty === 1 ? "change" : "changes"}</span>
                   <button onClick={() => setDraft({})} className={outlineBtn + " !h-[34px]"}>Discard</button>
                   <button onClick={save} disabled={loading} className={primaryBtn + " !h-[34px]"}>{loading ? "Saving…" : "Save prices"}</button>

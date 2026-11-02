@@ -18,9 +18,9 @@ export default function DispensePage() {
           <PillBottle size={16} className="text-[color:var(--ink-soft)]" />
           <h1 className="text-[15px] font-semibold text-[color:var(--ink)]">Pharmacy</h1>
         </div>
-        <nav aria-label="Pharmacy" className="flex gap-5 border-b border-[color:var(--line)] px-5 pt-2 text-[14px]">
-          <Link href="/pharmacy" className="border-b-2 border-transparent pb-2 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]">Inventory</Link>
-          <span aria-current="page" className="border-b-2 border-[color:var(--brand)] pb-2 font-medium text-[color:var(--ink)]">Dispense</span>
+        <nav aria-label="Pharmacy" className="flex flex-wrap gap-5 max-lg:gap-2 border-b border-[color:var(--line)] px-4 sm:px-5 pt-2 max-lg:pb-3 text-[14px]">
+          <Link href="/pharmacy" className="border-b-2 border-transparent pb-2 text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:rounded-full max-lg:border max-lg:border-[color:var(--line)] max-lg:px-3 max-lg:py-[7px]">Inventory</Link>
+          <span aria-current="page" className="border-b-2 border-[color:var(--brand)] pb-2 font-medium text-[color:var(--ink)] max-lg:rounded-full max-lg:border max-lg:bg-[color:var(--brand-soft)] max-lg:px-3 max-lg:py-[7px]">Dispense</span>
         </nav>
         <DispenseScreen />
       </div>

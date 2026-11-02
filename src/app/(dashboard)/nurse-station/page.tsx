@@ -58,8 +58,8 @@ export default function NurseStationPage() {
           <p className="text-[12px] text-[color:var(--ink-soft)]">Alerts, this shift&apos;s tasks and medicines, and your patients — live</p>
         </div>
         <span className="text-[12px] text-[color:var(--ink-soft)] ml-2">{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <div role="group" aria-label="Whose patients" className="inline-flex p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Whose patients" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
             <button onClick={() => setMineOnly(true)} aria-pressed={mineOnly}
               className={`h-[28px] px-3 rounded-[6px] text-[13px] cursor-pointer ${mineOnly ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)]"}`}>
               My patients <span className="font-mono text-[11px]">{mineCount}</span>

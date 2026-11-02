@@ -26,10 +26,10 @@ export default function AnalyticsPage() {
           <h1 className="text-[15px] font-semibold">Analytics</h1>
           <button onClick={() => setRefresh((n) => n + 1)} className="ml-auto inline-flex cursor-pointer items-center gap-[6px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 py-[6px] text-[13px]"><RefreshCw size={13} />Refresh</button>
         </div>
-        <div className="flex border-b border-[color:var(--line)] px-5" role="tablist">
+        <div className="flex border-b border-[color:var(--line)] px-4 sm:px-5 max-lg:flex-wrap max-lg:gap-2 max-lg:py-3" role="tablist">
           {TABS.map((t) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-              className={`-mb-px cursor-pointer border-b-2 px-1 py-[12px] pr-5 text-[14px] ${tab === t.id ? "border-[color:var(--ink)] font-medium text-[color:var(--ink)]" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>{t.label}</button>
+              className={`-mb-px cursor-pointer border-b-2 px-1 py-[12px] pr-5 text-[14px] max-lg:rounded-full max-lg:border max-lg:py-[7px] max-lg:px-3 max-lg:pr-3 ${tab === t.id ? "border-[color:var(--ink)] font-medium text-[color:var(--ink)] max-lg:bg-[color:var(--subtle)]" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)]"}`}>{t.label}</button>
           ))}
         </div>
         {tab === "dashboard" && <AnalyticsDashboard reloadKey={refresh} />}

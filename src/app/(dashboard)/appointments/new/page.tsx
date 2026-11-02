@@ -190,7 +190,7 @@ function BookAppointment() {
             {/* Step 2 — Doctor & Slot */}
             {step === 2 && (
               <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-3 gap-3 max-w-[760px]">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[760px]">
                   <FormRow label="Doctor *">
                     <SearchSelect
                       placeholder="Search doctor…"
@@ -235,7 +235,7 @@ function BookAppointment() {
                       <Tag tone="brand">{isWalkIn ? "On arrival" : slotLabel || "—"}</Tag>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-2">
                     {[
                       { l: "Patient",   v: displayName },
                       { l: "Patient ID", v: patient?.patientId ?? "—" },

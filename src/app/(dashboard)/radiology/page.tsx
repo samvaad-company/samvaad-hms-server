@@ -191,7 +191,7 @@ function PatientDetailModal({
           <div className="flex items-center justify-center py-10 text-[color:var(--ink-soft)]"><Loader2 size={20} className="animate-spin" /></div>
         )}
         {detail && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <DetailField label="Patient ID" value={detail.patientCode} />
             <DetailField label="Age" value={String(detail.age)} />
             <DetailField label="Gender" value={detail.gender} />
@@ -590,7 +590,7 @@ function BookingView({
 
   return (
     <div className="p-5 flex flex-col gap-4" style={{ height: 580 }}>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <FormRow label="Patient *">
           <PatientPicker patients={patients} value={patientId} onChange={(id) => setPatientId(id)} />
         </FormRow>

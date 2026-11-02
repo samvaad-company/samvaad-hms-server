@@ -207,7 +207,7 @@ export default function NewPrescriptionPage() {
       )}
 
       <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {/* ── Left: Patient + ICD + Notes ── */}
           <div className="col-span-1 flex flex-col gap-4">
             {/* Patient */}

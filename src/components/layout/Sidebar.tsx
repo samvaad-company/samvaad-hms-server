@@ -222,9 +222,12 @@ const groups: NavGroup[] = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  /** Phones and tablets: the sidebar slides over the page instead of sitting beside it. */
+  drawerOpen: boolean;
+  onCloseDrawer: () => void;
 }
 
-export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ collapsed, onToggle, drawerOpen, onCloseDrawer }: SidebarProps) {
   const pathname = usePathname();
   const { user, can } = useAuth();
   const { collapsed: folded, toggle } = useCollapsedGroups();
@@ -268,14 +271,25 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
     return () => window.removeEventListener("keydown", onKey);
   }, [visibleGroups, pathname, router]);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && onCloseDrawer();
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [drawerOpen, onCloseDrawer]);
+
   return (
+    <>
+    {/* Backdrop behind the drawer (compact screens only). */}
+    <div
+      aria-hidden
+      onClick={onCloseDrawer}
+      className={`lg:hidden fixed inset-0 z-[55] bg-black/40 transition-opacity duration-200 ${drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+    />
     <aside
-      className="fixed left-0 top-0 bottom-0 bg-[color:var(--chrome)] z-50 flex flex-col overflow-hidden"
-      style={{
-        width: collapsed ? 64 : 240,
-        transition: "width 220ms ease",
-        borderRight: "1px solid var(--chrome-line)",
-      }}
+      className={`fixed left-0 top-0 bottom-0 bg-[color:var(--chrome)] z-[60] lg:z-50 flex flex-col overflow-hidden w-[min(280px,85vw)] lg:w-[var(--sb-w)] transition-[width,transform] duration-[220ms] ease-in-out border-r border-[color:var(--chrome-line)] ${
+        drawerOpen ? "translate-x-0 shadow-2xl" : "max-lg:-translate-x-full"
+      }`}
     >
       {/* Logo + toggle */}
       <div
@@ -344,7 +358,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
                     <Icon size={20} strokeWidth={1.5} className="shrink-0" />
                     {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
                     {!collapsed && item.key && (
-                      <kbd className={`ml-auto min-w-[18px] text-center text-[10px] leading-[16px] font-mono rounded-[4px] px-[4px] border ${
+                      <kbd className={`max-lg:hidden ml-auto min-w-[18px] text-center text-[10px] leading-[16px] font-mono rounded-[4px] px-[4px] border ${
                         isActive ? "border-white/40 text-white/90" : "border-[color:var(--chrome-line)] text-[color:var(--ink-soft)] bg-[color:var(--surface)]/60"
                       }`}>{item.key}</kbd>
                     )}
@@ -365,7 +379,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
       </nav>
 
       {/* Collapse toggle button */}
-      <div className="shrink-0 px-3 pb-4">
+      <div className="shrink-0 px-3 pb-4 max-lg:hidden">
         <button
           onClick={onToggle}
           className={`flex items-center rounded-[8px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors ${
@@ -383,5 +397,6 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle }: SidebarPro
         </button>
       </div>
     </aside>
+    </>
   );
 });

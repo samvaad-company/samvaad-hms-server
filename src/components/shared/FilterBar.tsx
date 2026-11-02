@@ -50,17 +50,17 @@ export function FilterBar({
   const activeLabel = filters.find((f) => f.id === activeFilter)?.label ?? statusLabel;
 
   return (
-    <div className="flex items-center justify-between flex-wrap gap-x-[15px] gap-y-3 px-5 py-[25px]">
+    <div className="flex items-center justify-between flex-wrap gap-x-[15px] gap-y-3 px-4 sm:px-5 py-4 sm:py-[25px]">
       {/* Filter Tabs */}
-      <div className="bg-[color:var(--subtle)] flex items-center gap-[15px] p-[3px] rounded-full flex-wrap shrink-0">
+      <div className="bg-[color:var(--subtle)] flex items-center gap-2 sm:gap-[15px] flex-wrap p-[3px] rounded-full max-lg:rounded-none max-lg:bg-transparent max-lg:p-0 max-w-full shrink-0">
         {filters.map((f) => (
           <button
             key={f.id}
             onClick={() => onFilterChange?.(f.id)}
-            className={`flex items-center justify-center px-5 py-[5px] rounded-full text-[14px] leading-[19px] font-normal transition-colors cursor-pointer whitespace-nowrap ${
+            className={`flex items-center justify-center px-4 sm:px-5 py-[5px] rounded-full text-[14px] leading-[19px] font-normal transition-colors cursor-pointer whitespace-nowrap shrink-0 max-lg:border max-lg:py-[7px] max-lg:px-3 ${
               activeFilter === f.id
-                ? "bg-[color:var(--brand)] text-white"
-                : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+                ? "bg-[color:var(--brand)] text-white max-lg:border-[color:var(--brand)]"
+                : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)] max-lg:bg-[color:var(--subtle)]"
             }`}
           >
             {f.label}
@@ -69,7 +69,7 @@ export function FilterBar({
       </div>
 
       {/* Search + Status dropdown */}
-      <div className="flex items-center gap-[15px] flex-wrap">
+      <div className="flex items-center gap-3 sm:gap-[15px] flex-wrap max-sm:w-full">
         <div className="bg-[color:var(--subtle)] flex items-center gap-[10px] px-3 py-[6px] rounded-full flex-1 min-w-[200px]" style={{ maxWidth: 372 }}>
           <Search size={20} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
           <input

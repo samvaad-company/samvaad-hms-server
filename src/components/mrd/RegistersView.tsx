@@ -122,7 +122,7 @@ export function RegistersView({ canWrite }: { canWrite: boolean }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-[220px]"><FormSelect value={kind} onChange={(v) => { setKind(v as MrdRegisterKind); setReg(null); }} options={MRD_REGISTERS.map((r) => ({ value: r.kind, label: r.title }))} /></div>
         <button onClick={load} disabled={busy !== null} className={outlineBtn + " !h-[36px]"}>{busy === "load" ? "Loading…" : "Load entries"}</button>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <button onClick={print} disabled={busy !== null} className={outlineBtn + " !h-[36px]"}><Printer size={14} /> {busy === "print" ? "Preparing…" : "Print (12 months)"}</button>
           {canWrite && <button onClick={() => openFiling(null)} className={primaryBtn}><Plus size={15} /> File entry</button>}
         </div>
