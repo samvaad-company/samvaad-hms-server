@@ -205,6 +205,17 @@ stationery and Treatment sheet buttons on Settings, logo upload.
 - `/ambulance` (now Dispatch / Calls / Fleet / Dashboard): a call is Queued (no vehicle) or Dispatched (en route to pickup) → At scene → Transporting → Completed / Cancelled, each step timed; calls are numbered `AMB/yy/nnnnn` by the new "Ambulance call no." ID format; vehicles have a board code (AMB-01) and a type; completing a call with a fare raises an Ambulance bill. Stored vehicle statuses are unchanged (`On Call` shows as Dispatched, `Maintenance` as Off road). Server `services/ambulance-service.ts`, new routes `/api/ambulance/calls/[id]/{dispatch,arrive,transport,complete,cancel}` and `/api/ambulance/dashboard` (the old PATCH `{status}` still works), migration `0052`, tests `npm run test:ambulance`.
 - The sidebar group "Housekeeping" holds Housekeeping, Dietary, Waste & IC and Ambulance (Ambulance moved out of Services).
 
+### Training & tours (`/training`)
+- A "Training" item in the sidebar's Overview group, for every role. **My lessons**: a progress ring, "Continue: …" / "Start over", search, lessons **recommended for your role** and "more lessons you can try" (only ones your permissions let you use). **Team progress** (people with staff-write): each person against their role's recommended lessons.
+- A tour dims the screen, rings what a step points at and shows a card (step n of N, hint, shortcut, progress bar, Skip tour, back, Next/Finish). It follows you across screens, waits for its target, and a "click" step is clicked for you on Next. Finishing records it and offers the next lesson. Engine `src/components/training/TourProvider.tsx` (mounted in `SidebarShell`), target finding `src/lib/training/target.ts` (by CSS or by visible text, so screens needn't carry markers), steps `src/lib/training/tours.ts`, lesson catalogue + role recommendations `src/types/training.ts` (shared with the server).
+- Server `services/training-service.ts`, `/api/training` (mine), `/progress`, `/reset`, `/team`; table `training_progress` (migration `0053`, Mongo schema version 15); starting/finishing a tour is on the audit trail ("Started the "walk-in" guided tour"). Accounts with no hospital (partner centres) aren't recorded but can run the lessons.
+- To add a lesson: a `LESSONS` entry (with `roles`) and a `TOURS[id]` list. Tests: `npm run test:training`, `e2e/sections/15-training.spec.ts` (plays every lesson as the admin; progress is intercepted so nothing is recorded).
+
+### Flow tests, bug list and capacity (`e2e/flows/`, `docs/BUGS.md`, `docs/USER_FLOWS.md`, `docs/CAPACITY.md`)
+- `npm run test:flows` — whole patient journeys in a brand-new hospital on a throw-away in-memory API (:4100, started by `playwright.config.ts`; the browser specs proxy the app's `/api` calls to it, so the dev database is never touched). Specs: journey, every role in the browser, the other roles' jobs, cross-hospital isolation + security, concurrency, record screens, business rules. The defects the suite found (BUG-001…021, PERF-001…003) are all fixed and the tests are ordinary regression tests — see `docs/BUGS.md` for what changed. Role matrix now: Receptionist writes patients/appointments/OPD/ambulance; Head Nurse writes OPD/IPD (but not medicine orders — those need `prescriptions` write); Tele Caller writes patients; Driver writes ambulance. Discharge needs unpaid IPD bills cleared (or waived with a reason by a billing writer).
+- `npm run load` — grows one hospital to 1k/5k/20k/40k patients and times the key actions with a ~600 MB heap cap. Findings in CAPACITY.md.
+- The dev app's `.next` cache grows by GBs over a full run; delete it if the disk fills.
+
 ### End-to-end tests (Playwright) — `e2e/`, `playwright.config.ts`
 - `npm run test:e2e` (also `:ui`, `:report`): a real Chrome (the installed one — no browser download; `E2E_CHANNEL=chromium` after `npx playwright install chromium`)
   against the running app (:3005) and API (:4000), started if not up (`E2E_BASE_URL`, `E2E_API_URL`, `E2E_APP_PORT`, `E2E_API_PORT`). Read-only: the tests sign in and
@@ -212,7 +223,7 @@ stationery and Treatment sheet buttons on Settings, logo upload.
 - `e2e/auth.setup.ts` signs in once (hospital admin) and stores the session; `e2e/sections/*.spec.ts` has **one test per sidebar section** (47): reached by clicking its
   sidebar link, its heading, its controls and tabs, and a section-specific step (switch tabs, open and close a dialog). Every test also fails on a page script error or a
   5xx from the API (`support/test.ts`). `login.spec.ts`, `access.spec.ts` (what a doctor / receptionist see), `public.spec.ts` (patient-facing pages) run without a session.
-- 107 tests (47 section tests incl. the four Reports screens, 44 spacing checks, and the sign-in / access / public specs), about 1½ minutes. A dev server compiles each page the first time it is opened, so the first run is slower.
+- 141 tests (47 section tests incl. the four Reports screens, 44 spacing checks, and the sign-in / access / public specs), about 1½ minutes. A dev server compiles each page the first time it is opened, so the first run is slower.
 
 ### WhatsApp (Meta Cloud API) — Setup → WhatsApp (`/whatsapp`), `docs/WHATSAPP_SETUP.md`
 - One number per hospital in `whatsapp_accounts` (token AES-256-GCM encrypted with a key from `SESSION_SECRET`, never returned) plus a

@@ -28,7 +28,7 @@ import { ageFromDob, displayDate, displayTime } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { toPrescriptionDTO } from "@/repositories/mappers";
-import { mobileRule, dobRule, optionalMobileRule } from "@/lib/field-rules";
+import { mobileRule, dobRule, optionalMobileRule, optionalEmailRule } from "@/lib/field-rules";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { enrichLab } from "@/services/lab-service";
 import { enrichRadiology } from "@/services/radiology-service";
@@ -44,7 +44,7 @@ const createSchema = {
   dob: dobRule,
   age: { type: "number", required: false, min: 0, max: 200 },
   gender: { type: "enum", required: true, values: ["Male", "Female", "Other"] },
-  email: { type: "string", required: false, max: 160 },
+  email: optionalEmailRule,
   bloodGroup: {
     type: "enum",
     required: false,
@@ -223,15 +223,15 @@ export async function createPatient(input: unknown, actor: Session) {
   const data = validate(createSchema, input);
   await normaliseMasters(data as Record<string, unknown>, actor);
 
-  const existing = await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  const code = await nextNumber("uhid", actor, existing.rows.map((r) => r.patient_code), { prefix: "HMS-", pad: 4 }, { gender: String(data.gender ?? "") });
+  const body = (input ?? {}) as Record<string, unknown>;
+  const identityDocuments = toStoredDocuments(body.identityDocuments);
+  // Only a patient who brings an ID document needs the register searched for a clash.
+  if (identityDocuments.length) await assertNoDuplicateDocuments(identityDocuments, (await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows, null);
+  const code = await nextNumber("uhid", actor, async () => (await patientsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.patient_code), { prefix: "HMS-", pad: 4 }, { gender: String(data.gender ?? "") });
 
   const age = data.age ?? (data.dob ? ageFromDob(String(data.dob)) : 0);
   const doctorName = await resolveDoctor(data.doctorId, actor);
 
-  const body = (input ?? {}) as Record<string, unknown>;
-  const identityDocuments = toStoredDocuments(body.identityDocuments);
-  await assertNoDuplicateDocuments(identityDocuments, existing.rows, null);
   const payers = parsePayers(body.payers);
   await assertPayerContracts(payers, actor);
   const covid = parseCovid(body.covid);

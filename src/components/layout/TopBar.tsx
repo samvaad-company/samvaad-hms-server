@@ -267,6 +267,7 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
         {/* User */}
         <div className="relative">
           <button
+            data-tour="profile"
             onClick={() => setMenuOpen((o) => !o)}
             className="flex items-center gap-[8px] cursor-pointer"
           >

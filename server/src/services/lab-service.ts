@@ -217,8 +217,7 @@ export async function listRoutableCenters(actor: Session) {
 
 /** Next order number, shared by every test booked in one go. */
 async function nextOrderNumber(actor: Session): Promise<string> {
-  const { rows } = await labRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextNumber("lab_order", actor, rows.map((r) => r.order_number ?? ""), { prefix: "LAB-", pad: 4 });
+  return nextNumber("lab_order", actor, async () => (await labRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.order_number ?? ""), { prefix: "LAB-", pad: 4 });
 }
 
 export async function createLab(input: unknown, actor: Session, uow?: UnitOfWork) {
@@ -379,7 +378,7 @@ const FIREBASE_STORAGE_URL = /^https:\/\/(firebasestorage\.googleapis\.com|stora
  * only the roles Storage Security Rules actually let upload can get this far
  * with a real URL. Re-checked here too, server-side, since a URL could in
  * principle be submitted directly without going through Storage at all.
- * Marks the sample collected and the report ready, and records who uploaded
+ * Marks the report ready (the sample must already be collected and the test not cancelled), and records who uploaded
  * it — for a linked center that is the center's own login, so the ordering
  * hospital sees the source at a glance.
  */
@@ -404,6 +403,8 @@ export async function uploadLabReport(
   if (!FIREBASE_STORAGE_URL.test(fileUrl)) {
     throw new BadRequestError("fileUrl must be a Firebase Storage download URL");
   }
+  if (existing.status === "Cancelled") throw new ConflictError("This test was cancelled, so a report can't be attached to it");
+  if (existing.sample_status !== "Collected") throw new ConflictError("Collect the sample before attaching a report");
 
   const row = await labRepo.update(id, {
     report_file: fileUrl,

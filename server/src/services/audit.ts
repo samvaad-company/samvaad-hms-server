@@ -5,6 +5,7 @@
  * Each hospital's entries form a hash chain: an entry carries the hash of the one before it, so an entry that is edited or
  * removed afterwards breaks the chain from that point on (Reports → Audit → "Verify chain" walks it).
  */
+import { touchHospital } from "@/lib/summary-cache";
 import { createHash } from "node:crypto";
 import { auditRepo } from "@/repositories";
 import { logger } from "@/lib/logger";
@@ -29,6 +30,7 @@ export async function audit(
   entityId: string | number,
   meta: Record<string, unknown> = {},
 ): Promise<void> {
+  touchHospital(actor?.hospitalId);
   try {
     const hospitalId = actor?.hospitalId ?? null;
     const entry = { actor_id: actor?.userId ?? null, actor_name: actor?.name ?? "system", action, entity, entity_id: String(entityId), meta };

@@ -14,8 +14,13 @@ import {
 import { type DashboardStatsDTO } from "@shared/types/api";
 import { type Session } from "@/auth/session";
 import { scopeToHospital } from "@/services/hospital-scope";
+import { cachedSummary } from "@/lib/summary-cache";
 
 export async function getDashboardStats(actor: Session): Promise<DashboardStatsDTO> {
+  return cachedSummary(actor.hospitalId ?? 0, "dashboard", () => buildDashboardStats(actor));
+}
+
+async function buildDashboardStats(actor: Session): Promise<DashboardStatsDTO> {
   const scoped = (filters: { column: string; op: "eq" | "neq"; value: unknown }[]) =>
     scopeToHospital({ filters }, actor);
   const [

@@ -248,6 +248,7 @@ export async function recordDose(input: unknown, actor: Session) {
   if (!med) throw new NotFoundError("Medication");
   const admission = await ipdRepo.getRow(med.admission_id);
   assertOwnedByHospital(admission, actor, "Admission");
+  if (admission.status === "Discharged") throw new ConflictError("This patient has been discharged");
   const at = new Date(data.scheduledAt);
   if (Number.isNaN(at.getTime())) throw new BadRequestError("scheduledAt must be a date and time");
   if (data.status === "Held" && !data.note) throw new BadRequestError("Say why the dose is being held");
@@ -286,6 +287,7 @@ export async function recordVitals(input: unknown, actor: Session) {
   const data = validate(vitalSchema, input);
   const admission = await ipdRepo.getRow(data.admissionId);
   assertOwnedByHospital(admission, actor, "Admission");
+  if (admission.status === "Discharged") throw new ConflictError("This patient has been discharged");
   const readings = [data.tempC, data.pulse, data.bpSystolic, data.spo2, data.respRate];
   if (readings.every((r) => r == null)) throw new BadRequestError("Enter at least one reading");
   if ((data.bpSystolic == null) !== (data.bpDiastolic == null)) throw new BadRequestError("Enter both parts of the blood pressure");
@@ -454,6 +456,7 @@ export async function addHandover(input: unknown, actor: Session) {
   const data = validate(handoverSchema, input);
   const admission = await ipdRepo.getRow(data.admissionId);
   assertOwnedByHospital(admission, actor, "Admission");
+  if (admission.status === "Discharged") throw new ConflictError("This patient has been discharged");
   const now = shiftOf();
   const row = await ipdHandoversRepo.create({
     hospital_id: admission.hospital_id,

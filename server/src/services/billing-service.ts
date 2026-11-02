@@ -113,10 +113,10 @@ export async function createBill(input: unknown, actor: Session) {
   const paymentMode = data.paymentMode ? await canonicalMaster("payment_mode", data.paymentMode, actor, "paymentMode") : "";
 
   // Numbers follow the "Bill / invoice no." format (Setup → ID formats); the hospital's invoice prefix fills {PREFIX} when it has one.
-  const all = await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  const billNumber = await nextNumber("invoice", actor, all.rows.map((r) => r.bill_number), { prefix: "INV-", pad: 8 });
+  const billNumber = await nextNumber("invoice", actor, async () => (await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.bill_number), { prefix: "INV-", pad: 8 });
 
   if (!hasItems) {
+    if ((data.discount ?? 0) > data.amount) throw new ValidationError([{ field: "discount", message: "the discount can't be more than the bill" }]);
     const base = computeBillTotals(data.amount, data.discount ?? 0, data.type);
     const gst = switches.gstOnBills ? base.gst : 0;
     const total = switches.gstOnBills ? base.total : r2(Math.max(0, data.amount - (data.discount ?? 0)));
@@ -191,13 +191,19 @@ export async function updateBill(id: number, input: unknown, actor: Session) {
   assertOwnedByHospital(existing, actor, "Bill");
   const data = validatePartial(createSchema, input);
   const patch: Record<string, unknown> = {};
-  if ("status" in data) patch.status = data.status;
+  if ("status" in data) {
+    // Money already taken stays taken: a settled bill can only be refunded, and a refunded one is final.
+    if (existing.status === "Paid" && (data.status === "Pending" || data.status === "Partial")) throw new ConflictError("This bill is already paid. Refund it instead of setting it back to " + data.status);
+    if (existing.status === "Refunded" && data.status !== "Refunded") throw new ConflictError("This bill was refunded, so its status can't be changed");
+    patch.status = data.status;
+  }
   if ("type" in data) patch.type = data.type;
   if ("paymentMode" in data) patch.payment_mode = (await canonicalMaster("payment_mode", data.paymentMode, actor, "paymentMode", existing.payment_mode)) || null;
   if ("amount" in data || "discount" in data || "type" in data) {
     const amount = (data.amount as number) ?? existing.amount;
     const discount = (data.discount as number) ?? existing.discount;
     const type = (data.type as string) ?? existing.type;
+    if (Number(discount) > Number(amount)) throw new ValidationError([{ field: "discount", message: "the discount can't be more than the bill" }]);
     const totals = computeBillTotals(Number(amount), Number(discount), type);
     patch.amount = amount;
     patch.discount = discount;

@@ -2380,3 +2380,10 @@ export interface WasteRegisterDTO {
   hospital: string; from: string; to: string; collections: WasteCollectionDTO[]; disposals: WasteDisposalDTO[];
   totals: { category: WasteCategoryKey; label: string; collectedKg: number; disposedKg: number }[];
 }
+
+// ── Training & tours ────────────────────────────────────────────────────────
+
+export interface TrainingProgressDTO { lessonId: string; status: "In progress" | "Completed"; stepsSeen: number; completions: number; startedAt: string; completedAt: string | null }
+export interface TrainingMineDTO { role: string; lessons: TrainingProgressDTO[]; recommended: string[]; done: number }
+export interface TeamMemberDTO { userId: number; name: string; role: string; recommended: number; done: number; pct: number; lastActive: string | null; completed: string[]; inProgress: string[] }
+export interface TrainingTeamDTO { members: TeamMemberDTO[]; average: number }

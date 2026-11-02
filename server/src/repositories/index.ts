@@ -61,6 +61,7 @@ import type {
   HkTaskRow,
   DietTypeRow,
   WasteCollectionRow,
+  TrainingProgressRow,
   WasteDisposalRow,
   IcEventRow,
   HandHygieneAuditRow,
@@ -480,3 +481,5 @@ export const wasteCollectionsRepo = createRepository<WasteCollectionRow, WasteCo
 export const wasteDisposalsRepo = createRepository<WasteDisposalRow, WasteDisposalRow>(TABLES.wasteDisposals, (r) => r);
 export const icEventsRepo = createRepository<IcEventRow, IcEventRow>(TABLES.icEvents, (r) => r);
 export const handHygieneAuditsRepo = createRepository<HandHygieneAuditRow, HandHygieneAuditRow>(TABLES.handHygieneAudits, (r) => r);
+
+export const trainingProgressRepo = createRepository<TrainingProgressRow, TrainingProgressRow>(TABLES.trainingProgress, (r) => r);

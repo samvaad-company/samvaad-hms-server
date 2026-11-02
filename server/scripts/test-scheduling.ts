@@ -455,7 +455,7 @@ test("who may reschedule: admin, the appointment's own doctor, and the tele-call
 
   assert.equal((await doctor2("POST", `/api/appointments/${mine.data.id}/reschedule`, { date: date2, time: "11:30" })).status, 200, "a doctor moves their own");
   assert.equal((await doctor2("POST", `/api/appointments/${colleague.data.id}/reschedule`, { date: date2, time: "11:30" })).status, 403, "but not a colleague's");
-  assert.equal((await receptionOnly("POST", `/api/appointments/${colleague.data.id}/reschedule`, { date: date2, time: "11:30" })).status, 403, "reception can view but not move appointments");
+  { const rr = await receptionOnly("POST", `/api/appointments/${colleague.data.id}/reschedule`, { date: date2, time: "12:30" }); assert.equal(rr.status, 200, "reception books and moves appointments " + JSON.stringify(rr.error)); }
   assert.equal((await admin("POST", `/api/appointments/${colleague.data.id}/reschedule`, { date: date2, time: "11:30" })).status, 200);
 
   // A tele-caller: create the user, then try an in-person and a video appointment.

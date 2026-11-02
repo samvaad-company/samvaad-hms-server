@@ -2,6 +2,7 @@
  * The admin home: everything the command dashboard shows in one read — what needs attention today, the week's numbers, footfall and
  * collections, beds, doctors, retention and the queues. It only reads; each figure comes straight from the module that owns it.
  */
+import { cachedSummary } from "@/lib/summary-cache";
 import { appointmentsRepo, hospitalsRepo, bedsRepo, billsRepo, followupsRepo, ipdRepo, labRepo, opdRepo, otRepo, patientsRepo, pharmacyRepo, tpaClaimsRepo, wardsRepo } from "@/repositories";
 import type { AppointmentRow, BedRow, BillRow, FollowUpRow, IpdAdmissionRow, LabTestRow, OpdVisitRow, OtScheduleRow, PatientRow, PharmacyItemRow, TpaClaimRow, WardRow } from "@/db/tables";
 import { type Session } from "@/auth/session";
@@ -22,6 +23,10 @@ const youOwe = (b: BillRow): number => Number(b.patient_share ?? b.total);
 
 export async function getOverview(rawDays: number, actor: Session): Promise<OverviewDTO> {
   const days = [7, 14, 30].includes(rawDays) ? rawDays : 14;
+  return cachedSummary(actor.hospitalId ?? 0, `overview:${days}:${localDate()}`, () => buildOverview(days, actor));
+}
+
+async function buildOverview(days: number, actor: Session): Promise<OverviewDTO> {
   const today = localDate();
   const [patients, appts, opd, bills, labs, beds, wards, ipd, ot, followups, claims, stock, hospital, plan, classes] = await Promise.all([
     all<PatientRow>(patientsRepo, actor), all<AppointmentRow>(appointmentsRepo, actor), all<OpdVisitRow>(opdRepo, actor), all<BillRow>(billsRepo, actor),
@@ -137,7 +142,7 @@ export async function getOverview(rawDays: number, actor: Session): Promise<Over
     },
     trend,
     byMode: [...byModeMap.entries()].map(([mode, g]) => ({ mode, amount: r2(g.amount), count: g.count })).sort((a, b) => b.amount - a.amount),
-    appointmentsToday: todays.map((a) => ({ id: a.id, time: a.appointment_time, patient: a.patient_name, doctor: a.doctor, type: a.type, status: a.status })),
+    appointmentsToday: todays.slice(0, 50).map((a) => ({ id: a.id, time: a.appointment_time, patient: a.patient_name, doctor: a.doctor, type: a.type, status: a.status })),
     bedsByClass: [...groups.entries()].map(([name, g]) => ({ name, ...g })).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)),
     admittedToday: ipd.filter((i) => i.admission_date === today).length,
     dischargedToday: ipd.filter((i) => i.status === "Discharged" && dayOf(i.updated_at) === today).length,

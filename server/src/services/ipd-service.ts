@@ -7,6 +7,7 @@ import { raiseBedTurnaround } from "@/services/housekeeping-service";
 import { endOrdersForAdmission, moveOrdersForAdmission } from "@/services/dietary-service";
 import {
   ipdRepo,
+  billsRepo,
   bedsRepo,
   patientsRepo,
   doctorsRepo,
@@ -20,6 +21,8 @@ import { transactional } from "@/db/unit-of-work";
 import { TABLES } from "@/db/tables";
 import { type IpdAdmissionRow } from "@/db/tables";
 import { ConflictError, BadRequestError } from "@/lib/errors";
+import { withKeyLocks } from "@/lib/key-lock";
+import { can } from "@/auth/rbac";
 import { validate, validatePartial } from "@/lib/validation";
 import { validateNotPast } from "@/lib/field-rules";
 import { displayDate, isoDate } from "@/services/helpers";
@@ -96,12 +99,17 @@ async function resolveNurse(nurseId: number | undefined, actor: Session): Promis
 /** ADM/2026/00003 by default — the "Admission no." format in Setup decides. */
 async function nextAdmissionNo(actor: Session): Promise<string> {
   const prefix = `ADM/${localDate().slice(0, 4)}/`;
-  const { rows } = await ipdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextNumber("admission", actor, rows.map((r) => r.admission_no ?? ""), { prefix, pad: 5 });
+  return nextNumber("admission", actor, async () => (await ipdRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.admission_no ?? ""), { prefix, pad: 5 });
 }
 
+/** A patient has one stay at a time: two clerks admitting the same person at once must not both succeed. */
 export async function admitPatient(input: unknown, actor: Session) {
   const data = validate(admitSchema, input);
+  const keys = [data.patientId ? `admit:${actor.hospitalId}:patient:${data.patientId}` : "", data.bedId ? `admit:${actor.hospitalId}:bed:${data.bedId}` : ""].filter(Boolean);
+  return keys.length ? withKeyLocks(keys, () => admitLocked(data, actor)) : admitLocked(data, actor);
+}
+
+async function admitLocked(data: ReturnType<typeof validate<typeof admitSchema>>, actor: Session) {
 
   let patientName = data.patientName;
   let patientAge = data.patientAge ?? 0;
@@ -138,6 +146,12 @@ export async function admitPatient(input: unknown, actor: Session) {
     ward = bed.ward;
     bedLabel = bed.bed_number;
     bedToOccupy = bed.id;
+  }
+
+  if (data.patientId) {
+    const stays = await ipdRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: data.patientId }] }, actor));
+    const live = (stays.rows as IpdAdmissionRow[]).find((a) => a.status !== "Discharged");
+    if (live) throw new ConflictError(`${live.patient_name} is already admitted${live.bed ? ` (bed ${live.bed})` : ""}. Discharge or transfer that stay first`);
   }
 
   const wardRow = ward
@@ -225,13 +239,33 @@ export async function updateIpd(id: number, input: unknown, actor: Session) {
   return toIpdDTO(row as IpdAdmissionRow);
 }
 
+/**
+ * Billing clearance: an admission with unpaid IPD bills can't be discharged until they're settled. Someone who can
+ * write billing may waive it, in writing (a reason), and the waiver is recorded with the discharge.
+ */
+async function billingClearance(admission: IpdAdmissionRow, input: unknown, actor: Session): Promise<{ due: number; reason: string } | null> {
+  if (!admission.patient_id) return null;
+  const { rows } = await billsRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: admission.patient_id }] }, actor));
+  const unpaid = rows.filter((b) => b.type === "IPD" && (b.status === "Pending" || b.status === "Partial"));
+  if (!unpaid.length) return null;
+  const due = unpaid.reduce((n, b) => n + Number(b.total), 0);
+  const body = (input ?? {}) as { waiveBilling?: unknown; reason?: unknown };
+  const reason = String(body.reason ?? "").trim();
+  if (body.waiveBilling === true && can(actor.role, "billing", "write")) {
+    if (!reason) throw new BadRequestError("Say why the unpaid bills are being waived");
+    return { due, reason };
+  }
+  throw new ConflictError(`${unpaid.length} unpaid IPD bill${unpaid.length === 1 ? "" : "s"} totalling ₹${due.toLocaleString("en-IN")}. Settle ${unpaid.length === 1 ? "it" : "them"} before discharge`, { unpaid: unpaid.length, due, canWaive: can(actor.role, "billing", "write") });
+}
+
 /** Discharge an admission, freeing its bed. */
-export async function dischargePatient(id: number, actor: Session) {
+export async function dischargePatient(id: number, actor: Session, input: unknown = {}) {
   const admission = await ipdRepo.getRow(id);
   assertOwnedByHospital(admission, actor, "Admission");
   if (admission.status === "Discharged") {
     throw new ConflictError("Patient is already discharged");
   }
+  const waiver = await billingClearance(admission, input, actor);
   const row = await transactional("ipd.discharge", async (uow) => {
     if (admission.bed_id) {
       await uow.update(TABLES.beds, admission.bed_id, {
@@ -243,7 +277,7 @@ export async function dischargePatient(id: number, actor: Session) {
     }
     return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged" });
   });
-  await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id });
+  await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id, ...(waiver ? { billingWaived: waiver.due, reason: waiver.reason } : {}) });
   if (admission.hospital_id) await endOrdersForAdmission(id, admission.hospital_id);
   // The bed goes to housekeeping for a terminal clean before the next admission.
   if (admission.bed_id && admission.hospital_id) {

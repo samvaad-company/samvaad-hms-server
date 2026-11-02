@@ -2,6 +2,7 @@
  * Reports → Analytics: the trend of collections and footfall over days, weeks or months — with the period so far set against the
  * one before it — and today's figures for revenue, the OPD, beds, the pharmacy and the lab. Read-only.
  */
+import { cachedSummary } from "@/lib/summary-cache";
 import { appointmentsRepo, bedsRepo, billsRepo, ipdRepo, labRepo, opdRepo, pharmacyBatchesRepo, pharmacyRepo } from "@/repositories";
 import type { AppointmentRow, BedRow, BillRow, IpdAdmissionRow, LabTestRow, OpdVisitRow, PharmacyBatchRow, PharmacyItemRow } from "@/db/tables";
 import { type Session } from "@/auth/session";
@@ -26,6 +27,10 @@ const NOT_OUT = (s: string): boolean => s !== "Discharged";
 
 export async function getAnalytics(rawRange: string, actor: Session): Promise<AnalyticsDTO> {
   const range: AnalyticsRange = rawRange === "week" || rawRange === "month" ? rawRange : "day";
+  return cachedSummary(actor.hospitalId ?? 0, `analytics:${range}:${localDate()}`, () => buildAnalytics(range, actor));
+}
+
+async function buildAnalytics(range: AnalyticsRange, actor: Session): Promise<AnalyticsDTO> {
   const today = localDate();
   const [bills, appts, opd, ipd, beds, labs, stock, batches] = await Promise.all([
     all<BillRow>(billsRepo, actor), all<AppointmentRow>(appointmentsRepo, actor), all<OpdVisitRow>(opdRepo, actor), all<IpdAdmissionRow>(ipdRepo, actor),

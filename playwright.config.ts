@@ -19,6 +19,7 @@ const API_PORT = Number(process.env.E2E_API_PORT ?? 4000);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${APP_PORT}`;
 const apiURL = process.env.E2E_API_URL ?? `http://localhost:${API_PORT}`;
 const channel = process.env.E2E_CHANNEL ?? "chrome";
+const FLOW_API_PORT = Number(process.env.E2E_FLOW_API_PORT ?? 4100);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -41,10 +42,13 @@ export default defineConfig({
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
-    { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: "e2e/.auth/admin.json", ...(channel === "chromium" ? {} : { channel }) }, dependencies: ["setup"], testIgnore: /(auth\.setup|login\.spec|access\.spec|public\.spec)\.ts$/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: "e2e/.auth/admin.json", ...(channel === "chromium" ? {} : { channel }) }, dependencies: ["setup"], testIgnore: /(auth\.setup|login\.spec|access\.spec|public\.spec)\.ts$|[\\/]flows[\\/]/ },
     { name: "anonymous", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, ...(channel === "chromium" ? {} : { channel }) }, testMatch: /(login|access|public)\.spec\.ts$/ },
+    // Whole patient journeys, in a brand-new hospital on a throw-away in-memory API (see e2e/flows/support/stack.ts).
+    { name: "flows", testDir: "./e2e/flows", testMatch: /\.spec\.ts$/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, ...(channel === "chromium" ? {} : { channel }) }, timeout: 180_000 },
   ],
   webServer: [
+    { command: "npm --prefix server run start", url: `http://localhost:${FLOW_API_PORT}/api/health`, reuseExistingServer: true, timeout: 120_000, env: { PORT: String(FLOW_API_PORT), DATABASE_DRIVER: "memory", LOG_LEVEL: "error" }, stdout: "ignore", stderr: "pipe" },
     { command: "npm --prefix server run dev", url: `${apiURL}/api/health`, reuseExistingServer: true, timeout: 120_000, stdout: "ignore", stderr: "pipe" },
     { command: "npm run dev", url: `${baseURL}/login`, reuseExistingServer: true, timeout: 180_000, env: { PORT: String(APP_PORT) }, stdout: "ignore", stderr: "pipe" },
   ],

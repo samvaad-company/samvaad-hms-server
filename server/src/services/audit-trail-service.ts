@@ -52,7 +52,7 @@ const MODULES: [RegExp, string][] = [
   [/^patient/, "Patients"], [/^appointment|^teleconsult|^schedule/, "Appointments"], [/^opd|^ipd|^ot$|^nurs|^checklist|^followup|^bed|^ward|^blood|^cssd|^ambulance|^record/, "Clinical"],
   [/^prescription/, "Prescriptions"], [/^bill|^payout|^finance|^tpa|^payer/, "Billing"], [/^document|^consent|^signature|^mrd|^file/, "Documents"],
   [/^lab|^radiology/, "Lab"], [/^audit/, "Audit"], [/^pharmacy|^inventory|^medicine/, "Pharmacy"], [/^setup|^hospital|^branch|^plan/, "Setup"],
-  [/^housekeeping/, "Housekeeping"], [/^diet|^canteen/, "Dietary"], [/^waste|^ic-|^hand-hygiene/, "Waste & IC"], [/^enquir/, "Enquiries"], [/^staff|^hr|^attendance|^payroll|^profile|^user/, "Staff"],
+  [/^housekeeping/, "Housekeeping"], [/^diet|^canteen/, "Dietary"], [/^waste|^ic-|^hand-hygiene/, "Waste & IC"], [/^enquir/, "Enquiries"], [/^staff|^training|^hr|^attendance|^payroll|^profile|^user/, "Staff"],
 ];
 const moduleOf = (entity: string): string => MODULES.find(([re]) => re.test(entity))?.[1] ?? "Other";
 

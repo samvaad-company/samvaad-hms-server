@@ -122,6 +122,7 @@ export const TABLES = {
   wasteDisposals: "waste_disposals",
   icEvents: "ic_events",
   handHygieneAudits: "hand_hygiene_audits",
+  trainingProgress: "training_progress",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -2484,6 +2485,28 @@ export interface HandHygieneAuditRow extends Row {
   compliant: number;
   auditor: string;
   notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Training & tours ────────────────────────────────────────────────────────
+
+/** One person's progress through one lesson. */
+export interface TrainingProgressRow extends Row {
+  id: number;
+  hospital_id: number;
+  user_id: number;
+  user_name: string;
+  role: string;
+  lesson_id: string;
+  /** "In progress" | "Completed" */
+  status: string;
+  /** The furthest step they have reached (1-based). */
+  steps_seen: number;
+  /** How many times they have finished it. */
+  completions: number;
+  started_at: string;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }

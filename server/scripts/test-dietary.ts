@@ -25,13 +25,24 @@ async function request(method: string, path: string, opts: { body?: unknown; hea
   return { status: res.status, data: parsed?.data, error: parsed?.error, headers: res.headers };
 }
 const cookies = new Map<string, string>();
-async function as(email: string, method: string, path: string, body?: unknown) {
+async function rawAs(email: string, method: string, path: string, body?: unknown) {
   if (!cookies.has(email)) {
     const login = await request("POST", "/api/auth/login", { body: { email, password: "Samvaad@123" } });
     assert.equal(login.status, 200, `login ${email}`);
     cookies.set(email, (login.headers.get("set-cookie") ?? "").split(";")[0]);
   }
   return request(method, path, { body, headers: { cookie: cookies.get(email)! } });
+}
+
+/** Seeded patients already have a live stay; a patient can only have one, so end it before a test admits them again. */
+async function endLiveStays(email: string, patientId: unknown): Promise<void> {
+  if (patientId == null) return;
+  const stays = ((await rawAs(email, "GET", "/api/ipd?all=true")).data as any[]).filter((a) => a.patientRefId === patientId && a.status !== "Discharged");
+  for (const a of stays) await rawAs(email, "POST", `/api/ipd/${a.id}/discharge`, { waiveBilling: true, reason: "test fixture" });
+}
+async function as(email: string, method: string, path: string, body?: unknown) {
+  if (method === "POST" && path === "/api/ipd") await endLiveStays(email, (body as { patientId?: unknown } | undefined)?.patientId);
+  return rawAs(email, method, path, body);
 }
 const ADMIN = "kevin.carter@samvaadhospital.in";
 const BILLING = "kavitha.krishnan@samvaadhospital.in";
@@ -45,7 +56,10 @@ let seq = 0;
 const admit = async (bedId?: number) => {
   const beds = await freeBeds();
   const bed = bedId ? beds.find((b) => b.id === bedId)! : beds[0];
-  const r = await as(ADMIN, "POST", "/api/ipd", { patientId: 2 + (seq++ % 5), patientName: "Ethan Miller", bedId: bed.id });
+  // A new patient each time: a patient can only have one live stay.
+  const p = await as(ADMIN, "POST", "/api/patients", { name: `Diet Patient ${seq}`, age: 40, gender: "Male", phone: `98${String(70000000 + seq++)}` });
+  assert.equal(p.status, 201, JSON.stringify(p.error));
+  const r = await as(ADMIN, "POST", "/api/ipd", { patientId: p.data.id, patientName: p.data.name, bedId: bed.id });
   assert.equal(r.status, 201, JSON.stringify(r.error));
   return { admission: r.data, bed };
 };

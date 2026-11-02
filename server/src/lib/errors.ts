@@ -74,6 +74,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class RateLimitedError extends AppError {
+  constructor(message = "Too many attempts. Try again later.", details?: unknown) {
+    super(429, "RATE_LIMITED", message, details);
+  }
+}
+
 export function isAppError(err: unknown): err is AppError {
   return err instanceof AppError;
 }

@@ -61,6 +61,7 @@ import {
   SprayCan,
   UtensilsCrossed,
   Recycle,
+  GraduationCap,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -101,6 +102,7 @@ const groups: NavGroup[] = [
       { href: "/home",               label: "Home",              icon: House, key: "H" },
       { href: "/chat",                label: "AI Chat",           icon: Sparkles,    resource: "chat", key: "C" },
       { href: "/attendance-kiosk",    label: "Attendance QR",     icon: QrCode,      resource: "attendance", key: "Q" },
+      { href: "/training",            label: "Training",          icon: GraduationCap },
     ],
   },
   {
