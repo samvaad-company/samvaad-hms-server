@@ -123,7 +123,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
    * anyone can ask the assistant about the hospital's records; its use is capped by a monthly token allowance
    * (ai-quota-service.ts), and the platform admin, who has no hospital data of their own, does not get it.
    */
-  "Platform Admin": withOverrides(ALL_WRITE, { chat: "none", tasks: "none" }),
+  "Platform Admin": withOverrides(ALL_WRITE, { tasks: "none" }),
   "Super Admin": ALL_WRITE,
   "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
@@ -237,10 +237,9 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Lab Partner": withOverrides(NONE, { lab: "write" }),
 };
 
-// Every hospital role may use the AI assistant, whatever its other permissions (see the note on "Platform Admin" above).
-for (const [role, perms] of Object.entries(ROLE_PERMISSIONS)) {
-  if (role !== "Platform Admin") perms.chat = "write";
-}
+// Every role may use the AI assistant, whatever its other permissions. (A platform admin has no hospital of its own, so
+// the assistant has no hospital records to look up for them.)
+for (const perms of Object.values(ROLE_PERMISSIONS)) perms.chat = "write";
 
 function levelSatisfies(level: Access, action: Action): boolean {
   if (level === "write") return true;
@@ -249,7 +248,8 @@ function levelSatisfies(level: Access, action: Action): boolean {
 }
 
 export function permissionsFor(role: string): Record<Resource, Access> {
-  return ROLE_PERMISSIONS[role] ?? ALL_READ;
+  // A role with no entry above is read-only on everything, but still gets the AI assistant like every other role.
+  return ROLE_PERMISSIONS[role] ?? { ...ALL_READ, chat: "write" };
 }
 
 export function can(role: string, resource: Resource, action: Action): boolean {
