@@ -33,7 +33,8 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // v7: Setup records (masters, hospital setup, branches).
 // v8: pharmacy batches, dispenses and returns.
 // v9: bill line items.
-const MONGO_SCHEMA_VERSION = 15;
+// v16: database-level unique indexes mirroring the SQL constraints of migrations 0049–0053 (names, one diet sheet per ward per day, one training row per person and lesson).
+const MONGO_SCHEMA_VERSION = 16;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {

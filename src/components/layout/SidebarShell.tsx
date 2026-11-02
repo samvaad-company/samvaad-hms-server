@@ -8,6 +8,7 @@ import { BreadcrumbProvider } from "@/lib/breadcrumb-context";
 import { ChatWidget } from "@/components/chat/ChatWidget";
 import { RouteLoader } from "./RouteLoader";
 import { TourProvider } from "@/components/training/TourProvider";
+import { LiveAppointmentsListener } from "@/components/live/LiveAppointmentsListener";
 import { FULL_SCREEN_ROUTES } from "@/lib/layout-routes";
 
 /** Radius of the page's top-left corner, where it meets the sidebar and the header. */
@@ -25,6 +26,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   return (
     <BreadcrumbProvider>
       <TourProvider>
+      <LiveAppointmentsListener />
       {/* The app frame is fixed to the screen: sidebar and header never move, and the page panel below is the one
           place that scrolls (screens that manage their own panes, like Patients, fill it exactly instead). */}
       <div className="fixed inset-0 overflow-hidden bg-[color:var(--chrome)]">

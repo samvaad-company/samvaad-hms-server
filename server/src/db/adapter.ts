@@ -56,6 +56,14 @@ export interface QueryResult<T> {
 /** A row is any record with a primitive id. */
 export type Row = Record<string, unknown> & { id: number | string };
 
+/** One write seen by `watchChanges`. `document` is the new row, for inserts only. */
+export interface DbChange {
+  table: string;
+  hospitalId: number | null;
+  operation?: "insert" | "update" | "replace" | "delete";
+  document?: Record<string, unknown>;
+}
+
 export interface DatabaseAdapter {
   /** Human-readable driver name, for diagnostics. */
   readonly driver: string;
@@ -92,4 +100,32 @@ export interface DatabaseAdapter {
 
   /** Ensure the backend is reachable / seeded. */
   ready(): Promise<void>;
+
+  // ── Shared state ───────────────────────────────────────────────────────────
+  // Optional: a driver that implements these keeps the state in the database, so several API processes share it. When a
+  // driver doesn't, callers fall back to per-process state (fine for a single server).
+
+  /**
+   * Atomically hand out the next value of a named sequence: one more than the larger of the stored value and `floor`.
+   * Two callers — in this process or another — never receive the same value.
+   */
+  nextSequence?(key: string, floor: number): Promise<number>;
+
+  /** Give back `value` if it is still the latest one handed out (so a failed save doesn't leave a gap). */
+  releaseSequence?(key: string, value: number): Promise<void>;
+
+  /** Count one event for `key` in the current fixed time window and return the count so far. Windows expire by themselves. */
+  countHit?(key: string, windowMs: number): Promise<number>;
+
+  /** The count so far in the current window, without counting. */
+  peekHits?(key: string, windowMs: number): Promise<number>;
+
+  /** Forget every window of `key`. */
+  clearHits?(key: string): Promise<void>;
+
+  /**
+   * Call `onChange` whenever a row is written by anyone (any process, any tool). `hospitalId` is null when unknown.
+   * Returns a function that stops listening, or null when the driver can't watch for changes.
+   */
+  watchChanges?(onChange: (change: DbChange) => void): Promise<(() => void) | null>;
 }

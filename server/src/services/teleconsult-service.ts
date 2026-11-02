@@ -19,6 +19,7 @@ import {
   usersRepo,
 } from "@/repositories";
 import { toAppointmentDTO } from "@/repositories/mappers";
+import { publishAppointmentCreated } from "@/services/live-events";
 import { type AppointmentRow, type TeleconsultBookingRow, type TeleconsultPaymentRow } from "@/db/tables";
 import { AppError, BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { validate } from "@/lib/validation";
@@ -538,6 +539,7 @@ async function confirmLocked(bookingId: number, info: ConfirmInfo): Promise<Tele
     failure_reason: null,
   }))!;
   if (paymentId) await linkPaymentToAppointment(paymentId, keeper.id);
+  publishAppointmentCreated(keeper); // once per appointment, however many times the payment is confirmed
   await audit(info.actor ?? null, "confirm", "teleconsult", booking.id, {
     appointmentId: keeper.id, mode: info.mode, amount: booking.amount, paymentId, via: info.via,
   });

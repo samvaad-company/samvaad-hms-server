@@ -119,8 +119,40 @@ function applyQuery<T extends Row>(
   return { rows: result.map((r) => clone(r)) as T[], total };
 }
 
+const hitWindows = new Map<string, { n: number; expires: number }>();
+
 export class MemoryAdapter implements DatabaseAdapter {
   readonly driver = "memory";
+
+  async nextSequence(key: string, floor: number): Promise<number> {
+    const store = getStore();
+    const next = Math.max(store.sequences.get(`seq:${key}`) ?? 0, floor) + 1;
+    store.sequences.set(`seq:${key}`, next);
+    return next;
+  }
+
+  async releaseSequence(key: string, value: number): Promise<void> {
+    const store = getStore();
+    if (store.sequences.get(`seq:${key}`) === value) store.sequences.set(`seq:${key}`, value - 1);
+  }
+
+  async countHit(key: string, windowMs: number): Promise<number> {
+    const bucket = Math.floor(Date.now() / windowMs);
+    const id = `${key}|${bucket}`;
+    const hit = hitWindows.get(id) ?? { n: 0, expires: (bucket + 1) * windowMs };
+    hit.n++;
+    hitWindows.set(id, hit);
+    if (hitWindows.size > 5000) for (const [k, h] of hitWindows) if (h.expires < Date.now()) hitWindows.delete(k);
+    return hit.n;
+  }
+
+  async peekHits(key: string, windowMs: number): Promise<number> {
+    return hitWindows.get(`${key}|${Math.floor(Date.now() / windowMs)}`)?.n ?? 0;
+  }
+
+  async clearHits(key: string): Promise<void> {
+    for (const k of hitWindows.keys()) if (k.startsWith(`${key}|`)) hitWindows.delete(k);
+  }
 
   private table(name: string): Row[] {
     const store = getStore();

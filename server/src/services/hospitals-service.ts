@@ -16,7 +16,11 @@ import {
   labCentersRepo,
 } from "@/repositories";
 import { hashPassword } from "@/auth/password";
-import { ForbiddenError, ConflictError, NotFoundError } from "@/lib/errors";
+import { ForbiddenError, ConflictError, NotFoundError, BadRequestError } from "@/lib/errors";
+import { ROLE_PERMISSIONS } from "@/auth/rbac";
+import { type QueryOptions } from "@/db/adapter";
+import { createUser, listUsers } from "@/services/admin-service";
+import { createStaff, listStaff } from "@/services/staff-service";
 import { validate } from "@/lib/validation";
 import { audit } from "@/services/audit";
 import { forgetHospitalStatus } from "@/auth/tenant-gate";
@@ -212,4 +216,66 @@ export async function getPlatformOverview(actor: Session) {
     labCenters: labCenters.rows.length,
     hospitals: hospitals.rows.map(toHospitalDTO),
   };
+}
+
+// ── Staff and logins added to a hospital by the platform admin ───────────────
+
+/** Logins that can't be created this way: Platform Admin is never granted here, and the partner roles need a lab/radiology centre link. */
+const NOT_GRANTABLE_HERE = ["Platform Admin", "Radiology Partner", "Lab Partner"];
+
+/** Roles a platform admin can give to a login in a hospital. */
+export function grantableRoles(): string[] {
+  return Object.keys(ROLE_PERMISSIONS).filter((r) => !NOT_GRANTABLE_HERE.includes(r));
+}
+
+export function grantableRolesFor(actor: Session): string[] {
+  requirePlatformAdmin(actor);
+  return grantableRoles();
+}
+
+/**
+ * The platform admin, acting inside one hospital. The platform admin has no hospital of their own, so the ordinary
+ * "add a user / add staff" services (which write into the caller's hospital) are run with a session scoped to the
+ * target hospital. Their name still goes on the audit trail — in that hospital's chain.
+ */
+async function actingIn(hospitalId: number, actor: Session): Promise<Session> {
+  requirePlatformAdmin(actor);
+  const hospital = await hospitalsRepo.getRow(hospitalId);
+  if (!hospital) throw new NotFoundError("Hospital");
+  if (hospital.status === "Removed") throw new ConflictError("This hospital has been removed");
+  return { ...actor, role: "Super Admin", hospitalId };
+}
+
+export async function listHospitalUsers(hospitalId: number, actor: Session) {
+  return listUsers(await actingIn(hospitalId, actor));
+}
+
+/**
+ * Create a login in a hospital. Same body as `POST /api/admin/users`, plus an optional `staff` object: when given, a staff
+ * directory entry is created first and the login is linked to it, so the person is both on the staff list and able to sign in.
+ */
+export async function createHospitalUser(hospitalId: number, input: unknown, actor: Session) {
+  const scoped = await actingIn(hospitalId, actor);
+  const body = { ...((input ?? {}) as Record<string, unknown>) };
+  const role = String(body.role ?? "");
+  if (role && !grantableRoles().includes(role)) {
+    throw new BadRequestError(`role must be one of: ${grantableRoles().join(", ")}`);
+  }
+  const staffInput = body.staff;
+  delete body.staff;
+  if (staffInput !== undefined && staffInput !== null) {
+    if (typeof staffInput !== "object" || Array.isArray(staffInput)) throw new BadRequestError("staff must be an object");
+    const staff = await createStaff({ name: body.name, role: body.role, email: body.email, ...(staffInput as object) }, scoped);
+    body.staffId = staff.id;
+  }
+  return createUser(body, scoped);
+}
+
+/** Add a person to a hospital's staff directory (no login). Same body as `POST /api/staff`. */
+export async function createHospitalStaff(hospitalId: number, input: unknown, actor: Session) {
+  return createStaff(input, await actingIn(hospitalId, actor));
+}
+
+export async function listHospitalStaff(hospitalId: number, options: QueryOptions, actor: Session) {
+  return listStaff(options, await actingIn(hospitalId, actor));
 }

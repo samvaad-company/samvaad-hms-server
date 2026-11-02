@@ -19,6 +19,7 @@
 import { MongoClient, type Db, type Collection, type Document } from "mongodb";
 import {
   type DatabaseAdapter,
+  type DbChange,
   type Filter,
   type QueryOptions,
   type QueryResult,
@@ -283,6 +284,150 @@ export class MongoAdapter implements DatabaseAdapter {
       { returnDocument: "after" },
     );
     return clean<T>(res);
+  }
+
+  // ── Shared state: sequences, rate-limit windows, change feed ─────────────────
+
+  /**
+   * One atomic update that lifts the counter to `floor` if it is behind and then adds one, so concurrent callers in any
+   * number of processes each get a different value. The first call for a key creates it; two first calls racing can both try
+   * to create it — the loser gets a duplicate-key error and simply retries.
+   */
+  async nextSequence(key: string, floor: number): Promise<number> {
+    const db = await this.connect();
+    const id = `seq:${key}` as unknown as Document["_id"];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await db.collection(COUNTERS).findOneAndUpdate(
+          { _id: id },
+          [{ $set: { seq: { $add: [{ $max: [{ $ifNull: ["$seq", 0] }, floor] }, 1] } } }],
+          { upsert: true, returnDocument: "after" },
+        );
+        return res?.seq as number;
+      } catch (err) {
+        if ((err as { code?: number }).code === 11000 && attempt < 5) continue;
+        throw err;
+      }
+    }
+  }
+
+  async releaseSequence(key: string, value: number): Promise<void> {
+    const db = await this.connect();
+    await db.collection(COUNTERS).updateOne({ _id: `seq:${key}` as unknown as Document["_id"], seq: value }, { $inc: { seq: -1 } });
+  }
+
+  private hitsIndexed = false;
+
+  private async hitsCollection(): Promise<Collection<Document>> {
+    const db = await this.connect();
+    const col = db.collection("rate_limits");
+    if (!this.hitsIndexed) {
+      // The database removes a window once it is over; `key` serves "forget this key".
+      await col.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
+      await col.createIndex({ key: 1 });
+      this.hitsIndexed = true;
+    }
+    return col;
+  }
+
+  async countHit(key: string, windowMs: number): Promise<number> {
+    const col = await this.hitsCollection();
+    const bucket = Math.floor(Date.now() / windowMs);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await col.findOneAndUpdate(
+          { _id: `${key}|${bucket}` as unknown as Document["_id"] },
+          { $inc: { n: 1 }, $setOnInsert: { key, expireAt: new Date((bucket + 1) * windowMs + 60_000) } },
+          { upsert: true, returnDocument: "after" },
+        );
+        return (res?.n as number) ?? 1;
+      } catch (err) {
+        if ((err as { code?: number }).code === 11000 && attempt < 5) continue;
+        throw err;
+      }
+    }
+  }
+
+  async peekHits(key: string, windowMs: number): Promise<number> {
+    const col = await this.hitsCollection();
+    const doc = await col.findOne({ _id: `${key}|${Math.floor(Date.now() / windowMs)}` as unknown as Document["_id"] });
+    return (doc?.n as number) ?? 0;
+  }
+
+  async clearHits(key: string): Promise<void> {
+    await (await this.hitsCollection()).deleteMany({ key });
+  }
+
+  /**
+   * A change stream over the whole database (needs a replica set, which Atlas always is). Inserts, updates, replaces and deletes
+   * are reported with the row's hospital when it can be known; the bookkeeping collections are ignored. If the stream drops it
+   * is reopened from where it stopped (resume token); if that isn't possible it starts afresh and reports one change with an
+   * unknown hospital, so nothing cached stays trusted across the gap.
+   */
+  async watchChanges(onChange: (change: DbChange) => void): Promise<(() => void) | null> {
+    const db = await this.connect();
+    let stopped = false;
+    let resumeToken: unknown;
+    let backoff = 1000;
+    let current: ReturnType<Db["watch"]> | null = null;
+
+    const open = async (first: boolean): Promise<boolean> => {
+      let startupError: Error | null = null;
+      let started = false;
+      try {
+        const stream = db.watch(
+          [{ $match: { operationType: { $in: ["insert", "update", "replace", "delete"] }, "ns.coll": { $nin: [COUNTERS, "rate_limits", "_meta", "audit_log"] } } }],
+          { fullDocument: "updateLookup", ...(resumeToken ? { resumeAfter: resumeToken as never } : {}) },
+        );
+        current = stream;
+        stream.on("change", (ev: Document) => {
+          resumeToken = ev._id;
+          backoff = 1000;
+          const hid = (ev.fullDocument as { hospital_id?: unknown } | undefined)?.hospital_id;
+          const operation = ev.operationType as DbChange["operation"];
+          onChange({
+            table: String((ev.ns as { coll?: string } | undefined)?.coll ?? ""),
+            hospitalId: typeof hid === "number" ? hid : null,
+            operation,
+            ...(operation === "insert" && ev.fullDocument ? { document: clean<Row>(ev.fullDocument as Document) as Record<string, unknown> } : {}),
+          });
+        });
+        stream.on("error", (err: Error) => {
+          if (!started) { startupError = err; return; }
+          logger.warn("mongo.change_stream_error", { error: err.message });
+          reopen();
+        });
+        stream.on("close", () => { if (started && !stopped) reopen(); });
+        // The server answers "change streams aren't supported here" (a standalone mongod) within moments of the first request.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        started = true;
+        if (startupError) throw startupError;
+        return true;
+      } catch (err) {
+        void current?.close().catch(() => undefined);
+        if (first) logger.warn("mongo.change_stream_unavailable", { error: (err as Error).message });
+        return false;
+      }
+    };
+
+    const reopen = () => {
+      if (stopped) return;
+      void current?.close().catch(() => undefined);
+      setTimeout(async () => {
+        if (stopped) return;
+        const hadToken = resumeToken !== undefined;
+        if (!(await open(false))) {
+          // A resume token that has aged out can't be used; start over and tell listeners to distrust their caches.
+          resumeToken = undefined;
+          if (hadToken) onChange({ table: "", hospitalId: null });
+          backoff = Math.min(backoff * 2, 30_000);
+          reopen();
+        } else if (!hadToken) onChange({ table: "", hospitalId: null });
+      }, backoff);
+    };
+
+    if (!(await open(true))) return null;
+    return () => { stopped = true; void current?.close().catch(() => undefined); };
   }
 
   async remove(table: string, id: number | string): Promise<boolean> {

@@ -38,6 +38,10 @@
     "test:waste": "tsx scripts/test-waste.ts",
     "test:ambulance": "tsx scripts/test-ambulance.ts",
     "test:training": "tsx scripts/test-training.ts",
+    "test:platformstaff": "tsx scripts/test-platform-staff.ts",
+    "test:sharedstate": "tsx scripts/test-shared-state.ts",
+    "test:liveevents": "tsx scripts/test-live-events.ts",
+    "test:mongoshared": "tsx --env-file=.env scripts/test-mongo-shared.ts",
     "load": "node --expose-gc --max-old-space-size=600 --import tsx scripts/load-test.ts",
     "test:whatsapp": "tsx scripts/test-whatsapp.ts"
   },

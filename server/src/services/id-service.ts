@@ -13,7 +13,7 @@ import { LIVE_ID_FORMATS, formatIdPreview } from "@shared/types/setup";
 import { type Session } from "@/auth/session";
 import { nextCode } from "@/services/helpers";
 import { getConfig, listSetup } from "@/services/setup-service";
-import { singleFlight } from "@/lib/key-lock";
+import { allocateSequence } from "@/services/sequences";
 
 export { LIVE_ID_FORMATS };
 export type IdKey = (typeof LIVE_ID_FORMATS)[number];
@@ -70,21 +70,21 @@ async function loadFormat(key: IdKey, actor: Session) {
   return rec && rec.active ? rec : null;
 }
 
-/** The highest counter issued per series, remembered for the life of the process so a number doesn't need the whole table read. */
-const issued = new Map<string, number>();
-
-/** Forget what was issued (tests that reset the data between runs). */
-export function resetIssuedNumbers(): void { issued.clear(); }
+export interface IssuedNumber {
+  number: string;
+  /** Give the number back if the record it was for could not be saved and nothing newer has been issued. */
+  release: () => Promise<void>;
+}
 
 /**
  * The next number for `key`. `existing` is every number already issued in that series — or a function that fetches them, which
- * is only called the first time the series is used after the server starts (afterwards the highest counter is remembered, so a
- * registration doesn't read the whole table). Without a usable format (deleted or switched off in Setup) the old fixed prefix and
- * width are used, so numbering never stops.
+ * is only called the first time the series is used after the server starts (afterwards a shared counter hands out the next one,
+ * see sequences.ts, so a registration doesn't read the whole table and several API processes never issue the same number).
+ * Without a usable format (deleted or switched off in Setup) the old fixed prefix and width are used, so numbering never stops.
  */
-export async function nextNumber(key: IdKey, actor: Session, existing: string[] | (() => Promise<string[]>), legacy: Legacy, ctx: IdContext = {}): Promise<string> {
+export async function allocateNumber(key: IdKey, actor: Session, existing: string[] | (() => Promise<string[]>), legacy: Legacy, ctx: IdContext = {}): Promise<IssuedNumber> {
   const rec = await loadFormat(key, actor);
-  if (!rec) return nextCode(typeof existing === "function" ? await existing() : existing, legacy.prefix, legacy.pad);
+  if (!rec) return { number: nextCode(typeof existing === "function" ? await existing() : existing, legacy.prefix, legacy.pad), release: async () => undefined };
   const mask = String(rec.data.mask ?? "");
   const hospital = await getConfig("hospital", actor);
   const fyStartMonth = Number(hospital.fyStartMonth) || 4;
@@ -95,7 +95,6 @@ export async function nextNumber(key: IdKey, actor: Session, existing: string[] 
   const luhn = rec.data.luhn === true;
   const reset = String(rec.data.reset ?? "Never");
   const pattern = seriesPattern(mask, { prefix, reset, fyStartMonth, luhn, now });
-  const seriesKey = `${actor.hospitalId}|${key}|${pattern.source}`;
   const scan = async (): Promise<number> => {
     let top = 0;
     for (const no of typeof existing === "function" ? await existing() : existing) {
@@ -104,13 +103,14 @@ export async function nextNumber(key: IdKey, actor: Session, existing: string[] 
     }
     return top;
   };
-  // Everything from here to `issued.set` is synchronous, so two requests can never be handed the same counter.
-  const remembered = issued.get(seriesKey);
-  const base = remembered ?? (typeof existing === "function" ? await singleFlight(`seq:${seriesKey}`, scan) : await scan());
-  const max = Math.max(issued.get(seriesKey) ?? 0, base);
-  issued.set(seriesKey, max + 1);
+  const seq = await allocateSequence(`${actor.hospitalId}|${key}|${pattern.source}`, scan);
   const gender = rec.data.gender === true || mask.includes("{GENDER}")
     ? (/^f/i.test(ctx.gender ?? "") ? "F" : /^m/i.test(ctx.gender ?? "") ? "M" : ctx.gender ? "O" : "M")
     : undefined;
-  return formatIdPreview(mask, { prefix, seq: max + 1, luhn, gender, fyStartMonth, now });
+  return { number: formatIdPreview(mask, { prefix, seq: seq.value, luhn, gender, fyStartMonth, now }), release: seq.release };
+}
+
+/** As `allocateNumber`, for callers that don't need to give the number back. */
+export async function nextNumber(key: IdKey, actor: Session, existing: string[] | (() => Promise<string[]>), legacy: Legacy, ctx: IdContext = {}): Promise<string> {
+  return (await allocateNumber(key, actor, existing, legacy, ctx)).number;
 }

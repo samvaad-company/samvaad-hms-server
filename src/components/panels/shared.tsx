@@ -87,15 +87,17 @@ export function QuickLinks({ links }: { links: QuickLink[] }) {
   );
 }
 
-export function WorklistCard({ title, action, children }: {
+export function WorklistCard({ title, badge, action, children }: {
   title: string;
+  /** Shown beside the title, e.g. the "Live" marker of a card fed by the event stream. */
+  badge?: ReactNode;
   action?: { label: string; href: string };
   children: ReactNode;
 }) {
   return (
     <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex-1 min-w-0`}>
       <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-medium text-[color:var(--ink)]">{title}</h2>
+        <h2 className="flex items-center gap-2 text-[15px] font-medium text-[color:var(--ink)]">{title}{badge}</h2>
         {action && (
           <Link href={action.href} className="text-[12px] font-normal text-[color:var(--brand)] hover:underline whitespace-nowrap">
             {action.label} →

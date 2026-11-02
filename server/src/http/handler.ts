@@ -3,7 +3,7 @@
  * transient backend failures so individual route files stay declarative.
  */
 import { ApiResponse, type ApiRequest } from "@/http/web";
-import { AppError, isAppError } from "@/lib/errors";
+import { AppError, ConflictError, isAppError } from "@/lib/errors";
 import { errorResponse } from "@/http/response";
 import { logger } from "@/lib/logger";
 
@@ -29,7 +29,12 @@ export function withRoute<Ctx = unknown>(
         ms: Date.now() - start,
       });
       return res;
-    } catch (err) {
+    } catch (caught) {
+      // The database refusing a duplicate (a unique index lost a race between two requests) is a conflict, not a crash.
+      const dup = caught as { code?: unknown; message?: unknown } | null;
+      const err = !isAppError(caught) && (dup?.code === 11000 || dup?.code === "23505" || /E11000 duplicate key/.test(String(dup?.message ?? "")))
+        ? new ConflictError("That already exists")
+        : caught;
       if (isAppError(err)) {
         // Client/expected errors are logged at warn, not error.
         const level = err.status >= 500 ? "error" : "warn";
