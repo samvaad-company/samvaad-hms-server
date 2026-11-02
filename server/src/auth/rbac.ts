@@ -119,8 +119,9 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
    * that hospital like every other role (see hospital-scope.ts).
    */
   /**
-   * AI Chat and the Task Board are deliberately restricted to Super Admin
-   * only — see the "none" overrides below and on every non-ALL_WRITE role.
+   * The Task Board is Super Admin only (see the "none" overrides below). AI Chat is open to every hospital role, so
+   * anyone can ask the assistant about the hospital's records; its use is capped by a monthly token allowance
+   * (ai-quota-service.ts), and the platform admin, who has no hospital data of their own, does not get it.
    */
   "Platform Admin": withOverrides(ALL_WRITE, { chat: "none", tasks: "none" }),
   "Super Admin": ALL_WRITE,
@@ -235,6 +236,11 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   /** External diagnostic lab: sees only the lab worklist and uploads reports. */
   "Lab Partner": withOverrides(NONE, { lab: "write" }),
 };
+
+// Every hospital role may use the AI assistant, whatever its other permissions (see the note on "Platform Admin" above).
+for (const [role, perms] of Object.entries(ROLE_PERMISSIONS)) {
+  if (role !== "Platform Admin") perms.chat = "write";
+}
 
 function levelSatisfies(level: Access, action: Action): boolean {
   if (level === "write") return true;

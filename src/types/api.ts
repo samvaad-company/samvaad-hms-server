@@ -1270,7 +1270,74 @@ export interface ChatMessageDTO {
   sources: string[] | null;
   /** The patient this reply resolved to, if any — powers a "View patient" link. */
   patientId: number | null;
+  /** AI tokens this reply used; null on user messages and on replies from before usage was tracked. */
+  tokensIn: number | null;
+  tokensOut: number | null;
+  tokensTotal: number | null;
   createdAt: string;
+}
+
+/** The signed-in person's AI token allowance for the current month. */
+export interface AiQuotaDTO {
+  month: string;
+  /** An administrator has paused this person's AI use. */
+  blocked: boolean;
+  used: number;
+  /** null = no limit (super admins). */
+  limit: number | null;
+  remaining: number | null;
+  exceeded: boolean;
+  /** First day of the month the allowance renews, e.g. "2026-12-01". */
+  renewsOn: string;
+}
+
+export interface ChatStatusDTO {
+  live: boolean;
+  quota: AiQuotaDTO;
+}
+
+export type AiUsageStatus = "ok" | "near" | "exceeded" | "blocked" | "unlimited";
+
+export interface AiUsageUserDTO {
+  userId: number;
+  name: string;
+  role: string;
+  messages: number;
+  promptTokens: number;
+  outputTokens: number;
+  used: number;
+  /** The limit in force this month: own limit or the default, plus any extra granted. null = unlimited. */
+  limit: number | null;
+  /** This person's own limit, if one was set; null = follows the default. */
+  ownLimit: number | null;
+  extraGranted: number;
+  /** Paused by an admin. */
+  blocked: boolean;
+  status: AiUsageStatus;
+  lastUsedAt: string | null;
+}
+
+export interface AiGrantDTO {
+  id: number;
+  userId: number;
+  userName: string;
+  tokens: number;
+  note: string;
+  grantedBy: string;
+  createdAt: string;
+}
+
+export interface AiUsageDTO {
+  month: string;
+  months: string[];
+  renewsOn: string;
+  defaultLimit: number;
+  totals: { used: number; messages: number; activeUsers: number; exceeded: number; near: number; blocked: number; avgPerAnswer: number; promptTokens: number; outputTokens: number; peakDay: { date: string; tokens: number } | null; projected: number | null };
+  /** Everyone in the hospital, heaviest user first. */
+  users: AiUsageUserDTO[];
+  byRole: { role: string; used: number; messages: number; users: number }[];
+  daily: { date: string; tokens: number; messages: number }[];
+  grants: AiGrantDTO[];
 }
 
 export interface ScribeNoteDTO {

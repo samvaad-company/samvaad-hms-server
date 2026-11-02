@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2, UserRound } from "lucide-react";
+import { Sparkles, Loader2, UserRound, Zap } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -13,6 +13,10 @@ export interface DisplayMessage {
   sources?: string[] | null;
   /** The patient this reply resolved to, if any — renders a "View patient" link. */
   patientId?: number | null;
+  /** AI tokens this reply used, shown under the bubble. */
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  tokensTotal?: number | null;
 }
 
 interface ChatMessageListProps {
@@ -47,7 +51,7 @@ export function ChatMessageList({ messages, streamingText, toolStatus, empty }: 
       )}
 
       {messages.map((m) => (
-        <Bubble key={m.id} role={m.role} content={m.content} sources={m.sources} patientId={m.patientId} />
+        <Bubble key={m.id} role={m.role} content={m.content} sources={m.sources} patientId={m.patientId} tokensIn={m.tokensIn} tokensOut={m.tokensOut} tokensTotal={m.tokensTotal} />
       ))}
 
       {(streamingText !== undefined || toolStatus) && (
@@ -129,12 +133,18 @@ function Bubble({
   sources,
   patientId,
   toolStatus,
+  tokensIn,
+  tokensOut,
+  tokensTotal,
 }: {
   role: "user" | "assistant";
   content: string;
   sources?: string[] | null;
   patientId?: number | null;
   toolStatus?: string | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  tokensTotal?: number | null;
 }) {
   const isUser = role === "user";
   return (
@@ -167,6 +177,16 @@ function Bubble({
               </span>
             ))}
           </div>
+        )}
+        {!isUser && tokensTotal != null && (
+          <span
+            className="flex flex-wrap items-center gap-x-2 px-1 text-[10px] font-normal text-[color:var(--ink-soft)]"
+            title="AI tokens used to answer this question, lookups included"
+          >
+            <Zap size={10} className="shrink-0" />
+            <b className="font-medium text-[color:var(--ink)]">{tokensTotal.toLocaleString("en-IN")} tokens</b>
+            {tokensIn != null && tokensOut != null && <span>· {tokensIn.toLocaleString("en-IN")} in · {tokensOut.toLocaleString("en-IN")} out</span>}
+          </span>
         )}
         {!isUser && patientId != null && (
           <Link

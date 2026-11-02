@@ -15,11 +15,16 @@ import { LiveAppointmentsListener } from "@/components/live/LiveAppointmentsList
 import { LiveToasts } from "@/components/live/LiveToasts";
 import { FULL_SCREEN_ROUTES } from "@/lib/layout-routes";
 
+/** Width of the AI drawer when it sits beside the page. */
+const AI_WIDTH = 400;
+
 /** Radius of the page's top-left corner, where it meets the sidebar and the header. */
 const CORNER = 18;
 
 export function SidebarShell({ children }: { children: React.ReactNode }) {
   const [collapsedPref, setCollapsed] = useState(false);
+  // The AI drawer on the right: open or closed from the top bar, kept as you move between screens.
+  const [aiOpen, setAiOpen] = useState(false);
   // Phones and tablets: the sidebar is a drawer over the page (never a rail), opened from the top bar.
   const compact = useIsCompact();
   const collapsed = collapsedPref && !compact;
@@ -28,6 +33,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const fullScreen = FULL_SCREEN_ROUTES.includes(pathname);
   const toggle = useCallback(() => setCollapsed((c) => !c), []);
+  const toggleAi = useCallback(() => setAiOpen((o) => !o), []);
   // The drawer is open for the page it was opened on, so navigating closes it without an effect.
   const [drawerFor, setDrawerFor] = useState<string | null>(null);
   const drawerOpen = compact && drawerFor === pathname;
@@ -45,10 +51,10 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
           place that scrolls (screens that manage their own panes, like Patients, fill it exactly instead). */}
       <div
         className="fixed inset-0 overflow-hidden bg-[color:var(--chrome)]"
-        style={{ "--sb-w": `${sidebarWidth}px` } as React.CSSProperties}
+        style={{ "--sb-w": `${sidebarWidth}px`, "--ai-w": `${aiOpen && !fullScreen ? AI_WIDTH : 0}px` } as React.CSSProperties}
       >
         <Sidebar collapsed={collapsed} onToggle={toggle} drawerOpen={drawerOpen} onCloseDrawer={closeDrawer} />
-        {!fullScreen && <TopBar onOpenMenu={openDrawer} />}
+        {!fullScreen && <TopBar onOpenMenu={openDrawer} aiOpen={aiOpen} onToggleAi={toggleAi} />}
         {/* Full-screen forms have no top bar, so they get their own menu button on small screens. */}
         {fullScreen && (
           <button
@@ -62,7 +68,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         )}
         <main
           id="app-scroll"
-          className="absolute right-0 bottom-0 left-0 lg:left-[var(--sb-w)] overflow-y-auto overscroll-contain bg-[color:var(--canvas)] transition-[left] duration-[220ms] ease-in-out lg:rounded-tl-[18px]"
+          className="absolute right-0 lg:right-[var(--ai-w)] bottom-0 left-0 lg:left-[var(--sb-w)] overflow-y-auto overscroll-contain bg-[color:var(--canvas)] transition-[left,right] duration-[220ms] ease-in-out lg:rounded-tl-[18px]"
           style={{ top }}
         >
           <div className="relative h-full">
@@ -81,7 +87,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
             background: `radial-gradient(circle at ${CORNER}px ${CORNER}px, transparent ${CORNER - 0.5}px, var(--chrome) ${CORNER}px)`,
           }}
         />
-        {!fullScreen && <ChatWidget />}
+        {!fullScreen && <ChatWidget open={aiOpen} onOpenChange={setAiOpen} />}
       </div>
       </TourProvider>
     </BreadcrumbProvider>

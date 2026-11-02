@@ -4,18 +4,18 @@
  * Each domain is a thin wrapper around an EXISTING service's list function —
  * the same function the REST API uses — so a tool call gets exactly the same
  * hospital/doctor/dual-ownership scoping as the normal UI, with no new query
- * logic to get wrong. `buildToolsForActor` is the actual access-control
- * boundary: a domain is only ever turned into a Gemini tool declaration (and
- * therefore only ever callable) when `can(actor.role, domain.resource,
- * "read")` — a role that can't read billing never even sees a "query
- * billing" tool exists. `executeTool` re-checks permission server-side
- * before running anything, so the model is never trusted to have only
- * picked from the filtered list it was given.
+ * logic to get wrong.
+ *
+ * Every role gets every lookup: the assistant is how any staff member can ask about patients, bills, reports,
+ * prescriptions, appointments and so on, whatever their screens allow. What stays enforced is the hospital boundary
+ * (a person only ever sees their own hospital's data, and doctors keep their own-patient scoping, because both live
+ * inside the services these tools call) and the audit trail: every lookup is written to the audit log with who asked.
  */
-import { can, type Resource } from "@/auth/rbac";
+import { type Resource } from "@/auth/rbac";
 import { type Session } from "@/auth/session";
 import { type QueryOptions } from "@/db/adapter";
 import { type ToolDeclaration } from "@/services/gemini";
+import { audit } from "@/services/audit";
 
 import { listPatients, PATIENT_LIST_CONFIG } from "@/services/patients-service";
 import { listAppointments, APPOINTMENT_LIST_CONFIG } from "@/services/appointments-service";
@@ -162,11 +162,12 @@ export function buildToolsForActor(actor: Session): ToolDeclaration[] {
   }));
 }
 
-function availableDomains(actor: Session): ChatDomain[] {
-  return CHAT_DOMAINS.filter((d) => !d.resource || can(actor.role, d.resource, "read"));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function availableDomains(_actor: Session): ChatDomain[] {
+  return CHAT_DOMAINS;
 }
 
-/** Executes a tool call, re-checking permission server-side regardless of what the model was offered. */
+/** Executes a tool call and records the lookup in the audit log. */
 export async function executeTool(
   name: string,
   args: ChatToolArgs,
@@ -174,11 +175,9 @@ export async function executeTool(
 ): Promise<{ ok: true; result: unknown } | { ok: false; error: string }> {
   const domain = CHAT_DOMAINS.find((d) => d.name === name);
   if (!domain) return { ok: false, error: `Unknown tool: ${name}` };
-  if (domain.resource && !can(actor.role, domain.resource, "read")) {
-    return { ok: false, error: "You don't have permission to view this data." };
-  }
   try {
     const result = await domain.run(args, actor);
+    await audit(actor, "read", "ai_lookup", name, { patientId: args.patientId ?? null, search: args.search ?? null, status: args.status ?? null });
     return { ok: true, result };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };

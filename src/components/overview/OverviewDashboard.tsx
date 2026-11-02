@@ -5,6 +5,7 @@
  * retention, and the live queues. Everything comes from one read (`/dashboard/overview`).
  */
 import Link from "next/link";
+import { AskAiCard } from "@/components/chat/AskAiCard";
 import { useState, type ReactNode } from "react";
 import { BedDouble, Calendar, CalendarPlus, IndianRupee, UserPlus, Users, Footprints } from "lucide-react";
 import { useItem } from "@/lib/api/hooks";
@@ -171,6 +172,8 @@ export function OverviewDashboard() {
           ))}
         </div>
       </div>
+
+      <AskAiCard gutter={false} />
 
       {/* Needs you today */}
       <div>

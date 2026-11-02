@@ -13,6 +13,7 @@ import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { formatDate } from "@/lib/dates";
 import type { TaskDTO } from "@/types/api";
+import { AskAiCard } from "@/components/chat/AskAiCard";
 
 export interface PanelStat {
   icon: LucideIcon;
@@ -26,6 +27,7 @@ export function PanelHeader({ name, subtitle, badge }: { name: string; subtitle:
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
+    <>
     <div className={`${tw.gutterX} pt-[16px] mb-5`}>
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
@@ -40,6 +42,8 @@ export function PanelHeader({ name, subtitle, badge }: { name: string; subtitle:
         )}
       </div>
     </div>
+    <AskAiCard />
+    </>
   );
 }
 

@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
+import { Menu, Sparkles, Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumbValue } from "@/lib/breadcrumb-context";
 import { api } from "@/lib/api/client";
@@ -14,6 +14,9 @@ import type { PatientDTO, DoctorDTO, AppointmentDTO } from "@/types/api";
 interface TopBarProps {
   /** Opens the sidebar drawer (phones and tablets). */
   onOpenMenu: () => void;
+  /** The AI side drawer: whether it is open, and a way to open or close it. */
+  aiOpen: boolean;
+  onToggleAi: () => void;
 }
 
 function initials(name: string): string {
@@ -221,8 +224,8 @@ function GlobalSearch() {
   );
 }
 
-export const TopBar = memo(function TopBar({ onOpenMenu }: TopBarProps) {
-  const { user, logout } = useAuth();
+export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: TopBarProps) {
+  const { user, logout, can } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { mode, toggle: toggleMode } = useColorMode();
@@ -230,7 +233,7 @@ export const TopBar = memo(function TopBar({ onOpenMenu }: TopBarProps) {
 
   return (
     <div
-      className="fixed top-0 right-0 left-0 lg:left-[var(--sb-w)] z-40 h-[52px] bg-[color:var(--chrome)] flex items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4 border-b border-[color:var(--chrome-line)] transition-[left] duration-[220ms] ease-in-out"
+      className="fixed top-0 right-0 lg:right-[var(--ai-w)] left-0 lg:left-[var(--sb-w)] z-40 h-[52px] bg-[color:var(--chrome)] flex items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4 border-b border-[color:var(--chrome-line)] transition-[left,right] duration-[220ms] ease-in-out"
     >
       <button
         type="button"
@@ -264,6 +267,24 @@ export const TopBar = memo(function TopBar({ onOpenMenu }: TopBarProps) {
       <GlobalSearch />
 
       <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
+
+        {/* AI assistant: opens the side drawer on any screen */}
+        {can("chat") && (
+          <button
+            type="button"
+            data-tour="ai-launcher"
+            onClick={onToggleAi}
+            aria-pressed={aiOpen}
+            aria-label={aiOpen ? "Close AI assistant" : "Open AI assistant"}
+            title={aiOpen ? "Close AI assistant" : "Open AI assistant"}
+            className={`h-[34px] flex items-center gap-[6px] rounded-full px-3 text-[13px] font-medium transition-colors cursor-pointer shrink-0 ${
+              aiOpen ? "bg-[color:var(--brand)] text-white" : "bg-[color:var(--surface)] text-[color:var(--brand)] shadow-[0_1px_4px_rgba(0,0,0,0.08)] hover:bg-[color:var(--brand-soft)]"
+            }`}
+          >
+            <Sparkles size={16} strokeWidth={1.7} />
+            <span className="max-sm:hidden">AI</span>
+          </button>
+        )}
 
         {/* Settings · light/dark · notifications */}
         <div className="bg-[color:var(--surface)] rounded-full flex items-center gap-[10px] px-[10px] py-[8px] sm:py-[6px] shadow-[0_1px_4px_rgba(0,0,0,0.08)]">

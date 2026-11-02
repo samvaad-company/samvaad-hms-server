@@ -33,7 +33,6 @@ import {
   ShieldCheck,
   House,
   ClipboardList,
-  Sparkles,
   QrCode,
   CalendarCheck,
   CalendarClock,
@@ -62,6 +61,7 @@ import {
   UtensilsCrossed,
   Recycle,
   GraduationCap,
+  Zap,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -100,7 +100,6 @@ const groups: NavGroup[] = [
     label: "Overview",
     items: [
       { href: "/home",               label: "Home",              icon: House, key: "H" },
-      { href: "/chat",                label: "AI Chat",           icon: Sparkles,    resource: "chat", key: "C" },
       { href: "/attendance-kiosk",    label: "Attendance QR",     icon: QrCode,      resource: "attendance", key: "Q" },
       { href: "/training",            label: "Training",          icon: GraduationCap },
     ],
@@ -186,6 +185,12 @@ const groups: NavGroup[] = [
       { href: "/ai-monitor",    label: "AI monitor",    icon: Cpu,          resource: "reports" },
       { href: "/reports",       label: "Reports",       icon: FileBarChart, resource: "reports" },
       { href: "/audit",         label: "Audit",         icon: ScrollText,   resource: "admin" },
+    ],
+  },
+  {
+    label: "AI",
+    items: [
+      { href: "/ai", label: "AI Usage & Access", icon: Zap, onlyForRoles: ["Super Admin", "IT Admin"] },
     ],
   },
   {

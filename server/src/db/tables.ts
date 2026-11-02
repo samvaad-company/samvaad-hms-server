@@ -106,6 +106,9 @@ export const TABLES = {
   prescriptionTemplates: "prescription_templates",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
+  aiTokenUsage: "ai_token_usage",
+  aiTokenLimits: "ai_token_limits",
+  aiTokenGrants: "ai_token_grants",
   teleconsultBookings: "teleconsult_bookings",
   googleConnections: "google_connections",
   teleconsultPayments: "teleconsult_payments",
@@ -1332,6 +1335,53 @@ export interface ChatMessageRow extends Row {
   sources: string[] | null;
   /** The patient this reply resolved to, if any — powers a "View patient" link. */
   patient_id: number | null;
+  /** AI tokens this reply used (assistant messages only; absent on older rows). */
+  tokens_in?: number | null;
+  tokens_out?: number | null;
+  tokens_total?: number | null;
+  created_at: string;
+}
+
+/** One ledger line per AI answer, kept even if the chat thread is later deleted, so usage reports stay complete. */
+export interface AiTokenUsageRow extends Row {
+  id: number;
+  hospital_id: number | null;
+  user_id: number;
+  user_name: string;
+  role: string;
+  thread_id: number | null;
+  message_id: number | null;
+  prompt_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  /** "YYYY-MM": the quota month this usage counts against. */
+  month: string;
+  created_at: string;
+}
+
+/** A monthly token limit. user_id null = the default for everyone in that hospital; otherwise that person's own limit. */
+export interface AiTokenLimitRow extends Row {
+  id: number;
+  hospital_id: number | null;
+  user_id: number | null;
+  /** null = follows the hospital default (the row then exists only to hold `blocked`). */
+  monthly_limit: number | null;
+  /** An admin has paused this person's AI use. */
+  blocked?: boolean;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Extra tokens an admin gave one person for one month, on top of their limit. */
+export interface AiTokenGrantRow extends Row {
+  id: number;
+  hospital_id: number | null;
+  user_id: number;
+  month: string;
+  tokens: number;
+  note: string;
+  granted_by: string;
   created_at: string;
 }
 
