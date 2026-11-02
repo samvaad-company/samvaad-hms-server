@@ -139,7 +139,7 @@ export function BoardTab({ patients, canWrite }: { patients: WardPatient[]; canW
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className={sectionTitle}>This shift</h2>
           <div className="flex items-center gap-2">
-            <div role="group" aria-label="Task status" className="inline-flex p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
+            <div role="group" aria-label="Task status" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[8px] bg-[color:var(--subtle)]">
               {(["To do", "Done"] as const).map((v) => (
                 <button key={v} onClick={() => setTaskView(v)} aria-pressed={taskView === v}
                   className={`h-[26px] px-3 rounded-[6px] text-[12px] cursor-pointer ${taskView === v ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)]"}`}>{v}</button>

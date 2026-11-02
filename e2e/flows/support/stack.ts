@@ -34,6 +34,8 @@ export class Session {
     await context.route("**/api/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.origin === new URL(FLOW_API).origin) return route.continue();
+      // The live event stream never ends, so it can't be fetched-and-fulfilled (that waits for the whole body): send the request on to the flow API.
+      if (url.pathname === "/api/events/stream") return route.continue({ url: `${FLOW_API}${url.pathname}${url.search}` });
       const response = await route.fetch({ url: `${FLOW_API}${url.pathname}${url.search}` });
       await route.fulfill({ response });
     });

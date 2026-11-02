@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { api } from "@/lib/api/client";
 import { sendChatMessage } from "@/lib/api/chat-stream";
-import type { ChatThreadDTO, ChatMessageDTO } from "@/types/api";
+import type { ChatThreadDTO, ChatMessageDTO, ChatStatusDTO, AiQuotaDTO } from "@/types/api";
 import type { DisplayMessage } from "@/components/chat/ChatMessageList";
 
 function toolLabel(name: string): string {
@@ -22,6 +22,8 @@ export function useChatThread() {
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState<string | undefined>(undefined);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
+  // This month's token allowance; null until first loaded.
+  const [quota, setQuota] = useState<AiQuotaDTO | null>(null);
   // Coalesces concurrent ensureThread() callers (e.g. the page's mount
   // effect and a fast send() both racing to resolve "which thread is
   // active") onto one in-flight request instead of each independently
@@ -33,9 +35,19 @@ export function useChatThread() {
     try {
       const data = await api.get<{ thread: ChatThreadDTO; messages: ChatMessageDTO[] }>(`/chat/threads/${id}`);
       setThreadId(data.thread.id);
-      setMessages(data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources, patientId: m.patientId })));
+      setMessages(data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, sources: m.sources, patientId: m.patientId, tokensIn: m.tokensIn, tokensOut: m.tokensOut, tokensTotal: m.tokensTotal })));
     } finally {
       setLoadingThread(false);
+    }
+  }
+
+  /** Reloads the person's token allowance for the month. */
+  async function refreshQuota() {
+    try {
+      const status = await api.get<ChatStatusDTO>("/chat/status");
+      setQuota(status.quota);
+    } catch {
+      // The meter is informational; chat still works without it.
     }
   }
 
@@ -101,11 +113,21 @@ export function useChatThread() {
         setToolStatus(null);
         setStreamText(acc);
       },
-      onDone: (messageId, patientId) => {
+      onDone: ({ messageId, patientId, tokens, quota: nextQuota }) => {
         setMessages((prev) => [
           ...prev,
-          { id: messageId, role: "assistant", content: acc, sources: usedSources.size ? Array.from(usedSources) : null, patientId },
+          {
+            id: messageId,
+            role: "assistant",
+            content: acc,
+            sources: usedSources.size ? Array.from(usedSources) : null,
+            patientId,
+            tokensIn: tokens?.in ?? null,
+            tokensOut: tokens?.out ?? null,
+            tokensTotal: tokens?.total ?? null,
+          },
         ]);
+        if (nextQuota) setQuota(nextQuota);
         setStreamText(undefined);
         setToolStatus(null);
       },
@@ -129,6 +151,8 @@ export function useChatThread() {
     streaming,
     streamText,
     toolStatus,
+    quota,
+    refreshQuota,
     loadThread,
     newThread,
     ensureThread,

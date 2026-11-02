@@ -149,27 +149,27 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-[calc(100%-16px)] mt-[16px] border-t border-[color:var(--line)] bg-[color:var(--surface)]">
-      <div className="flex items-center gap-3 px-6 h-[52px] border-b border-[color:var(--line)]">
+      <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 min-h-[52px] py-2 border-b border-[color:var(--line)]">
         <SettingsIcon size={16} strokeWidth={1.5} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[15px] font-medium text-[color:var(--ink)]">Settings</h1>
         {canEdit && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <button onClick={() => setImporting(true)} className="h-[32px] rounded-[8px] border border-[color:var(--line)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer">Data import</button>
             <Link href="/signatures" className="inline-flex h-[32px] items-center rounded-[8px] border border-[color:var(--line)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]">Consent forms</Link>
           </div>
         )}
       </div>
 
-      <div className="px-6 border-b border-[color:var(--line)] flex gap-6">
+      <div className="px-4 sm:px-6 border-b border-[color:var(--line)] flex gap-6 max-lg:flex-wrap max-lg:gap-2 max-lg:py-3">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`py-4 text-[14px] border-b-2 transition-colors cursor-pointer ${tab === t ? "border-[color:var(--brand)] text-[color:var(--ink)]" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>
+            className={`py-4 text-[14px] border-b-2 transition-colors cursor-pointer whitespace-nowrap shrink-0 max-lg:rounded-full max-lg:border max-lg:py-[7px] max-lg:px-3 ${tab === t ? "border-[color:var(--brand)] text-[color:var(--ink)] max-lg:bg-[color:var(--brand-soft)]" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)]"}`}>
             {t}
           </button>
         ))}
       </div>
 
-      <div className="p-6 max-w-[760px] flex flex-col gap-5">
+      <div className="p-4 sm:p-6 max-w-[760px] flex flex-col gap-5">
         {loading || !settings ? (
           <p className="text-[14px] text-[color:var(--ink-soft)]">Loading settings…</p>
         ) : tab === "Billing" ? <BillingTab canEdit={canEdit} />

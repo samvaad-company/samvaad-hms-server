@@ -7,6 +7,8 @@
 import { useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { useWithLiveAppointments, useLiveIds } from "@/lib/live/appointments";
+import { LiveBadge, NewTag } from "@/components/live/LiveBadge";
 import type { OpdRecordDTO, AppointmentDTO, PrescriptionDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
@@ -28,7 +30,10 @@ export function DoctorPanel() {
   const { item: schedule } = useItem<DoctorScheduleDTO>(user?.doctorId ? `/doctors/${user.doctorId}/schedule` : null);
 
   const { items: queue, reload } = useList<OpdRecordDTO>("/opd", { all: true });
-  const { items: appointments, reload: reloadAppointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  const { items: fetchedAppointments, reload: reloadAppointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  // Appointments the server has just pushed (this doctor's own) show at once; the list above catches up a moment later.
+  const appointments = useWithLiveAppointments(fetchedAppointments);
+  const liveIds = useLiveIds();
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
   const { run } = useMutation();
   const [moving, setMoving] = useState<AppointmentDTO | null>(null);
@@ -157,14 +162,14 @@ export function DoctorPanel() {
 
           {/* Right column */}
           <div className="flex flex-col gap-4 shrink-0" style={{ width: 380 }}>
-            <WorklistCard title="My Appointments" action={{ label: "All", href: "/appointments" }}>
+            <WorklistCard title="My Appointments" badge={<LiveBadge />} action={{ label: "All", href: "/appointments" }}>
               <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
                 {upcoming.length === 0 ? (
                   <EmptyRow text="No upcoming appointments." />
                 ) : upcoming.slice(0, 6).map(a => (
                   <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                      <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate">{a.patientName}</span>{liveIds.has(a.id) && <NewTag />}</span>
                       <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.date} · {a.time}</span>
                     </div>
                     <StatusBadge status={a.status} />

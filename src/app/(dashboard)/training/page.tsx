@@ -56,9 +56,9 @@ export default function TrainingPage() {
           <h1 className="text-[15px] font-semibold">Training &amp; tours</h1>
           <span className="text-[13px] text-[color:var(--ink-soft)]">Hands-on lessons for every screen - pause, skip or replay any time</span>
         </div>
-        <div className="flex border-b border-[color:var(--line)] px-5" role="tablist">
+        <div className="flex border-b border-[color:var(--line)] px-4 sm:px-5 max-lg:flex-wrap max-lg:gap-2 max-lg:py-3" role="tablist">
           {([["mine", "My lessons"], ...(can("staff", "write") ? [["team", "Team progress"]] : [])] as [typeof tab, string][]).map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`-mb-px cursor-pointer border-b-2 px-1 py-[12px] pr-5 text-[14px] ${tab === id ? "border-[color:var(--ink)] font-medium" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>{label}</button>
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`-mb-px cursor-pointer border-b-2 px-1 py-[12px] pr-5 text-[14px] max-lg:rounded-full max-lg:border max-lg:py-[7px] max-lg:px-3 max-lg:pr-3 ${tab === id ? "border-[color:var(--ink)] font-medium max-lg:bg-[color:var(--subtle)]" : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)]"}`}>{label}</button>
           ))}
         </div>
 

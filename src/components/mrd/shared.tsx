@@ -109,7 +109,7 @@ export function MrdShell<T extends string>({ icon, title, note, tabs, tab, onTab
         </div>
         {tabs && tab && onTab && (
           <div className="px-5 pt-4">
-            <div role="tablist" aria-label={title} className="inline-flex p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
+            <div role="tablist" aria-label={title} className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[10px] bg-[color:var(--subtle)]">
               {tabs.map((t) => (
                 <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => onTab(t.id)}
                   className={`h-[30px] px-3 rounded-[8px] text-[14px] cursor-pointer transition-colors ${tab === t.id ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>

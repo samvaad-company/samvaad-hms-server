@@ -218,7 +218,7 @@ export function AdmitDialog({
             <Step n={5} title="Admission deposit" />
             <div className="flex items-center gap-2">
               <div className="flex-1"><FormInput type="number" placeholder="₹  amount (optional)" value={deposit} onChange={setDeposit} min="0" /></div>
-              <div role="radiogroup" aria-label="Deposit mode" className="inline-flex p-[3px] rounded-[8px] bg-[color:var(--subtle)] border border-[color:var(--line)]">
+              <div role="radiogroup" aria-label="Deposit mode" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[8px] bg-[color:var(--subtle)] border border-[color:var(--line)]">
                 {MODES.map((m) => (
                   <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
                     className={`h-[34px] px-3 rounded-[6px] text-[13px] cursor-pointer ${mode === m ? "bg-[color:var(--surface)] text-[color:var(--ink)] font-medium shadow-sm" : "text-[color:var(--ink-soft)]"}`}>

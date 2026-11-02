@@ -44,6 +44,18 @@ function responsiveCss(id: string, columns: Column[], minWidth: number): string 
 }
 
 /**
+ * Phones and tablets: no sideways scrolling. The header goes, and each row becomes a card: its first cell is the title and the
+ * rest sit two to a line under their column name (the names are drawn from `columns`, so a row's markup needs no change).
+ */
+function cardCss(id: string, columns: Column[]): string {
+  const row = `.${id} > div > [style*="--cols"]:not(:first-child)`;
+  const labels = columns
+    .map((c, i) => (i === 0 || !c.label.trim() ? "" : `${row} > :nth-child(${i + 1})::before{content:"${c.label.replace(/["\\]/g, "")}";flex:0 0 100%;display:block;font-size:11px;line-height:14px;color:var(--ink-soft);margin-bottom:1px;font-weight:400;text-align:left}`))
+    .join("");
+  return `@media (max-width:1023px){${`.${id}`}{overflow-x:visible!important}.${id} > div{min-width:0!important}.${id} > div > :first-child{display:none!important}${row}{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px 16px!important;height:auto!important;padding:12px 14px!important;align-items:start!important}${row} > *{min-width:0;overflow-wrap:anywhere;flex-wrap:wrap;text-align:left!important;justify-content:flex-start!important}${row} > :first-child{grid-column:1/-1}${row} > :empty{display:none!important}${row} > *,${row} .truncate{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}${labels}}`;
+}
+
+/**
  * Grid-based table. The column template is published as a `--cols` CSS variable
  * on the scroll container so both the header and every row (rendered as
  * children) stay aligned. Each field gets its own column — no stacking.
@@ -58,7 +70,7 @@ export function DataTable({
   const css = responsiveCss(id, columns, minWidth);
   return (
     <div className={`overflow-x-auto ${id}`} style={css ? { containerType: "inline-size" } : undefined}>
-      {css && <style>{css}</style>}
+      <style>{css + cardCss(id, columns)}</style>
       <div style={{ minWidth, "--cols": template } as CSSProperties}>
         <div className={tw.table.headerRow} style={{ gridTemplateColumns: "var(--cols)" }}>
           {columns.map((col) => (

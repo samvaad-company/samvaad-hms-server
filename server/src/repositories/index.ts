@@ -5,6 +5,9 @@ import { createRepository } from "@/repositories/base";
 import { TABLES } from "@/db/tables";
 import type {
   PatientRow,
+  AiTokenUsageRow,
+  AiTokenLimitRow,
+  AiTokenGrantRow,
   AppointmentRow,
   OpdVisitRow,
   DoctorRow,
@@ -401,6 +404,9 @@ export const chatMessagesRepo = createRepository<ChatMessageRow, ReturnType<type
   TABLES.chatMessages,
   toChatMessageDTO,
 );
+export const aiTokenUsageRepo = createRepository<AiTokenUsageRow, AiTokenUsageRow>(TABLES.aiTokenUsage, (row) => row);
+export const aiTokenLimitsRepo = createRepository<AiTokenLimitRow, AiTokenLimitRow>(TABLES.aiTokenLimits, (row) => row);
+export const aiTokenGrantsRepo = createRepository<AiTokenGrantRow, AiTokenGrantRow>(TABLES.aiTokenGrants, (row) => row);
 export const scribeNotesRepo = createRepository<ScribeNoteRow, ReturnType<typeof toScribeNoteDTO>>(
   TABLES.scribeNotes,
   toScribeNoteDTO,

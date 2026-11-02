@@ -123,6 +123,9 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.tasks]: ["hospital_id", "status", "priority", "assignee_id"],
   [TABLES.chatThreads]: ["user_id", "updated_at"],
   [TABLES.chatMessages]: ["thread_id", "created_at", "patient_id"],
+  [TABLES.aiTokenUsage]: ["hospital_id", "user_id", "month", "created_at"],
+  [TABLES.aiTokenLimits]: ["hospital_id", "user_id"],
+  [TABLES.aiTokenGrants]: ["hospital_id", "user_id", "month"],
   [TABLES.scribeNotes]: ["hospital_id", "appointment_id", "patient_id", "doctor_id", "status"],
   [TABLES.prescriptionTemplates]: ["hospital_id", "doctor_id"],
   [TABLES.teleconsultBookings]: ["hospital_id", "patient_id", "doctor_id", "status", "gateway_order_id", "appointment_date"],
@@ -140,6 +143,34 @@ const UNIQUE_PARTIAL: { table: string; field: string; type: "number" | "string" 
   { table: TABLES.appointments, field: "booking_id", type: "number" },
   { table: TABLES.teleconsultPayments, field: "payment_id", type: "string" },
 ];
+
+/**
+ * The unique constraints the SQL migrations declare across several columns (0049–0053). With more than one API process, checking
+ * "does this exist yet?" in application code is not enough — two requests can both see "no" — so the database enforces it too.
+ * `ci` makes the name comparison case-insensitive, like `lower(name)` in the SQL.
+ */
+export const UNIQUE_COMPOUND: { table: string; fields: string[]; ci?: boolean; name: string }[] = [
+  { table: TABLES.hkLinenCategories, fields: ["hospital_id", "name"], ci: true, name: "uniq_hospital_name_ci" },
+  { table: TABLES.dietTypes, fields: ["hospital_id", "name"], ci: true, name: "uniq_hospital_name_ci" },
+  { table: TABLES.canteenItems, fields: ["hospital_id", "name"], ci: true, name: "uniq_hospital_name_ci" },
+  // One sheet per ward per day (a missing ward — the whole hospital — counts as one "ward" of its own).
+  { table: TABLES.dietSheets, fields: ["hospital_id", "sheet_date", "ward_id"], name: "uniq_hospital_day_ward" },
+  { table: TABLES.trainingProgress, fields: ["hospital_id", "user_id", "lesson_id"], name: "uniq_person_lesson" },
+];
+
+export async function ensureCompoundUniques(db: Db): Promise<void> {
+  for (const u of UNIQUE_COMPOUND) {
+    try {
+      await db.collection(u.table).createIndex(
+        Object.fromEntries(u.fields.map((f) => [f, 1])),
+        { unique: true, name: u.name, ...(u.ci ? { collation: { locale: "en", strength: 2 } } : {}) },
+      );
+    } catch (err) {
+      // Duplicates that already exist would block the index; the service layer still refuses new ones, so don't stop the app.
+      logger.error("mongo.unique_index_failed", { table: u.table, index: u.name, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+}
 
 export async function ensureIndexes(db: Db): Promise<void> {
   const collections = Object.values(TABLES);
@@ -166,6 +197,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
       logger.error("mongo.unique_index_failed", { table: u.table, field: u.field, error: err instanceof Error ? err.message : String(err) });
     }
   }
+  await ensureCompoundUniques(db);
   logger.info("mongo.indexes_ready", { collections: collections.length, indexes: jobs.length + UNIQUE_PARTIAL.length });
 }
 

@@ -9,6 +9,7 @@
  */
 import { appointmentsRepo, opdRepo, patientsRepo, teleconsultBookingsRepo } from "@/repositories";
 import { toAppointmentDTO } from "@/repositories/mappers";
+import { publishAppointmentCreated } from "@/services/live-events";
 import { type AppointmentRow, type DoctorRow, type HospitalRow } from "@/db/tables";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
@@ -104,6 +105,7 @@ export async function createPortalAppointment(input: unknown) {
     doctor, hospital, date, minutes, reason,
   });
   await audit(null, "create", "appointment", row.id, { via: "patient-app" });
+  publishAppointmentCreated(row, { source: "patient-app" });
   return patientAppointmentView(row);
 }
 

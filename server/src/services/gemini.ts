@@ -42,6 +42,7 @@ export interface ToolDeclaration {
 export type GeminiStreamChunk =
   | { type: "text"; delta: string }
   | { type: "functionCall"; name: string; args: Record<string, unknown>; thoughtSignature?: string }
+  | { type: "usage"; promptTokens: number; outputTokens: number; totalTokens: number }
   | { type: "error"; detail: string };
 
 /**
@@ -57,12 +58,14 @@ export async function* streamGenerateContent(input: {
 }): AsyncGenerator<GeminiStreamChunk> {
   const { geminiApiKey: key, geminiModel } = getConfig();
   if (!key) {
-    yield {
-      type: "text",
-      delta:
-        "AI Chat is running in demo mode — no GEMINI_API_KEY is configured. " +
-        "Ask your platform admin to set one in the environment to enable live answers grounded in this hospital's data.",
-    };
+    const delta =
+      "AI Chat is running in demo mode — no GEMINI_API_KEY is configured. " +
+      "Ask your platform admin to set one in the environment to enable live answers grounded in this hospital's data.";
+    yield { type: "text", delta };
+    // No real count in demo mode: estimate (about 4 characters a token) so quotas and reports can still be tried out.
+    const promptTokens = Math.ceil(JSON.stringify([input.systemInstruction, input.contents]).length / 4);
+    const outputTokens = Math.ceil(delta.length / 4);
+    yield { type: "usage", promptTokens, outputTokens, totalTokens: promptTokens + outputTokens };
     return;
   }
 
@@ -101,6 +104,7 @@ export async function* streamGenerateContent(input: {
   let buffer = "";
   let yieldedAny = false;
   let lastFinishReason: string | undefined;
+  let lastUsage: { promptTokens: number; outputTokens: number; totalTokens: number } | undefined;
   let rawSeen = "";
 
   while (true) {
@@ -121,6 +125,7 @@ export async function* streamGenerateContent(input: {
         const payload = line.slice(5).trim();
         if (!payload || payload === "[DONE]") continue;
         lastFinishReason = finishReasonOf(payload) ?? lastFinishReason;
+        lastUsage = usageOf(payload) ?? lastUsage;
         for (const chunk of partsFromChunk(payload)) {
           yieldedAny = true;
           yield chunk;
@@ -128,6 +133,9 @@ export async function* streamGenerateContent(input: {
       }
     }
   }
+
+  // Every streamed chunk repeats the running count, so the last one seen is the bill for this request.
+  if (lastUsage) yield { type: "usage", ...lastUsage };
 
   // Gemini can return a 200 with zero parts (e.g. blocked by a safety filter,
   // or a finishReason other than STOP with nothing to say) — surface that
@@ -141,6 +149,19 @@ export async function* streamGenerateContent(input: {
           ? `Gemini stopped without answering (reason: ${lastFinishReason}).`
           : "Gemini returned an empty response.",
     };
+  }
+}
+
+/** Token counts Gemini reports for a request. Output includes the model's hidden reasoning, which is billed too. */
+function usageOf(payload: string): { promptTokens: number; outputTokens: number; totalTokens: number } | undefined {
+  try {
+    const u = (JSON.parse(payload) as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
+    if (!u) return undefined;
+    const promptTokens = u.promptTokenCount ?? 0;
+    const totalTokens = u.totalTokenCount ?? promptTokens + (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0);
+    return { promptTokens, outputTokens: Math.max(0, totalTokens - promptTokens), totalTokens };
+  } catch {
+    return undefined;
   }
 }
 

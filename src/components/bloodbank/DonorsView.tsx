@@ -42,7 +42,7 @@ function RegisterDialog({ open, onClose, onDone }: { open: boolean; onClose: () 
       </>}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2"><span className={label}>Name</span><FormInput value={f.name} onChange={(v) => set("name", v)} /></div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="flex flex-col gap-2"><span className={label}>Gender</span><FormSelect value={f.gender} onChange={(v) => set("gender", v)} options={["Male", "Female", "Other"].map((g) => ({ value: g, label: g }))} /></div>
           <div className="flex flex-col gap-2"><span className={label}>Group</span><FormSelect value={f.abo} onChange={(v) => set("abo", v)} options={["A", "B", "AB", "O"].map((g) => ({ value: g, label: g }))} /></div>
           <div className="flex flex-col gap-2"><span className={label}>Rh</span><FormSelect value={f.rh} onChange={(v) => set("rh", v)} options={["+ve", "-ve"].map((g) => ({ value: g, label: g }))} /></div>

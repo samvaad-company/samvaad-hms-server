@@ -151,7 +151,7 @@ function PhotoPdfDialog({ patientId, folders, onClose, onDone }: { patientId: nu
         {photos.length === 0 ? (
           <p className="py-8 text-center text-[14px] text-[color:var(--ink-soft)]">No photos yet. Choose images or take a photo to begin.</p>
         ) : (
-          <ul className="grid grid-cols-4 gap-3">
+          <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {photos.map((p, i) => <Thumb key={p.id} file={p.file} page={i} count={photos.length} onMove={(to) => move(i, to)} onRemove={() => setPhotos((x) => x.filter((y) => y.id !== p.id))} />)}
           </ul>
         )}

@@ -113,7 +113,7 @@ export function StartCycleDialog({ sets, sterilizers, onClose }: { sets: CssdSet
             {packed.length === 0 && <li className="px-3 py-4 text-center text-[13px] text-[color:var(--ink-soft)]">No packed sets. Pack a dirty set on the Board first.</li>}
           </ul>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="flex flex-col gap-2"><span className={fieldLabel}>Temp (°C)</span><FormInput type="number" value={temp} onChange={setTemp} placeholder={String(DEFAULT_CYCLE.tempC)} /></div>
           <div className="flex flex-col gap-2"><span className={fieldLabel}>Pressure (psi)</span><FormInput type="number" value={pressure} onChange={setPressure} placeholder={String(DEFAULT_CYCLE.pressurePsi)} /></div>
           <div className="flex flex-col gap-2"><span className={fieldLabel}>Exposure (min)</span><FormInput type="number" value={exposure} onChange={setExposure} placeholder={String(DEFAULT_CYCLE.exposureMin)} /></div>

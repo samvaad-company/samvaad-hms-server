@@ -87,10 +87,10 @@ export function AiMonitorView() {
       <Section title="Activity"><Activity series={d.series} /></Section>
 
       <Section title="AI scribe" note="consultation notes written from the doctor's recording">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Stat label="Notes" value={d.scribe.notes} /><Stat label="Recorded" value={`${d.scribe.minutes} min`} /><Stat label="Patients" value={d.scribe.patients} /><Stat label="Doctors using it" value={d.scribe.byDoctor.length} />
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-3"><Breakdown title="By doctor" rows={d.scribe.byDoctor} /><Breakdown title="By language" rows={d.scribe.byLanguage} /><Breakdown title="By status" rows={d.scribe.byStatus} /></div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3"><Breakdown title="By doctor" rows={d.scribe.byDoctor} /><Breakdown title="By language" rows={d.scribe.byLanguage} /><Breakdown title="By status" rows={d.scribe.byStatus} /></div>
         {d.scribe.recent.length > 0 && (
           <table className="mt-3 w-full border-collapse overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] text-[13px]">
             <thead><tr className="bg-[color:var(--subtle)] text-left text-[12px] text-[color:var(--ink-soft)]"><th className="px-4 py-2">When</th><th className="px-4 py-2">Patient</th><th className="px-4 py-2">Doctor</th><th className="px-4 py-2">Language</th><th className="px-4 py-2 text-right">Length</th><th className="px-4 py-2">Status</th></tr></thead>
@@ -100,11 +100,11 @@ export function AiMonitorView() {
       </Section>
 
       <Section title="AI chat" note="how often staff use the assistant (the questions themselves aren't shown)">
-        <div className="grid grid-cols-4 gap-3"><Stat label="Questions" value={d.chat.questions} /><Stat label="Answers" value={d.chat.answers} /><Stat label="Conversations" value={d.chat.threads} /><Stat label="People asking" value={d.chat.users} /></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><Stat label="Questions" value={d.chat.questions} /><Stat label="Answers" value={d.chat.answers} /><Stat label="Conversations" value={d.chat.threads} /><Stat label="People asking" value={d.chat.users} /></div>
       </Section>
 
       <Section title="WhatsApp bot" note="messages to and from the bot (their text isn't shown)">
-        <div className="grid grid-cols-4 gap-3"><Stat label="Received" value={d.whatsapp.received} /><Stat label="Sent" value={d.whatsapp.sent} /><Stat label="Failed" value={d.whatsapp.failed} bad={d.whatsapp.failed > 0} /><Stat label="People" value={d.whatsapp.people} /></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><Stat label="Received" value={d.whatsapp.received} /><Stat label="Sent" value={d.whatsapp.sent} /><Stat label="Failed" value={d.whatsapp.failed} bad={d.whatsapp.failed > 0} /><Stat label="People" value={d.whatsapp.people} /></div>
         {d.whatsapp.recent.length > 0 && (
           <ul className="mt-3 divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] text-[13px]">
             {d.whatsapp.recent.map((m) => <li key={m.id} className="flex items-center gap-3 px-4 py-2"><span className="w-[92px] shrink-0 font-mono text-[11px] text-[color:var(--ink-soft)]">{when(m.at)}</span><span className="w-12 shrink-0 text-[12px] text-[color:var(--ink-soft)]">{m.direction === "in" ? "In" : "Out"}</span><span className="min-w-0 flex-1 truncate text-[color:var(--ink-soft)]">{m.kind}</span><span className={`text-[12px] ${m.status === "failed" ? "text-[#c8001a]" : "text-[color:var(--ink-soft)]"}`}>{m.status}</span></li>)}

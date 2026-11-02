@@ -29,7 +29,7 @@ export const TOURS: Record<string, Step[]> = {
     { title: "Notifications", body: "Things that need you show up here — a result ready, a request waiting.", target: { css: "svg.lucide-bell" } },
     { title: "Settings and light or dark", body: "Settings holds the clinic profile, security and appearance. The moon switches between light and dark.", target: { css: 'a[aria-label="Settings"]' } },
     { title: "Your account", body: "Your profile, your password and sign out are under your name.", target: { css: '[data-tour="profile"]' } },
-    { title: "Ask the assistant", body: "The round button opens the AI assistant from any screen. Ask about a patient, your day or the hospital.", target: { css: '[data-tour="ai-launcher"]' } },
+    { title: "Ask the assistant", body: "The AI button in the top bar opens the assistant in a side panel on any screen. Ask about a patient, your day or the hospital.", target: { css: '[data-tour="ai-launcher"]' } },
     { title: "That's the tour", body: "Open Training in the sidebar any time for lessons on each screen — they're picked for your role." },
   ],
   "ask-ai": [

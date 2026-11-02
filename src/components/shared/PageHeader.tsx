@@ -51,9 +51,9 @@ export function PageHeader({
   const rangeLabel = DATE_RANGES.find((r) => r.id === range)?.label ?? "All time";
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-[30px] pt-[16px] pb-[12px]">
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-4 sm:px-[30px] pt-[16px] pb-[12px]">
       <div className="flex min-w-0 flex-col gap-[2px]">
-        <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px] capitalize">
+        <h1 className="text-[20px] sm:text-[24px] font-medium text-[color:var(--ink)] leading-[28px] capitalize">
           {title}
         </h1>
         <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px]">
@@ -61,7 +61,7 @@ export function PageHeader({
         </p>
       </div>
 
-      <div className="flex items-center gap-[10px] mt-[2px] shrink-0">
+      <div className="flex flex-wrap items-center gap-[10px] mt-[2px] max-w-full">
         {stats.map((s, i) => (
           <StatPill key={i} {...s} />
         ))}

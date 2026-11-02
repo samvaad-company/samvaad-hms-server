@@ -22,6 +22,7 @@ import { validate, validatePartial } from "@/lib/validation";
 import { validateNotPast } from "@/lib/field-rules";
 import { audit } from "@/services/audit";
 import { checkInOpd } from "@/services/opd-service";
+import { publishAppointmentCreated } from "@/services/live-events";
 import { isoDate } from "@/services/helpers";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
@@ -98,7 +99,12 @@ export async function createAppointment(input: unknown, actor: Session) {
       doctor, hospital, date: isoDate(data.date), minutes, reason: data.reason ?? "", status: data.status,
     });
     await audit(actor, "create", "appointment", created.id);
-    if (visitPurpose) return toAppointmentDTO((await appointmentsRepo.update(created.id, { visit_purpose: visitPurpose })) as AppointmentRow);
+    if (visitPurpose) {
+      const withPurpose = (await appointmentsRepo.update(created.id, { visit_purpose: visitPurpose })) as AppointmentRow;
+      publishAppointmentCreated(withPurpose, { source: "staff", by: actor });
+      return toAppointmentDTO(withPurpose);
+    }
+    publishAppointmentCreated(created, { source: "staff", by: actor });
     return toAppointmentDTO(created);
   }
 
@@ -117,6 +123,7 @@ export async function createAppointment(input: unknown, actor: Session) {
     status: data.status,
   });
   await audit(actor, "create", "appointment", row.id);
+  publishAppointmentCreated(row as AppointmentRow, { source: "staff", by: actor });
   return toAppointmentDTO(row as AppointmentRow);
 }
 

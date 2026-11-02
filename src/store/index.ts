@@ -2,11 +2,12 @@ import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, useSelector, useStore, type TypedUseSelectorHook } from "react-redux";
 import { cacheReducer } from "./cacheSlice";
 import { authReducer } from "./authSlice";
+import { liveReducer } from "./liveSlice";
 
 /** One store per browser session (created inside <StoreProvider>, never as a module singleton, so the server can't share it between requests). */
 export function makeStore() {
   return configureStore({
-    reducer: { apiCache: cacheReducer, auth: authReducer },
+    reducer: { apiCache: cacheReducer, auth: authReducer, live: liveReducer },
     middleware: (getDefault) =>
       // The cache holds large API payloads; the dev-mode "is this serializable / immutable" scans would walk all of them on every action.
       getDefault({ serializableCheck: false, immutableCheck: false }),

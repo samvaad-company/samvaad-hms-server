@@ -10,11 +10,16 @@ import type { AppointmentDTO, OpdRecordDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Calendar, Clock, Users, MonitorPlay, Activity } from "lucide-react";
 import { tw } from "@/lib/design-system";
+import { useWithLiveAppointments, useLiveIds } from "@/lib/live/appointments";
+import { LiveBadge, NewTag } from "@/components/live/LiveBadge";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
 
 export function ReceptionistPanel() {
   const { user } = useAuth();
-  const { items: appointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  const { items: fetchedAppointments } = useList<AppointmentDTO>("/appointments", { all: true });
+  // Appointments the server has just pushed are shown straight away; the list above catches up a moment later.
+  const appointments = useWithLiveAppointments(fetchedAppointments);
+  const liveIds = useLiveIds();
   const { items: queue } = useList<OpdRecordDTO>("/opd", { all: true });
 
   const today = appointments.filter(a => a.status === "Today");
@@ -34,14 +39,14 @@ export function ReceptionistPanel() {
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className="flex gap-5 items-start">
-          <WorklistCard title="Today's Appointments" action={{ label: "All appointments", href: "/appointments" }}>
+          <WorklistCard title="Today's Appointments" badge={<LiveBadge />} action={{ label: "All appointments", href: "/appointments" }}>
             <div className="overflow-y-auto" style={{ maxHeight: 400 }}>
               {today.length === 0 ? (
                 <EmptyRow text="No appointments today." />
               ) : today.map(a => (
                 <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                    <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate">{a.patientName}</span>{liveIds.has(a.id) && <NewTag />}</span>
                     <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.time} · {a.doctor} · {a.reason}</span>
                   </div>
                   <StatusBadge status={a.status} />

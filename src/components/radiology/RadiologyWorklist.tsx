@@ -148,7 +148,7 @@ export function RadiologyWorklist({
               className="h-[36px] w-full rounded-full bg-[color:var(--surface)] border border-[color:var(--line)] pl-[34px] pr-3 text-[13px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] focus:outline-none focus:border-[color:var(--brand)]"
             />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortId)}
@@ -220,12 +220,12 @@ export function RadiologyWorklist({
             return (
               <li
                 key={t.id}
-                className={`flex items-center gap-4 px-5 py-[10px] border-b border-[color:var(--line)] last:border-b-0 ${
+                className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-[10px] border-b border-[color:var(--line)] last:border-b-0 ${
                   t.priority === "STAT" && open ? "bg-[#fffbee] dark:bg-[#2a2412]" : ""
                 }`}
               >
                 <span className="w-[104px] shrink-0 font-mono text-[12px] text-[color:var(--ink-soft)]">{t.orderNumber || `#${t.id}`}</span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-120px)]">
                   <div className="flex items-baseline gap-2 min-w-0">
                     <button onClick={() => onViewPatient(t)} className="truncate text-[15px] font-medium text-[color:var(--ink)] hover:text-[color:var(--brand)] cursor-pointer text-left">
                       {t.patientName}
@@ -240,7 +240,7 @@ export function RadiologyWorklist({
                     {late > 0 && <span className="text-[#c8001a]"> · overdue {late}d</span>}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   <PriorityBadge priority={t.priority} />
                   <span className={`inline-flex rounded-full px-[10px] py-[2px] text-[12px] leading-[16px] ${STATUS_STYLE[t.status]}`}>
                     {STATUS_LABEL[t.status]}

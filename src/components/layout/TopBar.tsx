@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
+import { Menu, Sparkles, Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumbValue } from "@/lib/breadcrumb-context";
 import { api } from "@/lib/api/client";
@@ -12,7 +12,11 @@ import { MyProfileModal } from "@/components/profile/MyProfileModal";
 import type { PatientDTO, DoctorDTO, AppointmentDTO } from "@/types/api";
 
 interface TopBarProps {
-  sidebarLeft: number;
+  /** Opens the sidebar drawer (phones and tablets). */
+  onOpenMenu: () => void;
+  /** The AI side drawer: whether it is open, and a way to open or close it. */
+  aiOpen: boolean;
+  onToggleAi: () => void;
 }
 
 function initials(name: string): string {
@@ -131,9 +135,17 @@ function GlobalSearch() {
   const groups = Array.from(new Set(hits.map((h) => h.group)));
 
   return (
-    <div className="relative w-[clamp(180px,32vw,440px)] shrink" ref={ref}>
+    <div
+      className={
+        open
+          ? "relative max-sm:fixed max-sm:inset-x-2 max-sm:top-[9px] max-sm:z-50 sm:w-[clamp(180px,32vw,440px)] shrink"
+          : "relative w-[34px] sm:w-[clamp(180px,32vw,440px)] shrink-0 sm:shrink"
+      }
+      ref={ref}
+    >
       <div
-        className={`bg-[color:var(--surface)] rounded-full flex items-center gap-2 pl-3 pr-2 h-[34px] border transition-colors ${
+        data-closed={!open}
+        className={`bg-[color:var(--surface)] rounded-full flex items-center gap-2 pl-3 pr-2 max-sm:data-[closed=true]:px-0 max-sm:data-[closed=true]:justify-center h-[34px] border transition-colors ${
           open ? "border-[color:var(--brand)] shadow-[0_1px_6px_rgba(0,0,0,0.10)]" : "border-[color:var(--chrome-line)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
         }`}
       >
@@ -144,7 +156,7 @@ function GlobalSearch() {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search patients, doctors, appointments…"
+              placeholder="Search patients, doctors…"
               className="flex-1 min-w-0 bg-transparent text-[13px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] placeholder:opacity-60 focus:outline-none"
             />
             {loading ? (
@@ -167,10 +179,10 @@ function GlobalSearch() {
           <button
             onClick={() => setOpen(true)}
             aria-label="Search"
-            className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left cursor-pointer"
+            className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left cursor-pointer max-sm:absolute max-sm:inset-0"
           >
-            <span className="text-[13px] text-[color:var(--ink-soft)] truncate">Search patients, doctors, appointments…</span>
-            <span className="flex items-center gap-1 shrink-0">
+            <span className="max-sm:hidden text-[13px] text-[color:var(--ink-soft)] truncate">Search patients, doctors, appointments…</span>
+            <span className="hidden lg:flex items-center gap-1 shrink-0">
               <kbd className="text-[10px] font-mono rounded-[4px] px-[5px] py-[1px] bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]">⌘</kbd>
               <kbd className="text-[10px] font-mono rounded-[4px] px-[5px] py-[1px] bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]">K</kbd>
             </span>
@@ -212,8 +224,8 @@ function GlobalSearch() {
   );
 }
 
-export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
-  const { user, logout } = useAuth();
+export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: TopBarProps) {
+  const { user, logout, can } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { mode, toggle: toggleMode } = useColorMode();
@@ -221,9 +233,16 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
 
   return (
     <div
-      className="fixed top-0 z-40 h-[52px] bg-[color:var(--chrome)] flex items-center justify-between px-6 gap-4"
-      style={{ left: sidebarLeft, right: 0, borderBottom: "1px solid var(--chrome-line)", transition: "left 220ms ease" }}
+      className="fixed top-0 right-0 lg:right-[var(--ai-w)] left-0 lg:left-[var(--sb-w)] z-40 h-[52px] bg-[color:var(--chrome)] flex items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4 border-b border-[color:var(--chrome-line)] transition-[left,right] duration-[220ms] ease-in-out"
     >
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        aria-label="Open menu"
+        className="lg:hidden shrink-0 w-10 h-10 -ml-1 flex items-center justify-center rounded-full text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer"
+      >
+        <Menu size={22} strokeWidth={1.5} />
+      </button>
       {/* Breadcrumb (published by the current page) */}
       <div className="flex-1 flex items-center gap-2 min-w-0">
         {crumb && (
@@ -236,8 +255,8 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
             </Link>
             {crumb.title && (
               <>
-                <span className="text-[color:var(--line)]">/</span>
-                <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{crumb.title}</span>
+                <span className="text-[color:var(--line)] max-sm:hidden">/</span>
+                <span className="max-sm:hidden text-[13px] font-medium text-[color:var(--ink)] truncate">{crumb.title}</span>
               </>
             )}
           </>
@@ -247,14 +266,32 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
       <MyProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
       <GlobalSearch />
 
-      <div className="flex-1 flex items-center justify-end gap-3">
+      <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
+
+        {/* AI assistant: opens the side drawer on any screen */}
+        {can("chat") && (
+          <button
+            type="button"
+            data-tour="ai-launcher"
+            onClick={onToggleAi}
+            aria-pressed={aiOpen}
+            aria-label={aiOpen ? "Close AI assistant" : "Open AI assistant"}
+            title={aiOpen ? "Close AI assistant" : "Open AI assistant"}
+            className={`h-[34px] flex items-center gap-[6px] rounded-full px-3 text-[13px] font-medium transition-colors cursor-pointer shrink-0 ${
+              aiOpen ? "bg-[color:var(--brand)] text-white" : "bg-[color:var(--surface)] text-[color:var(--brand)] shadow-[0_1px_4px_rgba(0,0,0,0.08)] hover:bg-[color:var(--brand-soft)]"
+            }`}
+          >
+            <Sparkles size={16} strokeWidth={1.7} />
+            <span className="max-sm:hidden">AI</span>
+          </button>
+        )}
 
         {/* Settings · light/dark · notifications */}
-        <div className="bg-[color:var(--surface)] rounded-full flex items-center gap-[10px] px-[10px] py-[6px] shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
-          <Link href="/settings" aria-label="Settings" title="Settings" className="text-[color:var(--ink)] hover:text-[color:var(--brand)] transition-colors">
+        <div className="bg-[color:var(--surface)] rounded-full flex items-center gap-[10px] px-[10px] py-[8px] sm:py-[6px] shadow-[0_1px_4px_rgba(0,0,0,0.08)]">
+          <Link href="/settings" aria-label="Settings" title="Settings" className="max-sm:hidden text-[color:var(--ink)] hover:text-[color:var(--brand)] transition-colors">
             <Settings size={18} strokeWidth={1.5} />
           </Link>
-          <div className="w-px h-[14px] bg-[color:var(--line)]" />
+          <div className="w-px h-[14px] bg-[color:var(--line)] max-sm:hidden" />
           <button type="button" onClick={toggleMode} aria-label={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             title={mode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             className="text-[color:var(--ink)] hover:text-[color:var(--brand)] transition-colors cursor-pointer">
@@ -276,7 +313,7 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
                 {user ? initials(user.name) : "—"}
               </span>
             </div>
-            <div className="flex flex-col items-start leading-none">
+            <div className="hidden md:flex flex-col items-start leading-none">
               <span className="text-[13px] font-medium text-[color:var(--ink)] leading-[15px] whitespace-nowrap">
                 {user?.name ?? "Loading…"}
               </span>
@@ -289,7 +326,7 @@ export const TopBar = memo(function TopBar({ sidebarLeft }: TopBarProps) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-[40px] z-50 w-[200px] bg-[color:var(--surface)] rounded-[12px] border border-[color:var(--line)] shadow-lg py-2">
+              <div className="absolute right-0 top-[40px] z-50 w-[min(200px,calc(100vw-24px))] bg-[color:var(--surface)] rounded-[12px] border border-[color:var(--line)] shadow-lg py-2">
                 <div className="px-4 py-2 border-b border-[color:var(--subtle-2)]">
                   <p className="text-[13px] font-medium text-[color:var(--ink)] truncate">{user?.name}</p>
                   <p className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{user?.email}</p>

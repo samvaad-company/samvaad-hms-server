@@ -152,7 +152,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   return (
     <div className="p-5 flex flex-col gap-5">
       {/* Patient & type */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <FormRow label="Patient *" hint={catalog?.planName ? `Prices from ${catalog.planName}` : undefined}>
           <SearchSelect
             placeholder="Search patient by name, ID or phone…"
@@ -172,7 +172,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         </FormRow>
       </div>
       {contracts.length > 0 && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="col-span-2">
             <FormRow label="Bill to" hint={contract ? `${contract.sponsor}${contract.validTo ? ` · valid to ${contract.validTo}` : ""}` : "The patient pays the whole bill"}>
               <FormSelect value={contract ? String(contract.id) : "self"} onChange={v => setChoice(v)} options={[...contracts.map(c => ({ value: String(c.id), label: c.name })), { value: "self", label: "Self pay" }]} />

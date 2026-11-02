@@ -356,7 +356,7 @@ function BedStatusView({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {STATUSES.map((s) => (
           <div key={s} className="flex items-center gap-[6px]">
             <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[s]}`} />

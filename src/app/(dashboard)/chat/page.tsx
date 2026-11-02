@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { RowMenu } from "@/components/shared/RowMenu";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { AiQuotaBar } from "@/components/chat/AiQuotaBar";
 import { useList } from "@/lib/api/hooks";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { useChatThread } from "@/lib/api/useChatThread";
@@ -27,7 +28,7 @@ function relativeTime(iso: string): string {
 
 function ChatPageInner() {
   const searchParams = useSearchParams();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(() => searchParams.get("ask") ?? "");
   const { items: threads, loading: threadsLoading, reload } = useList<ChatThreadDTO>("/chat/threads");
   const { dialog, remove } = useRowActions("chat/threads", reload);
   const {
@@ -37,6 +38,8 @@ function ChatPageInner() {
     streaming,
     streamText,
     toolStatus,
+    quota,
+    refreshQuota,
     loadThread,
     newThread,
     ensureThread,
@@ -44,6 +47,7 @@ function ChatPageInner() {
   } = useChatThread();
 
   useEffect(() => {
+    void refreshQuota();
     const requested = searchParams.get("thread");
     if (requested) {
       void loadThread(Number(requested));
@@ -70,7 +74,7 @@ function ChatPageInner() {
       <div className="shrink-0">
         <PageHeader
           title="AI Chat"
-          subtitle="Ask anything about this hospital's data — the answers are always scoped to what your role can see."
+          subtitle="Ask anything about this hospital's data: patients, bills, reports, prescriptions, appointments and their current state."
           stats={[]}
           action={{ label: "New Chat", icon: Plus, onClick: handleNewChat }}
         />
@@ -121,7 +125,9 @@ function ChatPageInner() {
           ) : (
             <ChatMessageList messages={messages} streamingText={streamText} toolStatus={toolStatus} />
           )}
-          <ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={streaming || loadingThread} />
+          <AiQuotaBar quota={quota} />
+          <ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={streaming || loadingThread || Boolean(quota?.exceeded)}
+            placeholder={quota?.blocked ? "AI access paused" : quota?.exceeded ? "Monthly AI quota used up" : undefined} />
         </div>
       </div>
     </div>

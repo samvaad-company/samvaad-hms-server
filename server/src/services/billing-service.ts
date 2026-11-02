@@ -16,7 +16,7 @@ import { computeBillTotals, displayDate } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
-import { nextNumber } from "@/services/id-service";
+import { allocateNumber } from "@/services/id-service";
 import { coverageLines, patientContracts, splitUnder, type PatientContract } from "@/services/coverage-service";
 import { computePayouts, payoutRules, voidPayoutsFor, type PayoutLine } from "@/services/payouts-service";
 import type { BillPayoutRow } from "@/db/tables";
@@ -113,17 +113,20 @@ export async function createBill(input: unknown, actor: Session) {
   const paymentMode = data.paymentMode ? await canonicalMaster("payment_mode", data.paymentMode, actor, "paymentMode") : "";
 
   // Numbers follow the "Bill / invoice no." format (Setup → ID formats); the hospital's invoice prefix fills {PREFIX} when it has one.
-  const billNumber = await nextNumber("invoice", actor, async () => (await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.bill_number), { prefix: "INV-", pad: 8 });
+  // The number is taken as late as possible and handed back if the bill can't be saved, so invoice numbers stay consecutive.
+  const takeInvoiceNumber = () => allocateNumber("invoice", actor, async () => (await billsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.bill_number), { prefix: "INV-", pad: 8 });
 
   if (!hasItems) {
     if ((data.discount ?? 0) > data.amount) throw new ValidationError([{ field: "discount", message: "the discount can't be more than the bill" }]);
     const base = computeBillTotals(data.amount, data.discount ?? 0, data.type);
     const gst = switches.gstOnBills ? base.gst : 0;
     const total = switches.gstOnBills ? base.total : r2(Math.max(0, data.amount - (data.discount ?? 0)));
+    const issued = await takeInvoiceNumber();
+    const billNumber = issued.number;
     const row = await billsRepo.create({
       hospital_id: actor.hospitalId, bill_number: billNumber, patient_id: data.patientId ?? null, patient_name: patientName, type: data.type, bill_date: displayDate(),
       amount: data.amount, discount: data.discount, gst, total, status: data.status, payment_mode: paymentMode || null,
-    });
+    }).catch(async (err) => { await issued.release(); throw err; });
     await audit(actor, "create", "bill", row.id, { billNumber, total });
     return toBillDTO(row as BillRow);
   }
@@ -164,6 +167,8 @@ export async function createBill(input: unknown, actor: Session) {
   }
   const payouts = computePayouts(await payoutRules(actor), { billType: data.type, billDate: displayDate(), lines: payoutLines, doctor, referral });
 
+  const issued = await takeInvoiceNumber();
+  const billNumber = issued.number;
   const billId = await transactional("billing.create", async (uow) => {
     const bill = await uow.insert<BillRow>(TABLES.bills, {
       hospital_id: actor.hospitalId, bill_number: billNumber, patient_id: data.patientId ?? null, patient_name: patientName, type: data.type, bill_date: displayDate(),
@@ -181,7 +186,7 @@ export async function createBill(input: unknown, actor: Session) {
       });
     }
     return bill.id;
-  });
+  }).catch(async (err) => { await issued.release(); throw err; });
   await audit(actor, "create", "bill", billId, { billNumber, total: priced.total, lines: lines.length, ...(contract ? { contract: contract.name, payerShare } : {}) });
   return getBill(billId, actor);
 }

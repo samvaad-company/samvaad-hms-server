@@ -10,6 +10,7 @@
  *   5. anything else goes to the AI, which answers briefly as the hospital and sends unknowns to a human.
  * Conversation state is kept in memory per patient number, so with more than one server instance it should move to Redis.
  */
+import { publishAppointmentCreated } from "@/services/live-events";
 import { appointmentsRepo, doctorsRepo, hospitalsRepo, patientsRepo, prescriptionsRepo } from "@/repositories";
 import type { AppointmentRow, DoctorRow, PatientRow, PrescriptionRow } from "@/db/tables";
 import { isAppError } from "@/lib/errors";
@@ -253,7 +254,7 @@ async function continueBooking(hospitalId: number, phone: string, ctx: Ctx, m: I
       if (!yes) return { text: "Tap *Confirm* to book, or *Cancel* to stop.", buttons: [{ id: "book_confirm", title: "Confirm" }, { id: "book_cancel", title: "Cancel" }] };
       try {
         const { doctor, hospital } = await loadDoctor(b.doctorId!);
-        await bookInPerson({ hospitalId, patientId: b.patientId, patientName: b.name, patientAge: b.age, doctor, hospital, date: b.date!, minutes: parseClock(b.time!)!, reason: b.reason || "Booked on WhatsApp" });
+        publishAppointmentCreated(await bookInPerson({ hospitalId, patientId: b.patientId, patientName: b.name, patientAge: b.age, doctor, hospital, date: b.date!, minutes: parseClock(b.time!)!, reason: b.reason || "Booked on WhatsApp" }), { source: "whatsapp" });
       } catch (e) {
         if (isAppError(e)) { b.step = "date"; return { text: `${e.message}\n\nPlease pick another day or time — send a date (like *3 Nov*).`, buttons: DATE_BUTTONS }; }
         throw e;

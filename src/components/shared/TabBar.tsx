@@ -18,15 +18,15 @@ interface TabBarProps {
 
 export function TabBar({ tabs, activeTab, onTabChange, trailing }: TabBarProps) {
   return (
-    <div className="flex items-center border-b border-[color:var(--line)] px-5 shrink-0">
+    <div className="flex items-center border-b border-[color:var(--line)] px-3 sm:px-5 shrink-0 max-lg:flex-wrap max-lg:gap-2 max-lg:py-3">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`flex items-center gap-[6px] px-4 py-[14px] text-[14px] font-normal border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+          className={`flex items-center gap-[6px] px-4 py-[14px] text-[14px] font-normal border-b-2 transition-colors whitespace-nowrap cursor-pointer shrink-0 max-lg:rounded-full max-lg:border max-lg:py-[7px] max-lg:px-3 ${
             activeTab === tab.id
-              ? "border-[color:var(--brand)] text-[color:var(--brand)]"
-              : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+              ? "border-[color:var(--brand)] text-[color:var(--brand)] max-lg:bg-[color:var(--brand-soft)]"
+              : "border-transparent text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)]"
           }`}
         >
           {tab.label}
@@ -43,7 +43,7 @@ export function TabBar({ tabs, activeTab, onTabChange, trailing }: TabBarProps) 
           )}
         </button>
       ))}
-      {trailing && <div className="ml-auto pl-4 py-[6px] shrink-0">{trailing}</div>}
+      {trailing && <div className="ml-auto pl-4 py-[6px] max-lg:pl-0 max-lg:w-full max-lg:ml-0">{trailing}</div>}
     </div>
   );
 }

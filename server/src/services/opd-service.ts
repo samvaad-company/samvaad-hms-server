@@ -11,6 +11,7 @@ import { type OpdVisitRow } from "@/db/tables";
 import { validate, validatePartial } from "@/lib/validation";
 import { ConflictError } from "@/lib/errors";
 import { withKeyLocks } from "@/lib/key-lock";
+import { allocateSequence } from "@/services/sequences";
 import { localDate } from "@/lib/clock";
 import { displayTime, nextCode } from "@/services/helpers";
 import { audit } from "@/services/audit";
@@ -66,20 +67,11 @@ export const OPD_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
-/** The highest token number issued per hospital, remembered so a check-in doesn't read the whole queue history. */
-const lastToken = new Map<number, number>();
-
+/** The next token (T-001…) from the hospital's shared counter, so a check-in doesn't read the whole queue history and two API processes never issue the same token. */
 async function nextToken(actor: Session): Promise<string> {
-  const hospital = actor.hospitalId ?? 0;
-  let top = lastToken.get(hospital);
-  if (top === undefined) {
-    const seeded = nextCode((await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.token_number), "T-", 3);
-    top = Number.parseInt(seeded.slice(2), 10) - 1;
-  }
-  // Synchronous from here: two check-ins can't be handed the same number.
-  const next = Math.max(lastToken.get(hospital) ?? 0, top) + 1;
-  lastToken.set(hospital, next);
-  return `T-${String(next).padStart(3, "0")}`;
+  const scan = async () => Number.parseInt(nextCode((await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.token_number), "T-", 3).slice(2), 10) - 1;
+  const { value } = await allocateSequence(`${actor.hospitalId ?? 0}|opd-token`, scan);
+  return `T-${String(value).padStart(3, "0")}`;
 }
 
 export async function listOpd(options: QueryOptions, actor: Session) {

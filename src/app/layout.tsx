@@ -15,6 +15,11 @@ const archivo = Archivo({
 export const metadata: Metadata = {
   title: "SamvaadHMS",
   description: "Hospital Management System",
+  icons: {
+    icon: "/Logo-light-bg.svg",
+    shortcut: "/Logo-light-bg.svg",
+    apple: "/Logo-light-bg.svg",
+  },
 };
 
 export default function RootLayout({

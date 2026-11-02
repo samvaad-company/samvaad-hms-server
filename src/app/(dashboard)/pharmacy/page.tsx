@@ -705,7 +705,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
 
       <div className="border border-[color:var(--line)] rounded-[10px] p-5">
         <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">Quick Billing</h3>
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
           <FormRow label="Patient">
             <SearchSelect
               placeholder="Walk-in — search patient by name, ID or phone…"

@@ -12,6 +12,18 @@
       "autoPort": true
     },
     {
+      "name": "samvaadhms-local-api",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "API_URL=http://localhost:4000",
+        "npm",
+        "run",
+        "dev"
+      ],
+      "port": 3005,
+      "autoPort": true
+    },
+    {
       "name": "samvaad-server",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

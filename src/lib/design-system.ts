@@ -107,8 +107,8 @@ export const tw = {
     card: "shadow-[0_1px_8px_rgba(0,0,0,0.06)]",
   },
 
-  gutter:  "px-[30px]",
-  gutterX: "mx-[30px]",
+  gutter:  "px-4 sm:px-[30px]",
+  gutterX: "mx-4 sm:mx-[30px]",
 
   pill: {
     white: "bg-[color:var(--surface)] flex items-center gap-[10px] px-[15px] py-[6px] rounded-full",

@@ -5,12 +5,27 @@
  * retention, and the live queues. Everything comes from one read (`/dashboard/overview`).
  */
 import Link from "next/link";
+import { AskAiCard } from "@/components/chat/AskAiCard";
 import { useState, type ReactNode } from "react";
 import { BedDouble, Calendar, CalendarPlus, IndianRupee, UserPlus, Users, Footprints } from "lucide-react";
 import { useItem } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { tw } from "@/lib/design-system";
 import type { OverviewDTO } from "@/types/api";
+import { liveForDay, useLiveAppointments } from "@/lib/live/appointments";
+import { LiveBadge, NewTag } from "@/components/live/LiveBadge";
+
+/** The overview with the appointments the server has just pushed merged in: shown straight away, counted once, and dropped from "extra" once the overview itself includes them. */
+function withLiveAppointments(o: OverviewDTO, live: ReturnType<typeof useLiveAppointments>) {
+  const have = new Set(o.appointmentsToday.map((x) => x.id));
+  const fresh = liveForDay(live, o.today).filter((a) => !have.has(a.id));
+  return {
+    appointmentsToday: [...fresh.map((a) => ({ id: a.id, time: a.time, patient: a.patientName, doctor: a.doctor, type: a.type, status: a.status as string })), ...o.appointmentsToday],
+    total: o.kpis.appointments.total + fresh.length,
+    left: o.kpis.appointments.left + fresh.filter((a) => a.status !== "Completed").length,
+    liveIds: new Set(live.map((a) => a.id)),
+  };
+}
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 /** ₹3.7L, ₹1.2Cr, ₹850 — the way an Indian hospital reads a big amount. */
@@ -41,11 +56,12 @@ const Chip = ({ tone, children }: { tone: keyof typeof TONES; children: ReactNod
   <span className={`rounded-full border px-[8px] py-[1px] text-[11px] font-medium ${TONES[tone]}`}>{children}</span>
 );
 
-const Card = ({ title, note, link, children, className = "" }: { title: string; note?: string; link?: { href: string; label: string; key?: string }; children: ReactNode; className?: string }) => (
+const Card = ({ title, note, badge, link, children, className = "" }: { title: string; note?: string; badge?: ReactNode; link?: { href: string; label: string; key?: string }; children: ReactNode; className?: string }) => (
   <section className={`${tw.surface.card} ${tw.radius.card} flex min-w-0 flex-col ${className}`}>
     <header className="flex items-center gap-2 border-b border-[color:var(--line)] px-[18px] py-[12px]">
       <h3 className="text-[14px] font-medium text-[color:var(--ink)]">{title}</h3>
       {note && <span className="text-[12px] text-[color:var(--ink-soft)]">{note}</span>}
+      {badge}
       {link && (
         <Link href={link.href} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-[color:var(--brand)] hover:underline">
           {link.label}{link.key && <kbd className="rounded border border-[color:var(--line)] px-[5px] text-[10px] font-normal text-[color:var(--ink-soft)]">{link.key}</kbd>}
@@ -102,6 +118,7 @@ export function OverviewDashboard() {
   const { user } = useAuth();
   const [days, setDays] = useState(14);
   const { item, error } = useItem<OverviewDTO>(`/dashboard/overview?days=${days}`);
+  const live = useLiveAppointments();
   // Switching the range re-reads the page; keep showing the last data meanwhile so nothing flashes empty.
   const [last, setLast] = useState<OverviewDTO | null>(null);
   if (item && item !== last) setLast(item);
@@ -110,6 +127,7 @@ export function OverviewDashboard() {
   if (!o) {
     return <div className={`${tw.gutterX} py-16 text-center text-[14px] text-[color:var(--ink-soft)]`}>{error ? "The overview couldn't be loaded." : "Loading the overview…"}</div>;
   }
+  const view = withLiveAppointments(o, live);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const first = (user?.name ?? "").replace(/^(Dr\.?|Mr\.?|Mrs\.?|Ms\.?)\s+/i, "").split(" ")[0] || "there";
@@ -155,6 +173,8 @@ export function OverviewDashboard() {
         </div>
       </div>
 
+      <AskAiCard gutter={false} />
+
       {/* Needs you today */}
       <div>
         <div className="mb-2 flex items-center justify-between">
@@ -185,7 +205,7 @@ export function OverviewDashboard() {
         {[
           { icon: Users, tint: "bg-[#e4f1f7] text-[#2f7fa8]", label: "Patients · week", value: String(o.kpis.patientsWeek.value), sub: compare(o.kpis.patientsWeek.value, o.kpis.patientsWeek.previous) },
           { icon: IndianRupee, tint: "bg-[#e5f8ef] text-[#00794a]", label: "Collected · week", value: inr(o.kpis.collectedWeek.value), sub: compare(o.kpis.collectedWeek.value, o.kpis.collectedWeek.previous) },
-          { icon: Calendar, tint: "bg-[#e6eefc] text-[#3b63c4]", label: "Appointments", value: String(o.kpis.appointments.total), sub: `${o.kpis.appointments.left} left today` },
+          { icon: Calendar, tint: "bg-[#e6eefc] text-[#3b63c4]", label: "Appointments", value: String(view.total), sub: `${view.left} left today` },
           { icon: BedDouble, tint: "bg-[#f1e9ff] text-[#6a35c2]", label: "Bed occupancy", value: `${pctOcc}%`, sub: `${o.kpis.beds.occupied} of ${o.kpis.beds.total} beds` },
         ].map(k => (
           <div key={k.label} className={`${tw.surface.card} ${tw.radius.card} flex flex-col gap-2 p-[16px]`}>
@@ -232,13 +252,13 @@ export function OverviewDashboard() {
 
       {/* Today in the hospital */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card title="Appointments today" note={`${o.kpis.appointments.total} booked`} link={{ href: "/appointments", label: "Open", key: "A" }}>
-          {o.appointmentsToday.length === 0 ? <Empty>No appointments scheduled for today.</Empty> : (
+        <Card title="Appointments today" note={`${view.total} booked`} badge={<LiveBadge />} link={{ href: "/appointments", label: "Open", key: "A" }}>
+          {view.appointmentsToday.length === 0 ? <Empty>No appointments scheduled for today.</Empty> : (
             <ul className="flex flex-col gap-2">
-              {o.appointmentsToday.slice(0, 6).map(ap => (
+              {view.appointmentsToday.slice(0, 6).map(ap => (
                 <li key={ap.id} className="flex items-center gap-3 text-[13px]">
                   <span className="w-[68px] shrink-0 font-mono text-[12px] text-[color:var(--ink-soft)]">{ap.time}</span>
-                  <span className="min-w-0 flex-1 truncate">{ap.patient}<span className="block truncate text-[11px] text-[color:var(--ink-soft)]">{ap.doctor}</span></span>
+                  <span className="min-w-0 flex-1 truncate">{ap.patient}{view.liveIds.has(ap.id) && <> <NewTag /></>}<span className="block truncate text-[11px] text-[color:var(--ink-soft)]">{ap.doctor}</span></span>
                   <Chip tone={ap.status === "Completed" ? "green" : "grey"}>{ap.status}</Chip>
                 </li>
               ))}
@@ -312,9 +332,9 @@ export function OverviewDashboard() {
           )}
         </Card>
         <Card title="Today's schedule" link={{ href: "/appointments", label: "View all" }}>
-          {o.appointmentsToday.length === 0 && o.theatre.length === 0 ? <Empty>No appointments scheduled for today.</Empty> : (
+          {view.appointmentsToday.length === 0 && o.theatre.length === 0 ? <Empty>No appointments scheduled for today.</Empty> : (
             <ul className="flex flex-col gap-2">
-              {[...o.appointmentsToday.map(x => ({ id: `a${x.id}`, time: x.time, text: `${x.patient} · ${x.doctor}`, kind: "Appointment" })), ...o.theatre.map(x => ({ id: `o${x.id}`, time: x.time, text: `${x.procedure} · ${x.patient}`, kind: "Theatre" }))].slice(0, 8).map(x => (
+              {[...view.appointmentsToday.map(x => ({ id: `a${x.id}`, time: x.time, text: `${x.patient} · ${x.doctor}`, kind: "Appointment" })), ...o.theatre.map(x => ({ id: `o${x.id}`, time: x.time, text: `${x.procedure} · ${x.patient}`, kind: "Theatre" }))].slice(0, 8).map(x => (
                 <li key={x.id} className="flex items-center gap-3 text-[13px]"><span className="w-[68px] shrink-0 font-mono text-[12px] text-[color:var(--ink-soft)]">{x.time}</span><span className="min-w-0 flex-1 truncate">{x.text}</span><Chip tone={x.kind === "Theatre" ? "purple" : "grey"}>{x.kind}</Chip></li>
               ))}
             </ul>

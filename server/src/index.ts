@@ -12,6 +12,7 @@ import { createApp } from "@/app";
 import { logger } from "@/lib/logger";
 import { checkGatewayConfig } from "@/services/payment-gateway";
 import { startReconciler } from "@/services/teleconsult-payments";
+import { startChangeWatcher } from "@/services/change-watcher";
 
 const port = Number(process.env.PORT ?? 4000);
 const { app, routes } = await createApp();
@@ -23,3 +24,5 @@ serve({ fetch: app.fetch, port }, (info) => {
 checkGatewayConfig();
 // Safety net for payments: finds any the webhook and the patient's own confirmation both missed.
 startReconciler();
+// Cached dashboards follow the database itself, not only the changes this API records (MongoDB only; quietly skipped elsewhere).
+void startChangeWatcher().catch((err) => logger.warn("db.change_watcher_failed", { error: err instanceof Error ? err.message : String(err) }));

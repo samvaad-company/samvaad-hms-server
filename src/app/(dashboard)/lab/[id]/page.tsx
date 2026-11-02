@@ -126,7 +126,7 @@ export default function LabReportDetailPage() {
           />
 
           {/* Patient info */}
-          <div className="px-8 py-4 grid grid-cols-3 gap-4 border-b border-[color:var(--subtle-2)]">
+          <div className="px-8 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-[color:var(--subtle-2)]">
             {[
               { label: "Patient",        value: test.patientName },
               { label: "Age",            value: `${test.patientAge} years` },

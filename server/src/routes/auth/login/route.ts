@@ -18,15 +18,15 @@ export const POST = withRoute(async (req: ApiRequest) => {
   const { email, password } = validate(schema, body);
   const key = email.toLowerCase().trim();
   const ip = clientIp(req);
-  assertNotLocked(key, ip);
+  await assertNotLocked(key, ip);
   let session;
   try {
     session = await login(email, password);
   } catch (err) {
-    if (err instanceof UnauthorizedError) recordFailure(key, ip);
+    if (err instanceof UnauthorizedError) await recordFailure(key, ip);
     throw err;
   }
-  recordSuccess(key);
+  await recordSuccess(key);
   const res = ok(sessionUser(session));
   await setSessionCookie(res, session);
   return res;

@@ -1196,6 +1196,9 @@ export function toChatMessageDTO(r: ChatMessageRow): ChatMessageDTO {
     content: r.content,
     sources: r.sources,
     patientId: r.patient_id ?? null,
+    tokensIn: r.tokens_in ?? null,
+    tokensOut: r.tokens_out ?? null,
+    tokensTotal: r.tokens_total ?? null,
     createdAt: r.created_at,
   };
 }

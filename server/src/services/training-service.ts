@@ -7,6 +7,7 @@
  * not recorded and the lessons still run.
  */
 import { trainingProgressRepo, usersRepo } from "@/repositories";
+import { isDuplicateKeyError } from "@/services/teleconsult-ledger";
 import type { TrainingProgressRow, UserRow } from "@/db/tables";
 import { validate } from "@/lib/validation";
 import { ValidationError } from "@/lib/errors";
@@ -46,7 +47,14 @@ export async function record(body: unknown, actor: Session): Promise<TrainingPro
     const existing = (await mine(actor)).find((r) => r.lesson_id === lesson.id);
     let row = existing;
     if (!row) {
-      row = await trainingProgressRepo.create({ hospital_id: hospitalId, user_id: actor.userId, user_name: actor.name, role: actor.role, lesson_id: lesson.id, status: "In progress", steps_seen: 0, completions: 0, started_at: now, completed_at: null });
+      try {
+        row = await trainingProgressRepo.create({ hospital_id: hospitalId, user_id: actor.userId, user_name: actor.name, role: actor.role, lesson_id: lesson.id, status: "In progress", steps_seen: 0, completions: 0, started_at: now, completed_at: null });
+      } catch (err) {
+        // Another API process created the row an instant earlier (the database allows one per person and lesson): use theirs.
+        if (!isDuplicateKeyError(err)) throw err;
+        row = (await mine(actor)).find((r) => r.lesson_id === lesson.id);
+        if (!row) throw err;
+      }
     }
     const patch: Record<string, unknown> = { user_name: actor.name, role: actor.role };
     if (data.event === "start") {

@@ -53,7 +53,7 @@ function TeleconsultSettings({
         Patients book a paid video consultation from the patient app. The fee below is what they are charged — it is
         decided here, never by the app. {canEdit ? "" : "Only a Super Admin can change the fee or switch this on or off."}
       </p>
-      <div className="grid grid-cols-3 gap-4 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
         <FormRow label="Consultation fee (₹)" hint="Charged per video consultation">
           <FormInput type="number" placeholder="e.g. 500" value={form.teleconsultPrice?.toString() ?? ""}
             onChange={v => canEdit && setForm(prev => (prev ? { ...prev, teleconsultPrice: v === "" ? null : Math.max(0, Number(v)) } : prev))} />
@@ -210,7 +210,7 @@ function SettingsView() {
           Staff can only mark attendance from the attendance app while their phone is inside this radius.
           Stand at the reception desk and tap &ldquo;Use my current location&rdquo; to fill it in.
         </p>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FormRow label="Latitude">
             <FormInput type="number" placeholder="e.g. 19.0760" value={form.latitude?.toString() ?? ""}
               onChange={v => setNum("latitude", v)} />
@@ -568,7 +568,7 @@ function UsersView() {
       {/* Inline form */}
       {showForm && (
         <div className="px-5 py-4 border-b border-[color:var(--line)] bg-[color:var(--subtle)]">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <FormRow label={form.role === "Radiology Partner" ? "Radiology Centre Name *" : form.role === "Lab Partner" ? "Lab Name *" : "Full Name *"}>
               <FormInput placeholder={form.role === "Radiology Partner" ? "e.g. Scanwell Diagnostics" : form.role === "Lab Partner" ? "e.g. Pathcare Diagnostics" : "Name"} value={form.name} onChange={v => set("name", v)} />
             </FormRow>
@@ -580,7 +580,7 @@ function UsersView() {
               <FormSelect placeholder="Select dept" value={form.departmentId} onChange={v => set("departmentId", v)} options={departments.map(d => ({ value: String(d.id), label: d.name }))} />
             </FormRow>
           </div>
-          <div className="grid grid-cols-4 gap-3 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
             <FormRow label="Password *" hint="At least 6 characters. You give it to them — nothing is emailed.">
               <div className="flex gap-2">
                 <FormInput placeholder="Set a password" value={form.password} onChange={v => set("password", v)} />

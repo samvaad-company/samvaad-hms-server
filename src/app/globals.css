@@ -160,3 +160,148 @@
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(300%); }
 }
+
+/* Phones and tablets: stop iOS zooming into focused fields (needs 16px), and keep wide content from widening the page. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* ───────── Phones & tablets (< 1024px): nothing scrolls sideways ───────── */
+@media (max-width: 1023px) {
+  /* Dropdowns: room on the right for the arrow, drawn by us so the padding is the same in every browser. */
+  select:not(.appearance-none):not([multiple]) {
+    -webkit-appearance: none;
+    appearance: none;
+    max-width: 100%;
+    padding-right: 38px !important;
+    text-overflow: ellipsis;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2357575f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  .dark select:not(.appearance-none):not([multiple]) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a3a3ae' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  /* Pop-up menus never run off the screen. */
+  #app-scroll [class*="absolute"][class*="shadow-lg"],
+  #app-scroll [class*="absolute"][class*="shadow-md"] {
+    max-width: calc(100vw - 24px);
+  }
+
+  /* Plain tables become stacked cards: the first cell is the title, the rest sit two to a row under their column name.
+     (The column names come from <thead> via data-label, set by SidebarShell.) Calendar-style grids opt out with data-keep-table. */
+  #app-scroll .overflow-x-auto:has(> table:not([data-keep-table])) { overflow-x: visible; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto;
+  }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) thead { display: none; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) :is(tbody, tfoot) { display: block; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 16px;
+    align-items: start;
+    height: auto !important;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr:last-child { border-bottom: 0; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) :is(td, th) {
+    display: block;
+    min-width: 0;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) :is(td, th):first-child,
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) :is(td, th)[colspan] { grid-column: 1 / -1; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) td:empty { display: none; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) td[data-label]:not(:first-child):not([colspan])::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 1px;
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--ink-soft);
+  }
+
+  /* Hand-built grid "tables" (tagged by useTableLabels): same card layout. */
+  #app-scroll [data-gt-scroll] { overflow-x: visible !important; }
+  #app-scroll [data-gt-wrap] { min-width: 0 !important; width: 100% !important; }
+  #app-scroll [data-gt-head] { display: none !important; }
+  #app-scroll [data-gt-row] {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px 16px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+    align-items: start !important;
+  }
+  #app-scroll [data-gt-row] > * { min-width: 0; overflow-wrap: anywhere; flex-wrap: wrap; text-align: left !important; justify-content: flex-start !important; }
+  #app-scroll [data-gt-row] > :first-child { grid-column: 1 / -1; }
+  #app-scroll [data-gt-row] > :empty { display: none !important; }
+  #app-scroll [data-gt-row] > *, #app-scroll [data-gt-row] .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  #app-scroll [data-gt-row] > [data-label]:not(:first-child)::before {
+    content: attr(data-label);
+    flex: 0 0 100%;
+    display: block;
+    margin-bottom: 1px;
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+
+  /* Tables drawn with absolutely positioned cells: same card layout. */
+  #app-scroll [data-ag-head] { display: none !important; }
+  #app-scroll [data-ag-row] {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px 16px !important;
+    height: auto !important;
+    min-width: 0 !important;
+    padding: 12px 14px !important;
+    align-items: start !important;
+  }
+  #app-scroll [data-ag-row] > * { position: static !important; left: auto !important; transform: none !important; min-width: 0; overflow-wrap: anywhere; flex-wrap: wrap; white-space: normal !important; }
+  #app-scroll [data-ag-row] > :first-child { grid-column: 1 / -1; }
+  #app-scroll [data-ag-row] > :empty { display: none !important; }
+  #app-scroll [data-ag-row] > [data-label]:not(:first-child)::before {
+    content: attr(data-label);
+    flex: 0 0 100%;
+    display: block;
+    margin-bottom: 1px;
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+
+  /* Safety nets: fixed-width side columns stack under the main one, inline-style grids drop to two columns. */
+  #app-scroll :has(> [style*="width: 240px"], > [style*="width: 260px"], > [style*="width: 280px"], > [style*="width: 300px"], > [style*="width: 340px"], > [style*="width: 360px"], > [style*="width: 380px"], > [style*="width: 400px"]) { flex-wrap: wrap; }
+  #app-scroll :is([style*="width: 240px"], [style*="width: 260px"], [style*="width: 280px"], [style*="width: 300px"], [style*="width: 340px"], [style*="width: 360px"], [style*="width: 380px"], [style*="width: 400px"]):not(aside):not(img):not(svg) { width: 100% !important; max-width: 100% !important; flex-shrink: 1; }
+  #app-scroll [style*="grid-template-columns: repeat("]:not([data-gt-row]) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #app-scroll img, #app-scroll video { max-width: 100%; }
+}
+
+

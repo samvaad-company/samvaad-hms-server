@@ -17,21 +17,28 @@ test that pinned it (it used to be a `test.fail(...)` expected failure) is now a
 | BUG-018 | A patient can't hold two live (not completed) tokens with the same doctor on the same day (409), under a lock | `opd-service.ts` |
 | BUG-019 | Discharge is refused while the patient has unpaid IPD bills (409, with the amount). Someone who can write billing may **waive** it with a written reason (`{ waiveBilling: true, reason }`); the waiver is recorded in the audit trail. The IPD screens ask for the reason | `ipd-service.ts`, `src/lib/ipd-discharge.ts` |
 | BUG-020 | New medicine orders, doses, vitals and handover notes are refused (409) on a discharged stay (IV start already was) | `ipd-care-service.ts`, `nurse-station-service.ts` |
-| BUG-010 | Sign-in lock-out: 5 wrong passwords for one email in 15 minutes (or 50 from one address) → 429 for 15 minutes; a good sign-in clears the email's count; unknown emails count the same. In-process memory (one API server) | `lib/login-throttle.ts`, `routes/auth/login` |
+| BUG-010 | Sign-in lock-out: 5 wrong passwords for one email (or 50 from one address) within a 15-minute window → 429 until the window ends; a good sign-in clears the email's count; unknown emails count the same. The counts live in MongoDB (a `rate_limits` collection whose windows the database expires by itself), so every API process sees the same lock; other drivers keep them in process memory | `lib/login-throttle.ts`, `db/mongo-adapter.ts` |
 | BUG-011 | Sessions of a paused/removed hospital stop working (401) within 10 s — the hospital's status is checked on every request (cached, and dropped the moment it changes) | `auth/tenant-gate.ts`, `auth/server.ts` |
 | BUG-012 | The validator refuses an object or list where text is expected (422) instead of saving `[object Object]` | `lib/validation.ts` |
 | BUG-013 | Patient email must look like an address | `lib/field-rules.ts`, `patients-service.ts` |
 | BUG-014 | Impossible dates (31 Feb) are refused as dates of birth, booking dates and generic dates | `lib/field-rules.ts`, `lib/validation.ts` |
-| PERF-001 | The next patient / bill / admission / lab / radiology number and OPD token no longer read the whole table: the highest counter is remembered per series (read once after the server starts). Patient registration only searches the register for a duplicate when an ID document is given | `id-service.ts`, `opd-service.ts`, callers |
-| PERF-002 | Dashboard, home overview and analytics are cached per hospital for up to 30 s, dropped as soon as anything is recorded in that hospital (every `audit()`), and simultaneous opens share one computation | `lib/summary-cache.ts` |
+| PERF-001 | The next patient / bill / admission / lab / radiology number and OPD token no longer read the whole table. They come from an **atomic counter in the database** (one `findOneAndUpdate` on MongoDB — safe across any number of API processes); the existing records are scanned once per series after a server start only to lift a counter that is behind, never to lower it. An invoice number is taken as late as possible and handed back if the bill can't be saved, so invoice numbers stay consecutive. Patient registration only searches the register for a duplicate when an ID document is given | `services/sequences.ts`, `id-service.ts`, `opd-service.ts`, `db/mongo-adapter.ts` |
+| PERF-002 | Dashboard, home overview and analytics are cached per hospital for up to 30 s and dropped as soon as anything changes in that hospital — both when the API records it (`audit()`) and, on MongoDB, when **any** write reaches the database (a change stream: other processes, scripts, the Atlas console). Simultaneous opens share one computation | `lib/summary-cache.ts`, `services/change-watcher.ts` |
 | PERF-003 | The home dashboard's `appointmentsToday` list is capped at 50 (the counts stay exact) | `overview-service.ts` |
 
-**Not changed (still true — see [CAPACITY.md](CAPACITY.md)):** most *reports* and the other ~270 `unpaged: true` reads still scan their tables; the
-fix above removes the ones on the hot paths (register, check-in, bill, admit) and the home screens. Moving the rest to database-side counting and
-paging is the next capacity step.
+**Not changed (still true — see [CAPACITY.md](CAPACITY.md)):** the other ~270 `unpaged: true` reads (87 of them already narrowed by a filter to one
+patient/admission) still scan their tables — mostly reports and the dashboards' own builds. The cache and the counters take the work off the hot paths
+(register, check-in, bill, admit, the home screens); making the summaries themselves cheap needs database-side counting/summing (an aggregate call on the
+adapter) and is the next capacity step. `GET …?all=true` still lets a client pull a whole list.
 
-**Caveats:** the number counters and sign-in lock-out live in the API process's memory, which is right for one server (the planned droplet) but would
-need a shared store if the API were ever run as several processes. A number is never re-used, but one taken by a request that then fails leaves a gap.
+**Caveats:**
+- Counters and lock-out are shared through the database on **MongoDB** (and the in-memory store). On **Supabase/Postgres** they stay in process memory — right for
+  one server — until a counters table and an increment function are added there.
+- A deleted/disabled ID format falls back to the old "highest + 1" numbering, which is not safe across processes.
+- Rows written outside the API with a number higher than the counter (imports) are caught up the next time a server starts, not immediately.
+- The lock-out uses fixed 15-minute windows, so a guesser can get up to twice the allowance across a window boundary.
+- Change-stream invalidation needs a replica set (Atlas always is). If the stream can't open, the API logs it and falls back to `audit()`-based invalidation;
+  set `DB_CHANGE_WATCH=off` to turn it off.
 
 ## The original findings
 
