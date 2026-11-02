@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- API replies are untyped JSON in these tests */
 import { expect, test, type Page } from "@playwright/test";
 import { newHospital, type Tenant } from "./support/stack";
 
@@ -71,12 +70,66 @@ test("a doctor's dashboard shows only their own new appointments", async ({ brow
   await context.close();
 });
 
-test("someone without access to appointments opens no stream", async ({ browser }) => {
-  const { context, page } = await T.users.pharmacist.browser(browser);
-  const streams: string[] = [];
-  page.on("request", (r) => { if (r.url().includes("/api/events/stream")) streams.push(r.url()); });
+const toasts = (page: Page) => page.getByRole("status").filter({ hasText: "New appointment" });
+
+test("a notification pops up for the admin when someone else books, says who booked it, and can be dismissed", async ({ browser }) => {
+  const { context, page } = await T.users.admin.browser(browser);
   await page.goto("/home");
-  await page.waitForTimeout(2500);
-  expect(streams).toEqual([]);
+  await connected(page);
+  await walkIn("Toast Patient One");
+  const toast = toasts(page).filter({ hasText: "Toast Patient One" });
+  await expect(toast).toBeVisible({ timeout: 10_000 });
+  await expect(toast).toContainText("Dr. Asha Rao");
+  await expect(toast).toContainText("booked by Receptionist (reception)");
+  await expect(toast.getByRole("link", { name: /View appointments/ })).toHaveAttribute("href", "/appointments");
+  await toast.getByRole("button", { name: "Dismiss" }).click();
+  await expect(toast).toHaveCount(0);
+
+  // Left alone, one goes away by itself.
+  await walkIn("Toast Patient Two");
+  const second = toasts(page).filter({ hasText: "Toast Patient Two" });
+  await expect(second).toBeVisible({ timeout: 10_000 });
+  await expect(second).toHaveCount(0, { timeout: 20_000 });
   await context.close();
+});
+
+test("the person who made the booking sees it in their list but isn't notified of their own booking", async ({ browser }) => {
+  const { context, page } = await T.users.reception.browser(browser);
+  await page.goto("/home");
+  await connected(page);
+  await walkIn("Booked By Me");
+  await expect(page.getByText("Booked By Me").first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(1000);
+  await expect(toasts(page)).toHaveCount(0);
+  await context.close();
+});
+
+test("a doctor is notified of their own new appointment and not of another doctor's", async ({ browser }) => {
+  const other = await T.users.admin.post("/api/doctors", { name: "Dr. Notify Other", specialty: "ENT", departmentId: T.departmentId, phone: "9811100003" });
+  expect(other.status).toBe(201);
+  const { context, page } = await T.users.doctor.browser(browser);
+  await page.goto("/home");
+  await connected(page);
+
+  await walkIn("Someone Elses Toast", other.data.id);
+  await walkIn("My Own Toast");
+  await expect(toasts(page).filter({ hasText: "My Own Toast" })).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(1000);
+  await expect(toasts(page).filter({ hasText: "Someone Elses Toast" })).toHaveCount(0);
+  await context.close();
+});
+
+test("roles other than the admin, the front desk and doctors open no stream and see no notification", async ({ browser }) => {
+  for (const key of ["pharmacist", "nurse", "billing", "telecaller"] as const) {
+    const { context, page } = await T.users[key].browser(browser);
+    const streams: string[] = [];
+    page.on("request", (r) => { if (r.url().includes("/api/events/stream")) streams.push(r.url()); });
+    await page.goto("/home");
+    await page.waitForTimeout(2000);
+    await walkIn(`Not For ${key}`);
+    await page.waitForTimeout(1000);
+    expect(streams, `${key} shouldn't open the stream`).toEqual([]);
+    await expect(toasts(page), `${key} shouldn't see a notification`).toHaveCount(0);
+    await context.close();
+  }
 });

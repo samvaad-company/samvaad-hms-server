@@ -539,7 +539,7 @@ async function confirmLocked(bookingId: number, info: ConfirmInfo): Promise<Tele
     failure_reason: null,
   }))!;
   if (paymentId) await linkPaymentToAppointment(paymentId, keeper.id);
-  publishAppointmentCreated(keeper); // once per appointment, however many times the payment is confirmed
+  publishAppointmentCreated(keeper, { source: "video-consult" }); // once per appointment, however many times the payment is confirmed
   await audit(info.actor ?? null, "confirm", "teleconsult", booking.id, {
     appointmentId: keeper.id, mode: info.mode, amount: booking.amount, paymentId, via: info.via,
   });

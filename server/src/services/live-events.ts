@@ -3,7 +3,8 @@
  * video consultation is paid for — is published here once it is safely saved; every dashboard open in that hospital (a doctor's
  * dashboard: only their own) receives it over the SSE stream and puts it in its Redux store.
  */
-import { publish } from "@/lib/event-bus";
+import { publish, type LiveSource } from "@/lib/event-bus";
+import { type Session } from "@/auth/session";
 import { appointmentsRepo } from "@/repositories";
 import { toAppointmentDTO } from "@/repositories/mappers";
 import { type AppointmentRow } from "@/db/tables";
@@ -18,7 +19,11 @@ export function publishAppointmentCreatedFromFeed(row: AppointmentRow, settleMs 
   }, settleMs).unref?.();
 }
 
-export function publishAppointmentCreated(row: AppointmentRow): void {
+export function publishAppointmentCreated(row: AppointmentRow, origin: { source?: LiveSource; by?: Session | null } = {}): void {
   if (row.hospital_id == null) return;
-  publish({ type: "appointment.created", hospitalId: row.hospital_id, doctorId: row.doctor_id ?? null, data: toAppointmentDTO(row) }, `appointment.created:${row.hospital_id}:${row.id}`);
+  publish({
+    type: "appointment.created", hospitalId: row.hospital_id, doctorId: row.doctor_id ?? null,
+    source: origin.source ?? "other", by: origin.by ? { userId: origin.by.userId, name: origin.by.name } : null,
+    data: toAppointmentDTO(row),
+  }, `appointment.created:${row.hospital_id}:${row.id}`);
 }

@@ -101,10 +101,10 @@ export async function createAppointment(input: unknown, actor: Session) {
     await audit(actor, "create", "appointment", created.id);
     if (visitPurpose) {
       const withPurpose = (await appointmentsRepo.update(created.id, { visit_purpose: visitPurpose })) as AppointmentRow;
-      publishAppointmentCreated(withPurpose);
+      publishAppointmentCreated(withPurpose, { source: "staff", by: actor });
       return toAppointmentDTO(withPurpose);
     }
-    publishAppointmentCreated(created);
+    publishAppointmentCreated(created, { source: "staff", by: actor });
     return toAppointmentDTO(created);
   }
 
@@ -123,7 +123,7 @@ export async function createAppointment(input: unknown, actor: Session) {
     status: data.status,
   });
   await audit(actor, "create", "appointment", row.id);
-  publishAppointmentCreated(row as AppointmentRow);
+  publishAppointmentCreated(row as AppointmentRow, { source: "staff", by: actor });
   return toAppointmentDTO(row as AppointmentRow);
 }
 

@@ -82,11 +82,14 @@ const test = (name: string, fn: () => Promise<void>) => tests.push({ name, fn })
 const walkIn = (doctorId: number, name: string, by = RECEPTION) =>
   as(by, "POST", "/api/appointments", { patientName: name, doctorId, date: today, time: "10:00 AM", type: "Walk-in", reason: "check-up", status: "Today" });
 
-test("the stream needs a login and the appointments permission", async () => {
+test("only the hospital admin, the front desk and doctors may open the stream", async () => {
   const anon = await app.fetch(new Request("http://localhost/api/events/stream"));
   assert.equal(anon.status, 401);
-  const pharmacist = await app.fetch(new Request("http://localhost/api/events/stream", { headers: { cookie: await cookieFor("arun.tiwari@samvaadhospital.in", "Samvaad@123") } }));
-  assert.equal(pharmacist.status, 403, "a pharmacist has no appointments access");
+  const open = async (email: string) => (await app.fetch(new Request("http://localhost/api/events/stream", { headers: { cookie: await cookieFor(email, "Samvaad@123") } }))).status;
+  for (const [who, email] of [["pharmacist", "arun.tiwari@samvaadhospital.in"], ["billing", "kavitha.krishnan@samvaadhospital.in"], ["head nurse", "rekha.menon@samvaadhospital.in"]] as const) {
+    assert.equal(await open(email), 403, `${who} is not sent appointment events`);
+  }
+  assert.equal(await open(PLATFORM), 403, "nor is the platform operator");
 });
 
 test("it opens as an event stream and says it is ready", async () => {
@@ -109,6 +112,8 @@ test("a new appointment reaches the hospital's open dashboards at once, in the s
     assert.equal(ev.data.data.id, made.data.id);
     assert.deepEqual(ev.data.data, made.data, "the same shape as the API's own answer");
     assert.ok(ev.id);
+    assert.equal(ev.data.source, "staff");
+    assert.equal(ev.data.by.name, "Deepak Nair", "who booked it, so their own screen needn't announce it back");
   }
   [a, r, d2].forEach((s) => s.close());
 });
@@ -126,6 +131,19 @@ test("a doctor is sent only their own appointments", async () => {
   assert.ok(await until(() => d2.events.some((e) => e.event === "appointment.created")));
   assert.equal(d2.events.find((e) => e.event === "appointment.created")!.data.data.id, mine.data.id);
   d2.close(); admin.close();
+});
+
+test("a doctor login that isn't linked to a doctor record is sent nothing", async () => {
+  const made = await as(ADMIN, "POST", "/api/admin/users", { name: "Unlinked Doc", email: "unlinked.doc@samvaadhospital.in", password: "Samvaad@123", role: "Doctor" });
+  assert.equal(made.status, 201, JSON.stringify(made.error));
+  const unlinked = await listen("unlinked.doc@samvaadhospital.in");
+  const admin = await listen(ADMIN);
+  await until(() => unlinked.events.some((e) => e.event === "ready") && admin.events.some((e) => e.event === "ready"));
+  await walkIn(2, "Nobody's Doctor Sees This");
+  assert.ok(await until(() => admin.events.some((e) => e.event === "appointment.created")));
+  await quiet();
+  assert.equal(unlinked.events.filter((e) => e.event === "appointment.created").length, 0);
+  unlinked.close(); admin.close();
 });
 
 test("another hospital hears nothing", async () => {

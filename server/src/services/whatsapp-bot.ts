@@ -254,7 +254,7 @@ async function continueBooking(hospitalId: number, phone: string, ctx: Ctx, m: I
       if (!yes) return { text: "Tap *Confirm* to book, or *Cancel* to stop.", buttons: [{ id: "book_confirm", title: "Confirm" }, { id: "book_cancel", title: "Cancel" }] };
       try {
         const { doctor, hospital } = await loadDoctor(b.doctorId!);
-        publishAppointmentCreated(await bookInPerson({ hospitalId, patientId: b.patientId, patientName: b.name, patientAge: b.age, doctor, hospital, date: b.date!, minutes: parseClock(b.time!)!, reason: b.reason || "Booked on WhatsApp" }));
+        publishAppointmentCreated(await bookInPerson({ hospitalId, patientId: b.patientId, patientName: b.name, patientAge: b.age, doctor, hospital, date: b.date!, minutes: parseClock(b.time!)!, reason: b.reason || "Booked on WhatsApp" }), { source: "whatsapp" });
       } catch (e) {
         if (isAppError(e)) { b.step = "date"; return { text: `${e.message}\n\nPlease pick another day or time — send a date (like *3 Nov*).`, buttons: DATE_BUTTONS }; }
         throw e;

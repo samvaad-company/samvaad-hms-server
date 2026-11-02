@@ -105,7 +105,7 @@ export async function createPortalAppointment(input: unknown) {
     doctor, hospital, date, minutes, reason,
   });
   await audit(null, "create", "appointment", row.id, { via: "patient-app" });
-  publishAppointmentCreated(row);
+  publishAppointmentCreated(row, { source: "patient-app" });
   return patientAppointmentView(row);
 }
 

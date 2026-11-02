@@ -4,6 +4,8 @@ import { requirePermission } from "@/auth/server";
 import { hospitalIsOpen } from "@/auth/tenant-gate";
 import { subscribe } from "@/lib/event-bus";
 import { requireHospitalId } from "@/services/hospital-scope";
+import { ForbiddenError } from "@/lib/errors";
+import { receivesLiveAppointments } from "@shared/lib/live/roles";
 
 /** A comment line every so often keeps proxies from closing a quiet connection. */
 const HEARTBEAT_MS = 20_000;
@@ -17,12 +19,16 @@ const MAX_LIFETIME_MS = 25 * 60_000;
  *   event: appointment.created   { id, type, hospitalId, doctorId, at, data: <the appointment, as GET /api/appointments returns it> }
  *   : ping                       heartbeat
  *
- * A hospital's staff get that hospital's events and nothing else; a doctor is sent only their own appointments.
+ * Only the hospital admin, the front desk and doctors may open it. They get their own hospital's events and nothing else; a
+ * doctor is sent only the appointments made for that doctor (matched by doctor id).
  */
 export const GET = withRoute(async (req: ApiRequest) => {
   const session = await requirePermission("appointments", "read");
+  if (!receivesLiveAppointments(session.role)) throw new ForbiddenError("Live appointment events go to the hospital admin, the front desk and doctors");
   const hospitalId = requireHospitalId(session);
-  const ownDoctor = session.role === "Doctor" && session.doctorId != null ? session.doctorId : null;
+  // A doctor is sent only appointments with their own doctor id; a doctor login that isn't linked to a doctor record is sent none.
+  const doctorOnly = session.role === "Doctor";
+  const ownDoctor = doctorOnly ? session.doctorId ?? -1 : null;
   const encoder = new TextEncoder();
   let cleanup = () => {};
 
