@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpDown, BedDouble, Droplets, Pill, Scale, UserRound, UserX, Plus, Search, BellRing } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { api } from "@/lib/api/client";
+import { dischargeAdmission } from "@/lib/ipd-discharge";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
@@ -157,7 +158,7 @@ function IpdPageInner() {
     ...(canWrite ? [
       { label: "Add doctor round", disabled: r.status === "Discharged", onClick: () => { setRoundTarget(r); setFindings(""); setOrders(""); } },
       { label: r.primaryNurse ? "Change nurse" : "Assign nurse", disabled: r.status === "Discharged", onClick: () => { setNurseFor(r); setNurseId(r.primaryNurseId ? String(r.primaryNurseId) : ""); } },
-      { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName}${r.bed ? ` and free bed ${r.bed}` : ""}?`, confirmLabel: "Discharge", action: () => api.post(`/ipd/${r.id}/discharge`) }) },
+      { label: "Discharge", disabled: r.status === "Discharged", onClick: () => ask({ title: "Discharge patient", message: `Discharge ${r.patientName}${r.bed ? ` and free bed ${r.bed}` : ""}?`, confirmLabel: "Discharge", action: () => dischargeAdmission(r.id) }) },
       { label: "Move to ICU", disabled: r.status === "ICU" || r.status === "Discharged", onClick: () => mutate(() => api.patch(`/ipd/${r.id}`, { status: "ICU" })) },
       { label: "Delete", danger: true, onClick: () => remove(r.id, r.patientName) },
     ] : []),
@@ -171,7 +172,7 @@ function IpdPageInner() {
       {dialog}
       <AdmitDialog open={admitOpen} onClose={() => setAdmitOpen(false)} onAdmitted={refresh} />
 
-      <div className={`${tw.gutterX} pt-1 pb-3 flex items-center gap-3 flex-wrap`}>
+      <div className={`${tw.gutterX} pt-[16px] pb-3 flex items-center gap-3 flex-wrap`}>
         <BedDouble size={18} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[17px] font-semibold text-[color:var(--ink)]">Inpatients</h1>
         <span className="text-[13px] text-[color:var(--ink-soft)]">{admitted.length} admitted</span>

@@ -11,7 +11,8 @@ import { ipdNotesRepo, ipdMedicationsRepo, ipdRepo } from "@/repositories";
 import { toIpdNoteDTO, toIpdMedicationDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { type IpdNoteRow, type IpdMedicationRow } from "@/db/tables";
-import { NotFoundError, BadRequestError } from "@/lib/errors";
+import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from "@/lib/errors";
+import { can } from "@/auth/rbac";
 import { validate, validatePartial } from "@/lib/validation";
 import { isoDate, displayTime } from "@/services/helpers";
 import { audit } from "@/services/audit";
@@ -26,6 +27,11 @@ import { assertOwnedByHospital } from "@/services/hospital-scope";
 async function assertAdmissionOwned(admissionId: number, actor: Session) {
   const admission = await ipdRepo.getRow(admissionId);
   assertOwnedByHospital(admission, actor, "Admission");
+}
+
+/** Medicine orders are the prescriber's: a nurse who can admit and chart on the ward still can't write or cancel them. */
+function requireOrderingRole(actor: Session): void {
+  if (!can(actor.role, "prescriptions", "write")) throw new ForbiddenError("A nurse cannot write orders — that is the doctor's");
 }
 
 /** A list call must be scoped to one admission — otherwise it would span every hospital. */
@@ -131,8 +137,10 @@ export async function listIpdMedications(options: QueryOptions, actor: Session) 
 }
 
 export async function createIpdMedication(input: unknown, actor: Session) {
+  requireOrderingRole(actor);
   const data = validate(medSchema, input);
   await assertAdmissionOwned(data.admissionId, actor);
+  if ((await ipdRepo.getRow(data.admissionId))?.status === "Discharged") throw new ConflictError("This patient has been discharged, so no new medicines can be ordered on the stay");
 
   const row = await ipdMedicationsRepo.create({
     admission_id: data.admissionId,
@@ -151,6 +159,8 @@ export async function createIpdMedication(input: unknown, actor: Session) {
 }
 
 export async function updateIpdMedication(id: number, input: unknown, actor: Session) {
+  // Giving a dose (markGiven) is the nurse's job; changing the order itself is not.
+  if (Object.keys((input ?? {}) as object).some((k) => k !== "markGiven")) requireOrderingRole(actor);
   const existing = await ipdMedicationsRepo.getRow(id);
   if (!existing) throw new NotFoundError("Medication");
   await assertAdmissionOwned(existing.admission_id, actor);
@@ -174,6 +184,7 @@ export async function updateIpdMedication(id: number, input: unknown, actor: Ses
 }
 
 export async function deleteIpdMedication(id: number, actor: Session) {
+  requireOrderingRole(actor);
   const existing = await ipdMedicationsRepo.getRow(id);
   if (!existing) throw new NotFoundError("Medication");
   await assertAdmissionOwned(existing.admission_id, actor);

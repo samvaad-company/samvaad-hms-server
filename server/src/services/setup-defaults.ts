@@ -178,6 +178,7 @@ export const ID_FORMAT_DEFAULTS: { code: string; name: string; mask: string; pre
   { code: "invoice", name: "Bill / invoice no.", mask: "{PREFIX}-{SEQ:8}", prefix: "INV", reset: "Never" },
   { code: "receipt", name: "Receipt no.", mask: "RCP-{FY}-{SEQ:6}", prefix: "", reset: "Every FY" },
   { code: "credit_note", name: "Credit note no.", mask: "CN/{YY}/{SEQ:5}", prefix: "", reset: "Every year" },
+  { code: "ambulance_call", name: "Ambulance call no.", mask: "AMB/{YY}/{SEQ:5}", prefix: "", reset: "Every year" },
   { code: "admission", name: "Admission no.", mask: "ADM/{YYYY}/{SEQ:5}", prefix: "", reset: "Every year" },
   { code: "claim", name: "Claim no.", mask: "CLM-{FY}-{SEQ:5}", prefix: "", reset: "Every FY" },
   { code: "purchase_order", name: "Purchase order no.", mask: "PO-{SEQ:4}", prefix: "", reset: "Never" },

@@ -99,7 +99,7 @@ export function MrdShell<T extends string>({ icon, title, note, tabs, tab, onTab
   icon: ReactNode; title: string; note?: string; tabs?: readonly { id: T; label: string }[]; tab?: T; onTab?: (t: T) => void; right?: ReactNode; children: ReactNode;
 }) {
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 420 }}>
         <div className="flex items-center gap-3 flex-wrap border-b border-[color:var(--line)] px-5 py-3">
           <span className="text-[color:var(--ink-soft)]">{icon}</span>

@@ -213,7 +213,7 @@ export default function EnquiriesPage() {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-[color:var(--line)]">
+      <div className="flex items-center gap-3 px-5 py-3 mt-[16px] border-y border-[color:var(--line)]">
         <Inbox size={15} strokeWidth={1.5} className="text-[color:var(--ink-soft)] shrink-0" />
         <h1 className="text-[14px] font-semibold text-[color:var(--ink)] shrink-0">Enquiries</h1>
         <p className="text-[12px] text-[color:var(--ink-soft)] truncate min-w-0">

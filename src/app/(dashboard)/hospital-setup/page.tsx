@@ -62,7 +62,7 @@ export default function HospitalSetupPage() {
   if (!can("admin", "read")) return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] text-[color:var(--ink-soft)]">Hospital setup is managed by hospital administrators.</p></div>;
 
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 480 }}>
         <div className="flex items-baseline gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Building2 size={16} className="self-center text-[color:var(--ink-soft)]" />

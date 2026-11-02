@@ -17,11 +17,15 @@ import {
   type Resource,
 } from "@/auth/rbac";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
+import { hospitalIsOpen } from "@/auth/tenant-gate";
 
 /** Read and verify the current session, or null when unauthenticated. */
 export async function getSession(): Promise<Session | null> {
   const cfg = getConfig();
-  return verifyToken(readCookie(cfg.sessionCookieName));
+  const session = await verifyToken(readCookie(cfg.sessionCookieName));
+  // Signing in is refused for a paused hospital; sessions already open must stop working too.
+  if (session?.hospitalId != null && !(await hospitalIsOpen(session.hospitalId))) return null;
+  return session;
 }
 
 /** Require an authenticated session or throw 401. */

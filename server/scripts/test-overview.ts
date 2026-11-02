@@ -177,6 +177,7 @@ test("a past appointment the patient was checked in for isn't a no-show; one nob
   const came = await mk("Came In"); await mk("Never Came");
   const { opdRepo } = await import("@/repositories");
   await opdRepo.create({ hospital_id: 1, token_number: "T-900", appointment_id: (came as any).id, patient_id: null, patient_name: "Came In", patient_age: 30, doctor_id: doc.id, doctor: doc.name, reason: "x", priority: "Normal", vitals_recorded: false, bp_systolic: null, bp_diastolic: null, pulse: null, temperature: null, spo2: null, wait_time: "0 min", check_in_time: "10:00 AM", status: "Completed" } as never);
+  (await import("@/lib/summary-cache")).touchHospital(1); // rows were written straight to the repositories, not through a service
   const after = (await overview()).retention;
   assert.equal(after.missed, before.missed + 1, "only the one nobody came to");
 });

@@ -213,8 +213,7 @@ export async function listRoutableCenters(actor: Session) {
 
 /** Next order number, shared by every study ordered in one go. */
 async function nextOrderNumber(actor: Session): Promise<string> {
-  const { rows } = await radiologyRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  return nextNumber("radiology_order", actor, rows.map((r) => r.order_number ?? ""), { prefix: "RAD-", pad: 4 });
+  return nextNumber("radiology_order", actor, async () => (await radiologyRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.order_number ?? ""), { prefix: "RAD-", pad: 4 });
 }
 
 export async function createRadiology(input: unknown, actor: Session, uow?: UnitOfWork) {
@@ -397,6 +396,7 @@ export async function uploadRadiologyReport(
   if (!FIREBASE_STORAGE_URL.test(fileUrl)) {
     throw new BadRequestError("fileUrl must be a Firebase Storage download URL");
   }
+  if (existing.status === "Cancelled") throw new ConflictError("This scan was cancelled, so a report can't be attached to it");
 
   const row = await radiologyRepo.update(id, {
     report_file: fileUrl,

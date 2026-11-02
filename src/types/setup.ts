@@ -53,7 +53,7 @@ export const FACILITY_AREA_TYPES = ["Reception", "Ward", "ICU", "Operation Theat
 export const SERVICE_SCOPES = ["All services", "IPD", "A single service"] as const;
 
 /** The ID formats whose number the HMS issues; the rest can be edited but nothing is numbered by them yet. */
-export const LIVE_ID_FORMATS = ["uhid", "invoice", "admission", "ot", "lab_order", "radiology_order", "purchase_order", "mrd_file", "blood_donor", "cssd_cycle", "credit_note"] as const;
+export const LIVE_ID_FORMATS = ["uhid", "invoice", "admission", "ot", "lab_order", "radiology_order", "purchase_order", "mrd_file", "blood_donor", "cssd_cycle", "credit_note", "ambulance_call"] as const;
 export const ID_RESETS = ["Never", "Every FY", "Every year", "Every month"] as const;
 export const ID_SCOPES = ["Org-wide", "Per branch"] as const;
 

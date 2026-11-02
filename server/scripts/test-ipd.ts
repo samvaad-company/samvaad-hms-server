@@ -28,13 +28,24 @@ async function request(method: string, path: string, opts: { body?: unknown; hea
   return { status: res.status, data: parsed?.data, error: parsed?.error, headers: res.headers };
 }
 const cookies = new Map<string, string>();
-async function as(email: string, method: string, path: string, body?: unknown) {
+async function rawAs(email: string, method: string, path: string, body?: unknown) {
   if (!cookies.has(email)) {
     const login = await request("POST", "/api/auth/login", { body: { email, password: "Samvaad@123" } });
     assert.equal(login.status, 200, `login ${email}`);
     cookies.set(email, (login.headers.get("set-cookie") ?? "").split(";")[0]);
   }
   return request(method, path, { body, headers: { cookie: cookies.get(email)! } });
+}
+
+/** Seeded patients already have a live stay; a patient can only have one, so end it before a test admits them again. */
+async function endLiveStays(email: string, patientId: unknown): Promise<void> {
+  if (patientId == null) return;
+  const stays = ((await rawAs(email, "GET", "/api/ipd?all=true")).data as any[]).filter((a) => a.patientRefId === patientId && a.status !== "Discharged");
+  for (const a of stays) await rawAs(email, "POST", `/api/ipd/${a.id}/discharge`, { waiveBilling: true, reason: "test fixture" });
+}
+async function as(email: string, method: string, path: string, body?: unknown) {
+  if (method === "POST" && path === "/api/ipd") await endLiveStays(email, (body as { patientId?: unknown } | undefined)?.patientId);
+  return rawAs(email, method, path, body);
 }
 const ADMIN = "kevin.carter@samvaadhospital.in";
 const NURSE = "rekha.menon@samvaadhospital.in"; // Head Nurse

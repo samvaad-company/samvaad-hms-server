@@ -851,7 +851,7 @@ export default function AdminPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} mb-5`}>
+      <div className={`${tw.gutterX} pt-[16px] mb-5`}>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-[color:var(--subtle-2)] rounded-[10px] flex items-center justify-center shrink-0">
             <Settings2 size={18} className="text-[color:var(--ink-soft)]" />

@@ -90,8 +90,8 @@ async function request<T>(
     // A 401 anywhere means the session expired — bounce to login.
     if (res.status === 401 && typeof window !== "undefined") {
       const next = window.location.pathname;
-      // Public pages (login, the patient booking link) have no session to lose.
-      if (!next.startsWith("/login") && !next.startsWith("/book-video")) {
+      // Public pages (login, the patient booking link, a form sent to sign) have no session to lose.
+      if (!/^\/(login|book-video|sign)(\/|$)/.test(next)) {
         window.location.href = `/login?next=${encodeURIComponent(next)}`;
       }
     }

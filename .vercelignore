@@ -1,0 +1,10 @@
+# Vercel hosts only the Next.js frontend. The API server runs on the droplet
+# (https://hmsapi.samvaadai.com), so none of it is uploaded or built here.
+/server
+
+# Tests and their output are never part of the deployed app.
+/e2e
+/playwright.config.ts
+/test-results
+/playwright-report
+/blob-report

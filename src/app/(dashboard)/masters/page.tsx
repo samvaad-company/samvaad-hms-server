@@ -59,7 +59,7 @@ function MastersPage() {
     return <div className={`${tw.gutterX} pt-10`}><p className="text-[14px] text-[color:var(--ink-soft)]">Masters are managed by hospital administrators.</p></div>;
   }
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} pt-[16px] mb-[30px]`}>
       <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 520 }}>
         <div className="flex items-baseline gap-3 border-b border-[color:var(--line)] px-5 py-3">
           <Layers size={16} className="self-center text-[color:var(--ink-soft)]" />
@@ -84,7 +84,7 @@ function MastersPage() {
             ))}
             {nav.length === 0 && <p className="px-2 text-[13px] text-[color:var(--ink-soft)]">No master matches.</p>}
           </aside>
-          <main className="min-w-0 flex-1 px-5 py-4"><Section id={section} /></main>
+          <div className="min-w-0 flex-1 px-5 py-4"><Section id={section} /></div>
         </div>
       </div>
     </div>

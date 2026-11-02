@@ -5,6 +5,7 @@
  * coerced object or throws a ValidationError aggregating every field problem.
  */
 import { ValidationError, type FieldError } from "@/lib/errors";
+import { isRealCalendarDate } from "@/lib/field-rules";
 
 export type FieldType = "string" | "number" | "boolean" | "date" | "enum";
 
@@ -49,6 +50,8 @@ function coerce(
   switch (rule.type) {
     case "string":
     case "enum": {
+      // Numbers and booleans read naturally as text; an object or list would be saved as "[object Object]".
+      if (typeof value === "object" || typeof value === "function" || typeof value === "symbol") return { value, error: "must be text" };
       if (typeof value !== "string") value = String(value);
       if (rule.trim !== false) value = (value as string).trim();
       const s = value as string;
@@ -82,7 +85,7 @@ function coerce(
     }
     case "date": {
       const d = new Date(value as string);
-      if (Number.isNaN(d.getTime())) return { value, error: "must be a valid date" };
+      if (Number.isNaN(d.getTime()) || (typeof value === "string" && !isRealCalendarDate(value))) return { value, error: "must be a valid date" };
       value = (value as string).toString();
       break;
     }

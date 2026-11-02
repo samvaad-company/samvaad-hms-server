@@ -398,7 +398,7 @@ test("discharged admissions are in the coding queue; discharging one adds it", a
   const admitted = ((await as(ADMIN, "GET", "/api/ipd?all=true")).data as any[]).find((a) => a.status !== "Discharged");
   assert.ok(admitted);
   assert.ok(!q.some((c) => c.admissionId === admitted.id));
-  const d = await as(ADMIN, "POST", `/api/ipd/${admitted.id}/discharge`);
+  const d = await as(ADMIN, "POST", `/api/ipd/${admitted.id}/discharge`, { waiveBilling: true, reason: "test fixture: seeded demo bills are unpaid" });
   assert.equal(d.status, 200, JSON.stringify(d.error));
   const after = await cases();
   const mine = after.find((c) => c.admissionId === admitted.id);

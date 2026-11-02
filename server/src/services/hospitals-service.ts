@@ -19,6 +19,7 @@ import { hashPassword } from "@/auth/password";
 import { ForbiddenError, ConflictError, NotFoundError } from "@/lib/errors";
 import { validate } from "@/lib/validation";
 import { audit } from "@/services/audit";
+import { forgetHospitalStatus } from "@/auth/tenant-gate";
 import { type Session } from "@/auth/session";
 import { type HospitalRow } from "@/db/tables";
 
@@ -160,6 +161,7 @@ async function setHospitalStatus(id: number, status: (typeof HOSPITAL_STATUSES)[
   const existing = await hospitalsRepo.getRow(id);
   if (!existing) throw new NotFoundError("Hospital");
   const row = await hospitalsRepo.update(id, { status });
+  forgetHospitalStatus(id);
   await audit(actor, "update", "hospital", id, { status });
   return toHospitalDTO(row as HospitalRow);
 }

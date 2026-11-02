@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
+import { dischargeAdmission } from "@/lib/ipd-discharge";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { IpdRecordDTO, IpdNoteDTO, IpdMedicationDTO } from "@/types/api";
@@ -302,7 +303,7 @@ Condition at discharge: ${form.condition || "—"}
 ${form.followUp ? `Follow-up: ${form.followUp}` : ""}`.trim(),
       }));
     }
-    await run(() => api.post(`/ipd/${record.id}/discharge`));
+    await run(() => dischargeAdmission(record.id));
     onDischarged();
   }
 
@@ -366,7 +367,7 @@ export default function IpdDetailPage() {
   const { run, loading: acting } = useMutation();
 
   async function discharge() {
-    await run(() => api.post(`/ipd/${id}/discharge`));
+    await run(() => dischargeAdmission(id));
     setConfirmOpen(false);
     reload();
   }

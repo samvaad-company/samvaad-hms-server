@@ -88,6 +88,7 @@ export function ChatWidget() {
 
       {!open && (
         <button
+          data-tour="ai-launcher"
           onClick={openWidget}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[color:var(--brand)] shadow-lg flex items-center justify-center hover:bg-[color:var(--brand-hover)] transition-colors"
         >

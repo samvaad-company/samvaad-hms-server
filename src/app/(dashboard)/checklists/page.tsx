@@ -33,7 +33,7 @@ export default function ChecklistsPage() {
 
   return (
     <>
-      <div className={`${tw.gutterX} pt-1 pb-3 flex items-center gap-3 flex-wrap`}>
+      <div className={`${tw.gutterX} pt-[16px] pb-3 flex items-center gap-3 flex-wrap`}>
         <ListChecks size={18} className="text-[color:var(--ink-soft)]" />
         <h1 className="text-[17px] font-semibold text-[color:var(--ink)]">Checklists</h1>
         <div role="tablist" aria-label="Checklist status" className="inline-flex p-[3px] rounded-[8px] bg-[color:var(--subtle)]">

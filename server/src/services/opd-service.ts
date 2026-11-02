@@ -9,6 +9,9 @@ import { type UnitOfWork } from "@/db/unit-of-work";
 import { TABLES } from "@/db/tables";
 import { type OpdVisitRow } from "@/db/tables";
 import { validate, validatePartial } from "@/lib/validation";
+import { ConflictError } from "@/lib/errors";
+import { withKeyLocks } from "@/lib/key-lock";
+import { localDate } from "@/lib/clock";
 import { displayTime, nextCode } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
@@ -63,6 +66,22 @@ export const OPD_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
+/** The highest token number issued per hospital, remembered so a check-in doesn't read the whole queue history. */
+const lastToken = new Map<number, number>();
+
+async function nextToken(actor: Session): Promise<string> {
+  const hospital = actor.hospitalId ?? 0;
+  let top = lastToken.get(hospital);
+  if (top === undefined) {
+    const seeded = nextCode((await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.token_number), "T-", 3);
+    top = Number.parseInt(seeded.slice(2), 10) - 1;
+  }
+  // Synchronous from here: two check-ins can't be handed the same number.
+  const next = Math.max(lastToken.get(hospital) ?? 0, top) + 1;
+  lastToken.set(hospital, next);
+  return `T-${String(next).padStart(3, "0")}`;
+}
+
 export async function listOpd(options: QueryOptions, actor: Session) {
   return opdRepo.list(
     scopeToHospital(scopeToOwnDoctor(options, actor, "doctor_id"), actor),
@@ -88,6 +107,24 @@ export async function checkInOpd(
   uow?: UnitOfWork,
 ) {
   const data = validate(createSchema, input);
+  // One live token per patient per doctor: two clerks checking in the same person must not both get one.
+  if (data.patientId && data.doctorId) {
+    return withKeyLocks([`opd:${actor.hospitalId}:${data.patientId}:${data.doctorId}`], () => checkInLocked(data, actor, uow));
+  }
+  return checkInLocked(data, actor, uow);
+}
+
+async function checkInLocked(
+  data: ReturnType<typeof validate<typeof createSchema>>,
+  actor: Session,
+  uow?: UnitOfWork,
+) {
+  if (data.patientId && data.doctorId) {
+    const today = localDate();
+    const mine = await opdRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: data.patientId }] }, actor));
+    const live = (mine.rows as OpdVisitRow[]).find((v) => v.doctor_id === data.doctorId && v.status !== "Completed" && localDate(new Date(v.created_at)) === today);
+    if (live) throw new ConflictError(`${live.patient_name} is already in the queue for this doctor (token ${live.token_number})`);
+  }
 
   let patientName = data.patientName;
   let patientAge = data.patientAge ?? 0;
@@ -104,12 +141,7 @@ export async function checkInOpd(
     if (d) doctorName = d.name;
   }
 
-  const all = await opdRepo.listRows(scopeToHospital({ unpaged: true }, actor));
-  const token = nextCode(
-    all.rows.map((r) => r.token_number),
-    "T-",
-    3,
-  );
+  const token = await nextToken(actor);
 
   const create = uow
     ? (values: Record<string, unknown>) => uow.insert<OpdVisitRow>(TABLES.opdVisits, values)

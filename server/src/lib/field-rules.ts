@@ -33,11 +33,27 @@ export function validateMobile(value: unknown): string | null {
  * A date of birth must be a real date, not in the future, and within a
  * plausible human lifespan.
  */
+/** True unless an ISO-style date (YYYY-MM-DD…) names a day that doesn't exist (JavaScript would roll 2020-02-31 over to March). */
+export function isRealCalendarDate(raw: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (!m) return true;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  return check.getUTCFullYear() === y && check.getUTCMonth() === mo - 1 && check.getUTCDate() === d;
+}
+
+/** An email address needs something@something.tld, with no spaces. */
+export function validateEmail(value: unknown): string | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(raw) ? null : "email is not a valid address";
+}
+
 export function validateDob(value: unknown): string | null {
   const raw = String(value ?? "").trim();
   if (!raw) return null; // optional; presence is enforced by `required`
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return "date of birth is not a valid date";
+  if (Number.isNaN(d.getTime()) || !isRealCalendarDate(raw)) return "date of birth is not a valid date";
 
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -76,7 +92,7 @@ export function validateNotPast(label: string) {
     const raw = String(value ?? "").trim();
     if (!raw) return null;
     const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return `${label} is not a valid date`;
+    if (Number.isNaN(d.getTime()) || !isRealCalendarDate(raw)) return `${label} is not a valid date`;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (d.getTime() < today.getTime()) return `${label} cannot be in the past`;
@@ -111,4 +127,11 @@ export const optionalAadhaarRule = {
   required: false,
   max: 20,
   custom: validateAadhaar,
+} as const;
+
+export const optionalEmailRule = {
+  type: "string",
+  required: false,
+  max: 160,
+  custom: validateEmail,
 } as const;

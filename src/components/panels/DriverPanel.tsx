@@ -17,7 +17,7 @@ export function DriverPanel() {
   const { items: calls } = useList<AmbulanceCallDTO>("/ambulance/calls", { all: true });
   const { items: vehicles } = useList<AmbulanceDTO>("/ambulance/vehicles", { all: true });
 
-  const active = calls.filter(c => c.status === "Dispatched");
+  const active = calls.filter(c => ["Dispatched", "At scene", "Transporting"].includes(c.status));
   const completed = calls.filter(c => c.status === "Completed").length;
   const availableVehicles = vehicles.filter(v => v.status === "Available").length;
 
