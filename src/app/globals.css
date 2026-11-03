@@ -323,10 +323,16 @@ html {
   #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr > td:last-child > .flex { flex-wrap: wrap; justify-content: flex-start; }
   #app-scroll .overflow-x-auto > table:not([data-keep-table]) button { white-space: nowrap; }
 
-  /* Setup list rows: the name wraps instead of being cut, and fixed-width bits shrink to their content. */
-  #app-scroll [data-row] .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
-  #app-scroll [data-row] > [class*="w-["] { width: auto !important; min-width: 0 !important; }
+  /* Setup list rows: everything may wrap, long unbroken text (a mask like {PREFIX}-{SEQ:8}) breaks instead of running into
+     the next item, and the main text takes most of the line with the badges and buttons wrapping under it. */
+  #app-scroll [data-row] > * { min-width: 0; overflow-wrap: anywhere; }
+  #app-scroll [data-row] .truncate { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  #app-scroll [data-row] > [class*="w-["] { width: auto !important; max-width: 100%; }
   #app-scroll [data-row] > [class*="min-w-["] { min-width: 0 !important; }
+  #app-scroll [data-row] > [class*="flex-1"] { flex: 1 1 55% !important; }
+  #app-scroll [data-row] > button, #app-scroll [data-row] > a { flex-shrink: 0; }
+  /* Two-up card grids that hold flex rows go to one column. */
+  #app-scroll [style*="grid-template-columns: repeat(2,"]:not([style*="repeat(auto-"]):not([data-gt-row]) { grid-template-columns: minmax(0, 1fr) !important; }
 }
 
 

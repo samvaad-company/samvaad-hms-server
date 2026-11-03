@@ -32,9 +32,9 @@ export function PaymentsView() {
         <ListHeader title="Payment modes" count={modes.items.length}><AddButton label="Add mode" onClick={() => setDialog({ type: "mode" })} /></ListHeader>
         <div className="grid gap-x-3 gap-y-2" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           {modes.items.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 rounded-[8px] border border-[color:var(--line)] px-3 py-[7px]">
-              <span className="w-[110px] shrink-0 truncate font-mono text-[11px] text-[color:var(--ink-soft)]">{m.code}</span>
-              <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{m.name}</span>
+            <div key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border border-[color:var(--line)] px-3 py-[7px]">
+              <span className="w-[110px] max-lg:w-full shrink-0 lg:truncate font-mono text-[11px] text-[color:var(--ink-soft)]">{m.code}</span>
+              <span className="min-w-0 flex-1 lg:truncate text-[14px] font-medium">{m.name}</span>
               <Muted>{str(m.data.group)}</Muted>
               <Toggle checked={m.active} label={`${m.name} active`} onChange={(v) => attempt(run(() => api.patch(`/setup/payment_mode/${m.id}`, { active: v }))).then(() => modes.reload())} />
               <EditIcon label={`Edit ${m.name}`} onClick={() => setDialog({ type: "mode", rec: m })} />
