@@ -300,8 +300,33 @@ html {
   /* Safety nets: fixed-width side columns stack under the main one, inline-style grids drop to two columns. */
   #app-scroll :has(> [style*="width: 240px"], > [style*="width: 260px"], > [style*="width: 280px"], > [style*="width: 300px"], > [style*="width: 340px"], > [style*="width: 360px"], > [style*="width: 380px"], > [style*="width: 400px"]) { flex-wrap: wrap; }
   #app-scroll :is([style*="width: 240px"], [style*="width: 260px"], [style*="width: 280px"], [style*="width: 300px"], [style*="width: 340px"], [style*="width: 360px"], [style*="width: 380px"], [style*="width: 400px"]):not(aside):not(img):not(svg) { width: 100% !important; max-width: 100% !important; flex-shrink: 1; }
-  #app-scroll [style*="grid-template-columns: repeat("]:not([data-gt-row]) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #app-scroll [style*="grid-template-columns: repeat("]:not([style*="repeat(auto-"]):not([data-gt-row]) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* Auto-fitting card grids never ask for more than the screen has. */
+  #app-scroll [style*="repeat(auto-"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)) !important; }
   #app-scroll img, #app-scroll video { max-width: 100%; }
+
+  /* Tab rows wrap onto several lines instead of scrolling or being cut off. */
+  #app-scroll [role="tablist"] { display: flex !important; flex-wrap: wrap !important; max-width: 100% !important; overflow: visible !important; gap: 4px !important; }
+  #app-scroll [role="tablist"] > * { flex: 0 0 auto; }
+
+  /* Side-by-side splits written as inline grids (a list beside a 340px panel, a 3-column board) stack into one column. */
+  #app-scroll [style*="grid-template-columns"]:not([style*="--cols"]):not([style*="repeat("]):not([data-gt-row]):not([data-gt-head]):not([data-ag-row]):not([data-keep-grid]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Whatever is still too wide is clipped to the screen rather than dragging the whole page sideways. */
+  #app-scroll { overflow-x: hidden; }
+
+  /* A table row's last cell is its actions: full width under the details, buttons wrap rather than squeeze. */
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr > td:last-child:not(:first-child) { grid-column: 1 / -1; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr > td:last-child:not(:first-child)::before { content: none; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) tr > td:last-child > .flex { flex-wrap: wrap; justify-content: flex-start; }
+  #app-scroll .overflow-x-auto > table:not([data-keep-table]) button { white-space: nowrap; }
+
+  /* Setup list rows: the name wraps instead of being cut, and fixed-width bits shrink to their content. */
+  #app-scroll [data-row] .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
+  #app-scroll [data-row] > [class*="w-["] { width: auto !important; min-width: 0 !important; }
+  #app-scroll [data-row] > [class*="min-w-["] { min-width: 0 !important; }
 }
 
 

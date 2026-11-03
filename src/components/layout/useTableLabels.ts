@@ -20,7 +20,10 @@ export function useTableLabels(active: boolean) {
         const tpl = head.style.gridTemplateColumns;
         if (!tpl || tpl.includes("--cols") || head.hasAttribute("data-gt-head") || head.hasAttribute("data-gt-row")) return;
         const first = head.nextElementSibling as HTMLElement | null;
-        if (!first || first.style.gridTemplateColumns !== tpl) return;
+        // Only the grey header bar of a hand-built table counts, so rows of form fields are left alone. A header over an
+        // empty-state message (no rows yet) is still a header.
+        if (!head.className.includes("subtle-3")) return;
+        if (!first) return;
         if (head.children.length < 3 || head.querySelector("input,select,textarea,button,a")) return;
         const names = Array.from(head.children).map((c) => (c.textContent ?? "").trim());
         if (!names.some(Boolean)) return;

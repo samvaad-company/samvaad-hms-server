@@ -38,10 +38,10 @@ function Banner({ chain, checking }: { chain: AuditChainDTO; checking?: boolean 
 function Row({ e, open, toggle }: { e: AuditEntryDTO; open: boolean; toggle: () => void }) {
   return (
     <li className="border-b border-[color:var(--line)] last:border-b-0">
-      <button onClick={toggle} aria-expanded={open} className="grid w-full cursor-pointer items-center gap-3 px-4 py-[9px] text-left text-[13px] hover:bg-[color:var(--faint)]" style={{ gridTemplateColumns: "150px 82px minmax(0,1fr) auto 20px" }}>
+      <button onClick={toggle} aria-expanded={open} className="grid w-full cursor-pointer items-center gap-x-3 gap-y-1 px-4 py-[9px] text-left text-[13px] hover:bg-[color:var(--faint)] max-lg:grid-cols-[minmax(0,1fr)_auto] lg:[grid-template-columns:150px_82px_minmax(0,1fr)_auto_20px] max-lg:[&>:nth-child(3)]:col-span-2 max-lg:[&>:nth-child(4)]:col-span-2 max-lg:[&>:nth-child(5)]:hidden">
         <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{stamp(e.at)}</span>
         <span className={`w-fit rounded-[6px] px-2 py-[2px] text-[12px] font-medium ${TONE[e.actionLabel] ?? TONE.Updated}`}>{e.actionLabel}</span>
-        <span className="truncate">{e.summary}</span>
+        <span className="lg:truncate">{e.summary}</span>
         <span className="whitespace-nowrap font-mono text-[12px] text-[color:var(--ink-soft)]">{e.actor} <span className="ml-2">#{e.id}</span></span>
         <ChevronDown size={14} className={`text-[color:var(--ink-soft)] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>

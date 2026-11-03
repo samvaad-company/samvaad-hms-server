@@ -130,6 +130,8 @@ export function FollowUpList() {
   const mark = (f: FollowUpDTO, what: "done" | "missed") => run(() => api.post(`/followups/${f.id}/${what}`)).then(refresh);
 
   const actionsFor = (f: FollowUpDTO): RowAction[] => !canWrite ? [] : [
+    ...(f.status !== "Done" ? [{ label: "Mark done", mobileOnly: true, onClick: () => void mark(f, "done") }] : []),
+    ...(f.status === "Pending" ? [{ label: "Mark missed", mobileOnly: true, onClick: () => void mark(f, "missed") }] : []),
     { label: "Reschedule", onClick: () => setModal({ kind: "move", f }) },
     ...(f.status !== "Pending" ? [{ label: "Back to pending", onClick: () => void run(() => api.post(`/followups/${f.id}/reopen`)).then(refresh) }] : []),
     { label: "Delete", danger: true, onClick: () => remove(f.id, `${f.patientName}'s follow-up`) },
@@ -141,7 +143,7 @@ export function FollowUpList() {
   return (
     <>
       {dialog}
-      <div className="flex items-center gap-5 px-5 py-[10px] text-[12px] text-[color:var(--ink-soft)] flex-wrap">
+      <div className="flex items-center gap-x-5 gap-y-2 px-3 sm:px-5 py-[10px] text-[12px] text-[color:var(--ink-soft)] flex-wrap">
         <span>Overdue <b className="ml-1 text-[14px] font-mono text-[#e0001b]">{summary?.overdue ?? "–"}</b></span>
         <span>Due today <b className="ml-1 text-[14px] font-mono text-[color:var(--ink)]">{summary?.dueToday ?? "–"}</b></span>
         <span>Next 14 days <b className="ml-1 text-[14px] font-mono text-[color:var(--ink)]">{summary?.next14 ?? "–"}</b></span>
@@ -150,10 +152,10 @@ export function FollowUpList() {
         )}
       </div>
 
-      <div className="px-5 pb-3 flex items-center gap-2 flex-wrap">
+      <div className="px-3 sm:px-5 pb-3 flex items-center gap-2 flex-wrap">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient, doctor or reason…" aria-label="Search follow-ups"
           className="h-[34px] flex-1 min-w-[220px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-soft)] focus:outline-none focus:border-[color:var(--brand)]" />
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {FILTERS.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} aria-pressed={filter === f.id}
               className={`h-[28px] px-3 rounded-full text-[12px] border cursor-pointer transition-colors ${filter === f.id ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)] text-[color:var(--ink)] font-medium" : "border-[color:var(--line)] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]"}`}>
@@ -163,26 +165,26 @@ export function FollowUpList() {
         </div>
       </div>
 
-      <div className="px-5 pb-4 flex flex-col gap-2">
+      <div className="px-3 sm:px-5 pb-4 flex flex-col gap-2">
         {loading ? (
           <p className="py-12 text-center text-[13px] text-[color:var(--ink-soft)]">Loading follow-ups…</p>
         ) : rows.length === 0 ? (
           <p className="py-12 text-center text-[13px] text-[color:var(--ink-soft)]">{search || filter !== "Pending" ? "No follow-ups match." : "Nothing is due. All follow-ups are marked."}</p>
         ) : rows.map(f => (
-          <div key={f.id} className="flex items-center gap-3 rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-[9px] hover:border-[color:var(--brand-ring)] transition-colors">
-            <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] font-medium text-[color:var(--ink)] truncate leading-[18px]">{f.patientName}</p>
-              <p className="text-[11.5px] text-[color:var(--ink-soft)] truncate leading-[16px]">
+          <div key={f.id} className="flex items-center max-lg:flex-wrap gap-x-3 gap-y-2 rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-[9px] hover:border-[color:var(--brand-ring)] transition-colors">
+            <div className="min-w-0 flex-1 max-lg:basis-[calc(100%-44px)]">
+              <p className="text-[13.5px] font-medium text-[color:var(--ink)] lg:truncate leading-[18px]">{f.patientName}</p>
+              <p className="text-[11.5px] text-[color:var(--ink-soft)] lg:truncate leading-[16px]">
                 {[f.patientCode, f.reason, f.doctor].filter(Boolean).join(" · ")}
                 <span className="opacity-80"> · booked by {f.createdByRole || "staff"}{f.status !== "Pending" && f.resolvedByRole ? `, marked ${f.status.toLowerCase()} by ${f.resolvedByRole}` : ""}</span>
               </p>
             </div>
-            <DateChip f={f} />
+            <span className="max-lg:order-3 max-lg:basis-full"><DateChip f={f} /></span>
             {canWrite && f.status !== "Done" && (
-              <button onClick={() => mark(f, "done")} className="inline-flex items-center gap-1 h-[28px] px-3 rounded-[8px] border border-[color:var(--line)] text-[12px] text-[color:var(--ink)] hover:bg-[#e8fbef] hover:border-[#b6e8cf] cursor-pointer"><Check size={13} /> Done</button>
+              <button onClick={() => mark(f, "done")} className="max-lg:hidden inline-flex items-center gap-1 h-[28px] px-3 rounded-[8px] border border-[color:var(--line)] text-[12px] text-[color:var(--ink)] hover:bg-[#e8fbef] hover:border-[#b6e8cf] cursor-pointer"><Check size={13} /> Done</button>
             )}
             {canWrite && f.status === "Pending" && (
-              <button onClick={() => mark(f, "missed")} title="The patient was absent" className="inline-flex items-center gap-1 h-[28px] px-3 rounded-[8px] border border-[color:var(--line)] text-[12px] text-[color:var(--ink)] hover:bg-[#ffe9e9] hover:border-[#ffc9c9] cursor-pointer"><X size={13} /> Missed</button>
+              <button onClick={() => mark(f, "missed")} title="The patient was absent" className="max-lg:hidden inline-flex items-center gap-1 h-[28px] px-3 rounded-[8px] border border-[color:var(--line)] text-[12px] text-[color:var(--ink)] hover:bg-[#ffe9e9] hover:border-[#ffc9c9] cursor-pointer"><X size={13} /> Missed</button>
             )}
             {canWrite && <RowMenu actions={actionsFor(f)} compact />}
           </div>

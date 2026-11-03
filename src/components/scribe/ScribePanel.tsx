@@ -194,19 +194,18 @@ export function ScribePanel({
     reload();
   }
 
-  const btn = "text-[13px] font-normal px-4 py-2 rounded-full transition-colors inline-flex items-center gap-2 disabled:opacity-50";
+  const btn = "text-[13px] font-normal px-4 py-2 rounded-full transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50";
 
   return (
-    <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[14px] p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+    <div className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[14px] p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-[8px] bg-[color:var(--brand-soft)] flex items-center justify-center">
             <Sparkles size={16} className="text-[color:var(--brand)]" strokeWidth={1.75} />
           </div>
           <div>
             <div className="text-[14px] font-medium text-[color:var(--ink)]">AI Consultation Scribe</div>
             <div className="text-[11px] font-light text-[color:var(--ink-soft)] flex items-center gap-[6px]">
-              Powered by Gemini AI
               {geminiLive ? (
                 <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#dffff3] text-[#00955c] font-medium">
                   Live
@@ -224,12 +223,12 @@ export function ScribePanel({
           </div>
         </div>
         {recording ? (
-          <button onClick={stopRecording} className={`${btn} bg-[#ff0004] text-white`}>
-            <Square size={13} /> Stop · {fmtDuration(seconds)}
+          <button onClick={stopRecording} aria-label="Stop scribing" title="Stop scribing" className={`${btn} shrink-0 bg-[#ff0004] text-white max-lg:h-[44px] max-lg:px-4`}>
+            <Square size={13} /> <span><span className="max-lg:hidden">Stop · </span>{fmtDuration(seconds)}</span>
           </button>
         ) : (
-          <button onClick={startRecording} disabled={transcribing} className={`${btn} bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)]`}>
-            <Mic size={14} /> Start Scribing
+          <button onClick={startRecording} disabled={transcribing} aria-label="Start scribing" title="Start scribing" className={`${btn} shrink-0 bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)] max-lg:w-[44px] max-lg:h-[44px] max-lg:!px-0`}>
+            <Mic size={16} /> <span className="max-lg:hidden">Start Scribing</span>
           </button>
         )}
       </div>
@@ -271,7 +270,7 @@ export function ScribePanel({
         </>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-lg:[&>button]:flex-1">
         <button onClick={generateBrief} disabled={!transcript.trim() || briefing} className={`${btn} border border-[color:var(--line)] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]`}>
           {briefing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
           Generate Brief

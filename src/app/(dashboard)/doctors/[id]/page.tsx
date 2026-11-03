@@ -123,7 +123,7 @@ export default function DoctorDetailPage() {
   return (
     <>
       {/* Top bar */}
-      <div className={`${tw.gutterX} py-5 flex items-center gap-4`} style={{ borderBottom: "1px solid var(--line)" }}>
+      <div className={`${tw.gutterX} py-5 flex flex-wrap items-center gap-x-4 gap-y-3`} style={{ borderBottom: "1px solid var(--line)" }}>
         <Link href="/doctors" className="p-2 rounded-[8px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors">
           <ArrowLeft size={20} strokeWidth={1.5} />
         </Link>
@@ -181,15 +181,15 @@ export default function DoctorDetailPage() {
           {/* Tab panel */}
           <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
             {/* Tab header */}
-            <div className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
+            <div className="flex max-lg:flex-wrap max-lg:gap-2 max-lg:p-3" style={{ borderBottom: "1px solid var(--line)" }}>
               {TABS.map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  className={`px-5 py-4 text-[14px] font-normal transition-colors relative whitespace-nowrap ${
-                    tab === t ? "text-[color:var(--brand)]" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
+                  className={`px-5 py-4 text-[14px] font-normal transition-colors relative whitespace-nowrap max-lg:rounded-full max-lg:border max-lg:px-3 max-lg:py-[7px] ${
+                    tab === t ? "text-[color:var(--brand)] max-lg:bg-[color:var(--brand-soft)] max-lg:border-[color:var(--brand)]" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] max-lg:border-[color:var(--line)]"
                   }`}
                 >
                   {t}
-                  {tab === t && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[color:var(--brand)]" />}
+                  {tab === t && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[color:var(--brand)] max-lg:hidden" />}
                 </button>
               ))}
             </div>

@@ -339,7 +339,7 @@ function BedStatusView({
     <div className="p-5 flex flex-col gap-5">
       {/* Ward filter + add ward */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="bg-[color:var(--subtle)] inline-flex items-center gap-[10px] p-[3px] rounded-full flex-wrap">
+        <div className="bg-[color:var(--subtle)] inline-flex items-center gap-[10px] p-[3px] rounded-full max-lg:rounded-[18px] max-lg:p-2 max-lg:gap-2 flex-wrap max-w-full">
           {["All", ...wardNames].map((w) => (
             <button key={w} onClick={() => setActiveWard(w)}
               className={`px-4 py-[5px] rounded-full text-[13px] leading-[18px] font-normal transition-colors cursor-pointer whitespace-nowrap ${activeWard === w ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"}`}>

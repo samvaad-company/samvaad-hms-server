@@ -52,16 +52,16 @@ export function ServicesView() {
         <button onClick={() => setDialog({ type: "group" })} className={outlineBtn + " !h-[34px]"}><FolderPlus size={14} /> Add group</button>
         <AddButton primary label="Add service" onClick={() => setDialog({ type: "service" })} />
       </ListHeader>
-      <div className="flex items-start gap-4">
-        <nav aria-label="Service groups" className="w-[190px] shrink-0 text-[13px]">
+      <div className="flex items-start gap-4 max-lg:flex-col">
+        <nav aria-label="Service groups" className="w-[190px] max-lg:w-full max-lg:flex max-lg:flex-wrap max-lg:gap-2 shrink-0 text-[13px]">
           {[{ id: null as number | null, name: "All services", count: services.items.length }, ...groups.items.map((g) => ({ id: g.id as number | null, name: g.name, count: counts.get(g.id) ?? 0 }))].map((g) => (
-            <div key={g.id ?? "all"} className={`group flex items-center rounded-[8px] ${groupId === g.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
+            <div key={g.id ?? "all"} className={`group flex items-center rounded-[8px] max-lg:rounded-full max-lg:border max-lg:border-[color:var(--line)] ${groupId === g.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
               <button onClick={() => setGroupId(g.id)} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-[7px] text-left cursor-pointer"><span className="truncate" title={g.name}>{g.name}</span><span className="text-[12px] text-[color:var(--ink-soft)]">{g.count}</span></button>
               {g.id !== null && groupId === g.id && <EditIcon label={`Edit group ${g.name}`} onClick={() => setDialog({ type: "group", rec: selectedGroup })} />}
             </div>
           ))}
         </nav>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 max-lg:w-full">
           <ListBox>
             {shown.map((s) => (
               <Row key={s.id}>

@@ -12,9 +12,9 @@ import { monthLabel, rupees } from "@/components/hr/shared";
 function Panel({ title, href, action, children }: { title: string; href?: string; action?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)]">
-      <header className="flex items-center gap-2 border-b border-[color:var(--line)] px-4 py-3">
-        <h2 className="text-[14px] font-semibold text-[color:var(--ink)]">{title}</h2>
-        {href && action && <Link href={href} className={softBtn + " ml-auto"}>{action}</Link>}
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-[color:var(--line)] px-4 py-3">
+        <h2 className="text-[14px] font-semibold text-[color:var(--ink)] min-w-0">{title}</h2>
+        {href && action && <Link href={href} className={softBtn + " ml-auto shrink-0 whitespace-nowrap"}>{action}</Link>}
       </header>
       <div className="px-4 py-3">{children}</div>
     </section>

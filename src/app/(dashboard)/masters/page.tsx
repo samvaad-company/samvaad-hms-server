@@ -66,8 +66,8 @@ function MastersPage() {
           <h1 className="text-[15px] font-semibold text-[color:var(--ink)]">Masters</h1>
           <span className="text-[13px] text-[color:var(--ink-soft)]">Service catalog, organization &amp; facility configuration</span>
         </div>
-        <div className="flex items-start">
-          <aside className="w-[210px] shrink-0 border-r border-[color:var(--line)] px-3 py-3 text-[14px]" style={{ minHeight: 460 }}>
+        <div className="flex items-start max-lg:flex-col">
+          <aside className="w-[210px] max-lg:w-full max-lg:max-h-[260px] max-lg:overflow-y-auto shrink-0 border-r max-lg:border-r-0 max-lg:border-b border-[color:var(--line)] px-3 py-3 text-[14px] lg:min-h-[460px]">
             <div className="relative mb-3">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
               <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a master…" aria-label="Find a master"
@@ -84,7 +84,7 @@ function MastersPage() {
             ))}
             {nav.length === 0 && <p className="px-2 text-[13px] text-[color:var(--ink-soft)]">No master matches.</p>}
           </aside>
-          <div className="min-w-0 flex-1 px-5 py-4"><Section id={section} /></div>
+          <div className="min-w-0 max-lg:w-full flex-1 px-3 sm:px-5 py-4"><Section id={section} /></div>
         </div>
       </div>
     </div>

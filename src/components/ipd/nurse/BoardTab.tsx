@@ -110,7 +110,7 @@ export function BoardTab({ patients, canWrite }: { patients: WardPatient[]; canW
   }
 
   return (
-    <div className="grid gap-5 p-5 items-start" style={{ gridTemplateColumns: "minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)" }}>
+    <div className="grid gap-5 p-4 sm:p-5 items-start grid-cols-1 lg:[grid-template-columns:minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]">
       {/* Alerts */}
       <section className="min-w-0">
         <div className="flex items-center justify-between gap-2 mb-2">

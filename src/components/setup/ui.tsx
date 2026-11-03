@@ -221,7 +221,7 @@ export function ListBox({ children, empty }: { children: ReactNode; empty?: Reac
 }
 
 export function Row({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  return <div onClick={onClick} className={`flex items-center gap-3 border-b border-[color:var(--line)] px-4 py-[10px] last:border-b-0 hover:bg-[color:var(--faint)] ${onClick ? "cursor-pointer" : ""}`}>{children}</div>;
+  return <div data-row onClick={onClick} className={`flex items-center max-lg:flex-wrap max-lg:gap-y-1 gap-3 border-b border-[color:var(--line)] px-4 py-[10px] last:border-b-0 hover:bg-[color:var(--faint)] ${onClick ? "cursor-pointer" : ""}`}>{children}</div>;
 }
 
 export const Code = ({ children }: { children: ReactNode }) => <span className="shrink-0 font-mono text-[12px] text-[color:var(--ink-soft)]">{children}</span>;

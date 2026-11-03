@@ -217,6 +217,8 @@ export function LabWorklist({
             const late = overdueDays(t);
             const open = t.status === "Pending" || t.status === "Sample Collected";
             const menu: RowAction[] = [
+              ...(t.status === "Pending" && canWrite ? [{ label: "Collect sample", mobileOnly: true, onClick: () => onCollectSample(t) }] : []),
+              ...(t.hasReport ? [{ label: "View report", mobileOnly: true, onClick: () => onViewReport(t) }] : canUpload && t.status !== "Cancelled" ? [{ label: "Upload report", mobileOnly: true, onClick: () => onUpload(t) }] : []),
               ...PRIORITIES.filter((p) => p !== t.priority).map((p) => ({
                 label: `Mark as ${p}`,
                 disabled: !canWrite || !open,
@@ -237,12 +239,12 @@ export function LabWorklist({
                 <span className="w-[104px] shrink-0 font-mono text-[12px] text-[color:var(--ink-soft)]">{t.orderNumber || `#${t.id}`}</span>
                 <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-120px)]">
                   <div className="flex items-baseline gap-2 min-w-0">
-                    <button onClick={() => onViewPatient(t)} className="truncate text-[15px] font-medium text-[color:var(--ink)] hover:text-[color:var(--brand)] cursor-pointer text-left">
+                    <button onClick={() => onViewPatient(t)} className="lg:truncate text-[15px] font-medium text-[color:var(--ink)] hover:text-[color:var(--brand)] cursor-pointer text-left">
                       {t.patientName}
                     </button>
                     {t.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)] shrink-0">{t.patientCode}</span>}
                   </div>
-                  <p className="truncate text-[12px] text-[color:var(--ink-soft)]">
+                  <p className="lg:truncate text-[12px] text-[color:var(--ink-soft)]">
                     {labCategoryOf(t.testName)} · {t.testName}
                     {t.doctor && <> · Dr. {t.doctor.replace(/^Dr\.?\s*/i, "")}</>}
                     {showHospital && t.hospitalName && <> · {t.hospitalName}</>}
@@ -256,16 +258,16 @@ export function LabWorklist({
                     {STATUS_LABEL[t.status]}
                   </span>
                   {t.status === "Pending" && canWrite && (
-                    <button onClick={() => onCollectSample(t)} className="inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
+                    <button onClick={() => onCollectSample(t)} className="max-lg:hidden inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
                       <TestTube size={14} /> Collect sample
                     </button>
                   )}
                   {t.hasReport ? (
-                    <button onClick={() => onViewReport(t)} className="inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
+                    <button onClick={() => onViewReport(t)} className="max-lg:hidden inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
                       <FileText size={14} /> Report
                     </button>
                   ) : canUpload && t.status !== "Cancelled" ? (
-                    <button onClick={() => onUpload(t)} className="inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
+                    <button onClick={() => onUpload(t)} className="max-lg:hidden inline-flex items-center gap-[6px] h-[32px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[13px] text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer whitespace-nowrap">
                       <Upload size={14} /> Upload
                     </button>
                   ) : null}

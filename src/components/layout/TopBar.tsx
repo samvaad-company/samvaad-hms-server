@@ -139,7 +139,7 @@ function GlobalSearch() {
       className={
         open
           ? "relative max-sm:fixed max-sm:inset-x-2 max-sm:top-[9px] max-sm:z-50 sm:w-[clamp(180px,32vw,440px)] shrink"
-          : "relative w-[34px] sm:w-[clamp(180px,32vw,440px)] shrink-0 sm:shrink"
+          : "relative max-sm:hidden sm:w-[clamp(180px,32vw,440px)] shrink-0 sm:shrink"
       }
       ref={ref}
     >
@@ -264,7 +264,8 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
       </div>
 
       <MyProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
-      <GlobalSearch />
+      {/* No search on phones: the bar stays clear for the menu, the page's back link and the AI button. */}
+      <div className="hidden sm:contents"><GlobalSearch /></div>
 
       <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
 

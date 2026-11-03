@@ -65,7 +65,7 @@ export function TasksBoard({ board, openNew, onClose }: { board: HkBoardDTO; ope
     : `${current.task.title}${current.kind === "verify" ? " — confirm the area is clean and ready." : ""}`;
   return (
     <>
-      <div className="grid items-start gap-4 p-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      <div className="grid items-start gap-4 p-4 grid-cols-1 md:grid-cols-3">
         {COLUMNS.map((c) => {
           const list = board.tasks.filter((t) => t.status === c.status);
           return (

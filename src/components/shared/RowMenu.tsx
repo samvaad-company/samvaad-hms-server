@@ -3,16 +3,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MoreVertical } from "lucide-react";
+import { useIsCompact } from "@/lib/use-media-query";
 
 export interface RowAction {
   label: string;
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
+  /** Only listed on phones and tablets: the row hides the inline button for this action there and moves it into the menu. */
+  mobileOnly?: boolean;
 }
 
 interface Position {
-  right: number;
+  left: number;
   top?: number;
   bottom?: number;
 }
@@ -30,7 +33,9 @@ const VIEWPORT_MARGIN = 8;
  * there isn't enough room left in the viewport (e.g. the last rows of a
  * long table), so the menu is never rendered off-screen.
  */
-export function RowMenu({ actions, compact = false }: { actions: RowAction[]; compact?: boolean }) {
+export function RowMenu({ actions: allActions, compact = false }: { actions: RowAction[]; compact?: boolean }) {
+  const smallScreen = useIsCompact();
+  const actions = smallScreen ? allActions : allActions.filter((a) => !a.mobileOnly);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Position | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -54,11 +59,14 @@ export function RowMenu({ actions, compact = false }: { actions: RowAction[]; co
     const fitsBelow = spaceBelow >= menuHeight + GAP + VIEWPORT_MARGIN;
     const fitsAbove = buttonRect.top >= menuHeight + GAP + VIEWPORT_MARGIN;
     const openAbove = !fitsBelow && fitsAbove;
+    // Line the menu's right edge up with the button, then keep the whole menu on screen (a button near the left edge would push it off).
+    const menuWidth = menu.offsetWidth;
+    const left = Math.max(VIEWPORT_MARGIN, Math.min(buttonRect.right - menuWidth, window.innerWidth - menuWidth - VIEWPORT_MARGIN));
 
     setPos(
       openAbove
-        ? { bottom: window.innerHeight - buttonRect.top + GAP, right: window.innerWidth - buttonRect.right }
-        : { top: buttonRect.bottom + GAP, right: window.innerWidth - buttonRect.right },
+        ? { bottom: window.innerHeight - buttonRect.top + GAP, left }
+        : { top: buttonRect.bottom + GAP, left },
     );
   }, [open]);
 
@@ -95,7 +103,7 @@ export function RowMenu({ actions, compact = false }: { actions: RowAction[]; co
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className={`cursor-pointer text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] transition-colors ${compact ? "p-1 rounded-[6px] hover:bg-black/5" : "pr-1"}`}
+        className={`cursor-pointer text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] transition-colors shrink-0 ${compact ? "p-1 max-lg:p-2 rounded-[6px] hover:bg-black/5" : "pr-1"}`}
         aria-label="Row actions"
       >
         <MoreVertical size={compact ? 16 : 24} strokeWidth={1.5} />
@@ -105,11 +113,11 @@ export function RowMenu({ actions, compact = false }: { actions: RowAction[]; co
         createPortal(
           <div
             ref={menuRef}
-            className="fixed z-50 w-[160px] bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg py-1"
+            className="fixed z-50 w-[190px] max-w-[calc(100vw-16px)] lg:w-[160px] bg-[color:var(--surface)] rounded-[10px] border border-[color:var(--line)] shadow-lg py-1"
             style={
               pos
-                ? { top: pos.top, bottom: pos.bottom, right: pos.right }
-                : { top: 0, right: 0, visibility: "hidden" }
+                ? { top: pos.top, bottom: pos.bottom, left: pos.left }
+                : { top: 0, left: 0, visibility: "hidden" }
             }
             onClick={(e) => {
               e.preventDefault();
@@ -126,7 +134,7 @@ export function RowMenu({ actions, compact = false }: { actions: RowAction[]; co
                   setOpen(false);
                   a.onClick();
                 }}
-                className={`w-full text-left px-3 py-[7px] text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`w-full text-left px-3 py-[11px] lg:py-[7px] text-[14px] lg:text-[13px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   a.danger
                     ? "text-[#ff0004] hover:bg-[#ffe9e9]"
                     : "text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
