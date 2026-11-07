@@ -3,11 +3,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Sparkles, Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
+import { Menu, Sparkles, Search, Settings, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumbValue } from "@/lib/breadcrumb-context";
 import { api } from "@/lib/api/client";
 import { useColorMode } from "@/lib/color-mode";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { MyProfileModal } from "@/components/profile/MyProfileModal";
 import type { PatientDTO, DoctorDTO, AppointmentDTO } from "@/types/api";
 
@@ -299,7 +300,7 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
             {mode === "dark" ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
           </button>
           <div className="w-px h-[14px] bg-[color:var(--line)]" />
-          <Bell size={18} strokeWidth={1.5} className="text-[color:var(--ink)] cursor-pointer" />
+          <NotificationBell />
         </div>
 
         {/* User */}

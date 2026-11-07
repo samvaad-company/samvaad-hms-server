@@ -40,6 +40,10 @@ const createSchema = {
   type: { type: "enum", required: false, values: ["Walk-in", "Booked"], default: "Booked" },
   reason: { type: "string", required: false, max: 240, default: "" },
   visitPurpose: { type: "string", required: false, max: 80 },
+  /** Loyalty programme (all optional): the patient who referred this one, and the patient whose family they are. */
+  referredByPatientId: { type: "number", required: false },
+  familyOfPatientId: { type: "number", required: false },
+  familyRelation: { type: "string", required: false, max: 40 },
   status: {
     type: "enum",
     required: false,
@@ -65,6 +69,43 @@ export async function getAppointment(id: number, actor: Session) {
   const row = await appointmentsRepo.getRow(id);
   assertOwnedByHospital(row, actor, "Appointment");
   return toAppointmentDTO(row);
+}
+
+/**
+ * The loyalty links on an appointment as columns: who referred the patient and whose family they are booked under. A key that
+ * isn't given is left alone; null clears it. Both people must be patients of this hospital, and not the patient themselves.
+ */
+async function loyaltyLinks(input: { referredByPatientId?: number | null; familyOfPatientId?: number | null; familyRelation?: string | null }, ownPatientId: number | null, actor: Session): Promise<Record<string, unknown>> {
+  const patch: Record<string, unknown> = {};
+  const one = async (id: number | null | undefined, idCol: string, nameCol: string) => {
+    if (id === undefined) return;
+    if (id === null) { patch[idCol] = null; patch[nameCol] = null; return; }
+    if (ownPatientId !== null && id === ownPatientId) throw new BadRequestError("A patient can't be linked to themselves.");
+    const p = await patientsRepo.getRow(id);
+    assertOwnedByHospital(p, actor, "Patient");
+    patch[idCol] = id;
+    patch[nameCol] = p.name;
+  };
+  await one(input.referredByPatientId, "referred_by_patient_id", "referred_by_name");
+  await one(input.familyOfPatientId, "family_of_patient_id", "family_of_name");
+  if (input.familyRelation !== undefined) patch.family_relation = input.familyRelation ? input.familyRelation.trim().slice(0, 40) || null : null;
+  return patch;
+}
+
+/** Sets or clears the referral and family links on an appointment. Receptionists and doctors may do this (see the route). */
+export async function setAppointmentLinks(id: number, input: unknown, actor: Session) {
+  const existing = await appointmentsRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Appointment");
+  const body = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const pick = (k: string): number | null | undefined => (k in body ? (body[k] === null || body[k] === "" ? null : Number(body[k])) : undefined);
+  const referred = pick("referredByPatientId");
+  const family = pick("familyOfPatientId");
+  if ((referred !== undefined && referred !== null && !Number.isInteger(referred)) || (family !== undefined && family !== null && !Number.isInteger(family))) throw new BadRequestError("Pick a patient from the list.");
+  const relation = "familyRelation" in body ? (typeof body.familyRelation === "string" ? body.familyRelation : null) : undefined;
+  const patch = await loyaltyLinks({ referredByPatientId: referred, familyOfPatientId: family, familyRelation: relation }, existing.patient_id, actor);
+  const row = await appointmentsRepo.update(id, patch);
+  await audit(actor, "update", "appointment", id, patch);
+  return toAppointmentDTO(row as AppointmentRow);
 }
 
 export async function createAppointment(input: unknown, actor: Session) {
@@ -99,10 +140,11 @@ export async function createAppointment(input: unknown, actor: Session) {
       doctor, hospital, date: isoDate(data.date), minutes, reason: data.reason ?? "", status: data.status,
     });
     await audit(actor, "create", "appointment", created.id);
-    if (visitPurpose) {
-      const withPurpose = (await appointmentsRepo.update(created.id, { visit_purpose: visitPurpose })) as AppointmentRow;
-      publishAppointmentCreated(withPurpose, { source: "staff", by: actor });
-      return toAppointmentDTO(withPurpose);
+    const extras = { ...(visitPurpose ? { visit_purpose: visitPurpose } : {}), ...(await loyaltyLinks(data, data.patientId ?? null, actor)) };
+    if (Object.keys(extras).length) {
+      const withExtras = (await appointmentsRepo.update(created.id, extras)) as AppointmentRow;
+      publishAppointmentCreated(withExtras, { source: "staff", by: actor });
+      return toAppointmentDTO(withExtras);
     }
     publishAppointmentCreated(created, { source: "staff", by: actor });
     return toAppointmentDTO(created);
@@ -121,6 +163,7 @@ export async function createAppointment(input: unknown, actor: Session) {
     reason: data.reason,
     visit_purpose: visitPurpose || null,
     status: data.status,
+    ...(await loyaltyLinks(data, data.patientId ?? null, actor)),
   });
   await audit(actor, "create", "appointment", row.id);
   publishAppointmentCreated(row as AppointmentRow, { source: "staff", by: actor });
@@ -140,6 +183,7 @@ export async function updateAppointment(id: number, input: unknown, actor: Sessi
   if ("reason" in data) patch.reason = data.reason;
   if ("visitPurpose" in data) patch.visit_purpose = (await canonicalMaster("visit_purpose", data.visitPurpose, actor, "visitPurpose", existing.visit_purpose)) || null;
   if ("status" in data) patch.status = data.status;
+  Object.assign(patch, await loyaltyLinks(data, existing.patient_id, actor));
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;
     const d = data.doctorId ? await doctorsRepo.getRow(data.doctorId) : null;

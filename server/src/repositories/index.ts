@@ -6,6 +6,10 @@ import { TABLES } from "@/db/tables";
 import type {
   PatientRow,
   AiTokenUsageRow,
+  LoyaltyAdjustmentRow,
+  PreauthFormRow,
+  SignatureAssetRow,
+  NotificationRow,
   AiTokenLimitRow,
   AiTokenGrantRow,
   AppointmentRow,
@@ -404,6 +408,10 @@ export const chatMessagesRepo = createRepository<ChatMessageRow, ReturnType<type
   TABLES.chatMessages,
   toChatMessageDTO,
 );
+export const loyaltyAdjustmentsRepo = createRepository<LoyaltyAdjustmentRow, LoyaltyAdjustmentRow>(TABLES.loyaltyAdjustments, (row) => row);
+export const preauthFormsRepo = createRepository<PreauthFormRow, PreauthFormRow>(TABLES.preauthForms, (row) => row);
+export const signatureAssetsRepo = createRepository<SignatureAssetRow, SignatureAssetRow>(TABLES.signatureAssets, (row) => row);
+export const notificationsRepo = createRepository<NotificationRow, NotificationRow>(TABLES.notifications, (row) => row);
 export const aiTokenUsageRepo = createRepository<AiTokenUsageRow, AiTokenUsageRow>(TABLES.aiTokenUsage, (row) => row);
 export const aiTokenLimitsRepo = createRepository<AiTokenLimitRow, AiTokenLimitRow>(TABLES.aiTokenLimits, (row) => row);
 export const aiTokenGrantsRepo = createRepository<AiTokenGrantRow, AiTokenGrantRow>(TABLES.aiTokenGrants, (row) => row);

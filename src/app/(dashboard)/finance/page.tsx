@@ -17,6 +17,7 @@ import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
+import { CombinedBillView } from "@/components/finance/CombinedBillView";
 
 const INCOME_CATEGORIES = [
   "Canteen Rent", "Parking Fees", "Health Campaign", "Equipment Rental",
@@ -90,6 +91,7 @@ export default function FinancePage() {
   const TABS = [
     { id: "income",   label: "Income",   count: incomes.length },
     { id: "expenses", label: "Expenses", count: expenses.length },
+    { id: "combined", label: "Combined bill" },
   ];
 
   const categoryFilters = (categories: string[]) =>
@@ -142,7 +144,7 @@ export default function FinancePage() {
         title="Income & Expense"
         subtitle="Track non-clinical hospital income and operating expenses by category."
         stats={[{ icon: Wallet, value: `₹${net.toLocaleString("en-IN")}`, label: "Net Position" }]}
-        action={canWrite ? { label: tab === "expenses" ? "Add Expense" : "Add Income", icon: Plus, onClick: () => setModal(tab === "expenses" ? "expense" : "income") } : undefined}
+        action={canWrite && tab !== "combined" ? { label: tab === "expenses" ? "Add Expense" : "Add Income", icon: Plus, onClick: () => setModal(tab === "expenses" ? "expense" : "income") } : undefined}
       />
 
       <div className={`${tw.gutterX} mb-5 grid grid-cols-2 gap-4`}>
@@ -185,6 +187,8 @@ export default function FinancePage() {
 {barVisibleIncomes}
             </>
           )}
+
+          {tab === "combined" && <CombinedBillView />}
 
           {tab === "expenses" && (
             <>

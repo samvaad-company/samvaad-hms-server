@@ -35,7 +35,9 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // v9: bill line items.
 // v16: database-level unique indexes mirroring the SQL constraints of migrations 0049–0053 (names, one diet sheet per ward per day, one training row per person and lesson).
 // v17: AI token usage ledger, limits and grants.
-const MONGO_SCHEMA_VERSION = 17;
+// v18: loyalty adjustments.
+// v19: pre-authorisation forms, signature assets and notifications.
+const MONGO_SCHEMA_VERSION = 19;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tw } from "@/lib/design-system";
 import { BarChart3, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +24,8 @@ import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { Bill } from "@/types";
+import { RankPill } from "@/components/loyalty/LoyaltyCard";
+import type { LoyaltyPricingDTO } from "@/types/loyalty";
 
 // ─── All Bills ────────────────────────────────────────────────────────────────
 
@@ -74,7 +76,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
 // ─── New Bill ─────────────────────────────────────────────────────────────────
 
 /** A line on the bill being built: a catalogue service (priced and taxed by the server's rate plan) or a custom charge. */
-interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number }
+interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number; /** Priced from the patient's loyalty card. */ card?: boolean }
 const GST_RATES = [0, 5, 12, 18, 28];
 const CUSTOM = "custom";
 const blankLine = (): LineItem => ({ id: Date.now() + Math.random(), serviceId: "", description: "", qty: 1, rate: 0, gstPct: 0 });
@@ -88,6 +90,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   const [patientId, setPatientId] = useState("");
   const [billType, setBillType] = useState("OPD");
   const { run, loading, error } = useMutation();
+  // The patient's loyalty card sets the OPD and emergency fee and the lab/pharmacy/radiology/IPD discount.
+  const { item: pricing } = useItem<LoyaltyPricingDTO>(patientId ? `/loyalty/pricing?patientId=${patientId}` : null);
+  const card = pricing && pricing.enrolled && pricing.status === "Active" ? pricing : null;
+  const cardDiscount = card ? ({ Lab: card.discounts.lab, Pharmacy: card.discounts.pharmacy, Radiology: card.discounts.radiology, IPD: card.discounts.ipd } as Record<string, number>)[billType] ?? 0 : 0;
+  const [discountEdited, setDiscountEdited] = useState(false);
+  const cardLineFor = useRef("");
   // Prices, GST and payment modes come from Setup → Masters; the patient's category picks the rate plan.
   const { item: base } = useItem<BillingCatalogDTO>(patientId ? `/billing/catalog?patientId=${patientId}` : "/billing/catalog");
   // A patient covered by a sponsor contract is billed under it unless the cashier says self-pay; a contract that names its own
@@ -102,6 +110,28 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   const settings = catalog?.settings ?? { gstOnBills: true, pricesInclusive: false, roundOff: true, invoicePrefix: "" };
 
   const updateRow = (id: number, patch: Partial<LineItem>) => setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+
+  // The card's discount fills in by itself for a lab, pharmacy, radiology or IPD bill, until the cashier types their own.
+  useEffect(() => {
+    if (discountEdited) return;
+    if (cardDiscount > 0) { setDiscountType("percent"); setDiscount(cardDiscount); } else setDiscount(0);
+  }, [cardDiscount, discountEdited]);
+
+  /** A charge at the card's price: the OPD consultation or an emergency visit. Fills the empty line if there is one. */
+  const addCardLine = (kind: "opd" | "er") => {
+    if (!card) return;
+    const line: Partial<LineItem> = { serviceId: CUSTOM, description: `${kind === "opd" ? "OPD consultation" : "Emergency visit"} — ${card.rankName} card`, qty: 1, rate: kind === "opd" ? card.opdFee : card.erFee, gstPct: 0, card: true };
+    setItems(prev => (prev.length === 1 && !prev[0].serviceId ? [{ ...prev[0], ...line }] : [...prev, { ...blankLine(), ...line }]));
+  };
+  // An OPD bill starts with the consultation at the card's fee.
+  useEffect(() => {
+    if (!card || billType !== "OPD") return;
+    const key = `${patientId}:${card.rankKey}`;
+    if (cardLineFor.current === key) return;
+    cardLineFor.current = key;
+    setItems(prev => (prev.length === 1 && !prev[0].serviceId ? [{ ...prev[0], serviceId: CUSTOM, description: `OPD consultation — ${card.rankName} card`, qty: 1, rate: card.opdFee, gstPct: 0, card: true }] : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.rankKey, billType, patientId]);
   const pick = (id: number, value: string) => {
     if (value === CUSTOM) return updateRow(id, { serviceId: CUSTOM, description: "", rate: 0, gstPct: 0 });
     const svc = services.find(s => String(s.id) === value);
@@ -157,12 +187,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           <SearchSelect
             placeholder="Search patient by name, ID or phone…"
             value={patientId}
-            onChange={v => { setPatientId(v); setChoice(undefined); }}
+            onChange={v => { setPatientId(v); setChoice(undefined); setDiscountEdited(false); cardLineFor.current = ""; setItems(prev => { const kept = prev.filter(i => !i.card); return kept.length ? kept : [blankLine()]; }); }}
             options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
           />
         </FormRow>
         <FormRow label="Bill Type *">
-          <FormSelect placeholder="Select type" value={billType} onChange={setBillType} options={["OPD", "IPD", "Lab", "Pharmacy", "Radiology", "Blood", "Ambulance"].map(t => ({ value: t, label: t === "Blood" ? "Blood Issue" : t }))} />
+          <FormSelect placeholder="Select type" value={billType} onChange={v => { setBillType(v); setDiscountEdited(false); cardLineFor.current = ""; setItems(prev => { const kept = prev.filter(i => !i.card); return kept.length ? kept : [blankLine()]; }); }} options={["OPD", "IPD", "Lab", "Pharmacy", "Radiology", "Blood", "Ambulance"].map(t => ({ value: t, label: t === "Blood" ? "Blood Issue" : t }))} />
         </FormRow>
         <FormRow label="Bill Date *">
           <FormInput type="date" />
@@ -171,6 +201,21 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           <FormSelect value={doctorId} onChange={setDoctorId} options={[{ value: "", label: "None" }, ...(catalog?.doctors ?? []).map(d => ({ value: String(d.id), label: d.name }))]} />
         </FormRow>
       </div>
+      {pricing?.enrolled && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border px-4 py-3 text-[13px]" style={{ borderColor: card ? pricing.color : "var(--line)", background: card ? `color-mix(in srgb, ${pricing.color} 8%, var(--surface))` : "var(--subtle)" }} data-testid="loyalty-banner">
+          <RankPill name={`${pricing.rankName} card`} color={pricing.color} />
+          {card ? (
+            <>
+              <span className="text-[color:var(--ink)]">OPD <b className="font-medium">{rupee(card.opdFee)}</b> · Emergency <b className="font-medium">{rupee(card.erFee)}</b> · Lab {card.discounts.lab}% · Pharmacy {card.discounts.pharmacy}% · Radiology {card.discounts.radiology}% · IPD {card.discounts.ipd}% off</span>
+              {cardDiscount > 0 && !discountEdited && <span className="text-[color:var(--brand)]">{cardDiscount}% card discount applied to this {billType} bill</span>}
+              <span className="ml-auto flex gap-2">
+                <button type="button" onClick={() => addCardLine("opd")} className="h-[28px] rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[12px] hover:bg-[color:var(--subtle)] cursor-pointer">+ OPD at {rupee(card.opdFee)}</button>
+                <button type="button" onClick={() => addCardLine("er")} className="h-[28px] rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[12px] hover:bg-[color:var(--subtle)] cursor-pointer">+ Emergency at {rupee(card.erFee)}</button>
+              </span>
+            </>
+          ) : <span className="text-[color:var(--ink-soft)]">This card is inactive (no visit for a while), so card prices don&apos;t apply until the patient is back.</span>}
+        </div>
+      )}
       {contracts.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="col-span-2">
@@ -241,7 +286,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                   <button
                     key={o.id}
                     type="button"
-                    onClick={() => setDiscountType(o.id)}
+                    onClick={() => { setDiscountType(o.id); setDiscountEdited(true); }}
                     className={`w-8 h-9 rounded-[6px] text-[13px] font-medium transition-colors ${
                       discountType === o.id ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]"
                     }`}
@@ -252,7 +297,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
               </div>
               <input
                 type="number" min={0} max={discountType === "percent" ? 100 : undefined} value={discount || ""}
-                onChange={e => setDiscount(Number(e.target.value))}
+                onChange={e => { setDiscount(Number(e.target.value)); setDiscountEdited(true); }}
                 placeholder="0"
                 className="h-[42px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] text-[14px] font-normal text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
               />

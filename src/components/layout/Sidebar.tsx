@@ -62,6 +62,8 @@ import {
   Recycle,
   GraduationCap,
   Zap,
+  Award,
+  FileCheck2,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -109,6 +111,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/opd",                label: "OPD",               icon: Activity,        resource: "opd", key: "O" },
       { href: "/patients",           label: "Patients",          icon: Users,           resource: "patients", key: "P" },
+      { href: "/loyalty",            label: "Loyalty",           icon: Award,          resource: "admin" },
       { href: "/enquiries",          label: "Enquiries",         icon: Inbox,           resource: "enquiries", key: "3" },
       { href: "/followups",          label: "Follow-ups",        icon: ClipboardCheck,  resource: "followups", key: "4" },
       { href: "/doctors",            label: "Doctors",           icon: Stethoscope,     resource: "doctors", key: "D" },
@@ -176,6 +179,7 @@ const groups: NavGroup[] = [
       { href: "/billing",       label: "Billing",          icon: Receipt,     resource: "billing", key: "G" },
       { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance", key: "F" },
       { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa", key: "J" },
+      { href: "/preauth",       label: "Pre-auth forms",   icon: FileCheck2,  resource: "tpa" },
     ],
   },
   {

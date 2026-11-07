@@ -106,6 +106,10 @@ export const TABLES = {
   prescriptionTemplates: "prescription_templates",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
+  loyaltyAdjustments: "loyalty_adjustments",
+  preauthForms: "preauth_forms",
+  signatureAssets: "signature_assets",
+  notifications: "notifications",
   aiTokenUsage: "ai_token_usage",
   aiTokenLimits: "ai_token_limits",
   aiTokenGrants: "ai_token_grants",
@@ -301,6 +305,12 @@ export interface AppointmentRow extends Row {
   meet_access?: string | null;
   /** Tele-consult: set when the room doesn't have the requested access type (patients may be unable to join). */
   meet_warning?: string | null;
+  /** Loyalty programme: who referred this patient, and whose family they are booked under (both optional). */
+  referred_by_patient_id?: number | null;
+  referred_by_name?: string | null;
+  family_of_patient_id?: number | null;
+  family_of_name?: string | null;
+  family_relation?: string | null;
   /** Tele-consult: the Google Calendar event holding the room, so a reschedule can move it. */
   meet_event_id?: string | null;
   /** Length of the slot this appointment holds, in minutes (the doctor's slot length when it was booked). */
@@ -1339,6 +1349,73 @@ export interface ChatMessageRow extends Row {
   tokens_in?: number | null;
   tokens_out?: number | null;
   tokens_total?: number | null;
+  created_at: string;
+}
+
+/** Points an administrator added to (or took off) a patient's loyalty score by hand. */
+export interface LoyaltyAdjustmentRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  points: number;
+  reason: string;
+  by_user_id: number | null;
+  by_name: string;
+  created_at: string;
+}
+
+/** A cashless pre-authorisation request for one patient on one insurer's form. The form's details are kept as JSON values under the standard field keys. */
+export interface PreauthFormRow extends Row {
+  id: number;
+  hospital_id: number;
+  form_key: string;
+  form_name: string;
+  patient_id: number | null;
+  patient_name: string;
+  admission_id: number | null;
+  doctor_id: number | null;
+  doctor_name: string;
+  /** Draft → Awaiting doctor → Awaiting stamp → Ready. */
+  status: string;
+  values: Record<string, string>;
+  created_by_id: number | null;
+  created_by: string;
+  doctor_signed_at: string | null;
+  doctor_signed_by: string | null;
+  doctor_signature_img: string | null;
+  doctor_stamp_img: string | null;
+  stamped_at: string | null;
+  stamped_by: string | null;
+  hospital_stamp_img: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An image a person or the hospital keeps for signing forms: a doctor's signature, a doctor's stamp, or the hospital's stamp (owner_id 0). */
+export interface SignatureAssetRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** doctor_signature | doctor_stamp | hospital_stamp */
+  kind: string;
+  /** The user's id for a doctor's images; 0 for the hospital's stamp. */
+  owner_id: number;
+  /** A PNG, JPEG or WebP data URL. */
+  image: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Something a person should see in their notifications: one row per recipient. */
+export interface NotificationRow extends Row {
+  id: number;
+  hospital_id: number;
+  user_id: number;
+  kind: string;
+  title: string;
+  body: string;
+  link: string;
+  read_at: string | null;
   created_at: string;
 }
 

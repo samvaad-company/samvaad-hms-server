@@ -16,6 +16,7 @@ import type { AppointmentDTO, DoctorDTO, PrescriptionDTO, PatientDTO } from "@/t
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { ScribePanel } from "@/components/scribe/ScribePanel";
+import { AppointmentLoyaltyCard } from "@/components/appointments/LoyaltyLinksFields";
 import { Modal } from "@/components/shared/Modal";
 import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -259,6 +260,9 @@ export default function AppointmentDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Referral & family (loyalty programme): receptionists and doctors can add or change these. */}
+          <AppointmentLoyaltyCard appt={appt} patients={patients} canEdit={can("appointments", "write") || user?.role === "Doctor"} onSaved={reload} />
 
           {/* Video consultation */}
           {appt.type === "Tele-consult" && (
