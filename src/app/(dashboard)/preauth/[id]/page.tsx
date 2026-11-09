@@ -58,6 +58,7 @@ export default function PreauthFormPage() {
 
   const needsSignature = isItsDoctor && form.status === "Awaiting doctor" && !assets?.doctorSignature;
   const needsStamp = isAdmin && form.status === "Awaiting stamp" && !assets?.hospitalStamp;
+  const goSetup = () => router.push("/preauth#signature-setup");
   const btn = "inline-flex h-[34px] items-center gap-2 rounded-full px-4 text-[13px] cursor-pointer disabled:opacity-50";
   const primary = `${btn} bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand-hover)]`;
   const ghost = `${btn} border border-[color:var(--line)] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]`;
@@ -73,8 +74,8 @@ export default function PreauthFormPage() {
         <div className="flex flex-wrap gap-2">
           {canFill && <button onClick={save} disabled={acting || !dirty} className={ghost}>{saved ? "Saved" : "Save"}</button>}
           {form.status === "Draft" && can("tpa", "write") && <button onClick={send} disabled={acting} className={primary}><Send size={14} /> Send for signing</button>}
-          {form.status === "Awaiting doctor" && isItsDoctor && <button onClick={sign} disabled={acting || !assets?.doctorSignature} className={primary}><PenLine size={14} /> Sign this form</button>}
-          {form.status === "Awaiting stamp" && isAdmin && <button onClick={stamp} disabled={acting || !assets?.hospitalStamp} className={primary}><Stamp size={14} /> Stamp this form</button>}
+          {form.status === "Awaiting doctor" && isItsDoctor && <button onClick={needsSignature ? goSetup : sign} disabled={acting || !assets} className={primary}><PenLine size={14} /> {needsSignature ? "Add your signature" : "Sign this form"}</button>}
+          {form.status === "Awaiting stamp" && isAdmin && <button onClick={needsStamp ? goSetup : stamp} disabled={acting || !assets} className={primary}><Stamp size={14} /> {needsStamp ? "Add hospital stamp" : "Stamp this form"}</button>}
           <button onClick={() => (exact ? withPdf((b) => printBlob(b)) : printElement(docRef.current, title))} className={ghost}><Printer size={14} /> Print</button>
           <button onClick={() => (exact ? withPdf((b) => downloadBlob(b, `${title}.pdf`)) : downloadElement(docRef.current, title))} className={ghost}><Download size={14} /> {exact ? "Download PDF" : "Download"}</button>
           {can("tpa", "write") && (form.status !== "Ready" || isAdmin) && <button onClick={remove} className={`${btn} text-[#c8001a] hover:bg-[#ffe9e9]`}><Trash2 size={14} /> Delete</button>}
@@ -84,12 +85,12 @@ export default function PreauthFormPage() {
       {error && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#ff0004]">{error.message}</p>}
       {form.status === "Awaiting doctor" && (
         <p className="rounded-[8px] bg-[#fff6dd] px-3 py-2 text-[13px] text-[#7a4a00]">
-          {isItsDoctor ? (needsSignature ? "Add your signature on the Pre-auth forms page first, then come back to sign." : "Check the details, then sign. Your qualification and registration number go on the form.") : `Waiting for ${form.doctorName || "the doctor"} to sign.`}
+          {isItsDoctor ? (needsSignature ? <>You haven&apos;t saved your signature yet. <button onClick={goSetup} className="font-medium underline cursor-pointer">Add your signature</button>, then come back to sign this form.</> : "Check the details, then sign. Your qualification and registration number go on the form.") : `Waiting for ${form.doctorName || "the doctor"} to sign.`}
         </p>
       )}
       {form.status === "Awaiting stamp" && (
         <p className="rounded-[8px] bg-[#e8f4ff] px-3 py-2 text-[13px] text-[#0a5fc4]">
-          {isAdmin ? (needsStamp ? "Add the hospital stamp on the Pre-auth forms page first, then come back to stamp." : `Signed by ${form.doctorSignedBy}. Stamp it to finish.`) : `Signed by ${form.doctorSignedBy}. Waiting for the hospital's admin to stamp it.`}
+          {isAdmin ? (needsStamp ? <>The hospital stamp isn&apos;t saved yet. <button onClick={goSetup} className="font-medium underline cursor-pointer">Add the hospital stamp</button>, then come back to stamp this form.</> : `Signed by ${form.doctorSignedBy}. Stamp it to finish.`) : `Signed by ${form.doctorSignedBy}. Waiting for the hospital's admin to stamp it.`}
         </p>
       )}
       {form.status === "Ready" && <p className="rounded-[8px] bg-[#dffff3] px-3 py-2 text-[13px] text-[#0b7a47]">Signed by {form.doctorSignedBy} and stamped by {form.stampedBy}. Ready to send to the insurer.</p>}

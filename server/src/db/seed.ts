@@ -356,6 +356,34 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     updated_at: ts,
   }));
 
+  // ── Last month's bills for one demo patient (with lines), so the Finance combined bill has something to show ──
+  const billItems: Row[] = [];
+  {
+    const patient = findPatientByName("Olivia Turner");
+    const d = new Date();
+    const lm = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    const day = (n: number) => `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, "0")}-${String(n).padStart(2, "0")}`;
+    const spec: { type: string; day: number; status: string; items: [string, number, number, number][] }[] = [
+      { type: "OPD", day: 3, status: "Paid", items: [["Consultation — General Medicine", 1, 600, 0]] },
+      { type: "Lab", day: 3, status: "Paid", items: [["CBC", 1, 350, 0], ["Blood sugar (fasting)", 1, 120, 0], ["Lipid profile", 1, 700, 0]] },
+      { type: "Radiology", day: 4, status: "Paid", items: [["X-ray chest PA", 1, 500, 0]] },
+      { type: "IPD", day: 8, status: "Partial", items: [["General ward bed", 4, 1200, 0], ["Doctor visit", 4, 800, 0], ["Nursing care", 4, 400, 0], ["IV fluids and consumables", 1, 1850, 5]] },
+      { type: "Pharmacy", day: 11, status: "Paid", items: [["Paracetamol 650 mg", 10, 3, 12], ["Pantoprazole 40 mg", 14, 9, 12], ["Ceftriaxone inj 1 g", 6, 85, 12]] },
+    ];
+    let billId = 101, itemId = 1;
+    for (const s of spec) {
+      const lines = s.items.map(([name, quantity, unit, gstRate]) => ({ name, quantity, unit, gstRate, amount: quantity * unit }));
+      const amount = lines.reduce((t, l) => t + l.amount, 0);
+      const gst = Math.round(lines.reduce((t, l) => t + (l.amount * l.gstRate) / 100, 0) * 100) / 100;
+      const billNumber = `INV-LM-${billId}`;
+      bills.push({ id: billId, hospital_id: 1, bill_number: billNumber, patient_id: patient?.id ?? null, patient_name: "Olivia Turner", type: s.type, bill_date: day(s.day), amount, discount: 0, gst, total: amount + gst, status: s.status, created_at: ts, updated_at: ts });
+      for (const l of lines) {
+        billItems.push({ id: itemId++, hospital_id: 1, bill_id: billId, service_id: null, code: "", name: l.name, quantity: l.quantity, unit_price: l.unit, gst_rate: l.gstRate, hsn_sac: "", amount: l.amount, created_at: ts, updated_at: ts });
+      }
+      billId++;
+    }
+  }
+
   // ── Wards + beds ─────────────────────────────────────────────────────────
   const wardNames = Array.from(new Set(bedsData.map((b) => b.ward)));
   /** Demo bed rates (₹/day) by ward type. */
@@ -1494,6 +1522,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.pharmacyItems]: pharmacyItems,
     [TABLES.labTests]: labTests,
     [TABLES.bills]: bills,
+    [TABLES.billItems]: billItems,
     [TABLES.wards]: wards,
     [TABLES.beds]: beds,
     [TABLES.ipdAdmissions]: ipdAdmissions,

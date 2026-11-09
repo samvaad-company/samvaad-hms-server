@@ -1,7 +1,7 @@
 "use client";
 
 /** Pre-authorisation forms: make one for a patient on any insurer's form, and follow it from draft through the doctor's signature and the hospital's stamp. */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileCheck2, Plus } from "lucide-react";
 import { tw } from "@/lib/design-system";
@@ -35,6 +35,13 @@ export default function PreauthPage() {
   const canMake = can("tpa", "write");
   const [tab, setTab] = useState("all");
   const [open, setOpen] = useState(false);
+
+  /** "Add your signature" on a form lands here, at the signature box. */
+  useEffect(() => {
+    if (window.location.hash !== "#signature-setup") return;
+    const t = setTimeout(() => document.getElementById("signature-setup")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    return () => clearTimeout(t);
+  }, []);
 
   const { item: forms, reload } = useItem<PreauthSummaryDTO[]>("/preauth");
   const { item: pending } = useItem<PreauthPendingDTO>("/preauth/pending");

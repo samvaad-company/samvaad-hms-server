@@ -89,7 +89,7 @@ export function SignatureSetup() {
   if (!user || (user.role !== "Doctor" && user.role !== "Super Admin")) return null;
   const a = item ?? { doctorSignature: null, doctorStamp: null, hospitalStamp: null };
   return (
-    <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
+    <div id="signature-setup" className={`${tw.surface.card} ${tw.radius.card} scroll-mt-4 p-5`}>
       <p className="text-[15px] font-medium text-[color:var(--ink)]">My signature and stamp</p>
       <p className="mb-3 text-[12px] text-[color:var(--ink-soft)]">Kept once, then put on each pre-auth form when you sign it. Only you can see them.</p>
       <div className="flex flex-wrap gap-4">
