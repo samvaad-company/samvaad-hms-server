@@ -3,11 +3,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Sparkles, Search, Settings, Bell, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
+import { Menu, Sparkles, Search, Settings, LogOut, UserCog, ChevronLeft, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useBreadcrumbValue } from "@/lib/breadcrumb-context";
 import { api } from "@/lib/api/client";
 import { useColorMode } from "@/lib/color-mode";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { MyProfileModal } from "@/components/profile/MyProfileModal";
 import type { PatientDTO, DoctorDTO, AppointmentDTO } from "@/types/api";
 
@@ -139,7 +140,7 @@ function GlobalSearch() {
       className={
         open
           ? "relative max-sm:fixed max-sm:inset-x-2 max-sm:top-[9px] max-sm:z-50 sm:w-[clamp(180px,32vw,440px)] shrink"
-          : "relative w-[34px] sm:w-[clamp(180px,32vw,440px)] shrink-0 sm:shrink"
+          : "relative max-sm:hidden sm:w-[clamp(180px,32vw,440px)] shrink-0 sm:shrink"
       }
       ref={ref}
     >
@@ -264,7 +265,8 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
       </div>
 
       <MyProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
-      <GlobalSearch />
+      {/* No search on phones: the bar stays clear for the menu, the page's back link and the AI button. */}
+      <div className="hidden sm:contents"><GlobalSearch /></div>
 
       <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
 
@@ -298,7 +300,7 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
             {mode === "dark" ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
           </button>
           <div className="w-px h-[14px] bg-[color:var(--line)]" />
-          <Bell size={18} strokeWidth={1.5} className="text-[color:var(--ink)] cursor-pointer" />
+          <NotificationBell />
         </div>
 
         {/* User */}

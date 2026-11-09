@@ -82,11 +82,11 @@ export function ClinicalFormsView() {
         {forms.items.map((f) => (
           <Row key={f.id}>
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-2 text-[14px] font-medium"><span className="truncate">{f.name}</span><Muted>v{num(f.data.version)}</Muted><Pill>{str(f.data.status)}</Pill></p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-medium"><span className="truncate">{f.name}</span><span className="whitespace-nowrap"><Muted>v{num(f.data.version)}</Muted></span><Pill>{str(f.data.status)}</Pill></p>
               <p className="text-[12px] text-[color:var(--ink-soft)]">{str(f.data.specialty) || "Any specialty"} · {((f.data.fields as unknown[]) ?? []).length} fields</p>
             </div>
-            <button onClick={() => setDialog({ type: "assign", rec: f })} className={outlineBtn + " !h-[32px]"}>Assign</button>
-            <button onClick={() => setDialog({ type: "design", rec: f })} className={primaryBtn + " !h-[32px]"}><Wand2 size={14} /> Design</button>
+            <div className="flex shrink-0 items-center gap-2"><button onClick={() => setDialog({ type: "assign", rec: f })} className={outlineBtn + " !h-[32px]"}>Assign</button>
+            <button onClick={() => setDialog({ type: "design", rec: f })} className={primaryBtn + " !h-[32px]"}><Wand2 size={14} /> Design</button></div>
           </Row>
         ))}
         {forms.items.length === 0 && <p className="px-4 py-10 text-center text-[14px] text-[color:var(--ink-soft)]">No clinical forms yet.</p>}

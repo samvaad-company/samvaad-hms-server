@@ -59,10 +59,10 @@ export function RatePlansView() {
   return (
     <div>
       <ListHeader title="Rate plans" count={plans.items.length}><AddButton primary label="Add plan" onClick={() => setDialog({})} /></ListHeader>
-      <div className="flex items-start gap-4">
-        <nav aria-label="Rate plans" className="w-[230px] shrink-0 text-[13px]">
+      <div className="flex items-start gap-4 max-lg:flex-col max-lg:items-stretch">
+        <nav aria-label="Rate plans" className="w-[230px] max-lg:w-full max-lg:flex max-lg:flex-wrap max-lg:gap-2 shrink-0 text-[13px]">
           {plans.items.map((p) => (
-            <button key={p.id} onClick={() => pick(p.id)} className={`flex w-full items-center gap-2 rounded-[8px] px-3 py-[8px] text-left cursor-pointer ${plan?.id === p.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
+            <button key={p.id} onClick={() => pick(p.id)} className={`flex w-full max-lg:w-auto items-center gap-2 rounded-[8px] max-lg:rounded-full max-lg:border max-lg:border-[color:var(--line)] px-3 py-[8px] text-left cursor-pointer ${plan?.id === p.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
               <span className="min-w-0 flex-1 truncate" title={p.name}>{p.name}</span>
               {p.data.isDefault === true && <Star size={12} className="shrink-0 fill-current text-[color:var(--ink)]" aria-label="Default plan" />}
               {!p.active && <Inactive />}
@@ -70,7 +70,7 @@ export function RatePlansView() {
           ))}
         </nav>
         {plan ? (
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 max-lg:w-full">
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{dateRange(plan.data.effectiveFrom, plan.data.effectiveTo)}</span>
               <EditIcon label={`Edit ${plan.name}`} onClick={() => setDialog({ plan })} />

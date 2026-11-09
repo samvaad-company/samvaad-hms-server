@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { LoyaltyCardPanel } from "@/components/loyalty/LoyaltyCard";
 import { useParams } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
@@ -443,6 +444,7 @@ function OverviewTab({ patient, now }: { patient: PatientDetail; now: number }) 
 
   return (
     <div className="p-5 flex flex-col gap-5">
+      <LoyaltyCardPanel patientId={patient.id} />
       <EngagementCard appointments={appointments} now={now} />
       <Group title="Personal">
         <Field label="Title" value={patient.title} />

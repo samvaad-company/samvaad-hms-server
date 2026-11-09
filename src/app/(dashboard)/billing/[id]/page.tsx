@@ -61,7 +61,7 @@ export default function BillingDetailPage() {
   return (
     <>
       {/* Top bar */}
-      <div className={`${tw.gutterX} py-5 flex items-center gap-4`} style={{ borderBottom: "1px solid var(--line)" }}>
+      <div className={`${tw.gutterX} py-5 flex flex-wrap items-center gap-x-4 gap-y-3`} style={{ borderBottom: "1px solid var(--line)" }}>
         <Link href="/billing" className="p-2 rounded-[8px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors">
           <ArrowLeft size={20} strokeWidth={1.5} />
         </Link>

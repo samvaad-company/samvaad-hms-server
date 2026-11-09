@@ -337,7 +337,7 @@ function MonthlyView() {
             {item.staff.map((s) => (
               <button key={s.staffId} onClick={() => setSelected(s)}
                 className="grid items-center px-5 h-[44px] w-full text-left border-b border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors cursor-pointer"
-                style={{ gridTemplateColumns: gridCols }}>
+                data-keep-grid style={{ gridTemplateColumns: gridCols }}>
                 <span className="min-w-0 pr-2">
                   <span className="block text-[13px] font-medium text-[color:var(--ink)] truncate">{s.name}</span>
                   <span className="block text-[10px] text-[color:var(--ink-soft)] truncate">{s.role}</span>

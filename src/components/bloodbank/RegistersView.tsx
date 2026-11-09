@@ -71,9 +71,9 @@ export function RegistersView() {
         action={<input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} max={todayLocal()} aria-label="Register date"
           className="h-[40px] rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 font-mono text-[14px] text-[color:var(--ink)]" />} />
       {error && <p role="alert" className="mx-5 mb-3 rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#c8001a]">{error}</p>}
-      <div className="grid gap-3 px-5 pb-6" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+      <div className="grid gap-3 px-4 sm:px-5 pb-6 grid-cols-1 sm:grid-cols-2">
         {REGISTERS.map((r) => (
-          <div key={r.kind} className="flex items-center justify-between rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3">
+          <div key={r.kind} className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3">
             <div>
               <p className="text-[15px] font-medium text-[color:var(--ink)]">{r.title}</p>
               <p className="font-mono text-[13px] text-[color:var(--ink-soft)]">{r.asOn ? "as on " : ""}{date}</p>

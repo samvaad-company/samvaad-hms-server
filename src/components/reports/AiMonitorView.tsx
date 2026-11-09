@@ -92,10 +92,10 @@ export function AiMonitorView() {
         </div>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3"><Breakdown title="By doctor" rows={d.scribe.byDoctor} /><Breakdown title="By language" rows={d.scribe.byLanguage} /><Breakdown title="By status" rows={d.scribe.byStatus} /></div>
         {d.scribe.recent.length > 0 && (
-          <table className="mt-3 w-full border-collapse overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] text-[13px]">
+          <div className="overflow-x-auto"><table className="mt-3 w-full border-collapse overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] text-[13px]">
             <thead><tr className="bg-[color:var(--subtle)] text-left text-[12px] text-[color:var(--ink-soft)]"><th className="px-4 py-2">When</th><th className="px-4 py-2">Patient</th><th className="px-4 py-2">Doctor</th><th className="px-4 py-2">Language</th><th className="px-4 py-2 text-right">Length</th><th className="px-4 py-2">Status</th></tr></thead>
             <tbody>{d.scribe.recent.map((n) => <tr key={n.id} className="border-t border-[color:var(--line)]"><td className="px-4 py-2 font-mono text-[12px]">{when(n.at)}</td><td className="px-4 py-2">{n.patient}</td><td className="px-4 py-2">{n.doctor}</td><td className="px-4 py-2">{n.language}</td><td className="px-4 py-2 text-right font-mono">{Math.round(n.seconds / 60)} min</td><td className="px-4 py-2">{n.status}</td></tr>)}</tbody>
-          </table>
+          </table></div>
         )}
       </Section>
 

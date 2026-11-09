@@ -397,8 +397,8 @@ export default function IpdDetailPage() {
       {/* Admission banner */}
       <div className={`${tw.gutterX} mb-5`}>
         <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-4">
+          <div className="flex items-start justify-between max-lg:flex-col max-lg:gap-3">
+            <div className="flex flex-col gap-4 min-w-0">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-[color:var(--brand-soft)] rounded-full flex items-center justify-center text-[18px] font-medium text-[color:var(--brand)]">
                   {record.patientName.split(" ").map((n:string) => n[0]).join("").slice(0, 2)}
@@ -438,7 +438,7 @@ export default function IpdDetailPage() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-col items-end gap-2 shrink-0 max-lg:flex-row max-lg:items-center max-lg:justify-between max-lg:w-full">
               <span className="text-[12px] font-normal text-[color:var(--ink-soft)]">Day {days} of admission</span>
               {canWrite && (
                 <button

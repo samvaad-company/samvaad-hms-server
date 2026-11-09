@@ -62,10 +62,10 @@ export function SponsorsView() {
   return (
     <div>
       <ListHeader title="Sponsors & contracts" count={sponsors.items.length}><AddButton primary label="Add sponsor" onClick={() => setDialog({ type: "sponsor" })} /></ListHeader>
-      <div className="flex items-start gap-4">
-        <nav aria-label="Sponsors" className="w-[260px] shrink-0 text-[13px]">
+      <div className="flex items-start gap-4 max-lg:flex-col max-lg:items-stretch">
+        <nav aria-label="Sponsors" className="w-[260px] max-lg:w-full max-lg:flex max-lg:flex-wrap max-lg:gap-2 shrink-0 text-[13px]">
           {sponsors.items.map((s) => (
-            <div key={s.id} className={`group flex items-center rounded-[8px] ${sponsor?.id === s.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
+            <div key={s.id} className={`group flex items-center rounded-[8px] max-lg:rounded-full max-lg:border max-lg:border-[color:var(--line)] ${sponsor?.id === s.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
               <button onClick={() => { setSponsorId(s.id); setContractId(null); }} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-[7px] text-left cursor-pointer"><span className="truncate" title={s.name}>{s.name}</span><Muted>{str(s.data.type)}</Muted></button>
               {sponsor?.id === s.id && <EditIcon label={`Edit ${s.name}`} onClick={() => setDialog({ type: "sponsor", rec: s })} />}
             </div>

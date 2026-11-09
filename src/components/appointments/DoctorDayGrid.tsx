@@ -98,7 +98,7 @@ export function DoctorDayGrid({ doctors, appointments, date, onDateChange, selec
         {columns.length === 0 ? (
           <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No doctors to show.</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: template, minWidth: 64 + columns.length * 220 }}>
+          <div data-keep-grid style={{ display: "grid", gridTemplateColumns: template, minWidth: 64 + columns.length * 220 }}>
             {/* header row */}
             <div className="sticky top-0 left-0 z-30 bg-[color:var(--surface)] border-b border-r border-[color:var(--line)]" />
             {columns.map((d, i) => (

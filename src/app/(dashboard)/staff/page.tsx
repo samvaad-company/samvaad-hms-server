@@ -89,15 +89,15 @@ function AccessControlView() {
   }));
 
   return (
-    <div className="p-5 flex gap-5" style={{ height: 555 }}>
+    <div className="p-4 sm:p-5 flex gap-5 max-lg:flex-col lg:h-[555px]">
       {/* Role list */}
-      <div className="w-48 flex flex-col gap-1 shrink-0">
-        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Roles</p>
+      <div className="w-48 max-lg:w-full flex flex-col max-lg:flex-row max-lg:flex-wrap gap-1 max-lg:gap-2 shrink-0">
+        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2 max-lg:w-full max-lg:mb-0">Roles</p>
         {ROLES.map(role => (
           <button
             key={role}
             onClick={() => setSelectedRole(role)}
-            className={`text-left px-4 py-[9px] rounded-[8px] text-[13px] font-normal transition-colors cursor-pointer ${selectedRole === role ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)]"}`}
+            className={`text-left px-4 py-[9px] max-lg:py-[7px] max-lg:rounded-full rounded-[8px] text-[13px] font-normal transition-colors cursor-pointer ${selectedRole === role ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)]"}`}
           >
             {role}
           </button>

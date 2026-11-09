@@ -14,6 +14,7 @@ import Link from "next/link";
 import type { PatientDTO, DoctorDTO } from "@/types/api";
 import { Check, Loader2, UserPlus, Users } from "lucide-react";
 import { SlotPicker } from "@/components/scheduling/SlotPicker";
+import { LoyaltyLinksFields, type LinkValues } from "@/components/appointments/LoyaltyLinksFields";
 import { todayIso } from "@/lib/validators";
 
 const STEPS = ["Patient", "Doctor & Slot", "Confirm"];
@@ -60,6 +61,8 @@ function BookAppointment() {
   const [slotsKey, setSlotsKey] = useState(0);
   const [reason, setReason] = useState("");
   const [visitPurpose, setVisitPurpose] = useState("");
+  // Loyalty programme: who referred the patient / whose family they are (both optional).
+  const [links, setLinks] = useState<LinkValues>({ referredBy: "", familyOf: "", relation: "" });
   const { items: purposeList } = useList<{ id: number; name: string }>("/setup/visit_purpose", { active: 1 });
 
 
@@ -107,6 +110,8 @@ function BookAppointment() {
         type,
         reason,
         visitPurpose: visitPurpose || undefined,
+        ...(links.referredBy ? { referredByPatientId: Number(links.referredBy) } : {}),
+        ...(links.familyOf ? { familyOfPatientId: Number(links.familyOf), familyRelation: links.relation || undefined } : {}),
         status: "Upcoming",
       });
     });
@@ -182,6 +187,12 @@ function BookAppointment() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+                {patient && (
+                  <div className="mt-1 border-t border-[color:var(--line)] pt-3">
+                    <p className="mb-2 text-[12px] font-medium text-[color:var(--ink-soft)]">Referral &amp; family <span className="font-normal">(optional, counts towards loyalty points)</span></p>
+                    <LoyaltyLinksFields patients={patients} ownPatientId={patientId} value={links} onChange={setLinks} />
                   </div>
                 )}
               </div>

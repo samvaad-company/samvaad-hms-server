@@ -16,6 +16,7 @@ import type { AppointmentDTO, DoctorDTO, PrescriptionDTO, PatientDTO } from "@/t
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { ScribePanel } from "@/components/scribe/ScribePanel";
+import { AppointmentLoyaltyCard } from "@/components/appointments/LoyaltyLinksFields";
 import { Modal } from "@/components/shared/Modal";
 import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -176,16 +177,16 @@ export default function AppointmentDetailPage() {
   return (
     <>
       {/* Top bar */}
-      <div className={`${tw.gutterX} py-5 flex items-center gap-4`} style={{ borderBottom: "1px solid var(--line)" }}>
+      <div className={`${tw.gutterX} py-5 flex flex-wrap items-center gap-x-4 gap-y-3`} style={{ borderBottom: "1px solid var(--line)" }}>
         <Link href="/appointments" className="p-2 rounded-[8px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors">
           <ArrowLeft size={20} strokeWidth={1.5} />
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Appointment Details</div>
           <div className="text-[17px] font-medium text-[color:var(--ink)] leading-tight">{appt.patientName}</div>
         </div>
         <StatusBadge status={appt.status} />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
           {canOrderRadiology && isActive && appt.patientId && (
             <button
               onClick={() => router.push(`/radiology?patientId=${appt.patientId}${appt.doctorId ? `&doctorId=${appt.doctorId}` : ""}`)}
@@ -259,6 +260,9 @@ export default function AppointmentDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Referral & family (loyalty programme): receptionists and doctors can add or change these. */}
+          <AppointmentLoyaltyCard appt={appt} patients={patients} canEdit={can("appointments", "write") || user?.role === "Doctor"} onSaved={reload} />
 
           {/* Video consultation */}
           {appt.type === "Tele-consult" && (

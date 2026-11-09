@@ -43,10 +43,10 @@ export function PackagesView() {
   return (
     <div>
       <ListHeader title="Packages" count={packages.items.length}><AddButton primary label="New package" onClick={() => setSelected("new")} /></ListHeader>
-      <div className="flex items-start gap-4">
-        <nav aria-label="Packages" className="w-[250px] shrink-0 text-[13px]">
+      <div className="flex items-start gap-4 max-lg:flex-col max-lg:items-stretch">
+        <nav aria-label="Packages" className="w-[250px] max-lg:w-full max-lg:flex max-lg:flex-wrap max-lg:gap-2 shrink-0 text-[13px]">
           {packages.items.map((p) => (
-            <button key={p.id} onClick={() => setSelected(p.id)} className={`flex w-full items-center justify-between gap-2 rounded-[8px] px-3 py-[8px] text-left cursor-pointer ${currentId === p.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
+            <button key={p.id} onClick={() => setSelected(p.id)} className={`flex w-full max-lg:w-auto items-center justify-between gap-2 rounded-[8px] max-lg:rounded-full max-lg:border max-lg:border-[color:var(--line)] px-3 py-[8px] text-left cursor-pointer ${currentId === p.id ? "bg-[color:var(--subtle)] font-medium" : "hover:bg-[color:var(--faint)]"}`}>
               <span className="min-w-0 truncate" title={p.name}>{p.name}</span><Muted>{str(p.data.type)}</Muted>
             </button>
           ))}

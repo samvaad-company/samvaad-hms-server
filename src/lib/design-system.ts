@@ -158,6 +158,10 @@ export const tw = {
     // Prescription
     "Dispensed":       "bg-[#dffff3] text-[#00955c]",
     "Draft":           "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]",
+    "Published":       "bg-[#dffff3] text-[#00955c]",
+    "Awaiting doctor": "bg-[#fff2e0] text-[#ff9000]",
+    "Awaiting stamp":  "bg-[#d6eaff] text-[#007cff]",
+    "Ready":           "bg-[#dffff3] text-[#00955c]",
     // Radiology
     "Scan Done":       "bg-[#d6eaff] text-[#007cff]",
     // Blood bank

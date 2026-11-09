@@ -4,6 +4,7 @@
  * Role home — routes the logged-in user to their role's panel.
  */
 import { useAuth } from "@/lib/auth-context";
+import { PreauthPendingCard } from "@/components/preauth/PreauthPendingCard";
 import { tw } from "@/lib/design-system";
 import { DoctorPanel } from "@/components/panels/DoctorPanel";
 import { ReceptionistPanel } from "@/components/panels/ReceptionistPanel";
@@ -41,5 +42,10 @@ export default function HomePage() {
 
   // Super Admin and unknown roles get the hospital-wide overview.
   const Panel = ROLE_PANELS[user.role] ?? AdminPanel;
-  return <Panel />;
+  return (
+    <>
+      <PreauthPendingCard />
+      <Panel />
+    </>
+  );
 }

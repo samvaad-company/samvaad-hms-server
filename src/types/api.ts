@@ -240,6 +240,12 @@ export interface AppointmentDTO extends Appointment {
   rescheduledFrom: string | null;
   /** Tele-consult only: set when the room doesn't have the access type the hospital chose, so a patient may not be able to join. */
   meetWarning: string | null;
+  /** Loyalty programme: the patient who referred this one, and the patient whose family they are booked under (both optional). */
+  referredByPatientId: number | null;
+  referredByName: string | null;
+  familyOfPatientId: number | null;
+  familyOfName: string | null;
+  familyRelation: string | null;
   consultAmount: number | null;
   paymentStatus: string | null;
   /** Tele-consult only: the gateway payment id (or staff receipt) and order id that paid for this appointment. */
@@ -2454,3 +2460,70 @@ export interface TrainingProgressDTO { lessonId: string; status: "In progress" |
 export interface TrainingMineDTO { role: string; lessons: TrainingProgressDTO[]; recommended: string[]; done: number }
 export interface TeamMemberDTO { userId: number; name: string; role: string; recommended: number; done: number; pct: number; lastActive: string | null; completed: string[]; inProgress: string[] }
 export interface TrainingTeamDTO { members: TeamMemberDTO[]; average: number }
+
+// ── Reports → AI monitor → Hospital performance ──────────────────────────────
+
+export interface PerfKpi {
+  key: string;
+  group: "patients" | "appointments" | "followups" | "billing" | "ipd";
+  label: string;
+  kind: "money" | "count" | "pct";
+  value: number | null;
+  previous: number | null;
+  /** Percent change for counts and money; percentage points for rates. null when there is nothing to compare with. */
+  change: number | null;
+  changeUnit: "pct" | "pts";
+  /** A fall in this figure is good news (cancellations, missed follow-ups, outstanding). */
+  lowerIsBetter?: boolean;
+  hint?: string;
+}
+
+export interface PerformanceDTO {
+  today: string;
+  from: string;
+  to: string;
+  days: number;
+  interval: "day" | "week" | "month";
+  compare: { mode: "previous" | "year"; from: string; to: string } | null;
+  applied: { doctorId: number | null; billType: string | null; visitType: string | null };
+  options: { doctors: { id: number; name: string }[]; billTypes: string[]; visitTypes: string[] };
+  growth: {
+    /** The average change of revenue, patients seen, appointments and new patients; null when none can be compared. */
+    rate: number | null;
+    basis: string;
+    components: { key: string; label: string; change: number | null }[];
+    months: { label: string; month: string; revenue: number; patients: number; newPatients: number; appointments: number; revenueGrowth: number | null; patientsGrowth: number | null }[];
+  };
+  kpis: PerfKpi[];
+  trend: { label: string; patients: number; newPatients: number; appointments: number; followUps: number; billed: number; collected: number; prevCollected: number | null; prevPatients: number | null }[];
+  retention: {
+    rate: number | null;
+    previousPatients: number;
+    returned: number;
+    repeatRate: number | null;
+    newPatients: number;
+    returning: number;
+    visitFrequency: { label: string; patients: number }[];
+  };
+  revenueByType: { type: string; collected: number; bills: number; share: number }[];
+  byDoctor: { id: number | null; name: string; patients: number; appointments: number; completed: number; collected: number }[];
+  appointmentsByStatus: { status: string; count: number }[];
+  followUps: { due: number; done: number; missed: number; pending: number; overdue: number; completionRate: number | null };
+}
+
+// ── Combined bill (Finance) ─────────────────────────────────────────────────────────────────────────────────────────────
+
+export interface CombinedBillLine { name: string; date: string; quantity: number; rate: number; amount: number; billNumber: string }
+export interface CombinedBillSection { type: string; title: string; lines: CombinedBillLine[]; subtotal: number }
+
+/** Everything one patient was charged, on one statement. */
+export interface CombinedBillDTO {
+  patient: { id: number; name: string; code: string; age: number; gender: string; phone: string; address: string };
+  period: { from: string | null; to: string | null };
+  admission: { admissionNo: string; admittedOn: string; ward: string; bed: string; doctor: string; diagnosis: string; status: string } | null;
+  sections: CombinedBillSection[];
+  prescriptions: { rxNumber: string; date: string; doctor: string; diagnosis: string; medicines: string[] }[];
+  totals: { gross: number; discount: number; gst: number; total: number; paid: number; due: number };
+  billCount: number;
+  refundedCount: number;
+}

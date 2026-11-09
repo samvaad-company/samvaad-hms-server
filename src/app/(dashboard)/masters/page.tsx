@@ -16,6 +16,7 @@ import { SponsorsView } from "@/components/setup/SponsorViews";
 import { PaymentsView, PayoutRulesView, ReferralsView } from "@/components/setup/PaymentViews";
 import { IdFormatsView, ClinicalFormsView } from "@/components/setup/IdFormatViews";
 import { DepartmentsView, SIMPLE_SPECS, SimpleMasterView } from "@/components/setup/SimpleMasters";
+import { LoyaltyProgramView } from "@/components/setup/LoyaltyProgramView";
 
 const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Catalog & pricing", items: [["services", "Services"], ["rate_plans", "Rate plans"], ["packages", "Packages"], ["tax", "Tax & GST"]] },
@@ -23,6 +24,7 @@ const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
   { group: "Clinical", items: [["clinical_forms", "Clinical forms"]] },
+  { group: "Loyalty", items: [["loyalty", "Loyalty programme"]] },
   { group: "Facility", items: [["ward_classes", "Ward classes"], ["consulting_rooms", "Consulting rooms"], ["facility_areas", "Facility areas"], ["service_collection_centers", "Collection centers"], ["collection_centers", "Lab collection centers"], ["drug_racks", "Drug racks"]] },
 ];
 const IDS = NAV.flatMap((g) => g.items.map((i) => i[0]));
@@ -40,6 +42,7 @@ function Section({ id }: { id: string }) {
     case "departments": return <DepartmentsView />;
     case "human_ids": return <IdFormatsView />;
     case "clinical_forms": return <ClinicalFormsView />;
+    case "loyalty": return <LoyaltyProgramView />;
     default: return id in SIMPLE_SPECS ? <SimpleMasterView key={id} section={id} /> : null;
   }
 }
@@ -66,8 +69,8 @@ function MastersPage() {
           <h1 className="text-[15px] font-semibold text-[color:var(--ink)]">Masters</h1>
           <span className="text-[13px] text-[color:var(--ink-soft)]">Service catalog, organization &amp; facility configuration</span>
         </div>
-        <div className="flex items-start">
-          <aside className="w-[210px] shrink-0 border-r border-[color:var(--line)] px-3 py-3 text-[14px]" style={{ minHeight: 460 }}>
+        <div className="flex items-start max-lg:flex-col">
+          <aside className="w-[210px] max-lg:w-full max-lg:max-h-[260px] max-lg:overflow-y-auto shrink-0 border-r max-lg:border-r-0 max-lg:border-b border-[color:var(--line)] px-3 py-3 text-[14px] lg:min-h-[460px]">
             <div className="relative mb-3">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
               <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a master…" aria-label="Find a master"
@@ -84,7 +87,7 @@ function MastersPage() {
             ))}
             {nav.length === 0 && <p className="px-2 text-[13px] text-[color:var(--ink-soft)]">No master matches.</p>}
           </aside>
-          <div className="min-w-0 flex-1 px-5 py-4"><Section id={section} /></div>
+          <div className="min-w-0 max-lg:w-full flex-1 px-3 sm:px-5 py-4"><Section id={section} /></div>
         </div>
       </div>
     </div>
