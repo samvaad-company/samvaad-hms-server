@@ -108,6 +108,8 @@ export const TABLES = {
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
   preauthForms: "preauth_forms",
+  awarenessEvents: "awareness_events",
+  awarenessReads: "awareness_reads",
   signatureAssets: "signature_assets",
   notifications: "notifications",
   aiTokenUsage: "ai_token_usage",
@@ -1389,6 +1391,47 @@ export interface PreauthFormRow extends Row {
   hospital_stamp_img: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** An awareness programme a hospital posts for patients: a health camp, a webinar, a vaccination drive. Shown in the patient portal once published. */
+export interface AwarenessEventRow extends Row {
+  id: number;
+  hospital_id: number;
+  hospital_name: string;
+  title: string;
+  category: string;
+  /** One or two lines for the card and the notification. */
+  summary: string;
+  details: string;
+  /** yyyy-mm-dd; empty for a programme with no fixed day. */
+  event_date: string;
+  event_time: string;
+  end_date: string;
+  /** In person | Online */
+  mode: string;
+  venue: string;
+  link: string;
+  contact: string;
+  /** all = every patient on the portal; hospital = only this hospital's patients. */
+  audience: string;
+  /** A picture: an https link or a small data URL. */
+  image: string;
+  /** Draft | Published | Cancelled */
+  status: string;
+  published_at: string | null;
+  cancelled_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** That a patient has opened a programme (or its notification), so the portal can show what is new. */
+export interface AwarenessReadRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  event_id: number;
+  read_at: string;
 }
 
 /** An image a person or the hospital keeps for signing forms: a doctor's signature, a doctor's stamp, or the hospital's stamp (owner_id 0). */

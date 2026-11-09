@@ -64,6 +64,7 @@ import {
   Zap,
   Award,
   FileCheck2,
+  Megaphone,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -112,6 +113,7 @@ const groups: NavGroup[] = [
       { href: "/opd",                label: "OPD",               icon: Activity,        resource: "opd", key: "O" },
       { href: "/patients",           label: "Patients",          icon: Users,           resource: "patients", key: "P" },
       { href: "/loyalty",            label: "Loyalty",           icon: Award,          resource: "admin" },
+      { href: "/awareness",          label: "Awareness",         icon: Megaphone,      resource: "awareness" },
       { href: "/enquiries",          label: "Enquiries",         icon: Inbox,           resource: "enquiries", key: "3" },
       { href: "/followups",          label: "Follow-ups",        icon: ClipboardCheck,  resource: "followups", key: "4" },
       { href: "/doctors",            label: "Doctors",           icon: Stethoscope,     resource: "doctors", key: "D" },

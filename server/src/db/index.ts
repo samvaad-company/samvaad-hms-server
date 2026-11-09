@@ -37,7 +37,8 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // v17: AI token usage ledger, limits and grants.
 // v18: loyalty adjustments.
 // v19: pre-authorisation forms, signature assets and notifications.
-const MONGO_SCHEMA_VERSION = 19;
+// v20: awareness programmes and who has read them.
+const MONGO_SCHEMA_VERSION = 20;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {

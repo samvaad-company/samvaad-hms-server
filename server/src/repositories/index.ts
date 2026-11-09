@@ -8,6 +8,8 @@ import type {
   AiTokenUsageRow,
   LoyaltyAdjustmentRow,
   PreauthFormRow,
+  AwarenessEventRow,
+  AwarenessReadRow,
   SignatureAssetRow,
   NotificationRow,
   AiTokenLimitRow,
@@ -410,6 +412,8 @@ export const chatMessagesRepo = createRepository<ChatMessageRow, ReturnType<type
 );
 export const loyaltyAdjustmentsRepo = createRepository<LoyaltyAdjustmentRow, LoyaltyAdjustmentRow>(TABLES.loyaltyAdjustments, (row) => row);
 export const preauthFormsRepo = createRepository<PreauthFormRow, PreauthFormRow>(TABLES.preauthForms, (row) => row);
+export const awarenessEventsRepo = createRepository<AwarenessEventRow, AwarenessEventRow>(TABLES.awarenessEvents, (row) => row);
+export const awarenessReadsRepo = createRepository<AwarenessReadRow, AwarenessReadRow>(TABLES.awarenessReads, (row) => row);
 export const signatureAssetsRepo = createRepository<SignatureAssetRow, SignatureAssetRow>(TABLES.signatureAssets, (row) => row);
 export const notificationsRepo = createRepository<NotificationRow, NotificationRow>(TABLES.notifications, (row) => row);
 export const aiTokenUsageRepo = createRepository<AiTokenUsageRow, AiTokenUsageRow>(TABLES.aiTokenUsage, (row) => row);
