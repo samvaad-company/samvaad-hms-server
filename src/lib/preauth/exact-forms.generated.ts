@@ -24,6 +24,14 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Address"
   },
   {
+   "key": "rohiniId",
+   "label": "Rohini id"
+  },
+  {
+   "key": "hospitalEmail",
+   "label": "e-mail id"
+  },
+  {
    "key": "patientName",
    "label": "Name of the Patient"
   },
@@ -387,11 +395,11 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "isRta",
-   "label": "In case of accident: i. Is it RTA – Yes No ii. Date of injury"
+   "label": "In case of accident: i. Is it RTA â€“ Yes No ii. Date of injury"
   },
   {
    "key": "injuryDate",
-   "label": "In case of accident: i. Is it RTA – Yes No ii. Date of injury"
+   "label": "In case of accident: i. Is it RTA â€“ Yes No ii. Date of injury"
   },
   {
    "key": "reportedToPolice",
@@ -431,7 +439,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "roomRent",
-   "label": "Per Day Room Rent + Nursing & Service Charges + Patient’s Diet Rs"
+   "label": "Per Day Room Rent + Nursing & Service Charges + Patientâ€™s Diet Rs"
   },
   {
    "key": "investigationCost",
@@ -448,10 +456,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "professionalFees",
    "label": "Professional fees Surgeon+ Anaesthetist Fees + consultation Charges"
-  },
-  {
-   "key": "medicinesCost",
-   "label": "Medicines+ Consumables+ Cost of Implants( if applicable specify) Other hospital expenses i"
   },
   {
    "key": "otherExpenses",
@@ -606,10 +610,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "pastHistory",
    "label": "Past history of present ailment if any"
-  },
-  {
-   "key": "provisionalDiagnosis",
-   "label": "Provisional diagnosis________________________________________________________i. ICD 10 Cod"
   },
   {
    "key": "icd10",
@@ -1149,15 +1149,15 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "isRta",
-   "label": "Is it RTA  Yes  No 2) Reported toPolice  Yes  No"
+   "label": "Is it RTA ï‚¨ Yes ï‚¨ No 2) Reported toPolice ï‚¨ Yes ï‚¨ No"
   },
   {
    "key": "substanceAbuse",
-   "label": "Injury / Disease caused due to substance abuse/ alcohol consumption  Yes  No"
+   "label": "Injury / Disease caused due to substance abuse/ alcohol consumption ï‚¨ Yes ï‚¨ No"
   },
   {
    "key": "substanceTest",
-   "label": "Test conducted to establish this  Yes  No (If Yes, attach reports)"
+   "label": "Test conducted to establish this ï‚¨ Yes ï‚¨ No (If Yes, attach reports)"
   },
   {
    "key": "maternity",
@@ -2001,7 +2001,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "insuredCardId",
-   "label": "lnsured’ s Card ID number"
+   "label": "lnsuredâ€™ s Card ID number"
   },
   {
    "key": "policyNo",
@@ -2157,7 +2157,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "roomRent",
-   "label": "Per day room rent+nursing and service charges+ patient’s diet"
+   "label": "Per day room rent+nursing and service charges+ patientâ€™s diet"
   },
   {
    "key": "icuCharges",
@@ -2262,10 +2262,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "GENDER MALE FEMALE THIRD GENDER AGE YEARS / MONTHS DATE OF BIRTH"
   },
   {
-   "key": "age",
-   "label": "GENDER MALE FEMALE THIRD GENDER AGE YEARS / MONTHS DATE OF BIRTH"
-  },
-  {
    "key": "dob",
    "label": "GENDER MALE FEMALE THIRD GENDER AGE YEARS / MONTHS DATE OF BIRTH"
   },
@@ -2300,10 +2296,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "occupation",
    "label": "OCCUPATION"
-  },
-  {
-   "key": "doctorContact",
-   "label": "CONTACT NO"
   },
   {
    "key": "illness",
@@ -2411,27 +2403,27 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "chronicHeart",
-   "label": "HEART DISEASE…………….………"
+   "label": "HEART DISEASEâ€¦â€¦â€¦â€¦â€¦.â€¦â€¦â€¦"
   },
   {
    "key": "chronicHypertension",
-   "label": "HYPERTENSION……………………"
+   "label": "HYPERTENSIONâ€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦"
   },
   {
    "key": "chronicHyperlipidemia",
-   "label": "HYPERLIPIDEMIAS….……………"
+   "label": "HYPERLIPIDEMIASâ€¦.â€¦â€¦â€¦â€¦â€¦"
   },
   {
    "key": "chronicOsteoarthritis",
-   "label": "OSTEOARTHRITIS…...……………"
+   "label": "OSTEOARTHRITISâ€¦...â€¦â€¦â€¦â€¦â€¦"
   },
   {
    "key": "chronicCancer",
-   "label": "CANCER…………………………………"
+   "label": "CANCERâ€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦â€¦"
   },
   {
    "key": "chronicAlcohol",
-   "label": "ALCOHOL/DRUG ABUSE…..……"
+   "label": "ALCOHOL/DRUG ABUSEâ€¦..â€¦â€¦"
   },
   {
    "key": "chronicHiv",
@@ -3520,16 +3512,8 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Name of the family physician"
   },
   {
-   "key": "familyPhysicianContact",
-   "label": "Contact No"
-  },
-  {
    "key": "doctorName",
    "label": "Name of the treating doctor"
-  },
-  {
-   "key": "doctorContact",
-   "label": "Contact No"
   },
   {
    "key": "illness",
@@ -3758,10 +3742,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "DOB"
   },
   {
-   "key": "contactNo",
-   "label": "Contact No"
-  },
-  {
    "key": "insuredCardId",
    "label": "Insured ID number"
   },
@@ -3812,10 +3792,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "firstConsultDate",
    "label": "Date of first consultation"
-  },
-  {
-   "key": "provisionalDiagnosis",
-   "label": "Provisional diagnosis"
   },
   {
    "key": "icd10",
@@ -4222,6 +4198,10 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Currently do you have any other Mediclaim / Health insurance: Yes: _ _ _ _ No: _ _ _ _ Com"
   },
   {
+   "key": "hasFamilyPhysician",
+   "label": "Do you have a family physician (Yes / No)"
+  },
+  {
    "key": "familyPhysicianName",
    "label": "Do you have a family physician: Yes: _ _ _ _ No: _ _ _ _ l) Name of the family physician"
   },
@@ -4294,12 +4274,24 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "How did injury occur"
   },
   {
+   "key": "isRta",
+   "label": "Is it RTA"
+  },
+  {
+   "key": "reportedToPolice",
+   "label": "Reported to Police"
+  },
+  {
    "key": "injuryDate",
    "label": "In case of accident: I) is it RTA: Yes_ _ _ _ No_ _ _ _ ii) Date of injury"
   },
   {
    "key": "firNo",
    "label": "FIR No"
+  },
+  {
+   "key": "maternity",
+   "label": "In case of Maternity: G P L A"
   },
   {
    "key": "expectedDelivery",
@@ -4310,8 +4302,16 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Date of admission"
   },
   {
+   "key": "admissionTime",
+   "label": "Time of admission"
+  },
+  {
    "key": "admissionType",
    "label": "Is this an emergency / a planned hospitalization event?"
+  },
+  {
+   "key": "expectedDays",
+   "label": "Expected no. of days stay in hospital"
   },
   {
    "key": "roomType",
@@ -4569,7 +4569,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "roomRent",
-   "label": "Per Day Room Rent + Nursing & Service Charges + Patient’s Diet"
+   "label": "Per Day Room Rent + Nursing & Service Charges + Patientâ€™s Diet"
   },
   {
    "key": "investigationCost",
@@ -4724,6 +4724,10 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "familyPhysicianContact",
    "label": "Contact number, if any"
+  },
+  {
+   "key": "patientAddress",
+   "label": "Current Address of Insured patient"
   },
   {
    "key": "occupation",
@@ -5802,10 +5806,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Insurer name"
   },
   {
-   "key": "familyPhysicianContact",
-   "label": "Contact no"
-  },
-  {
    "key": "patientAddress",
    "label": "Address of insured patient"
   },
@@ -5931,7 +5931,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "roomRent",
-   "label": "Per Day Room Rent + Nursing & Service charges + Patient’s Diet"
+   "label": "Per Day Room Rent + Nursing & Service charges + Patientâ€™s Diet"
   },
   {
    "key": "investigationCost",
@@ -7516,10 +7516,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Toll free FAX"
   },
   {
-   "key": "hospitalEmail",
-   "label": "Email ID"
-  },
-  {
    "key": "patientName",
    "label": "Patient"
   },
@@ -7558,14 +7554,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "familyPhysicianName",
    "label": "Name of the family physician"
-  },
-  {
-   "key": "familyPhysicianContact",
-   "label": "Contact number"
-  },
-  {
-   "key": "doctorContact",
-   "label": "Contact number"
   },
   {
    "key": "illness",
@@ -8008,6 +7996,18 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
    "label": "Hospital Email ID"
   },
   {
+   "key": "age",
+   "label": "Age (years)"
+  },
+  {
+   "key": "altContactNo",
+   "label": "Contact number of attending relative"
+  },
+  {
+   "key": "contactNo",
+   "label": "Contact number"
+  },
+  {
    "key": "patientName",
    "label": "Name of the patient"
   },
@@ -8018,10 +8018,6 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "dob",
    "label": "Date of Birth"
-  },
-  {
-   "key": "contactNo",
-   "label": "contact No"
   },
   {
    "key": "insuredCardId",
@@ -8149,7 +8145,7 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   },
   {
    "key": "roomRent",
-   "label": "PerDayRoom Rent+Nursing & Servicecharges+Patient’s Diet"
+   "label": "PerDayRoom Rent+Nursing & Servicecharges+PatientÃ¢â‚¬â„¢s Diet"
   },
   {
    "key": "investigationCost",
@@ -8214,6 +8210,18 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "chronicHiv",
    "label": "Any HIV or STD / Related Ailments"
+  },
+  {
+   "key": "admissionType",
+   "label": "Is this an emergency / a planned hospitalization event"
+  },
+  {
+   "key": "expectedDays",
+   "label": "Expected no. of days stay in hospital"
+  },
+  {
+   "key": "pastHistory",
+   "label": "Past history of present ailment"
   }
  ],
  "tata-aig": [
@@ -8718,6 +8726,26 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "chronicHiv",
    "label": "Any HIV/ or STD Related ailments"
+  },
+  {
+   "key": "doctorName",
+   "label": "Name of the treating doctor"
+  },
+  {
+   "key": "clinicalFindings",
+   "label": "Relevant clinical findings"
+  },
+  {
+   "key": "durationDays",
+   "label": "Duration of the present ailment (days)"
+  },
+  {
+   "key": "pastHistory",
+   "label": "Past history of present ailment, if any"
+  },
+  {
+   "key": "surgeryName",
+   "label": "If Surgical, name of surgery"
   }
  ],
  "vidal": [
@@ -8800,6 +8828,10 @@ export const EXACT_FIELDS: Record<string, { key: string; label: string }[]> = {
   {
    "key": "familyPhysicianContact",
    "label": "Contact number, if any"
+  },
+  {
+   "key": "patientAddress",
+   "label": "Current Address of Insured patient"
   },
   {
    "key": "occupation",

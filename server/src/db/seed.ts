@@ -11,6 +11,7 @@ import { randomBytes } from "node:crypto";
 import { hashPassword } from "@/auth/password";
 import { defaultLocationPlan, rackFor, DEFAULT_FOLDERS, DEFAULT_POLICIES } from "@/services/mrd-defaults";
 import { consentForm } from "@shared/types/consent-catalog";
+import { PREAUTH_FORMS } from "@shared/lib/preauth/forms.generated";
 import { DEFAULT_STERILIZERS } from "@shared/types/cssd";
 import { DEFAULT_LEAVE_TYPES, DEFAULT_SHIFTS } from "@shared/types/hr";
 
@@ -383,6 +384,45 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
       billId++;
     }
   }
+
+  // ── A test patient with a fully filled pre-auth form for every insurer and TPA, so each can be opened, printed and downloaded ──
+  const TEST_PATIENT_ID = 201, TEST_ADMISSION_ID = 201;
+  const testDoctor = doctorsData.find((d) => d.name === "Dr. Sophia Adams") ?? doctorsData[0];
+  const testDoctorId = findDoctorId(testDoctor.name);
+  const testPatient: Row = {
+    id: TEST_PATIENT_ID, hospital_id: 1, patient_code: "HMS-0201", name: "Meera Kapoor", age: 45, gender: "Female", phone: "+91 98765 11201", email: "meera.kapoor@example.com", blood_group: "O+", dob: "1981-03-15",
+    reason: "Fever with cough and breathlessness", doctor_id: testDoctorId, doctor: testDoctor.name, status: "Completed", visit_date: "2026-11-08", visit_time: "10:15 AM",
+    address: "B-402, Lake View Apartments, Andheri West", city: "Mumbai", state: "Maharashtra", pincode: "400053", allergies: "Penicillin", chronic_conditions: "Type 2 diabetes, Hypertension",
+    abha_id: "91-2345-6789-0123", emergency_name: "Rahul Kapoor", emergency_relation: "Husband", emergency_phone: "+91 98765 11202", insurer: "Star Health", policy_number: "POL-445566-77", corporate: "Samvaad Technologies",
+    created_at: ts, updated_at: ts,
+  };
+  const testAdmission: Row = {
+    id: TEST_ADMISSION_ID, hospital_id: 1, patient_id: TEST_PATIENT_ID, patient_name: testPatient.name, patient_age: 45, patient_code: "HMS-0201", admission_date: "2026-11-08", ward_id: null, ward: "General Ward", bed_id: null, bed: "G-21",
+    doctor_id: testDoctorId, doctor: testDoctor.name, diagnosis: "Community acquired pneumonia", credit_limit: 150000, status: "Admitted", admission_no: "ADM/2026/00201", admission_type: "Emergency", is_mlc: false,
+    family_name: "Rahul Kapoor", family_relation: "Husband", family_phone: "+91 98765 11202", deposit_amount: 20000, deposit_mode: "UPI", primary_nurse_id: null, primary_nurse: "", expected_stay_days: 5, diet: "Soft diet", created_at: ts, updated_at: ts,
+  };
+  const testPreauthValues = (insurer: string): Record<string, string> => ({
+    tpaName: insurer, tollFreePhone: "1800 266 4545", hospitalName: "Samvaad Multispecialty Hospital", hospitalAddress: "42, Health City Road, Andheri East", hospitalCity: "Mumbai", hospitalState: "Maharashtra", hospitalPincode: "400069",
+    rohiniId: "8900080123456", hospitalPhone: "02245678900", hospitalEmail: "admin@samvaadhospital.in",
+    patientName: "Meera Kapoor", gender: "Female", age: "45", dob: "1981-03-15", contactNo: "9876511201", altContactNo: "9876511202", insuredCardId: "SH-77821904", policyNo: "POL-445566-77 / Samvaad Technologies", employeeId: "EMP-1042",
+    panNo: "ABCPK1234F", proposerName: "Rahul Kapoor", otherInsurance: "No", hasFamilyPhysician: "Yes", familyPhysician: "Dr. R. Mehta, 9822011223", familyPhysicianName: "Dr. R. Mehta", familyPhysicianContact: "9822011223",
+    patientAddress: "B-402, Lake View Apartments, Andheri West, Mumbai 400053", occupation: "Software engineer", insuredEmail: "meera.kapoor@example.com", idProofName: "Aadhaar", idNumber: "XXXX-XXXX-4821",
+    doctorName: testDoctor.name, doctorContact: "9876500001",
+    illness: "Fever with chills and productive cough for 5 days, shortness of breath on exertion, loss of appetite and body ache",
+    clinicalFindings: "Febrile 101.2 F, BP 130/84, pulse 96/min, SpO2 93% on room air, bilateral basal crepitations on chest auscultation",
+    durationDays: "5", firstConsultDate: "2026-11-05", pastHistory: "Known hypertensive for 6 years on Telmisartan 40 mg, type 2 diabetic for 4 years on Metformin, no prior surgeries",
+    provisionalDiagnosis: "Community acquired pneumonia", icd10: "J18.9", lineOfTreatment: "Medical management", investigationDetails: "CBC, CRP, chest X-ray PA, blood culture, serum electrolytes, renal function tests",
+    drugRoute: "IV antibiotics for 3 days, then oral", surgeryName: "Not applicable", icd10pcs: "0W9G30Z", otherTreatment: "Nebulisation and chest physiotherapy", injuryHow: "Not applicable", isRta: "No", reportedToPolice: "No",
+    substanceAbuse: "No", substanceTest: "No", admissionDate: "2026-11-08", admissionTime: "10:45", admissionType: "Emergency", expectedDays: "5", icuDays: "1", roomType: "Semi private", roomRent: "3000",
+    investigationCost: "6500", icuCharges: "8000", otCharges: "0", professionalFees: "8000", medicinesCost: "12000", otherExpenses: "2500", packageCharges: "0", totalCost: "58000",
+    chronicDiabetes: "03/2022", chronicHypertension: "06/2020", declPatientName: "Meera Kapoor", declPatientContact: "9876511201", declPatientEmail: "meera.kapoor@example.com",
+    declDoctorName: testDoctor.name, declQualification: "MD (Medicine)", declRegNo: "MMC-48211", declDate: "2026-11-08", declTime: "11:30",
+  });
+  const preauthForms: Row[] = PREAUTH_FORMS.map((def, i) => ({
+    id: i + 1, hospital_id: 1, form_key: def.key, form_name: def.name, patient_id: TEST_PATIENT_ID, patient_name: "Meera Kapoor", admission_id: TEST_ADMISSION_ID, doctor_id: testDoctorId, doctor_name: testDoctor.name, status: "Draft",
+    values: testPreauthValues(def.name), created_by_id: null, created_by: "Dr. Kevin Carter", doctor_signed_at: null, doctor_signed_by: null, doctor_signature_img: null, doctor_stamp_img: null, stamped_at: null, stamped_by: null,
+    hospital_stamp_img: null, created_at: ts, updated_at: ts,
+  }));
 
   // ── Wards + beds ─────────────────────────────────────────────────────────
   const wardNames = Array.from(new Set(bedsData.map((b) => b.ward)));
@@ -1513,7 +1553,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.hospitalRadiologyLinks]: [],
     [TABLES.labCenters]: labCenters,
     [TABLES.hospitalLabLinks]: [],
-    [TABLES.patients]: [...patients, h2Patient],
+    [TABLES.patients]: [...patients, h2Patient, testPatient],
+    [TABLES.preauthForms]: preauthForms,
     [TABLES.appointments]: appointments,
     [TABLES.opdVisits]: opdVisits,
     [TABLES.medicines]: medicines,
@@ -1525,7 +1566,7 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     [TABLES.billItems]: billItems,
     [TABLES.wards]: wards,
     [TABLES.beds]: beds,
-    [TABLES.ipdAdmissions]: ipdAdmissions,
+    [TABLES.ipdAdmissions]: [...ipdAdmissions, testAdmission],
     [TABLES.otSchedules]: [...otSchedules, ...otCurrent],
     [TABLES.otRooms]: otRooms,
     [TABLES.otEquipment]: otEquipment,
