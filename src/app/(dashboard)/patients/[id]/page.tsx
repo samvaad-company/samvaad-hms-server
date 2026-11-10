@@ -16,6 +16,7 @@ import {
   AlertCircle, Check, ChevronDown, ChevronLeft, Loader2, Copy, IdCard, ShieldCheck, Phone,
 } from "lucide-react";
 import Link from "next/link";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 type PatientDetail = PatientDTO & {
   prescriptions: PrescriptionDTO[];
@@ -666,7 +667,7 @@ export default function PatientDetailPage() {
           <div className="w-12 h-12 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center text-[16px] font-medium text-[color:var(--brand)] shrink-0">{initials}</div>
           <div className="flex-1 min-w-0 flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-[20px] font-medium text-[color:var(--ink)] leading-tight">{patient.name}</h1>
+              <h1 className="text-[20px] font-medium text-[color:var(--ink)] leading-tight"><PatientName id={patient.id} name={patient.name} size={16} /></h1>
               {patient.patientId && (
                 <span className="inline-flex items-center gap-2 text-[14px] font-mono text-[color:var(--ink-soft)]">
                   {patient.patientId} <CopyButton text={patient.patientId} label="Copy patient ID" />

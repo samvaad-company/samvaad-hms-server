@@ -25,7 +25,7 @@ import {
 function assertMayManage(doctor: DoctorRow | null, actor: Session): asserts doctor is DoctorRow {
   assertOwnedByHospital(doctor, actor, "Doctor");
   const own = actor.role === "Doctor" && actor.doctorId === doctor.id;
-  if (!own && !can(actor.role, "doctors", "write")) throw new ForbiddenError("Only the doctor or an administrator can change this schedule");
+  if (!own && !can(actor.role, "doctors", "write", actor.hospitalId)) throw new ForbiddenError("Only the doctor or an administrator can change this schedule");
 }
 
 async function describe(doctor: DoctorRow) {

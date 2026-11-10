@@ -20,6 +20,7 @@ import { TabBar } from "@/components/shared/TabBar";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── TPA Master Tab ───────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ const CLAIM_FILTERS = [
 function ClaimRow({ row, actions }: { row: TpaClaimDTO; actions: RowAction[] }) {
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={row.patientId} name={row.patientName} /></span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.tpaName}</span>
       <span className="text-[13px] font-normal text-[color:var(--brand)] whitespace-nowrap">{row.billNumber || "—"}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] text-right">₹{row.claimAmount.toLocaleString("en-IN")}</span>
@@ -187,7 +188,7 @@ export default function TpaPage() {
               placeholder="Search patient by name, ID or phone…"
               value={claimForm.patientId}
               onChange={v => setClaimForm(f => ({ ...f, patientId: v }))}
-              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+              options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
             />
           </FormRow>
           <FormRow label="Bill Number"><FormInput placeholder="INV-..." value={claimForm.billNumber} onChange={v => setClaimForm(f => ({ ...f, billNumber: v }))} /></FormRow>

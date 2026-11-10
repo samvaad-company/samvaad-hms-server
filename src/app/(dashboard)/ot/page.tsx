@@ -28,6 +28,7 @@ import { RoomsDialog } from "@/components/ot/RoomsDialog";
 import { EquipmentDialog } from "@/components/ot/EquipmentDialog";
 import { addDays, btn, dayLabel, mondayOf, STATUS_STYLE, surgeryOf, todayLocal, type SlotRequest } from "@/components/ot/shared";
 import type { OtOptionsDTO, OtRecordDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const VIEWS = ["table", "day", "week", "register"] as const;
 type View = (typeof VIEWS)[number];
@@ -134,7 +135,7 @@ function OtPageInner() {
                   <div key={b.id} role="link" tabIndex={0} onClick={() => setOpenId(b.id)} onKeyDown={(e) => { if (e.key === "Enter") setOpenId(b.id); }}
                     className={`${tw.table.dataRow} cursor-pointer focus:outline-none focus-visible:bg-[color:var(--faint)]`} style={{ gridTemplateColumns: "var(--cols)" }}>
                     <span className="font-mono text-[12px] text-[color:var(--ink-soft)] truncate">{b.bookingNo}</span>
-                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{b.patientName}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={b.patientId} name={b.patientName} /></span>
                     <span className="text-[13px] text-[color:var(--ink)] truncate">{surgeryOf(b)}{b.caseType === "Emergency" && <span className="ml-2 rounded-full bg-[#ffe3e5] px-[6px] text-[10px] font-semibold text-[#b3001b]">Emergency</span>}</span>
                     <span><span className="inline-flex items-center rounded-full bg-[color:var(--subtle-3)] px-2 py-[3px] text-[11px] font-medium text-[color:var(--ink)] whitespace-nowrap">{b.otRoom}</span></span>
                     <span className="text-[13px] text-[color:var(--ink)] truncate">{b.surgeon}</span>

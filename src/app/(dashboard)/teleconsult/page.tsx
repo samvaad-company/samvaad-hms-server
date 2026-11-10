@@ -16,6 +16,7 @@ import { BookingLinkModal } from "@/components/teleconsult/BookingLinkModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { api } from "@/lib/api/client";
 import type { AppointmentDTO, TeleconsultConfigDTO, TeleconsultPaymentsDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLS = "minmax(150px,1.2fr) minmax(140px,1fr) 130px 110px 110px minmax(280px,1.5fr) 90px";
 const PAY_COLS = "minmax(110px,1fr) minmax(100px,0.9fr) 92px 72px 112px minmax(130px,1fr) minmax(200px,1.7fr) 100px";
@@ -175,7 +176,7 @@ export default function TeleconsultPage() {
               ) : rows.map(a => (
                 <div key={a.id} className="grid items-center px-5 min-h-[60px] py-2 border-b border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors" style={{ gridTemplateColumns: COLS }}>
                   <div className="min-w-0">
-                    <Link href={`/appointments/${a.id}`} className="block text-[13px] font-medium text-[color:var(--ink)] truncate hover:underline">{a.patientName}</Link>
+                    <Link href={`/appointments/${a.id}`} className="block text-[13px] font-medium text-[color:var(--ink)] truncate hover:underline"><PatientName id={a.patientId} name={a.patientName} /></Link>
                     <span className="block text-[11px] font-light text-[color:var(--ink-soft)] truncate">{a.reason}</span>
                   </div>
                   <span className="text-[13px] text-[color:var(--ink)] truncate pr-2">{a.doctor}</span>
@@ -248,7 +249,7 @@ function PaymentsTable({ data, search, canWrite, onChanged }: { data: Teleconsul
           <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No payments{q ? " match that search" : " yet"}.</div>
         ) : rows.map(i => (
           <div key={i.id} className="grid items-center px-5 min-h-[64px] py-2 border-b border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors text-[13px]" style={{ gridTemplateColumns: PAY_COLS }}>
-            <span className="font-medium text-[color:var(--ink)] truncate pr-2">{i.patientName}</span>
+            <span className="font-medium text-[color:var(--ink)] truncate pr-2"><PatientName id={i.patientId} name={i.patientName} /></span>
             <span className="truncate pr-2">{i.doctorName}</span>
             <span>{formatDate(i.date)}<span className="block text-[11px] font-light text-[color:var(--ink-soft)]">{i.time}</span></span>
             <span>{i.amount > 0 ? `₹${i.amount.toLocaleString("en-IN")}` : "—"}</span>

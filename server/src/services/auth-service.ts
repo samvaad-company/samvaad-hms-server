@@ -72,6 +72,6 @@ export function sessionUser(session: Session): SessionUserDTO {
     radiologyCenterId: session.radiologyCenterId,
     labCenterId: session.labCenterId,
     doctorId: session.doctorId,
-    permissions: permissionsFor(session.role),
+    permissions: permissionsFor(session.role, session.hospitalId),
   };
 }

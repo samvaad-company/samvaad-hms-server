@@ -143,7 +143,7 @@ export function AdmitDialog({
               placeholder="Search patient…"
               value={patientId}
               onChange={setPatientId}
-              options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+              options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
             />
           </section>
 

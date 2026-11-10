@@ -3,7 +3,7 @@
  * Reads the session from the request cookie, enforces auth + RBAC, and
  * sets/clears the session cookie on responses.
  */
-import { readCookie } from "@/http/request-context";
+import { currentRequest, readCookie } from "@/http/request-context";
 import { type ApiResponse } from "@/http/web";
 import { getConfig } from "@/config/env";
 import {
@@ -25,6 +25,8 @@ export async function getSession(): Promise<Session | null> {
   const session = await verifyToken(readCookie(cfg.sessionCookieName));
   // Signing in is refused for a paused hospital; sessions already open must stop working too.
   if (session?.hospitalId != null && !(await hospitalIsOpen(session.hospitalId))) return null;
+  // What this hospital's admin has changed about each role's access (reloaded every few seconds).
+  if (session?.hospitalId != null) await (await import("@/services/role-access-service")).ensureRoleAccess(session.hospitalId);
   return session;
 }
 
@@ -35,16 +37,23 @@ export async function requireSession(): Promise<Session> {
   return session;
 }
 
+/** POST adds, PUT/PATCH changes, DELETE deletes. */
+function writeKindOf(method: string | undefined): Action {
+  const m = (method ?? "POST").toUpperCase();
+  return m === "DELETE" ? "delete" : m === "PUT" || m === "PATCH" ? "edit" : "add";
+}
+
 /** Require a session with permission on a resource or throw 401/403. */
 export async function requirePermission(
   resource: Resource,
   action: Action = "read",
 ): Promise<Session> {
   const session = await requireSession();
-  if (!can(session.role, resource, action)) {
-    throw new ForbiddenError(
-      `Your role (${session.role}) cannot ${action} ${resource}.`,
-    );
+  // "write" on a route means "changes something": what that needs depends on what the request does.
+  const needed: Action = action === "write" ? writeKindOf(currentRequest()?.method) : action;
+  if (!can(session.role, resource, needed, session.hospitalId)) {
+    const verb = { read: "view", add: "add to", edit: "change", delete: "delete from", write: "change" }[needed];
+    throw new ForbiddenError(`Your role (${session.role}) cannot ${verb} ${resource}.`);
   }
   return session;
 }

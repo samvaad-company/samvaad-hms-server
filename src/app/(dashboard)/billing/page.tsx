@@ -26,6 +26,7 @@ import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { Bill } from "@/types";
 import { RankPill } from "@/components/loyalty/LoyaltyCard";
 import type { LoyaltyPricingDTO } from "@/types/loyalty";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── All Bills ────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
   return (
     <Link href={`/billing/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
       <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{row.billNumber}</span>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName name={row.patientName} /></span>
       <div>
         <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"}`}>{row.type}</span>
       </div>
@@ -188,7 +189,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             placeholder="Search patient by name, ID or phone…"
             value={patientId}
             onChange={v => { setPatientId(v); setChoice(undefined); setDiscountEdited(false); cardLineFor.current = ""; setItems(prev => { const kept = prev.filter(i => !i.card); return kept.length ? kept : [blankLine()]; }); }}
-            options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+            options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
           />
         </FormRow>
         <FormRow label="Bill Type *">
@@ -400,7 +401,7 @@ function LookupView({ bills }: { bills: BillDTO[] }) {
                 className="border border-[color:var(--line)] rounded-[10px] p-4 flex items-start justify-between gap-4 bg-[color:var(--surface)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-shadow">
                 <div className="flex flex-col gap-[6px]">
                   <span className="text-[14px] font-medium text-[color:var(--brand)]">{b.billNumber}</span>
-                  <span className="text-[13px] font-normal text-[color:var(--ink)]">{b.patientName}</span>
+                  <span className="text-[13px] font-normal text-[color:var(--ink)]"><PatientName id={b.patientId} name={b.patientName} /></span>
                   <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{b.type} · {b.date}</span>
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">

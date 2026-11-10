@@ -15,6 +15,7 @@ import { FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { BloodCrossmatchDTO, BloodUnitDTO, PatientDTO } from "@/types/api";
 import { btn, compatible, Empty, mono, Pill, SectionHead, stamp, td, th } from "@/components/bloodbank/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 async function attempt(p: Promise<unknown>) { try { await p; return true; } catch { return false; } }
 const label = "text-[14px] font-medium text-[color:var(--ink)]";
@@ -44,7 +45,7 @@ function RequestDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2"><span className={label}>Patient</span>
           <SearchSelect placeholder="Search patient..." value={patientId} onChange={(v) => { setPatientId(v); setUnitId(""); }}
-            options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} ${p.bloodGroup ?? ""}` }))} />
+            options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} ${p.bloodGroup ?? ""}` }))} />
           {patient && <p className="text-[12px] text-[color:var(--ink-soft)]">{patient.bloodGroup ? `Blood group on record: ${patient.bloodGroup}` : "No blood group on record — the unit can't be checked against it, so confirm the patient's group first."}</p>}
         </div>
         <div className="flex flex-col gap-2"><span className={label}>Unit (available only - the five-flag serology gate)</span>
@@ -83,7 +84,7 @@ export function CrossmatchView({ canWrite }: { canWrite: boolean }) {
             {rows.map((x) => (
               <tr key={x.id} className="border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
                 <td className={`${td} ${mono}`}>{x.xmNo}</td>
-                <td className={td}>{x.patientName} <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{x.patientCode}</span></td>
+                <td className={td}><PatientName id={x.patientId} name={x.patientName} /> <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{x.patientCode}</span></td>
                 <td className={`${td} ${mono}`}>{x.unitNo} <span className="font-sans text-[color:var(--ink-soft)]">{x.unitGroup}</span></td>
                 <td className={`${td} ${mono}`}>{stamp(x.requestedAt)}</td>
                 <td className={`${td} ${mono} ${x.result === "compatible" ? "text-[#0b7a47]" : x.result === "incompatible" ? "text-[#c8001a]" : "text-[color:var(--ink-soft)]"}`}>{x.result}</td>

@@ -16,6 +16,7 @@ import { AiReviewCard } from "@/components/prescriptions/AiReviewCard";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PrescriptionDTO, RxAiReviewDTO, RxFindingSeverity } from "@/types/api";
 import { ArrowLeft, Pill, Printer, Download, QrCode, HelpCircle, ChevronDown } from "lucide-react";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const SEVERITY_TAG: Record<RxFindingSeverity, string> = {
   critical: "bg-[#ffe3e5] text-[#b3001b] border-[#f4a3ac]",
@@ -91,7 +92,7 @@ export default function PrescriptionDetailPage() {
         <Pill size={18} className="text-[color:var(--ink-soft)] shrink-0" />
         <div className="min-w-0">
           <p className="text-[15px] leading-[20px] text-[color:var(--ink)] truncate">
-            <span className="font-semibold">{rx.patientName}</span>
+            <span className="font-semibold"><PatientName id={rx.patientId} name={rx.patientName} /></span>
             {rx.patient?.code && <span className="ml-2 font-mono text-[12px] text-[color:var(--ink-soft)]">{rx.patient.code}</span>}
             <span className="ml-2 text-[12px] text-[color:var(--ink-soft)]">
               {rx.patientAge} yrs{rx.patient?.gender ? ` · ${rx.patient.gender}` : ""}
@@ -182,7 +183,7 @@ export default function PrescriptionDetailPage() {
           <div>
             <p className="text-[12px] font-semibold text-[color:var(--ink)]">Patient</p>
             <p className="mt-1 text-[13px] text-[color:var(--ink-soft)]">
-              {rx.patientName} · {rx.patientAge} yrs{rx.patient?.gender ? ` · ${rx.patient.gender}` : ""}
+              <PatientName id={rx.patientId} name={rx.patientName} /> · {rx.patientAge} yrs{rx.patient?.gender ? ` · ${rx.patient.gender}` : ""}
             </p>
             {rx.patient?.code && <p className="font-mono text-[12px] text-[color:var(--ink-soft)]">{rx.patient.code}</p>}
           </div>
@@ -219,7 +220,7 @@ export default function PrescriptionDetailPage() {
           <div className="px-8 py-4 grid grid-cols-2 gap-4 border-b border-[color:var(--subtle-2)]">
             <div className="flex flex-col gap-1">
               <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Patient</p>
-              <p className="text-[15px] font-medium text-[color:var(--ink)]">{rx.patientName}</p>
+              <p className="text-[15px] font-medium text-[color:var(--ink)]"><PatientName id={rx.patientId} name={rx.patientName} /></p>
               <p className="text-[12px] font-light text-[color:var(--ink-soft)]">
                 {rx.patientAge} years{rx.patient?.gender ? ` · ${rx.patient.gender}` : ""}{rx.patient?.code ? ` · ${rx.patient.code}` : ""}
               </p>

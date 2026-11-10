@@ -126,6 +126,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.loyaltyAdjustments]: ["hospital_id", "patient_id"],
   [TABLES.awarenessEvents]: ["hospital_id", "status", "published_at"],
   [TABLES.awarenessReads]: ["patient_id", "event_id"],
+  [TABLES.caseFileEntries]: ["hospital_id", "admission_id", "form_key"],
   [TABLES.preauthForms]: ["hospital_id", "patient_id", "status", "doctor_id"],
   [TABLES.signatureAssets]: ["hospital_id", "owner_id", "kind"],
   [TABLES.notifications]: ["hospital_id", "user_id", "read_at"],

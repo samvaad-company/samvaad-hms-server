@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { DoctorFormModal } from "@/components/doctors/DoctorFormModal";
 import { DoctorScheduleEditor } from "@/components/scheduling/DoctorScheduleEditor";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 
 function StatCard({ icon: Icon, value, label, color }: { icon: typeof Users; value: string; label: string; color: string }) {
@@ -51,7 +52,7 @@ function TodayPatientsTab({ doctorName, queue }: { doctorName: string; queue: Op
         <div key={r.id} className="flex items-center gap-4 px-6 py-4">
           <span className="text-[16px] font-medium text-[color:var(--brand)] w-14">{r.tokenNumber}</span>
           <div className="flex-1">
-            <div className="text-[14px] font-medium text-[color:var(--ink)]">{r.patientName}</div>
+            <div className="text-[14px] font-medium text-[color:var(--ink)]"><PatientName id={r.patientId} name={r.patientName} /></div>
             <div className="text-[12px] font-light text-[color:var(--ink-soft)]">{r.patientAge} yrs · Check-in {r.checkInTime}</div>
           </div>
           <StatusBadge status={r.status} />

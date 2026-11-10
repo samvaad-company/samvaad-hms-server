@@ -24,6 +24,7 @@ import { Modal } from "@/components/shared/Modal";
 import { inDateRange, type DateRangeId, formatDate } from "@/lib/dates";
 import Link from "next/link";
 import type { Appointment } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── All Appointments ─────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ const MIN_WIDTH = 1180;
 function AppointmentRow({ row, actions }: { row: Appointment; actions: RowAction[] }) {
   return (
     <Link href={`/appointments/${row.id}`} className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName name={row.patientName} /></span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
@@ -120,7 +121,7 @@ function QueueView({ opdRecords, onCallNext, canCallNext }: { opdRecords: OpdRec
             >
               <span className="text-[15px] font-medium text-[color:var(--brand)]">{row.tokenNumber}</span>
               <div className="flex flex-col min-w-0">
-                <span className="text-[14px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+                <span className="text-[14px] font-medium text-[color:var(--ink)] truncate"><PatientName id={row.patientId} name={row.patientName} /></span>
                 <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{row.patientAge} yrs</span>
               </div>
               <span className="text-[14px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
@@ -208,7 +209,7 @@ function ScheduleView({ doctors, appointments }: { doctors: DoctorDTO[]; appoint
                 <span className="text-[13px] font-medium text-[color:var(--brand)] w-[72px] shrink-0 whitespace-nowrap">{s.time}</span>
                 <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[14px] font-medium text-[color:var(--ink)]">{s.patientName}</span>
+                    <span className="text-[14px] font-medium text-[color:var(--ink)]"><PatientName id={s.patientId} name={s.patientName} /></span>
                     <StatusBadge status={s.status} />
                   </div>
                   {s.reason && <span className="text-[12px] font-light text-[color:var(--ink-soft)]">{s.reason}</span>}

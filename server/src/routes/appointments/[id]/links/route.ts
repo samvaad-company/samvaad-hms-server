@@ -16,7 +16,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 const update = withRoute(async (req: ApiRequest, ctx: Ctx) => {
   const session = await requireSession();
-  if (!can(session.role, "appointments", "write") && session.role !== "Doctor") throw new ForbiddenError(`Your role (${session.role}) cannot change who referred a patient or whose family they are.`);
+  if (!can(session.role, "appointments", "write", session.hospitalId) && session.role !== "Doctor") throw new ForbiddenError(`Your role (${session.role}) cannot change who referred a patient or whose family they are.`);
   const { id } = await ctx.params;
   return ok(await setAppointmentLinks(parseId(id), await readJson(req), session));
 });

@@ -10,6 +10,7 @@ import { printElement } from "@/lib/print";
 import { formatDate } from "@/lib/dates";
 import type { OtRecordDTO } from "@/types/api";
 import { addDays, btn, STATUS_STYLE, surgeryOf, todayLocal } from "@/components/ot/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function RegisterView({ bookings, onOpen }: { bookings: OtRecordDTO[]; onOpen: (b: OtRecordDTO) => void }) {
   const [from, setFrom] = useState(addDays(todayLocal(), -30));
@@ -50,7 +51,7 @@ export function RegisterView({ bookings, onOpen }: { bookings: OtRecordDTO[]; on
                 <tr key={b.id} onClick={() => onOpen(b)} className="cursor-pointer border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)] text-[14px] text-[color:var(--ink)]">
                   <td className="px-4 py-[10px] font-mono text-[13px] whitespace-nowrap">{b.scheduledDate}</td>
                   <td className="px-4 py-[10px] font-mono text-[13px] whitespace-nowrap">{b.bookingNo}</td>
-                  <td className="px-4 py-[10px]">{b.patientName} {b.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{b.patientCode}</span>}</td>
+                  <td className="px-4 py-[10px]"><PatientName id={b.patientId} name={b.patientName} /> {b.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{b.patientCode}</span>}</td>
                   <td className="px-4 py-[10px]">{b.surgeon || "—"}</td>
                   <td className="px-4 py-[10px]">{surgeryOf(b)}</td>
                   <td className="px-4 py-[10px] font-mono text-[13px] whitespace-nowrap" title={b.actualMin != null ? "Actual" : "Planned"}>{b.actualMin ?? b.durationMin} min</td>

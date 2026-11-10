@@ -31,7 +31,7 @@ async function assertAdmissionOwned(admissionId: number, actor: Session) {
 
 /** Medicine orders are the prescriber's: a nurse who can admit and chart on the ward still can't write or cancel them. */
 function requireOrderingRole(actor: Session): void {
-  if (!can(actor.role, "prescriptions", "write")) throw new ForbiddenError("A nurse cannot write orders — that is the doctor's");
+  if (!can(actor.role, "prescriptions", "write", actor.hospitalId)) throw new ForbiddenError("A nurse cannot write orders — that is the doctor's");
 }
 
 /** A list call must be scoped to one admission — otherwise it would span every hospital. */

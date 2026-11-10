@@ -12,6 +12,7 @@ import { useItem } from "@/lib/api/hooks";
 import { formatDate } from "@/lib/dates";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { AppointmentDTO, DoctorDTO, PatientDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export interface PanelAction {
   label: string;
@@ -66,7 +67,7 @@ export function AppointmentSidePanel({ appt, doctor, actions, onClose }: {
                 {appt.patientName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-[16px] font-medium text-[color:var(--ink)] truncate">{appt.patientName}</h2>
+                <h2 className="text-[16px] font-medium text-[color:var(--ink)] truncate"><PatientName id={appt.patientId} name={appt.patientName} /></h2>
                 <p className="text-[12px] text-[color:var(--ink-soft)]">
                   {appt.patientAge}y{patient?.gender ? ` · ${patient.gender}` : ""}{patient?.patientId ? ` · ${patient.patientId}` : ""}
                 </p>

@@ -13,6 +13,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput } from "@/components/shared/FormRow";
 import type { IpdChecklistDTO } from "@/types/api";
 import { btn, done, when } from "@/components/ipd/nurse/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export const STATUS_PILL: Record<IpdChecklistDTO["status"], string> = {
   "In progress": "bg-[#e8f1ff] text-[#0a5fc4]",
@@ -66,7 +67,7 @@ export function ChecklistDrawer({ id, canWrite, onClose }: { id: number; canWrit
         <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-3">
           <div className="min-w-0">
             <h2 className="text-[17px] font-semibold text-[color:var(--ink)]">{c?.name ?? "…"}</h2>
-            {c && <p className="text-[13px] text-[color:var(--ink-soft)]">{c.patientName} · <span className="font-mono">{c.patientCode}</span></p>}
+            {c && <p className="text-[13px] text-[color:var(--ink-soft)]"><PatientName id={c.patientId} name={c.patientName} /> · <span className="font-mono">{c.patientCode}</span></p>}
           </div>
           <div className="flex items-center gap-3">
             {c && <span className={`rounded-full px-3 py-[2px] text-[12px] font-medium ${STATUS_PILL[c.status]}`}>{c.status}</span>}
@@ -81,7 +82,7 @@ export function ChecklistDrawer({ id, canWrite, onClose }: { id: number; canWrit
               <span className="font-mono text-[12px] text-[color:var(--ink)] whitespace-nowrap">{c.done} of {c.total}</span>
             </div>
             <div ref={printRef} className="min-h-0 flex-1 overflow-y-auto border-t border-[color:var(--line)] px-3 py-2">
-              <div className="hidden print:block px-3 pb-2"><b>{c.name}</b> — {c.patientName} {c.patientCode} — {c.status}</div>
+              <div className="hidden print:block px-3 pb-2"><b>{c.name}</b> — <PatientName id={c.patientId} name={c.patientName} /> {c.patientCode} — {c.status}</div>
               {c.items.map((it) => {
                 const kids = it.children ?? [];
                 const tk = (k: string) => c.ticks[k];

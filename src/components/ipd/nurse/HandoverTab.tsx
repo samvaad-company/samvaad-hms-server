@@ -9,6 +9,7 @@ import { api } from "@/lib/api/client";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import type { IpdHandoverDTO } from "@/types/api";
 import { btn, cardCls, clock, Empty, useAutoRefresh, type WardPatient, done } from "@/components/ipd/nurse/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 interface HandoverDTO {
   shift: "Morning" | "Evening" | "Night";
@@ -43,7 +44,7 @@ function Card({ p, notes, canWrite, onAdded }: { p: WardPatient; notes: IpdHando
   return (
     <li className={`${cardCls} px-4 py-3`}>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[15px] font-semibold text-[color:var(--ink)]">{p.adm.patientName} <span className="font-mono text-[12px] font-normal text-[color:var(--ink-soft)]">{p.adm.bed || "No bed"} · {p.adm.ward}</span></p>
+        <p className="text-[15px] font-semibold text-[color:var(--ink)]"><PatientName id={p.adm.patientId} name={p.adm.patientName} /> <span className="font-mono text-[12px] font-normal text-[color:var(--ink-soft)]">{p.adm.bed || "No bed"} · {p.adm.ward}</span></p>
         <p className="truncate text-[12px] text-[color:var(--ink-soft)]">{p.adm.diagnosis || "No diagnosis recorded"}</p>
       </div>
       <div className="mt-2"><Pending p={p} /></div>

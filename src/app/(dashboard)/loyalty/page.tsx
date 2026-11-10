@@ -14,6 +14,7 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Stars, RankPill } from "@/components/loyalty/LoyaltyCard";
 import { AdjustPointsModal, MemberDetailModal } from "@/components/loyalty/LoyaltyModals";
 import type { LoyaltyLinkDTO, LoyaltyListDTO, LoyaltyMemberDTO, LoyaltyProgram } from "@/types/loyalty";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const TABS = [{ id: "members", label: "Members" }, { id: "links", label: "Referrals & family" }];
 const dmy = (s: string | null) => (s ? new Date(`${s}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
@@ -204,7 +205,7 @@ export default function LoyaltyPage() {
                   {links.map((l) => (
                     <div key={`${l.kind}-${l.patientId}-${l.otherId}`} className={`${tw.table.dataRow} !h-auto py-[10px]`} style={{ gridTemplateColumns: "var(--cols)" }}>
                       <span className="text-[12px] text-[color:var(--ink-soft)]">{dmy(l.date)}</span>
-                      <span className="min-w-0 truncate text-[13px] font-medium">{l.patientName}</span>
+                      <span className="min-w-0 truncate text-[13px] font-medium"><PatientName id={l.patientId} name={l.patientName} /></span>
                       <span className="text-[13px]">{l.kind === "referral" ? "Referred by" : `Family of${l.relation ? ` (${l.relation})` : ""}`}</span>
                       <span className="min-w-0 truncate text-[13px] font-medium">{l.otherName}</span>
                       <div className="flex justify-end">

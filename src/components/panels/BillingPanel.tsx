@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Receipt, IndianRupee, Clock, Wallet, ShieldCheck } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function BillingPanel() {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ export function BillingPanel() {
                 <div key={b.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
                     <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{b.billNumber}</span>
-                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{b.patientName} · {b.type} · {b.date}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]"><PatientName id={b.patientId} name={b.patientName} /> · {b.type} · {b.date}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{b.total.toLocaleString("en-IN")}</span>

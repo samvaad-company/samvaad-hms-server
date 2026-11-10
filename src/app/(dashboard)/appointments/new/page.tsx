@@ -16,6 +16,7 @@ import { Check, Loader2, UserPlus, Users } from "lucide-react";
 import { SlotPicker } from "@/components/scheduling/SlotPicker";
 import { LoyaltyLinksFields, type LinkValues } from "@/components/appointments/LoyaltyLinksFields";
 import { todayIso } from "@/lib/validators";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const STEPS = ["Patient", "Doctor & Slot", "Confirm"];
 const APPT_TYPES = [
@@ -167,7 +168,7 @@ function BookAppointment() {
                     value={patientId}
                     onChange={setPatientId}
                     options={patients.map(p => ({
-                      value: String(p.id),
+                      value: String(p.id), patientId: p.id,
                       label: p.name,
                       hint: `${p.patientId ?? ""} · ${p.phone}`,
                     }))}
@@ -180,7 +181,7 @@ function BookAppointment() {
                       {patient.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium text-[color:var(--ink)] truncate">{patient.name}</p>
+                      <p className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={patient.id} name={patient.name} /></p>
                       <div className="flex flex-wrap gap-[6px] mt-[3px]">
                         {[`${patient.age}y · ${patient.gender}`, patient.bloodGroup, patient.phone, patient.patientId].filter(Boolean).map(t => (
                           <Tag key={String(t)}>{t}</Tag>

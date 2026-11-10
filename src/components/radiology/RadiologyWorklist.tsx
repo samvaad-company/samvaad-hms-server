@@ -7,6 +7,7 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { PriorityBadge, PRIORITIES, PRIORITY_RANK } from "@/components/shared/PriorityBadge";
 import type { RadiologyTestDTO } from "@/types/api";
 import type { RadiologyPriority, RadiologyStatus } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 /** The worklist reads in radiology terms; the stored status names stay as they are. */
 const STATUS_LABEL: Record<RadiologyStatus, string> = {
@@ -230,7 +231,7 @@ export function RadiologyWorklist({
                 <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-120px)]">
                   <div className="flex items-baseline gap-2 min-w-0">
                     <button onClick={() => onViewPatient(t)} className="lg:truncate text-[15px] font-medium text-[color:var(--ink)] hover:text-[color:var(--brand)] cursor-pointer text-left">
-                      {t.patientName}
+                      <PatientName id={t.patientId} name={t.patientName} />
                     </button>
                     {t.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)] shrink-0">{t.patientCode}</span>}
                   </div>

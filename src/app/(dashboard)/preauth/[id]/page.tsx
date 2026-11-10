@@ -16,6 +16,7 @@ import { ExactPdfView } from "@/components/preauth/ExactPdfView";
 import { buildExactPdf, downloadBlob, hasExactForm, printBlob } from "@/lib/preauth/exact";
 import { PREAUTH_FORMS } from "@/lib/preauth/forms";
 import type { PreauthDTO, SignatureAssetsDTO } from "@/types/preauth";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export default function PreauthFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export default function PreauthFormPage() {
   const isItsDoctor = user?.role === "Doctor" && user.doctorId === form?.doctorId;
   const isAdmin = user?.role === "Super Admin";
   const canFill = !!form && (form.status === "Draft" || form.status === "Awaiting doctor") && (can("tpa", "write") || isItsDoctor);
-  const { item: assets } = useItem<SignatureAssetsDTO>(isItsDoctor || isAdmin ? "/signature-assets" : null);
+  const { item: assets, reload: reloadAssets } = useItem<SignatureAssetsDTO>(isItsDoctor || isAdmin ? "/signature-assets" : null);
 
   if (loadError) return <p className={`${tw.gutterX} py-16 text-center text-[14px] text-[color:var(--ink-soft)]`}>{loadError.message}</p>;
   if (loading || !form || !def) return <p className={`${tw.gutterX} py-16 text-center text-[14px] text-[color:var(--ink-soft)]`}>Loading…</p>;
@@ -46,6 +47,7 @@ export default function PreauthFormPage() {
   const save = async () => { await act(() => api.put(`/preauth/${form.id}`, { values })); setSaved(true); setTimeout(() => setSaved(false), 2000); };
   const send = async () => { if (dirty) await api.put(`/preauth/${form.id}`, { values }); await act(() => api.post(`/preauth/${form.id}/submit`)); };
   const sign = () => act(() => api.post(`/preauth/${form.id}/sign`, { values: { declQualification: values.declQualification ?? "", declRegNo: values.declRegNo ?? "" } }));
+  const turnOffAuto = async () => { reset(); await run(() => api.put("/signature-assets/auto-sign", { enabled: false })); reloadAssets(); };
   const stamp = () => act(() => api.post(`/preauth/${form.id}/stamp`));
   const remove = async () => { if (!confirm("Delete this pre-auth form?")) return; await run(() => api.del(`/preauth/${form.id}`)); router.push("/preauth"); };
   const title = `Pre-auth — ${form.patientName} — ${form.formName}`;
@@ -67,7 +69,7 @@ export default function PreauthFormPage() {
     <div className={`${tw.gutterX} mb-[30px] flex flex-col gap-4 pt-5`}>
       <div className={`${tw.surface.card} ${tw.radius.card} flex flex-wrap items-center gap-3 p-4`}>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-medium text-[color:var(--ink)]">{form.patientName}</p>
+          <p className="truncate text-[16px] font-medium text-[color:var(--ink)]"><PatientName id={form.patientId} name={form.patientName} /></p>
           <p className="truncate text-[12px] text-[color:var(--ink-soft)]">{form.formName} · Dr. {form.doctorName.replace(/^Dr\.?\s*/i, "") || "not chosen"}</p>
         </div>
         <StatusBadge status={form.status} />
@@ -88,12 +90,19 @@ export default function PreauthFormPage() {
           {isItsDoctor ? (needsSignature ? <>You haven&apos;t saved your signature yet. <button onClick={goSetup} className="font-medium underline cursor-pointer">Add your signature</button>, then come back to sign this form.</> : "Check the details, then sign. Your qualification and registration number go on the form.") : `Waiting for ${form.doctorName || "the doctor"} to sign.`}
         </p>
       )}
+      {form.doctorSignedAuto && isItsDoctor && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] bg-[#f1ecff] px-3 py-2 text-[13px] text-[#4b2a9c]">
+          <span>This form was signed for you automatically, because you have automatic signing turned on.</span>
+          {assets?.autoSign && <button onClick={turnOffAuto} disabled={acting} className="font-medium underline cursor-pointer disabled:opacity-50">Turn off automatic signing</button>}
+          {assets && !assets.autoSign && <span className="font-medium">Automatic signing is now off.</span>}
+        </p>
+      )}
       {form.status === "Awaiting stamp" && (
         <p className="rounded-[8px] bg-[#e8f4ff] px-3 py-2 text-[13px] text-[#0a5fc4]">
           {isAdmin ? (needsStamp ? <>The hospital stamp isn&apos;t saved yet. <button onClick={goSetup} className="font-medium underline cursor-pointer">Add the hospital stamp</button>, then come back to stamp this form.</> : `Signed by ${form.doctorSignedBy}. Stamp it to finish.`) : `Signed by ${form.doctorSignedBy}. Waiting for the hospital's admin to stamp it.`}
         </p>
       )}
-      {form.status === "Ready" && <p className="rounded-[8px] bg-[#dffff3] px-3 py-2 text-[13px] text-[#0b7a47]">Signed by {form.doctorSignedBy} and stamped by {form.stampedBy}. Ready to send to the insurer.</p>}
+      {form.status === "Ready" && <p className="rounded-[8px] bg-[#dffff3] px-3 py-2 text-[13px] text-[#0b7a47]">Signed by {form.doctorSignedBy}{form.doctorSignedAuto ? " (automatically)" : ""} and stamped by {form.stampedBy}. Ready to send to the insurer.</p>}
 
       {pdfError && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#ff0004]">{pdfError}</p>}
       {exact && (

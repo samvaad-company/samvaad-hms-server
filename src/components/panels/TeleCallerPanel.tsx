@@ -12,6 +12,7 @@ import type { AppointmentDTO, TeleconsultConfigDTO } from "@/types/api";
 import { tw } from "@/lib/design-system";
 import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
 import { PanelHeader, StatRow, WorklistCard, EmptyRow } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function TeleCallerPanel() {
   const { user } = useAuth();
@@ -39,7 +40,7 @@ export function TeleCallerPanel() {
             ) : open.map(a => (
               <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors">
                 <div className="flex flex-col min-w-0">
-                  <Link href={`/appointments/${a.id}`} className="text-[13px] font-medium text-[color:var(--ink)] truncate hover:underline">{a.patientName}</Link>
+                  <Link href={`/appointments/${a.id}`} className="text-[13px] font-medium text-[color:var(--ink)] truncate hover:underline"><PatientName id={a.patientId} name={a.patientName} /></Link>
                   <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{a.doctor} · {a.date} · {a.time}</span>
                 </div>
                 <ConsultLinkActions appt={a} canWrite onChanged={reload} />

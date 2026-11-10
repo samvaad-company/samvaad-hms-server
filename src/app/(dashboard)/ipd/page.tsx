@@ -23,6 +23,7 @@ import { done } from "@/components/ipd/nurse/shared";
 import { FormRow, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import { AdmitDialog } from "@/components/ipd/AdmitDialog";
 import type { IpdBoardDTO, IpdLiveDTO, IpdRecordDTO, StaffDTO, WardDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLUMNS = [
   { label: "Bed", width: "120px" },
@@ -272,7 +273,7 @@ function IpdPageInner() {
                     </div>
                     <div className="min-w-0">
                       <p className="flex items-baseline gap-2 min-w-0 leading-[19px]">
-                        <span className="text-[15px] font-semibold text-[color:var(--ink)] truncate">{r.patientName}</span>
+                        <span className="text-[15px] font-semibold text-[color:var(--ink)] truncate"><PatientName id={r.patientId} name={r.patientName} /></span>
                         <span className="text-[12px] text-[color:var(--ink-soft)] shrink-0">{[initial(r.gender), `${r.patientAge}y`].filter(Boolean).join(" · ")}</span>
                         {r.isMlc && <span className="shrink-0 rounded-full border border-[#f4a3ac] bg-[#ffe3e5] px-2 text-[10px] font-semibold text-[#b3001b]">MLC</span>}
                       </p>

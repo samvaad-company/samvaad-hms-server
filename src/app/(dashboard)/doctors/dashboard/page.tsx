@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import type { OpdRecordDTO, DoctorDTO, BillDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Users, CheckCircle, XCircle, Clock, DollarSign, Stethoscope } from "lucide-react";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 /** Most frequent non-empty value, used for "top reason". */
 function mostCommon(values: string[]): string {
@@ -123,7 +124,7 @@ export default function DoctorDashboardPage() {
                 <div key={row.id} className="relative flex items-center h-[64px] border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 700 }}>
                   <span className="absolute text-[16px] font-medium text-[color:var(--brand)]" style={{ left: 20 }}>{row.tokenNumber}</span>
                   <div className="absolute flex flex-col" style={{ left: 90 }}>
-                    <span className="text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap">{row.patientName}</span>
+                    <span className="text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap"><PatientName id={row.patientId} name={row.patientName} /></span>
                     <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
                   </div>
                   <span className={`absolute text-[13px] font-normal ${row.waitTime !== "—" ? "text-[#ff9000]" : "text-[color:var(--ink-soft)]"}`} style={{ left: 300 }}>{row.waitTime !== "—" ? row.waitTime : "—"}</span>

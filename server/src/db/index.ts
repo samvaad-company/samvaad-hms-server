@@ -38,7 +38,8 @@ let readyPromise: Promise<DatabaseAdapter> | null = null;
 // v18: loyalty adjustments.
 // v19: pre-authorisation forms, signature assets and notifications.
 // v20: awareness programmes and who has read them.
-const MONGO_SCHEMA_VERSION = 20;
+// v21: IPD case file forms.
+const MONGO_SCHEMA_VERSION = 21;
 
 async function runMongoMaintenance(mongo: MongoAdapter): Promise<void> {
   try {

@@ -77,7 +77,7 @@ export function NewConsentDrawer({ patient, onClose, onMade }: {
           {!patient && (
             <section className="mb-6">
               <h3 className="mb-2 text-[14px] font-semibold text-[color:var(--ink)]">Patient</h3>
-              <SearchSelect placeholder="Search a patient…" value={pickedId} onChange={setPickedId} options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId} ${p.phone}` }))} />
+              <SearchSelect placeholder="Search a patient…" value={pickedId} onChange={setPickedId} options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId} ${p.phone}` }))} />
             </section>
           )}
 

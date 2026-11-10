@@ -251,11 +251,11 @@ async function billingClearance(admission: IpdAdmissionRow, input: unknown, acto
   const due = unpaid.reduce((n, b) => n + Number(b.total), 0);
   const body = (input ?? {}) as { waiveBilling?: unknown; reason?: unknown };
   const reason = String(body.reason ?? "").trim();
-  if (body.waiveBilling === true && can(actor.role, "billing", "write")) {
+  if (body.waiveBilling === true && can(actor.role, "billing", "write", actor.hospitalId)) {
     if (!reason) throw new BadRequestError("Say why the unpaid bills are being waived");
     return { due, reason };
   }
-  throw new ConflictError(`${unpaid.length} unpaid IPD bill${unpaid.length === 1 ? "" : "s"} totalling ₹${due.toLocaleString("en-IN")}. Settle ${unpaid.length === 1 ? "it" : "them"} before discharge`, { unpaid: unpaid.length, due, canWaive: can(actor.role, "billing", "write") });
+  throw new ConflictError(`${unpaid.length} unpaid IPD bill${unpaid.length === 1 ? "" : "s"} totalling ₹${due.toLocaleString("en-IN")}. Settle ${unpaid.length === 1 ? "it" : "them"} before discharge`, { unpaid: unpaid.length, due, canWaive: can(actor.role, "billing", "write", actor.hospitalId) });
 }
 
 /** Discharge an admission, freeing its bed. */

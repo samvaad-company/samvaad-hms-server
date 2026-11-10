@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import type { IpdLiveDTO, IpdRecordDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 /** An admitted patient with their live state, as every nurse-station tab sees them. */
 export interface WardPatient {
@@ -52,7 +53,7 @@ export function PatientCell({ adm }: { adm: IpdRecordDTO }) {
   return (
     <div className="min-w-0 leading-[18px]">
       <p className="truncate text-[14px] font-semibold text-[color:var(--ink)]">
-        {adm.patientName}
+        <PatientName id={adm.patientId} name={adm.patientName} />
         {adm.isMlc && <span className="ml-2 rounded-full border border-[#f4a3ac] bg-[#ffe3e5] px-[6px] text-[10px] font-semibold text-[#b3001b]">MLC</span>}
       </p>
       <p className="truncate text-[12px] text-[color:var(--ink-soft)]">

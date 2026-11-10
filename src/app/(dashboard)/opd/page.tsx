@@ -19,6 +19,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { OpdRecord } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLUMNS = [
   { label: "Token",  width: "80px" },
@@ -80,7 +81,7 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
     <div className={`${tw.table.dataRow} opd-row`} style={{ gridTemplateColumns: "var(--cols)" }}>
       <span className="text-[13px] font-medium text-[color:var(--brand)]">{row.tokenNumber}</span>
       <div className="min-w-0">
-        <span className="block truncate text-[13px] font-medium text-[color:var(--ink)]">{row.patientName}</span>
+        <span className="block truncate text-[13px] font-medium text-[color:var(--ink)]"><PatientName name={row.patientName} /></span>
         <div className="opd-sub">
           <span className="s-doc">{row.doctor}</span>
           <span className="s-pri" style={row.priority === "Emergency" ? { color: "#ff0004" } : row.priority === "Urgent" ? { color: "#ff9000" } : undefined}>{row.priority}</span>
@@ -321,7 +322,7 @@ export default function OpdPage() {
             <div className="col-span-2 flex items-center gap-3 p-3 bg-[color:var(--brand-soft)] rounded-[10px]">
               <div className="flex flex-col">
                 <span className="text-[10px] font-medium text-[color:var(--brand)] uppercase tracking-wider">{editingRow.tokenNumber}</span>
-                <span className="text-[16px] font-medium text-[color:var(--ink)]">{editingRow.patientName}</span>
+                <span className="text-[16px] font-medium text-[color:var(--ink)]"><PatientName id={editingRow.patientId} name={editingRow.patientName} /></span>
               </div>
             </div>
           ) : (
@@ -338,7 +339,7 @@ export default function OpdPage() {
                 placeholder="Search patient by name, ID or phone…"
                 value={form.patientId}
                 onChange={selectPatient}
-                options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+                options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
               />
             </FormRow>
           )}

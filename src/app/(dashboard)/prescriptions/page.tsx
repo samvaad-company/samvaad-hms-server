@@ -19,6 +19,7 @@ import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { Prescription } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLUMNS = [
   { label: "Rx #",      width: "130px" },
@@ -88,7 +89,7 @@ function CompactRow({ row, actions, onOpen }: { row: Prescription; actions: RowA
       className="group flex items-center gap-3 px-5 py-[9px] border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--subtle)] focus:outline-none focus-visible:bg-[color:var(--subtle)] cursor-pointer transition-colors"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-[color:var(--ink)] truncate leading-[17px]">{row.patientName}</p>
+        <p className="text-[13px] font-medium text-[color:var(--ink)] truncate leading-[17px]"><PatientName name={row.patientName} /></p>
         <p className="text-[11.5px] text-[color:var(--ink-soft)] truncate leading-[16px]">
           {row.status === "Draft" ? "Draft" : row.rxNumber} · {shortDay(row.date)}
         </p>
@@ -111,7 +112,7 @@ function PrescriptionRow({ row, actions, onOpen }: { row: Prescription; actions:
       style={{ gridTemplateColumns: "var(--cols)" }}
     >
       <span className="text-[13px] font-medium text-[color:var(--brand)] truncate">{row.rxNumber}</span>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName name={row.patientName} /></span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.patientAge}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.doctor}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{row.diagnosis}</span>
@@ -278,7 +279,7 @@ export default function PrescriptionsPage() {
           }
         >
           <div className="mb-3 text-[12px] text-[color:var(--ink-soft)]">
-            {editing.patientName} · {editing.doctor} · {editing.medicineCount} medicines
+            <PatientName id={editing.patientId} name={editing.patientName} /> · {editing.doctor} · {editing.medicineCount} medicines
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">

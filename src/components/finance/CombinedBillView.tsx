@@ -26,7 +26,7 @@ export function CombinedBillView() {
   const [path, setPath] = useState<string | null>(null);
   const docRef = useRef<HTMLDivElement>(null);
 
-  const options = useMemo(() => patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` })), [patients]);
+  const options = useMemo(() => patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` })), [patients]);
   const { item: bill, loading, error } = useItem<CombinedBillDTO>(path);
 
   const generate = () => {

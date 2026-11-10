@@ -212,7 +212,7 @@ export async function rescheduleAppointment(id: number, input: unknown, actor: S
   assertOwnedByHospital(appt, actor, "Appointment");
   const isOwnDoctor = actor.role === "Doctor" && actor.doctorId != null && actor.doctorId === appt.doctor_id;
   const allowed =
-    can(actor.role, "appointments", "write") || isOwnDoctor || (appt.type === TELECONSULT_TYPE && can(actor.role, "teleconsult", "write"));
+    can(actor.role, "appointments", "write", actor.hospitalId) || isOwnDoctor || (appt.type === TELECONSULT_TYPE && can(actor.role, "teleconsult", "write", actor.hospitalId));
   if (!allowed) throw new ForbiddenError("You can't reschedule this appointment");
   const row = await move(appt, input, { byPatient: false, actor });
   await audit(actor, "reschedule", "appointment", id, { from: row.rescheduled_from, to: `${row.appointment_date} ${row.appointment_time}` });

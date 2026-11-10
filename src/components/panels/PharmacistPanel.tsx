@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Pill, FileText, AlertTriangle, PackageX } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function PharmacistPanel() {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ export function PharmacistPanel() {
               ) : pending.map(p => (
                 <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{p.patientName}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={p.patientId} name={p.patientName} /></span>
                     <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{p.rxNumber} · {p.medicineCount} medicines · {p.doctor}</span>
                   </div>
                   <StatusBadge status={p.status} />

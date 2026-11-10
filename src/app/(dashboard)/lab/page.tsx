@@ -34,6 +34,7 @@ import { Modal } from "@/components/shared/Modal";
 import { PatientPicker } from "@/components/shared/PatientPicker";
 import { FormRow, FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import { SampleBarcodeModal } from "@/components/shared/SampleBarcodeModal";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── Report viewer ────────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ function ReportViewerModal({
     >
       <div className="flex flex-col gap-3">
         <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
-          {test.patientName} · {test.patientAge} yrs
+          <PatientName id={test.patientId} name={test.patientName} /> · {test.patientAge} yrs
           {file?.uploadedBy && <> · Uploaded by <span className="font-normal text-[color:var(--ink)]">{file.uploadedBy}</span></>}
           {file?.uploadedAt && <> · {file.uploadedAt}</>}
         </p>
@@ -333,7 +334,7 @@ function UploadReportModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-[13px] font-light text-[color:var(--ink-soft)]">
-          {test.patientName} · {test.patientAge} yrs · Ordered {formatDate(test.date)}
+          <PatientName id={test.patientId} name={test.patientName} /> · {test.patientAge} yrs · Ordered {formatDate(test.date)}
         </p>
 
         <FormRow label="Report file * (PDF, PNG, JPEG — max 5 MB)">
@@ -455,7 +456,7 @@ function PatientGroupRow({
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
       {showHospital && <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{anchor.hospitalName ?? "—"}</span>}
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{anchor.patientName}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={anchor.patientId} name={anchor.patientName} /></span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{anchor.patientAge}</span>
       <div className="flex flex-col gap-[2px] min-w-0">
         <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">
@@ -717,7 +718,7 @@ function ReportsView({
           <div className="flex flex-col gap-[6px] min-w-0">
             <span className="text-[14px] font-medium text-[color:var(--ink)] truncate">{test.testName}</span>
             <span className="text-[12px] font-light text-[color:var(--ink-soft)]">
-              {test.patientName} · {test.patientAge} yrs · {formatDate(test.date)}
+              <PatientName id={test.patientId} name={test.patientName} /> · {test.patientAge} yrs · {formatDate(test.date)}
               {test.doctor && <> · {test.doctor}</>}
               {test.hospitalName && <> · {test.hospitalName}</>}
             </span>

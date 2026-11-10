@@ -45,6 +45,8 @@
     "test:combined-bill": "tsx scripts/test-combined-bill.ts",
     "test:preauth": "tsx scripts/test-preauth.ts",
     "test:awareness": "tsx scripts/test-awareness.ts",
+    "test:role-access": "tsx scripts/test-role-access.ts",
+    "test:casefile": "tsx scripts/test-casefile.ts",
     "test:combined-bill": "tsx scripts/test-combined-bill.ts",
     "test:preauth": "tsx scripts/test-preauth.ts",
     "test:awareness": "tsx scripts/test-awareness.ts",

@@ -814,7 +814,7 @@ export interface SessionUserDTO {
   radiologyCenterId: number | null;
   labCenterId: number | null;
   doctorId: number | null;
-  permissions: Record<string, "none" | "read" | "write">;
+  permissions: Record<string, "none" | "read" | "add" | "edit" | "write">;
 }
 
 export const BLOOD_COMPONENTS = ["Whole blood", "PRBC", "Platelets", "Plasma", "Cryoprecipitate"] as const;

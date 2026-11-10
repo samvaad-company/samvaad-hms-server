@@ -12,6 +12,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormRow } from "@/components/shared/FormRow";
 import { PatientPicker } from "@/components/shared/PatientPicker";
 import type { PatientDTO, TeleconsultBookingLinkDTO, TeleconsultConfigDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function BookingLinkModal({
   open, onClose, config,
@@ -89,7 +90,7 @@ export function BookingLinkModal({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-[13px] text-[color:var(--ink-soft)]">Link for <b className="text-[color:var(--ink)]">{link.patientName}</b> — valid for 7 days.</p>
+          <p className="text-[13px] text-[color:var(--ink-soft)]">Link for <b className="text-[color:var(--ink)]"><PatientName name={link.patientName} /></b> — valid for 7 days.</p>
           <textarea readOnly rows={5} value={message} onFocus={(e) => e.currentTarget.select()}
             className="w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 py-2 text-[13px] text-[color:var(--ink)] resize-none" />
           <div className="flex gap-3 flex-wrap">

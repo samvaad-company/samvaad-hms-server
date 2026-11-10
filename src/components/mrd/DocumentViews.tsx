@@ -211,7 +211,7 @@ function FolderContents({ folder, canWrite, onClose }: { folder: MrdFolderDTO; c
         {canWrite && (
           <div className="grid items-end gap-3" style={{ gridTemplateColumns: "minmax(0,1.6fr) minmax(0,1fr) auto" }}>
             <div className="flex flex-col gap-2"><span className={fieldLabel}>File for patient</span>
-              <SearchSelect placeholder="Search a patient…" value={patientId} onChange={setPatientId} options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: p.patientId }))} />
+              <SearchSelect placeholder="Search a patient…" value={patientId} onChange={setPatientId} options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: p.patientId }))} />
             </div>
             <div className="flex flex-col gap-2"><span className={fieldLabel}>Category</span><FormSelect value={category} onChange={setCategory} options={UPLOAD_CATEGORIES.map((c) => ({ value: c, label: c }))} /></div>
             <div>

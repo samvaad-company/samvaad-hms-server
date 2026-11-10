@@ -17,7 +17,7 @@ import { assertOwnedByHospital, requireHospitalId, scopeToHospital } from "@/ser
 import { localDate } from "@/lib/clock";
 import {
   DEFAULT_PROGRAM, RANK_KEYS, rankForPoints,
-  type LoyaltyBreakdownLine, type LoyaltyDetailDTO, type LoyaltyLinkDTO, type LoyaltyListDTO, type LoyaltyMemberDTO, type LoyaltyPricingDTO, type LoyaltyProgram,
+  type LoyaltyBreakdownLine, type LoyaltyDetailDTO, type LoyaltyLinkDTO, type LoyaltyListDTO, type LoyaltyMemberDTO, type LoyaltyPricingDTO, type LoyaltyRankIndexDTO, type LoyaltyProgram,
   type LoyaltyRank, type LoyaltyRule, type LoyaltySummaryDTO,
 } from "@shared/types/loyalty";
 
@@ -308,4 +308,28 @@ export async function adjustPoints(patientId: number, input: unknown, actor: Ses
   const row = await loyaltyAdjustmentsRepo.create({ hospital_id: hospitalId, patient_id: patientId, points, reason, by_user_id: actor.userId, by_name: actor.name });
   await audit(actor, "create", "loyalty_adjustment", row.id, { patientId, points, reason });
   return getMember(patientId, actor);
+}
+
+/**
+ * Just enough to put a rank's stars beside a patient's name anywhere in the app: each patient's rank, and the colour and stars of
+ * each rank. Names that belong to more than one patient are left out of `byName` so a name alone never shows the wrong rank.
+ */
+export async function rankIndex(actor: Session): Promise<LoyaltyRankIndexDTO> {
+  requireHospitalId(actor);
+  const program = await getProgram(actor);
+  const ranks: LoyaltyRankIndexDTO["ranks"] = {};
+  [...program.ranks].sort((a, b) => a.minPoints - b.minPoints).forEach((r, i) => { ranks[r.key] = { name: r.name, color: r.color, stars: i + 1 }; });
+  if (!program.enabled) return { enabled: false, ranks, byId: {}, byName: {} };
+  const facts = await loadFacts(actor);
+  const members = [...compute(facts, program).values()];
+  const byId: Record<number, string> = {};
+  const seen = new Map<string, string | null>();
+  for (const m of members) {
+    byId[m.patientId] = m.rankKey;
+    const key = m.name.trim().toLowerCase();
+    seen.set(key, seen.has(key) ? null : m.rankKey);
+  }
+  const byName: Record<string, string> = {};
+  for (const [name, rank] of seen) if (rank) byName[name] = rank;
+  return { enabled: true, ranks, byId, byName };
 }

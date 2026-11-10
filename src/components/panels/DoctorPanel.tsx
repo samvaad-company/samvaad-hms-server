@@ -23,6 +23,7 @@ import type { DoctorScheduleDTO } from "@/types/api";
 import { useState } from "react";
 import Link from "next/link";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function DoctorPanel() {
   const { user } = useAuth();
@@ -106,7 +107,7 @@ export function DoctorPanel() {
               {videoConsults.map(a => (
                 <div key={a.id} className="flex items-center justify-between gap-4 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)] transition-colors">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{a.patientName}</span>
+                    <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={a.patientId} name={a.patientName} /></span>
                     <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">{a.date} · {a.time}{a.reason ? ` · ${a.reason}` : ""}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -135,7 +136,7 @@ export function DoctorPanel() {
                   <div className="flex items-center gap-4 min-w-0">
                     <span className="text-[15px] font-medium text-[color:var(--brand)] w-[52px] shrink-0">{row.tokenNumber}</span>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.patientName}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={row.patientId} name={row.patientName} /></span>
                       <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{row.patientAge} yrs · Check-in {row.checkInTime}</span>
                     </div>
                   </div>
@@ -169,7 +170,7 @@ export function DoctorPanel() {
                 ) : upcoming.slice(0, 6).map(a => (
                   <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate">{a.patientName}</span>{liveIds.has(a.id) && <NewTag />}</span>
+                      <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate"><PatientName id={a.patientId} name={a.patientName} /></span>{liveIds.has(a.id) && <NewTag />}</span>
                       <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.date} · {a.time}</span>
                     </div>
                     <StatusBadge status={a.status} />
@@ -185,7 +186,7 @@ export function DoctorPanel() {
                 ) : myPrescriptions.slice(-4).reverse().map(p => (
                   <div key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{p.patientName}</span>
+                      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={p.patientId} name={p.patientName} /></span>
                       <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{p.rxNumber} · {p.diagnosis}</span>
                     </div>
                     <StatusBadge status={p.status} />

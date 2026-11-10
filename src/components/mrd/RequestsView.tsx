@@ -13,6 +13,7 @@ import { FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { MrdFileDTO, MrdFileRequestDTO, MrdLocationDTO } from "@/types/api";
 import { attempt, DialogButtons, Empty, ErrorNote, fieldLabel, mono, outlineBtn, Pill, plusDays, primaryBtn, td, th, todayLocal } from "@/components/mrd/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const RANK: Record<string, number> = { Pending: 0, Dispatched: 1, Returned: 2, Cancelled: 3 };
 
@@ -94,7 +95,7 @@ export function RequestsView({ canWrite }: { canWrite: boolean }) {
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
                 <td className={`${td} ${mono}`}>{r.fileNo}</td>
-                <td className={td}>{r.patientName}{r.requestedFor && <span className="block text-[12px] text-[color:var(--ink-soft)]">for {r.requestedFor}{r.destinationName ? ` · ${r.destinationName}` : ""}</span>}</td>
+                <td className={td}><PatientName id={r.patientId} name={r.patientName} />{r.requestedFor && <span className="block text-[12px] text-[color:var(--ink-soft)]">for {r.requestedFor}{r.destinationName ? ` · ${r.destinationName}` : ""}</span>}</td>
                 <td className={td}><Pill>{r.urgency}</Pill></td>
                 <td className={td}><Pill>{r.status}</Pill></td>
                 <td className={`${td} ${mono}`}>{r.requestedOn}</td>

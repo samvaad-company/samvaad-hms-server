@@ -13,6 +13,7 @@ import { RowMenu } from "@/components/shared/RowMenu";
 import { FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { MrdFileDTO, MrdFileMovementDTO, MrdLocationDTO } from "@/types/api";
 import { attempt, DialogButtons, dmy, Empty, ErrorNote, fieldLabel, mono, outlineBtn, Pill, plusDays, softBtn, stampShort, td, th, todayLocal } from "@/components/mrd/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 type Kind = "checkout" | "return" | "archive" | "move";
 
@@ -129,7 +130,7 @@ export function FilesView({ canWrite }: { canWrite: boolean }) {
             {items.map((f) => (
               <tr key={f.id} className="border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
                 <td className={`${td} ${mono} whitespace-nowrap`}>{f.fileNo}</td>
-                <td className={td}>{f.patientName} <span className={`${mono} text-[12px] text-[color:var(--ink-soft)]`}>{f.patientCode}</span></td>
+                <td className={td}><PatientName id={f.patientId} name={f.patientName} /> <span className={`${mono} text-[12px] text-[color:var(--ink-soft)]`}>{f.patientCode}</span></td>
                 <td className={td}>{f.fileType}</td>
                 <td className={td}><Pill>{f.status}</Pill></td>
                 <td className={td}>{f.locationName || "-"}</td>

@@ -17,6 +17,7 @@ import { SearchSelect } from "@/components/shared/SearchSelect";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { usePagination } from "@/components/shared/Pagination";
 import type { DoctorDTO, FollowUpDTO, FollowUpSummaryDTO, PatientDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const FILTERS = [
   { id: "Pending", label: "Pending" },
@@ -70,7 +71,7 @@ function ScheduleModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       <div className="flex flex-col gap-3">
         <FormRow label="Patient" required>
           <SearchSelect placeholder="Search patient by name, ID or phone…" value={form.patientId} onChange={v => set("patientId", v)}
-            options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))} />
+            options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))} />
         </FormRow>
         <FormRow label="Doctor" hint="Leave empty to use your own account if you are a doctor.">
           <SearchSelect placeholder="Search doctor…" value={form.doctorId} onChange={v => set("doctorId", v)}
@@ -173,7 +174,7 @@ export function FollowUpList() {
         ) : rows.map(f => (
           <div key={f.id} className="flex items-center max-lg:flex-wrap gap-x-3 gap-y-2 rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-[9px] hover:border-[color:var(--brand-ring)] transition-colors">
             <div className="min-w-0 flex-1 max-lg:basis-[calc(100%-44px)]">
-              <p className="text-[13.5px] font-medium text-[color:var(--ink)] lg:truncate leading-[18px]">{f.patientName}</p>
+              <p className="text-[13.5px] font-medium text-[color:var(--ink)] lg:truncate leading-[18px]"><PatientName id={f.patientId} name={f.patientName} /></p>
               <p className="text-[11.5px] text-[color:var(--ink-soft)] lg:truncate leading-[16px]">
                 {[f.patientCode, f.reason, f.doctor].filter(Boolean).join(" · ")}
                 <span className="opacity-80"> · booked by {f.createdByRole || "staff"}{f.status !== "Pending" && f.resolvedByRole ? `, marked ${f.status.toLowerCase()} by ${f.resolvedByRole}` : ""}</span>

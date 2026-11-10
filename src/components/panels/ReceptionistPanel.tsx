@@ -13,6 +13,7 @@ import { tw } from "@/lib/design-system";
 import { useWithLiveAppointments, useLiveIds } from "@/lib/live/appointments";
 import { LiveBadge, NewTag } from "@/components/live/LiveBadge";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function ReceptionistPanel() {
   const { user } = useAuth();
@@ -46,7 +47,7 @@ export function ReceptionistPanel() {
               ) : today.map(a => (
                 <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
-                    <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate">{a.patientName}</span>{liveIds.has(a.id) && <NewTag />}</span>
+                    <span className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--ink)]"><span className="truncate"><PatientName id={a.patientId} name={a.patientName} /></span>{liveIds.has(a.id) && <NewTag />}</span>
                     <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{a.time} · {a.doctor} · {a.reason}</span>
                   </div>
                   <StatusBadge status={a.status} />
@@ -64,7 +65,7 @@ export function ReceptionistPanel() {
                   <div key={r.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)]">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-[14px] font-medium text-[color:var(--brand)]">{r.tokenNumber}</span>
-                      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate">{r.patientName}</span>
+                      <span className="text-[13px] font-normal text-[color:var(--ink)] truncate"><PatientName id={r.patientId} name={r.patientName} /></span>
                     </div>
                     <span className="text-[12px] font-light text-[color:var(--ink-soft)] whitespace-nowrap">{r.doctor}</span>
                   </div>

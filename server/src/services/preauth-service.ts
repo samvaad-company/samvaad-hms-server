@@ -4,15 +4,15 @@
  * admin stamps it (with the hospital stamp they keep), and only then is it Ready. Each step notifies the person whose turn it is.
  * Every form belongs to one hospital and nobody else can see it.
  */
-import { doctorsRepo, hospitalsRepo, ipdRepo, patientsRepo, preauthFormsRepo } from "@/repositories";
-import type { DoctorRow, HospitalRow, IpdAdmissionRow, PatientRow, PreauthFormRow } from "@/db/tables";
+import { doctorsRepo, hospitalsRepo, ipdRepo, patientsRepo, preauthFormsRepo, staffRepo, usersRepo } from "@/repositories";
+import type { DoctorRow, HospitalRow, IpdAdmissionRow, PatientRow, PreauthFormRow, SignatureAssetRow, StaffRow, UserRow } from "@/db/tables";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { type Session } from "@/auth/session";
 import { can } from "@/auth/rbac";
 import { assertOwnedByHospital, requireHospitalId, scopeToHospital } from "@/services/hospital-scope";
 import { audit } from "@/services/audit";
 import { adminUserIds, clearForLink, doctorUserIds, notifyUsers } from "@/services/notifications-service";
-import { findAsset } from "@/services/signature-assets-service";
+import { autoSigner, findAsset } from "@/services/signature-assets-service";
 import { PREAUTH_FORMS } from "@shared/lib/preauth/forms.generated";
 import { COST_PARTS, DECLARATION_FIELDS, PREAUTH_FIELD_KEYS, PREAUTH_FIELDS, type PreauthDTO, type PreauthPendingDTO, type PreauthSummaryDTO, type PreauthValues } from "@shared/types/preauth";
 
@@ -26,7 +26,7 @@ const summary = (r: PreauthFormRow): PreauthSummaryDTO => ({
 });
 const full = (r: PreauthFormRow): PreauthDTO => ({
   ...summary(r), values: r.values ?? {}, admissionId: r.admission_id, doctorSignedBy: r.doctor_signed_by, stampedBy: r.stamped_by,
-  doctorSignatureImg: r.doctor_signature_img, doctorStampImg: r.doctor_stamp_img, hospitalStampImg: r.hospital_stamp_img,
+  doctorSignedAuto: !!r.doctor_signed_auto, doctorSignatureImg: r.doctor_signature_img, doctorStampImg: r.doctor_stamp_img, hospitalStampImg: r.hospital_stamp_img,
 });
 
 async function load(id: number, actor: Session): Promise<PreauthFormRow> {
@@ -37,9 +37,9 @@ async function load(id: number, actor: Session): Promise<PreauthFormRow> {
 
 /** Whoever works on pre-authorisations, the doctor it is addressed to, and the hospital's admin may see a form. */
 function canSee(row: PreauthFormRow, actor: Session): boolean {
-  return can(actor.role, "tpa", "read") || (actor.role === "Doctor" && actor.doctorId === row.doctor_id);
+  return can(actor.role, "tpa", "read", actor.hospitalId) || (actor.role === "Doctor" && actor.doctorId === row.doctor_id);
 }
-const canEdit = (actor: Session) => can(actor.role, "tpa", "write");
+const canEdit = (actor: Session) => can(actor.role, "tpa", "write", actor.hospitalId);
 
 const clip = (v: unknown, n = 2000) => (v === undefined || v === null ? "" : String(v).slice(0, n));
 
@@ -175,10 +175,39 @@ export async function submitForm(id: number, actor: Session): Promise<PreauthDTO
   if (row.status !== "Draft") throw new ValidationError([{ field: "status", message: "this form has already been sent for signing" }]);
   if (!row.doctor_id) throw new ValidationError([{ field: "doctorId", message: "choose the treating doctor who will sign" }]);
   const updated = (await preauthFormsRepo.update(id, { status: "Awaiting doctor" })) as PreauthFormRow;
+  await audit(actor, "preauth.submit", "preauth_form", id);
+  // A doctor who has switched on automatic signing doesn't wait: the form is signed as soon as it reaches them, and they are told
+  // afterwards instead of being asked.
+  const auto = await autoSigner(row.hospital_id, row.doctor_id);
+  if (auto) return full(await applyDoctorSignature(updated, auto.user, auto.signature, {}, true, actor));
   const ids = await doctorUserIds(row.hospital_id, row.doctor_id);
   await notifyUsers(row.hospital_id, ids, { kind: "preauth_sign", title: "Pre-auth form waiting for your signature", body: `${row.patient_name} · ${row.form_name}`, link: linkOf(id) });
-  await audit(actor, "preauth.submit", "preauth_form", id);
   return full(updated);
+}
+
+/** Puts the doctor's signature (and stamp, if they keep one) on the form and tells the admin it is ready for the hospital stamp. */
+async function applyDoctorSignature(row: PreauthFormRow, signer: { id: number; name: string }, sig: SignatureAssetRow, extra: PreauthValues, auto: boolean, actor: Session): Promise<PreauthFormRow> {
+  const stamp = await findAsset(row.hospital_id, "doctor_stamp", signer.id);
+  const declared = Object.fromEntries(Object.entries(extra).filter(([k]) => (DECLARATION_FIELDS as readonly string[]).includes(k)));
+  const values: PreauthValues = { ...(row.values ?? {}), ...declared };
+  if (auto) {
+    // Nobody is there to type their qualification and registration number, so take them from their staff record.
+    const user = (await usersRepo.getRow(signer.id)) as UserRow | null;
+    const staff = user?.staff_id ? ((await staffRepo.getRow(user.staff_id)) as StaffRow | null) : null;
+    if (!values.declQualification && staff?.qualification) values.declQualification = staff.qualification;
+    if (!values.declRegNo && staff?.licence_no) values.declRegNo = staff.licence_no;
+  }
+  const updated = (await preauthFormsRepo.update(row.id, {
+    status: "Awaiting stamp", doctor_signed_at: new Date().toISOString(), doctor_signed_by: signer.name, doctor_signed_auto: auto,
+    doctor_signature_img: sig.image, doctor_stamp_img: stamp?.image ?? null, values,
+  })) as PreauthFormRow;
+  await clearForLink(signer.id, linkOf(row.id));
+  await notifyUsers(row.hospital_id, await adminUserIds(row.hospital_id), { kind: "preauth_stamp", title: "Pre-auth form waiting for the hospital stamp", body: `${row.patient_name} · ${row.form_name} · signed by ${signer.name}${auto ? " (automatically)" : ""}`, link: linkOf(row.id) });
+  if (auto) {
+    await notifyUsers(row.hospital_id, [signer.id], { kind: "preauth_autosigned", title: "A pre-auth form was signed for you", body: `${row.patient_name} · ${row.form_name}. Signed automatically because you turned on automatic signing. You can turn it off under Pre-auth forms → My signature and stamp.`, link: linkOf(row.id) });
+  }
+  await audit(actor, auto ? "preauth.sign_auto" : "preauth.sign", "preauth_form", row.id, auto ? { doctor: signer.name } : undefined);
+  return updated;
 }
 
 /** The treating doctor signs. Their stored signature (and stamp, if they keep one) is copied onto the form. */
@@ -188,16 +217,8 @@ export async function signForm(id: number, input: unknown, actor: Session): Prom
   if (row.status !== "Awaiting doctor") throw new ValidationError([{ field: "status", message: row.status === "Draft" ? "this form hasn't been sent for signing yet" : "this form has already been signed" }]);
   const sig = await findAsset(row.hospital_id, "doctor_signature", actor.userId);
   if (!sig) throw new ValidationError([{ field: "signature", message: "add your signature first (Pre-auth forms → My signature and stamp)" }]);
-  const stamp = await findAsset(row.hospital_id, "doctor_stamp", actor.userId);
   const extra = sanitize((typeof input === "object" && input !== null ? (input as Record<string, unknown>).values : undefined) ?? {});
-  const updated = (await preauthFormsRepo.update(id, {
-    status: "Awaiting stamp", doctor_signed_at: new Date().toISOString(), doctor_signed_by: actor.name, doctor_signature_img: sig.image, doctor_stamp_img: stamp?.image ?? null,
-    values: { ...(row.values ?? {}), ...Object.fromEntries(Object.entries(extra).filter(([k]) => (DECLARATION_FIELDS as readonly string[]).includes(k))) },
-  })) as PreauthFormRow;
-  await clearForLink(actor.userId, linkOf(id));
-  await notifyUsers(row.hospital_id, await adminUserIds(row.hospital_id), { kind: "preauth_stamp", title: "Pre-auth form waiting for the hospital stamp", body: `${row.patient_name} · ${row.form_name} · signed by ${actor.name}`, link: linkOf(id) });
-  await audit(actor, "preauth.sign", "preauth_form", id);
-  return full(updated);
+  return full(await applyDoctorSignature(row, { id: actor.userId, name: actor.name }, sig, extra, false, actor));
 }
 
 /** The hospital's admin stamps a form the doctor has signed, which finishes it. */

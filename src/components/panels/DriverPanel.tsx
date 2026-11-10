@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Ambulance, MapPin, CheckCircle } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { PanelHeader, StatRow, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function DriverPanel() {
   const { user } = useAuth();
@@ -39,7 +40,7 @@ export function DriverPanel() {
             ) : calls.map(c => (
               <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{c.patientName}</span>
+                  <span className="text-[13px] font-medium text-[color:var(--ink)] truncate"><PatientName id={c.patientId} name={c.patientName} /></span>
                   <span className="text-[11px] font-light text-[color:var(--ink-soft)] truncate">
                     {c.pickupLocation} → {c.dropLocation} · {c.vehicleNumber || "unassigned"} · {c.date} {c.time}
                   </span>
