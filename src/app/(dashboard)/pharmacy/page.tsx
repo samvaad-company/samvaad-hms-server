@@ -22,6 +22,7 @@ import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/shared/DocumentLetterhead";
 import type { PharmacyItem } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
@@ -604,7 +605,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
             <div className="grid grid-cols-2 gap-6 px-8 py-5" style={{ borderBottom: "1px solid var(--line)" }}>
               <div>
                 <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Patient</p>
-                <p className="text-[14px] font-medium text-[color:var(--ink)]">{viewingSale.patientName}</p>
+                <p className="text-[14px] font-medium text-[color:var(--ink)]"><PatientName id={viewingSale.patientId} name={viewingSale.patientName} /></p>
               </div>
               <div>
                 <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Payment</p>
@@ -711,7 +712,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
               placeholder="Walk-in — search patient by name, ID or phone…"
               value={patientId}
               onChange={setPatientId}
-              options={patients.map(p => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+              options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
             />
           </FormRow>
           <FormRow label="Prescription #">
@@ -824,7 +825,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
             <div key={s.id} className="grid items-center px-4 h-[52px] border-b border-[color:var(--subtle-2)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors"
               style={{ gridTemplateColumns: "110px 1.4fr 120px 70px 110px 110px 52px" }}>
               <span className="text-[13px] font-medium text-[color:var(--brand)]">{s.saleNumber}</span>
-              <span className="text-[13px] text-[color:var(--ink)] truncate">{s.patientName}</span>
+              <span className="text-[13px] text-[color:var(--ink)] truncate"><PatientName id={s.patientId} name={s.patientName} /></span>
               <span className="text-[13px] text-[color:var(--ink-soft)]">{s.rxNumber || "—"}</span>
               <span className="text-[13px] text-[color:var(--ink-soft)]">{s.itemCount}</span>
               <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{s.total.toLocaleString("en-IN")}</span>

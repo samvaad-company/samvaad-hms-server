@@ -13,6 +13,7 @@ import { TabBar } from "@/components/shared/TabBar";
 import { FlaskConical, ScanLine, Droplets, FileCheck } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { PanelHeader, StatRow, QuickLinks, WorklistCard, EmptyRow, MyTasksCard } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function LabPanel() {
   const { user } = useAuth();
@@ -56,7 +57,7 @@ export function LabPanel() {
                 <div key={`${tab}-${r.id}`} className="flex items-center justify-between gap-3 px-5 py-3 border-t border-[color:var(--subtle-2)] hover:bg-[color:var(--faint)]">
                   <div className="flex flex-col min-w-0">
                     <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{r.testName}</span>
-                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]">{r.patientName} · {r.patientAge} yrs · {r.date}</span>
+                    <span className="text-[11px] font-light text-[color:var(--ink-soft)]"><PatientName id={r.patientId} name={r.patientName} /> · {r.patientAge} yrs · {r.date}</span>
                   </div>
                   <StatusBadge status={r.status} />
                 </div>

@@ -11,12 +11,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Search, Check } from "lucide-react";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export interface SearchSelectOption {
   value: string;
   label: string;
   /** Extra searchable text (e.g. patient code, phone). */
   hint?: string;
+  /** Set on a patient option: the patient's loyalty stars are shown beside the name. */
+  patientId?: number | string;
 }
 
 interface SearchSelectProps {
@@ -135,7 +138,7 @@ export function SearchSelect({
         <span
           className={`text-[14px] font-normal truncate ${selected ? "text-[color:var(--ink)]" : "text-[color:var(--ink-soft)] opacity-70"}`}
         >
-          {selected ? selected.label : placeholder}
+          {selected ? (selected.patientId !== undefined ? <PatientName id={selected.patientId} name={selected.label} /> : selected.label) : placeholder}
         </span>
         <ChevronDown size={15} strokeWidth={2} className="text-[color:var(--ink-soft)] shrink-0" />
       </button>
@@ -180,7 +183,7 @@ export function SearchSelect({
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="block text-[13px] truncate">{o.label}</span>
+                      <span className="block text-[13px] truncate">{o.patientId !== undefined ? <PatientName id={o.patientId} name={o.label} /> : o.label}</span>
                       {o.hint && (
                         <span className="block text-[11px] text-[color:var(--ink-soft)] truncate">{o.hint}</span>
                       )}

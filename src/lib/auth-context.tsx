@@ -12,7 +12,10 @@ import { useAppDispatch, useAppSelector, useAppStore } from "@/store";
 import { userLoaded, authLoading } from "@/store/authSlice";
 import { clearCache } from "@/store/cacheSlice";
 
-type Access = "none" | "read" | "write";
+type Access = "none" | "read" | "add" | "edit" | "write";
+const LEVEL_RANK: Record<Access, number> = { none: 0, read: 1, add: 2, edit: 3, write: 4 };
+/** "write" is "may make changes" (add or more); add / edit / delete are the specific kinds. */
+const ACTION_RANK = { read: 1, add: 2, write: 2, edit: 3, delete: 4 } as const;
 
 interface AuthContextValue {
   user: SessionUserDTO | null;
@@ -20,7 +23,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<SessionUserDTO>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
-  can: (resource: string, action?: "read" | "write") => boolean;
+  can: (resource: string, action?: "read" | "write" | "add" | "edit" | "delete") => boolean;
 }
 
 /** Loads "who am I" once when the app starts. Must sit inside <StoreProvider>. */
@@ -75,11 +78,9 @@ export function useAuth(): AuthContextValue {
   }, [dispatch]);
 
   const can = useCallback(
-    (resource: string, action: "read" | "write" = "read") => {
+    (resource: string, action: keyof typeof ACTION_RANK = "read") => {
       const level: Access = user?.permissions?.[resource] ?? "none";
-      if (level === "write") return true;
-      if (level === "read") return action === "read";
-      return false;
+      return LEVEL_RANK[level] >= ACTION_RANK[action];
     },
     [user],
   );

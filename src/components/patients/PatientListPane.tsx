@@ -19,6 +19,7 @@ import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
 import type { PatientDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const FILTER_IDS = ["All", "Today", "Completed", "Cancelled"] as const;
 const PAGE_SIZE = 40;
@@ -57,7 +58,7 @@ const PatientListRow = memo(function PatientListRow({
         {initialsOf(patient.name)}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[14px] font-medium text-[color:var(--ink)] truncate">{patient.name}</div>
+        <div className="text-[14px] font-medium text-[color:var(--ink)] truncate"><PatientName id={patient.id} name={patient.name} /></div>
         <div className="text-[12px] font-light text-[color:var(--ink-soft)] truncate">
           {patient.patientId} · {patient.gender?.[0]} · {patient.age}y
         </div>

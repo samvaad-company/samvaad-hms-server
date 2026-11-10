@@ -8,7 +8,8 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { PREAUTH_FIELDS, type PreauthValues } from "../../types/preauth";
 
 type Cell = [number, number, number, number];
-interface Row { p: number; cells: Cell[] }
+/** `b` is the box drawn around the answer on the form ([left, top, right, bottom]); typed text is kept inside it. */
+interface Row { p: number; cells: Cell[]; b?: [number, number, number, number] }
 interface Spot { p: number; x: number; y: number; w: number; h: number }
 
 export interface PdfTemplate {
@@ -18,6 +19,10 @@ export interface PdfTemplate {
   checks: Record<string, Record<string, Spot>>;
   chronic: Record<string, { check?: Spot; mm?: Row; yy?: Row; details?: Row[]; text?: { kind: "comb" | "box"; rows: Row[] } }>;
   images: Record<"hospitalStamp" | "doctorSignature" | "doctorStamp", Spot>;
+  /** What the form asks, in its order: a detail with no box of its own on the form is still printed, on the continuation sheet. */
+  order?: { key: string; label: string }[];
+  /** Guide text printed on the form where a date goes (DD/MM/YYYY): cleared when that date is filled in, so the date reads clearly. */
+  hints?: { k: string; p: number; r: [number, number, number, number] }[];
 }
 
 export interface FillOptions {
@@ -32,6 +37,8 @@ export interface FillOptions {
 
 const DATE_KEYS = new Set(["dob", "firstConsultDate", "injuryDate", "expectedDelivery", "admissionDate", "declDate"]);
 const TIME_KEYS = new Set(["admissionTime", "declTime"]);
+/** Boxes printed with guide letters in them (D D M M Y Y Y Y, H H M M, Y Y M M): a box that gets a digit is cleared first. */
+const GUIDED_KEYS = new Set([...DATE_KEYS, ...TIME_KEYS, "age", "lmp"]);
 const AS_TYPED = new Set(["hospitalEmail", "insuredEmail"]);
 const INK = rgb(0.05, 0.1, 0.45);
 
@@ -67,16 +74,23 @@ export async function fillPreauthPdf(pdfBytes: Uint8Array, tpl: PdfTemplate, val
 
   const topToPdf = (p: PDFPage, y: number, h: number) => p.getHeight() - y - h;
 
-  function centred(p: PDFPage, ch: string, [x, y, w, h]: Cell, size = 8) {
+  function centred(p: PDFPage, ch: string, [x, y, w, h]: Cell, size0?: number) {
+    // Small printed boxes (under 8pt tall) get a smaller letter so it stays inside the box.
+    const size = size0 ?? (h < 8 ? Math.max(5.5, h - 0.5) : 8);
     const tw = bold.widthOfTextAtSize(ch, size);
     p.drawText(ch, { x: x + (w - tw) / 2, y: topToPdf(p, y, h) + (h - size * 0.72) / 2, size, font: bold, color: INK });
   }
+  /** Date and time boxes come printed with their guide letters (D D M M Y Y Y Y, H H M M): a box that gets a digit is cleared first, so the digit reads clearly. */
+  function wipe(p: PDFPage, [x, y, w, h]: Cell) {
+    p.drawRectangle({ x: x + 1.1, y: topToPdf(p, y, h) + 1.1, width: Math.max(1, w - 2.2), height: Math.max(1, h - 2.2), color: rgb(1, 1, 1) });
+  }
   function cross(p: PDFPage, s: Spot) {
     // A tick mark: a short stroke down to the bottom, then a long stroke up to the top right.
-    const H = p.getHeight();
-    const a = { x: s.x + s.w * 0.16, y: H - (s.y + s.h * 0.55) };
-    const b = { x: s.x + s.w * 0.42, y: H - (s.y + s.h * 0.86) };
-    const c = { x: s.x + s.w * 0.92, y: H - (s.y + s.h * 0.08) };
+    // Drawn square and centred in the box, however wide or tall the box is.
+    const H = p.getHeight(), side = Math.min(s.w, s.h, 11), sx = s.x + (s.w - side) / 2, sy = s.y + (s.h - side) / 2;
+    const a = { x: sx + side * 0.16, y: H - (sy + side * 0.55) };
+    const b = { x: sx + side * 0.42, y: H - (sy + side * 0.86) };
+    const c = { x: sx + side * 0.92, y: H - (sy + side * 0.08) };
     const opt = { thickness: 1.5, color: INK };
     p.drawLine({ start: a, end: b, ...opt });
     p.drawLine({ start: b, end: c, ...opt });
@@ -88,30 +102,71 @@ export async function fillPreauthPdf(pdfBytes: Uint8Array, tpl: PdfTemplate, val
     const raw = (v[key] ?? "").toString().trim();
     if (!raw) continue;
     const label = PREAUTH_FIELDS[key]?.label ?? key;
+    for (const hint of tpl.hints ?? []) {
+      if (hint.k !== key) continue;
+      const [hx, hy, hw, hh] = hint.r;
+      pages[hint.p].drawRectangle({ x: hx, y: topToPdf(pages[hint.p], hy, hh), width: hw, height: hh, color: rgb(1, 1, 1) });
+    }
 
     if (f.kind === "gpla") {
       raw.split("|").forEach((part, i) => { const s = f.cells[i]; if (part && s) { cross(pages[s.p], s); centred(pages[s.p], part.slice(0, 2), [s.x, s.y, s.w, s.h], 7); } });
       continue;
     }
     if (f.kind === "box") {
-      const text = latin(key === "maternity" ? raw.split("|").map((x, i) => (x ? `${"GPLA"[i]}${x}` : "")).filter(Boolean).join(" ") : raw);
-      // Fill the boxes in turn, breaking on spaces; whatever is left over goes to the continuation sheet.
-      let rest = text;
-      for (let i = 0; i < f.rows.length && rest; i++) {
-        const row = f.rows[i], [x, y, w, h] = row.cells[0];
-        const p = pages[row.p];
-        let size = 8.5;
-        while (size > 5.5 && font.widthOfTextAtSize(rest, size) > w - 4) size -= 0.5;
-        let take = rest;
-        if (font.widthOfTextAtSize(take, size) > w - 4) {
-          let cut = take.length;
-          while (cut > 1 && font.widthOfTextAtSize(take.slice(0, cut), size) > w - 4) cut--;
-          const sp = take.lastIndexOf(" ", cut);
-          take = take.slice(0, sp > cut * 0.5 ? sp : cut);
+      // A date or time typed on a line reads the way it is written on paper: 15/03/1998, 09:30.
+      const typed = DATE_KEYS.has(key) ? raw.replace(/^(\d{4})-(\d{2})-(\d{2}).*$/, "$3/$2/$1") : TIME_KEYS.has(key) ? raw.replace(/^(\d{1,2}):(\d{2}).*$/, (_m, h, m) => `${h.padStart(2, "0")}:${m}`) : raw;
+      const text = latin(key === "maternity" ? typed.split("|").map((x, i) => (x ? `${"GPLA"[i]}${x}` : "")).filter(Boolean).join(" ") : typed);
+      // Each place the text can go. A drawn box on the form holds as many lines as fit inside it, and the text is centred in the box;
+      // a box with no drawn border gives one line sitting on the form's own baseline.
+      // Rows that sit in the same drawn box are one place, not several.
+      const sameBox = (r: Row, q: Row) => !!r.b && !!q.b && r.b.every((v, i) => Math.abs(v - q.b![i]) < 0.6);
+      // When the answer has a drawn box, a further line that lies outside any box was a mis-detected continuation and is not used.
+      const inBoxes = f.rows.some((r) => r.b) ? f.rows.filter((r) => r.b) : f.rows;
+      const places = inBoxes.filter((r, i) => !(i > 0 && sameBox(r, inBoxes[i - 1])));
+      const slotsAt = (size: number) => places.map((row) => {
+        const [x, y, w, h] = row.cells[0], bx = row.b, lh = size * 1.2;
+        let x0 = x, x1 = x + w;
+        if (bx) { x0 = Math.max(x0, bx[0] + 1.5); x1 = Math.min(x1, bx[2] - 1.5); }
+        // Several lines only in a roomy box that is the field's one and only place; a narrow or small box, or one of several lines, holds one.
+        const roomy = !!bx && places.length === 1 && bx[3] - bx[1] >= 18 && bx[2] - bx[0] >= 120;
+        return { row, x0, x1, lines: roomy ? Math.max(1, Math.floor((bx![3] - bx![1] - 3) / lh)) : 1, cy: bx ? (bx[1] + bx[3]) / 2 : null, base: y + h - 2.6, lh };
+      });
+      // Fill the places in turn at one size, breaking on spaces. The size is the largest (down to 5.5) at which everything fits;
+      // whatever still does not fit goes to the continuation sheet.
+      const wrap = (size: number) => {
+        const slots = slotsAt(size);
+        const placed: { slot: (typeof slots)[number]; lines: string[] }[] = [];
+        let rest = text;
+        for (const slot of slots) {
+          if (!rest) break;
+          const w = slot.x1 - slot.x0 - 4, lines: string[] = [];
+          while (rest && lines.length < slot.lines) {
+            let take = rest;
+            if (font.widthOfTextAtSize(take, size) > w) {
+              let cut = take.length;
+              while (cut > 1 && font.widthOfTextAtSize(take.slice(0, cut), size) > w) cut--;
+              const sp = take.lastIndexOf(" ", cut);
+              take = take.slice(0, sp > cut * 0.5 ? sp : cut);
+            }
+            lines.push(take);
+            rest = rest.slice(take.length).trimStart();
+          }
+          placed.push({ slot, lines });
         }
-        p.drawText(take, { x: x + 2, y: topToPdf(p, y, h) + 2.6, size, font, color: INK });
-        rest = rest.slice(take.length).trimStart();
+        return { placed, rest };
+      };
+      let size = places.every((r) => !r.b && r.cells[0][3] < 6) ? 6.5 : 8.5, fit = wrap(size);
+      // Never smaller than a reader can comfortably read; what still does not fit goes to the continuation sheet.
+      const floor = places.every((r) => !r.b && r.cells[0][3] < 6) ? 6 : 6.5;
+      while (fit.rest && size - 0.5 >= floor) { size -= 0.5; fit = wrap(size); }
+      for (const { slot, lines } of fit.placed) {
+        lines.forEach((line, i) => {
+          // Centred on the box: the stack of lines is centred, and each line's middle sits on its own centre line.
+          const base = slot.cy === null ? slot.base : slot.cy - ((lines.length - 1) * slot.lh) / 2 + i * slot.lh + size * 0.34;
+          slot.row.p !== undefined && pages[slot.row.p].drawText(line, { x: slot.x0 + 2, y: pages[slot.row.p].getHeight() - base, size, font, color: INK });
+        });
       }
+      const rest = fit.rest;
       if (rest) overflow.push({ label, text });
       continue;
     }
@@ -121,16 +176,18 @@ export async function fillPreauthPdf(pdfBytes: Uint8Array, tpl: PdfTemplate, val
     if (DATE_KEYS.has(key) || TIME_KEYS.has(key)) text = text.replace(/\D/g, "");
     if (f.repeat) {
       // The same answer in each place the form asks for it (e.g. the date at the foot of two pages).
-      for (const row of f.rows) row.cells.forEach((cell, i) => { if (text[i] && text[i] !== " ") centred(pages[row.p], text[i], cell); });
+      for (const row of f.rows) row.cells.forEach((cell, i) => { if (text[i] && text[i] !== " ") { if (GUIDED_KEYS.has(key)) wipe(pages[row.p], cell); centred(pages[row.p], text[i], cell); } });
       continue;
     }
     const capacity = f.rows.reduce((n, r) => n + r.cells.length, 0);
+    // A date with room for only six digits is written day, month, two-digit year.
+    if (DATE_KEYS.has(key) && capacity === 6 && text.length === 8) text = text.slice(0, 4) + text.slice(6);
     const truncated = text.length > capacity;
     if (truncated) overflow.push({ label, text: latin(raw) });
     const shown = truncated ? text.slice(0, capacity - 1) + "*" : text;
     let at = 0;
     for (const row of f.rows) {
-      for (const cell of row.cells) { if (at < shown.length) { const ch = shown[at++]; if (ch !== " ") centred(pages[row.p], ch, cell); } }
+      for (const cell of row.cells) { if (at < shown.length) { const ch = shown[at++]; if (ch !== " ") { if (GUIDED_KEYS.has(key)) wipe(pages[row.p], cell); centred(pages[row.p], ch, cell); } } }
     }
   }
 
@@ -183,6 +240,13 @@ export async function fillPreauthPdf(pdfBytes: Uint8Array, tpl: PdfTemplate, val
       }
       if (rest) overflow.push({ label: PREAUTH_FIELDS[key]?.label ?? key, text });
     }
+  }
+
+  // ── Details the form asks for that have no box of their own ──
+  for (const o of tpl.order ?? []) {
+    if (o.key in tpl.fields || o.key in tpl.checks || o.key in tpl.chronic) continue;
+    const raw = (v[o.key] ?? "").toString().trim();
+    if (raw) overflow.push({ label: o.label || PREAUTH_FIELDS[o.key]?.label || o.key, text: latin(raw) });
   }
 
   // ── Signature, stamps ──

@@ -214,6 +214,61 @@ test("the signature stays as signed even if the doctor changes it later", async 
   assert.equal((await as(ADMIN, "GET", `/api/preauth/${f.id}`)).data.doctorSignatureImg, PNG);
 });
 
+test("auto-sign: a form sent to a doctor who turned it on is signed at once, they are told, and they can turn it off", async () => {
+  const AUTO = "/api/signature-assets/auto-sign";
+  // Needs a saved signature, and only a doctor can use it.
+  await as(OTHER_DOCTOR, "DELETE", "/api/signature-assets?kind=doctor_signature");
+  assert.equal((await as(OTHER_DOCTOR, "PUT", AUTO, { enabled: true })).status, 422, "no signature saved yet");
+  assert.equal((await as(ADMIN, "PUT", AUTO, { enabled: true })).status, 403);
+  assert.equal((await as(PHARMACIST, "PUT", AUTO, { enabled: true })).status, 403);
+  await as(DOCTOR, "PUT", "/api/signature-assets", { kind: "doctor_signature", image: PNG });
+  assert.equal((await as(DOCTOR, "GET", "/api/signature-assets")).data.autoSign, false, "off by default");
+  assert.equal((await as(DOCTOR, "PUT", AUTO, { enabled: "yes" })).status, 422);
+
+  const on = await as(DOCTOR, "PUT", AUTO, { enabled: true });
+  assert.equal(on.status, 200, JSON.stringify(on.error));
+  assert.equal(on.data.autoSign, true);
+  assert.equal((await as(ADMIN, "GET", "/api/signature-assets")).data.autoSign, false, "nobody else is switched on by it");
+
+  const p = await mkPatient("PA Auto");
+  const f = (await make("niva-bupa", p.id, ADMIN)).data;
+  const sent = await as(ADMIN, "POST", `/api/preauth/${f.id}/submit`);
+  assert.equal(sent.status, 200, JSON.stringify(sent.error));
+  assert.equal(sent.data.status, "Awaiting stamp", "signed the moment it was sent");
+  assert.equal(sent.data.doctorSignedAuto, true);
+  assert.equal(sent.data.doctorSignedBy, "Dr. Sophia Adams");
+  assert.equal(sent.data.doctorSignatureImg, PNG);
+  // The doctor is told it was signed for them (not asked to sign); the admin is asked to stamp; nothing is waiting on the doctor.
+  const mine = (await as(DOCTOR, "GET", "/api/notifications")).data.items.filter((x: any) => x.link === `/preauth/${f.id}`);
+  assert.ok(mine.some((x: any) => x.kind === "preauth_autosigned" && !x.read), "told it was signed automatically");
+  assert.ok(!mine.some((x: any) => x.kind === "preauth_sign"), "not asked to sign");
+  assert.match(mine.find((x: any) => x.kind === "preauth_autosigned").body, /turn it off/i);
+  assert.equal((await as(DOCTOR, "GET", "/api/preauth/pending")).data.toSign.some((x: any) => x.id === f.id), false);
+  assert.ok((await as(ADMIN, "GET", "/api/notifications")).data.items.some((x: any) => x.kind === "preauth_stamp" && x.link === `/preauth/${f.id}`));
+  assert.equal((await as(DOCTOR, "POST", `/api/preauth/${f.id}/sign`, {})).status, 422, "already signed");
+
+  // A form for someone else's doctor is not signed by this doctor's switch.
+  const q = await mkPatient("PA Auto Other");
+  const g = (await make("care", q.id, ADMIN, { doctorId: (await usersRepo.listRows({ unpaged: true } as never)).rows.find((u: any) => u.email === OTHER_DOCTOR)!.doctor_id })).data;
+  assert.equal((await as(ADMIN, "POST", `/api/preauth/${g.id}/submit`)).data.status, "Awaiting doctor");
+
+  // Off again: back to waiting for the doctor's own signature.
+  assert.equal((await as(DOCTOR, "PUT", AUTO, { enabled: false })).data.autoSign, false);
+  const h = (await make("care", (await mkPatient("PA Auto Off")).id, ADMIN)).data;
+  const sent2 = await as(ADMIN, "POST", `/api/preauth/${h.id}/submit`);
+  assert.equal(sent2.data.status, "Awaiting doctor");
+  assert.equal(sent2.data.doctorSignedAuto, false);
+
+  // Removing the signature switches it off too.
+  await as(DOCTOR, "PUT", AUTO, { enabled: true });
+  await as(DOCTOR, "DELETE", "/api/signature-assets?kind=doctor_signature");
+  assert.equal((await as(DOCTOR, "GET", "/api/signature-assets")).data.autoSign, false);
+  const i = (await make("care", (await mkPatient("PA Auto Gone")).id, ADMIN)).data;
+  assert.equal((await as(ADMIN, "POST", `/api/preauth/${i.id}/submit`)).data.status, "Awaiting doctor");
+  await as(DOCTOR, "PUT", "/api/signature-assets", { kind: "doctor_signature", image: PNG });
+  assert.equal((await as(DOCTOR, "GET", "/api/signature-assets")).data.autoSign, false, "a new signature does not bring it back on");
+});
+
 test("only the doctor it is addressed to can sign, and only the hospital's admin can stamp", async () => {
   const p = await mkPatient("PA Who");
   const f = (await make("care", p.id)).data;

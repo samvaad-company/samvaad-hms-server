@@ -24,6 +24,7 @@ import {
   type PatientDTO,
 } from "@/types/api";
 import { todayLocal, type SlotRequest } from "@/components/ot/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const CASE_TYPES: OtCaseType[] = ["Elective", "Emergency", "Outdoor"];
 const CATEGORIES: OtCategory[] = ["Major", "Minor", "Daycare"];
@@ -161,10 +162,10 @@ export function BookDialog({ open, onClose, onSaved, slot, editing }: {
         <div className="flex flex-col gap-2">
           <span className={label}>Patient</span>
           {editing ? (
-            <p className="text-[14px] text-[color:var(--ink)]">{editing.patientName} {editing.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{editing.patientCode}</span>}</p>
+            <p className="text-[14px] text-[color:var(--ink)]"><PatientName id={editing.patientId} name={editing.patientName} /> {editing.patientCode && <span className="font-mono text-[12px] text-[color:var(--ink-soft)]">{editing.patientCode}</span>}</p>
           ) : (
             <SearchSelect placeholder="Search patient…" value={f.patientId} onChange={(v) => set("patientId", v)}
-              options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))} />
+              options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))} />
           )}
         </div>
 

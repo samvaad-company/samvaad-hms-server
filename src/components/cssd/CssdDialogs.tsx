@@ -74,7 +74,7 @@ export function RequestDialog({ sets, presetSetId, onClose }: { sets: CssdSetDTO
         </div>
         {!caseId && (
           <div className="flex flex-col gap-2"><span className={fieldLabel}>Patient (optional)</span>
-            <SearchSelect placeholder="Search a patient…" value={patientId} onChange={setPatientId} options={patients.map((p) => ({ value: String(p.id), label: p.name, hint: p.patientId }))} />
+            <SearchSelect placeholder="Search a patient…" value={patientId} onChange={setPatientId} options={patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: p.patientId }))} />
           </div>
         )}
         <ErrorNote message={error?.message} />

@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { BedStatus } from "@/types";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 // ─── Bed status styling ───────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ function BedCard({ bed, onClick }: { bed: BedDTO; onClick: () => void }) {
       </div>
       {bed.patientName ? (
         <>
-          <span className="text-[11px] font-medium text-[color:var(--ink)] leading-[14px] whitespace-nowrap overflow-hidden text-ellipsis w-full">{bed.patientName}</span>
+          <span className="text-[11px] font-medium text-[color:var(--ink)] leading-[14px] whitespace-nowrap overflow-hidden text-ellipsis w-full"><PatientName id={bed.patientId} name={bed.patientName} /></span>
           <span className="text-[10px] font-light text-[color:var(--ink-soft)]">{bed.patientId}</span>
         </>
       ) : (
@@ -198,7 +199,7 @@ function ManageBedModal({
                   <UserRound size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium text-[color:var(--ink)] truncate">{current.patientName}</p>
+                  <p className="text-[14px] font-medium text-[color:var(--ink)] truncate"><PatientName id={current.patientId} name={current.patientName} /></p>
                   {current.patientId && <p className="text-[12px] font-light text-[color:var(--ink-soft)]">{current.patientId}</p>}
                 </div>
                 {canWrite && (
@@ -252,7 +253,7 @@ function ManageBedModal({
                         value={assignPatientId}
                         onChange={setAssignPatientId}
                         options={patients.map((p) => ({
-                          value: String(p.id),
+                          value: String(p.id), patientId: p.id,
                           label: p.name,
                           hint: p.patientId ?? undefined,
                         }))}
@@ -426,7 +427,7 @@ function TransfersView({ transfers }: { transfers: BedTransferDTO[] }) {
         </div>
         {transfers.map(t => (
           <div key={t.id} className="relative flex items-center h-[64px] border-b border-[color:var(--line)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 1100 }}>
-            <span className="absolute text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: 20 }}>{t.patientName}</span>
+            <span className="absolute text-[14px] font-medium text-[color:var(--ink)] whitespace-nowrap" style={{ left: 20 }}><PatientName name={t.patientName} /></span>
             <div className="absolute flex items-center gap-2" style={{ left: 220 }}>
               <span className="text-[13px] font-normal text-[color:var(--ink-soft)] whitespace-nowrap">{t.from}</span>
               <ArrowRight size={14} className="text-[color:var(--ink-soft)] shrink-0" />

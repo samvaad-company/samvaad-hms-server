@@ -2,8 +2,8 @@
  * The images kept for signing forms: each doctor's signature and stamp, and the hospital's stamp (kept by its top admin). Doctors and the
  * admin set their own; nobody can read or change anyone else's. The images are copied onto a form at the moment it is signed or stamped.
  */
-import { signatureAssetsRepo } from "@/repositories";
-import type { SignatureAssetRow } from "@/db/tables";
+import { signatureAssetsRepo, usersRepo } from "@/repositories";
+import type { SignatureAssetRow, UserRow } from "@/db/tables";
 import { type Session } from "@/auth/session";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { requireHospitalId } from "@/services/hospital-scope";
@@ -34,8 +34,10 @@ export async function findAsset(hospitalId: number, kind: AssetKind, ownerId: nu
 export async function myAssets(actor: Session): Promise<SignatureAssetsDTO> {
   const hid = requireHospitalId(actor);
   const isDoctor = actor.role === "Doctor", isAdmin = actor.role === "Super Admin";
+  const sig = isDoctor ? await findAsset(hid, "doctor_signature", actor.userId) : null;
   return {
-    doctorSignature: isDoctor ? (await findAsset(hid, "doctor_signature", actor.userId))?.image ?? null : null,
+    doctorSignature: sig?.image ?? null,
+    autoSign: !!sig?.auto_sign,
     doctorStamp: isDoctor ? (await findAsset(hid, "doctor_stamp", actor.userId))?.image ?? null : null,
     hospitalStamp: isAdmin ? (await findAsset(hid, "hospital_stamp", 0))?.image ?? null : null,
   };
@@ -55,6 +57,30 @@ export async function setAsset(input: unknown, actor: Session): Promise<Signatur
   else await signatureAssetsRepo.create({ hospital_id: hid, kind, owner_id: owner, image: body.image, updated_by: actor.name });
   await audit(actor, "signature_asset.set", "signature_asset", kind, { owner });
   return myAssets(actor);
+}
+
+/** `{ enabled }`: a doctor turns automatic signing on or off. It needs a saved signature, and goes off if the signature is removed. */
+export async function setAutoSign(input: unknown, actor: Session): Promise<SignatureAssetsDTO> {
+  const hid = requireHospitalId(actor);
+  if (actor.role !== "Doctor") throw new ForbiddenError("Only a doctor can turn on automatic signing.");
+  const enabled = (typeof input === "object" && input !== null ? (input as { enabled?: unknown }).enabled : undefined);
+  if (typeof enabled !== "boolean") throw new ValidationError([{ field: "enabled", message: "say whether automatic signing is on or off" }]);
+  const sig = await findAsset(hid, "doctor_signature", actor.userId);
+  if (!sig) throw new ValidationError([{ field: "signature", message: "add your signature first, then you can turn on automatic signing" }]);
+  await signatureAssetsRepo.update(sig.id, { auto_sign: enabled, updated_by: actor.name });
+  await audit(actor, enabled ? "signature_asset.auto_sign_on" : "signature_asset.auto_sign_off", "signature_asset", "doctor_signature");
+  return myAssets(actor);
+}
+
+/** The login of this doctor who has automatic signing on (and a signature saved), or null. */
+export async function autoSigner(hospitalId: number, doctorId: number): Promise<{ user: UserRow; signature: SignatureAssetRow } | null> {
+  const { rows } = await usersRepo.listRows({ unpaged: true, filters: [{ column: "hospital_id", op: "eq", value: hospitalId }, { column: "doctor_id", op: "eq", value: doctorId }] } as never);
+  for (const user of rows as UserRow[]) {
+    if (user.status === "Inactive" || user.role !== "Doctor") continue;
+    const signature = await findAsset(hospitalId, "doctor_signature", user.id);
+    if (signature?.auto_sign) return { user, signature };
+  }
+  return null;
 }
 
 export async function removeAsset(kindRaw: string | null, actor: Session): Promise<SignatureAssetsDTO> {

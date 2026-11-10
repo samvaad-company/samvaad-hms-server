@@ -19,7 +19,7 @@ export function ItAdminPanel() {
         <div className="max-w-[720px]">
           <QuickLinks links={[
             { href: "/admin", label: "Hospital Settings",   description: "Name, tax, working hours",      icon: Settings2 },
-            { href: "/admin", label: "Roles & Permissions", description: "Access control per role",       icon: ShieldCheck },
+            { href: "/roles", label: "Roles & Permissions", description: "Access control per role",       icon: ShieldCheck },
             { href: "/admin", label: "User Accounts",       description: "Manage logins & status",        icon: Users2 },
             { href: "/reports", label: "Reports",           description: "Usage & performance",           icon: BarChart3 },
           ]} />

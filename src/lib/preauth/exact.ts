@@ -12,8 +12,9 @@ export async function buildExactPdf(form: Pick<PreauthDTO, "formKey" | "formName
   const ex = EXACT_FORMS[form.formKey];
   if (!ex) throw new Error("This insurer's form isn't available as a PDF yet.");
   const [pdf, tpl] = await Promise.all([
-    once(ex.pdf, async () => new Uint8Array(await (await fetch(ex.pdf)).arrayBuffer())),
-    once(ex.template, async () => (await (await fetch(ex.template)).json()) as PdfTemplate),
+    // "no-cache" makes the browser check for a newer copy each time the page opens, so a corrected form layout is used straight away.
+    once(ex.pdf, async () => new Uint8Array(await (await fetch(ex.pdf, { cache: "no-cache" })).arrayBuffer())),
+    once(ex.template, async () => (await (await fetch(ex.template, { cache: "no-cache" })).json()) as PdfTemplate),
   ]);
   const bytes = await fillPreauthPdf(pdf, tpl, values, {
     doctorSignatureImg: form.doctorSignatureImg, doctorStampImg: form.doctorStampImg, hospitalStampImg: form.hospitalStampImg,

@@ -180,6 +180,8 @@ export interface PreauthDTO extends PreauthSummaryDTO {
   values: PreauthValues;
   admissionId: number | null;
   doctorSignedBy: string | null;
+  /** The doctor had automatic signing on, so the signature was applied as soon as the form was sent. */
+  doctorSignedAuto: boolean;
   stampedBy: string | null;
   /** The images captured when it was signed and stamped, so the form stays as signed even if they are changed later. */
   doctorSignatureImg: string | null;
@@ -192,6 +194,8 @@ export interface SignatureAssetsDTO {
   doctorSignature: string | null;
   doctorStamp: string | null;
   hospitalStamp: string | null;
+  /** A doctor's choice: sign forms sent to them automatically. Always false for anyone else. */
+  autoSign: boolean;
 }
 
 export interface NotificationListDTO { unread: number; items: NotificationDTO[] }

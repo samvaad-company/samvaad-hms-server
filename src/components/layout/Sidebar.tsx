@@ -137,6 +137,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/ipd",           label: "IPD",           icon: BedDouble,  resource: "ipd", key: "I" },
       { href: "/nurse-station", label: "Nurse Station", icon: HeartPulse, resource: "nursing", key: "6" },
+      { href: "/case-files",    label: "Case files",    icon: FolderOpen, resource: "casefile" },
       { href: "/checklists",    label: "Checklists",    icon: ListChecks, resource: "nursing", key: "5" },
       { href: "/ot",            label: "OT",            icon: Scissors,   resource: "ot", key: "U" },
       { href: "/beds",          label: "Beds & Wards",  icon: LayoutGrid, resource: "beds", key: "B" },
@@ -214,6 +215,7 @@ const groups: NavGroup[] = [
     label: "Admin",
     items: [
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin", key: "2" },
+      { href: "/roles",         label: "Roles & access", icon: ShieldCheck, resource: "admin" },
     ],
   },
   {

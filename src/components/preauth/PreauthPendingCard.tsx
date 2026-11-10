@@ -11,6 +11,7 @@ import { api } from "@/lib/api/client";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import type { PreauthPendingDTO, PreauthSummaryDTO, SignatureAssetsDTO } from "@/types/preauth";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export function PreauthPendingCard() {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ export function PreauthPendingCard() {
           {rows.map(({ f, kind }) => (
             <li key={f.id} className="flex flex-wrap items-center gap-3 border-t border-[color:var(--subtle-2)] py-[10px] first:border-t-0">
               <button type="button" onClick={() => router.push(`/preauth/${f.id}`)} className="min-w-0 flex-1 cursor-pointer text-left">
-                <span className="block truncate text-[14px] font-medium text-[color:var(--ink)]">{f.patientName}</span>
+                <span className="block truncate text-[14px] font-medium text-[color:var(--ink)]"><PatientName id={f.patientId} name={f.patientName} /></span>
                 <span className="block truncate text-[12px] text-[color:var(--ink-soft)]">{f.formName}{kind === "stamp" && f.doctorName ? ` · signed by ${f.doctorName}` : ""}</span>
               </button>
               <button type="button" onClick={() => router.push(`/preauth/${f.id}`)} className="cursor-pointer rounded-full border border-[color:var(--line)] px-3 py-[5px] text-[12px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]">Review</button>

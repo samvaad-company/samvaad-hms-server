@@ -13,6 +13,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormInput, FormRow, FormSelect } from "@/components/shared/FormRow";
 import type { IpdAlertDTO, IpdAlertKind, IpdNursingTaskDTO, NurseBoardDTO } from "@/types/api";
 import { btn, cardCls, Empty, sectionTitle, useAutoRefresh, when, type WardPatient, done } from "@/components/ipd/nurse/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const KIND_STYLE: Record<IpdAlertKind, string> = {
   "Critical vitals": "border-[#f4a3ac] bg-[#ffe3e5] text-[#b3001b]",
@@ -37,7 +38,7 @@ function AlertCard({ a, canWrite, onAct }: { a: IpdAlertDTO; canWrite: boolean; 
       </div>
       <p className="mt-1 text-[14px] font-semibold text-[color:var(--ink)] leading-[19px]">{a.title}</p>
       <p className="text-[12px] text-[color:var(--ink-soft)]">
-        {a.patientName} <span className="font-mono">{a.patientCode}</span>
+        <PatientName name={a.patientName} /> <span className="font-mono">{a.patientCode}</span>
       </p>
       {a.detail && <p className="mt-[2px] text-[12px] text-[color:var(--ink)]">{a.detail}</p>}
       {canWrite && (
@@ -188,7 +189,7 @@ export function BoardTab({ patients, canWrite }: { patients: WardPatient[]; canW
               <li key={adm.id} className={`${cardCls} px-3 py-[10px]`}>
                 <Link href={`/ipd/${adm.id}`} className="block">
                   <p className="text-[12px] text-[color:var(--ink-soft)]"><span className="font-mono">{adm.ward}{adm.bed ? ` / ${adm.bed}` : ""}</span></p>
-                  <p className="text-[14px] font-semibold text-[color:var(--ink)] leading-[19px]">{adm.patientName} <span className="font-mono text-[12px] font-normal text-[color:var(--ink-soft)]">{adm.patientId}</span></p>
+                  <p className="text-[14px] font-semibold text-[color:var(--ink)] leading-[19px]"><PatientName id={adm.patientId} name={adm.patientName} /> <span className="font-mono text-[12px] font-normal text-[color:var(--ink-soft)]">{adm.patientId}</span></p>
                   <p className="text-[12px] text-[color:var(--ink-soft)]">{adm.doctor || "No doctor yet"}</p>
                 </Link>
                 <div className="mt-2 flex flex-wrap items-center gap-2">

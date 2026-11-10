@@ -5,6 +5,7 @@ import { useRowActions } from "@/lib/api/useRowActions";
 import type { AmbulanceCallDTO } from "@/types/api";
 import { dmy } from "@/components/mrd/shared";
 import { CALL_STATUS, CALL_TYPES, Chip, hhmm, inr } from "./shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const FILTERS = ["All", "Queued", "Dispatched", "At scene", "Transporting", "Completed", "Cancelled"] as const;
 const sel = "rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 py-[7px] text-[13px]";
@@ -37,7 +38,7 @@ export function CallsTab({ calls, canWrite, reload }: { calls: AmbulanceCallDTO[
               <tr key={c.id} className="border-t border-[color:var(--line)] align-top">
                 <td className="whitespace-nowrap px-4 py-[10px] font-mono text-[12px] font-semibold">{c.callNo || `#${c.id}`}</td>
                 <td className="px-4 py-[10px]">{c.callType}</td>
-                <td className="px-4 py-[10px]">{c.patientName}{c.phone && <span className="block font-mono text-[11px] text-[color:var(--ink-soft)]">{c.phone}</span>}</td>
+                <td className="px-4 py-[10px]"><PatientName id={c.patientId} name={c.patientName} />{c.phone && <span className="block font-mono text-[11px] text-[color:var(--ink-soft)]">{c.phone}</span>}</td>
                 <td className="max-w-[280px] px-4 py-[10px] text-[color:var(--ink-soft)]">{c.pickupLocation}{c.dropLocation && ` → ${c.dropLocation}`}</td>
                 <td className="whitespace-nowrap px-4 py-[10px] font-mono text-[12px]">{c.vehicleNumber || "—"}{c.driverName && <span className="block font-sans text-[11px] text-[color:var(--ink-soft)]">{c.driverName}</span>}</td>
                 <td className="whitespace-nowrap px-4 py-[10px] font-mono text-[12px]">{dmy(c.date)} <span className="text-[color:var(--ink-soft)]">{hhmm(c.openedAt)}</span></td>

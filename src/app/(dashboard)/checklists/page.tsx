@@ -12,6 +12,7 @@ import { ChecklistDrawer, STATUS_PILL } from "@/components/ipd/checklists/Checkl
 import { StartChecklistDialog } from "@/components/ipd/checklists/StartChecklistDialog";
 import { TemplatesPanel } from "@/components/ipd/checklists/TemplatesPanel";
 import { Empty, useAutoRefresh } from "@/components/ipd/nurse/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const TABS = ["In progress", "Complete", "Cancelled", "Templates"] as const;
 type Tab = (typeof TABS)[number];
@@ -72,7 +73,7 @@ export default function ChecklistsPage() {
                 <button onClick={() => setOpenId(c.id)} className="flex w-full items-center gap-4 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-5 py-3 text-left hover:bg-[color:var(--subtle)] cursor-pointer transition-colors">
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-semibold text-[color:var(--ink)] leading-[20px]">{c.name}</p>
-                    <p className="text-[12px] text-[color:var(--ink-soft)]">{c.patientName} · <span className="font-mono">{c.patientCode}</span></p>
+                    <p className="text-[12px] text-[color:var(--ink-soft)]"><PatientName id={c.patientId} name={c.patientName} /> · <span className="font-mono">{c.patientCode}</span></p>
                   </div>
                   <div className="h-[6px] w-[124px] rounded-full bg-[color:var(--subtle-2)] overflow-hidden"><div className="h-full bg-[color:var(--brand)]" style={{ width: `${c.total ? (c.done / c.total) * 100 : 0}%` }} /></div>
                   <span className="w-[44px] text-right font-mono text-[12px] text-[color:var(--ink)]">{c.done}/{c.total}</span>

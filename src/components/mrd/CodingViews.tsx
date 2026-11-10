@@ -13,6 +13,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormInput, FormSelect } from "@/components/shared/FormRow";
 import { CODING_STATUSES, DEFICIENCY_KINDS, type CodeEntryDTO, type CodingStatus, type MrdCodingCaseDTO, type MrdCodingSummaryDTO, type MrdDeficiencyDTO } from "@/types/api";
 import { attempt, Chips, cancelBtn, dayMonth, Empty, ErrorNote, fieldLabel, mono, outlineBtn, Pill, primaryBtn, stampShort, StatCard, StatGrid, td, th } from "@/components/mrd/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const ICD10 = /^[A-TV-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$/;
 const PROC = /^[A-Z0-9]{3,8}$/;
@@ -166,7 +167,7 @@ export function CodingQueueView({ canWrite }: { canWrite: boolean }) {
           <tbody>
             {items.map((c) => (
               <tr key={c.id} className="border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
-                <td className={td}>{c.patientName} <span className={`${mono} text-[12px] text-[color:var(--ink-soft)]`}>{c.patientCode}</span></td>
+                <td className={td}><PatientName id={c.patientId} name={c.patientName} /> <span className={`${mono} text-[12px] text-[color:var(--ink-soft)]`}>{c.patientCode}</span></td>
                 <td className={`${td} ${mono} font-medium`}>{c.admissionNo}</td>
                 <td className={td}><Pill>{c.status}</Pill>{c.openDeficiencies > 0 && <span className="ml-2 text-[12px] text-[#c8001a]">{c.openDeficiencies} open</span>}</td>
                 <td className={`${td} ${mono} font-medium`}>{c.principalDxCode || "—"}</td>

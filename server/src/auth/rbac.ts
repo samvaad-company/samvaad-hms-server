@@ -1,10 +1,14 @@
 /**
  * Role-Based Access Control.
  *
- * Every protected resource maps to an access level per role:
+ * Every protected resource maps to an access level per role, from least to most:
  *   "none"  — no access
  *   "read"  — may list/view
- *   "write" — may create/update/delete (implies read)
+ *   "add"   — read, and may create new records
+ *   "edit"  — add, and may change existing records
+ *   "write" — edit, and may delete (full access)
+ * A hospital's Super Admin can change any role's level per resource (see role-access-service.ts); the table below is what every
+ * hospital starts with.
  */
 
 export type Resource =
@@ -43,10 +47,16 @@ export type Resource =
   | "cssd"
   | "hr"
   | "payroll"
-  | "awareness";
+  | "awareness"
+  | "casefile";
 
-export type Access = "none" | "read" | "write";
-export type Action = "read" | "write";
+export type Access = "none" | "read" | "add" | "edit" | "write";
+/** `write` is any change at all (used where the check doesn't know which kind); the others are what a request actually does. */
+export type Action = "read" | "add" | "edit" | "delete" | "write";
+
+export const ACCESS_LEVELS: Access[] = ["none", "read", "add", "edit", "write"];
+const LEVEL_RANK: Record<Access, number> = { none: 0, read: 1, add: 2, edit: 3, write: 4 };
+const ACTION_RANK: Record<Action, number> = { read: 1, add: 2, write: 2, edit: 3, delete: 4 };
 
 export const RESOURCES: Resource[] = [
   "patients",
@@ -85,6 +95,7 @@ export const RESOURCES: Resource[] = [
   "hr",
   "payroll",
   "awareness",
+  "casefile",
 ];
 
 const ALL_WRITE: Record<Resource, Access> = RESOURCES.reduce(
@@ -129,6 +140,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   "Super Admin": ALL_WRITE,
   "IT Admin": withOverrides(NONE, { admin: "write", staff: "read" }),
   Doctor: withOverrides(ALL_READ, {
+    casefile: "write",
     awareness: "write",
     payroll: "none",
     cssd: "write",
@@ -155,6 +167,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     reports: "none",
   }),
   "Head Nurse": withOverrides(NONE, {
+    casefile: "write",
     hr: "read",
     cssd: "write",
     consents: "write",
@@ -174,6 +187,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     staff: "read",
   }),
   Receptionist: withOverrides(NONE, {
+    casefile: "edit",
     awareness: "write",
     consents: "write",
     documents: "write",
@@ -224,6 +238,7 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
   }),
   /** Medical records department: patient files, retention, consent signatures, coding and the statutory registers. */
   "MRD Officer": withOverrides(NONE, {
+    casefile: "read",
     mrd: "write",
     consents: "write",
     documents: "write",
@@ -247,22 +262,39 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
 for (const perms of Object.values(ROLE_PERMISSIONS)) perms.chat = "write";
 
 function levelSatisfies(level: Access, action: Action): boolean {
-  if (level === "write") return true;
-  if (level === "read") return action === "read";
-  return false;
+  return LEVEL_RANK[level] >= ACTION_RANK[action];
 }
 
-export function permissionsFor(role: string): Record<Resource, Access> {
+/** What each hospital's Super Admin has changed, by hospital and role. Kept in memory and reloaded from the database (role-access-service.ts). */
+export type RoleOverrides = Record<string, Partial<Record<Resource, Access>>>;
+const overridesByHospital = new Map<number, RoleOverrides>();
+export function setRoleOverrides(hospitalId: number, overrides: RoleOverrides): void {
+  if (Object.keys(overrides).length === 0) overridesByHospital.delete(hospitalId);
+  else overridesByHospital.set(hospitalId, overrides);
+}
+export function roleOverridesFor(hospitalId: number | null | undefined): RoleOverrides {
+  return hospitalId == null ? {} : overridesByHospital.get(hospitalId) ?? {};
+}
+
+/** The built-in levels for a role, before any hospital changes. */
+export function defaultPermissionsFor(role: string): Record<Resource, Access> {
   // A role with no entry above is read-only on everything, but still gets the AI assistant like every other role.
   return ROLE_PERMISSIONS[role] ?? { ...ALL_READ, chat: "write" };
 }
 
-export function can(role: string, resource: Resource, action: Action): boolean {
-  return levelSatisfies(permissionsFor(role)[resource] ?? "none", action);
+/** A role's levels in one hospital: the built-ins with that hospital's changes on top. */
+export function permissionsFor(role: string, hospitalId?: number | null): Record<Resource, Access> {
+  const base = defaultPermissionsFor(role);
+  const changes = roleOverridesFor(hospitalId)[role];
+  return changes ? { ...base, ...changes } : base;
 }
 
-/** Resources a role may at least read — used to build the nav. */
-export function readableResources(role: string): Resource[] {
-  const perms = permissionsFor(role);
+export function can(role: string, resource: Resource, action: Action, hospitalId?: number | null): boolean {
+  return levelSatisfies(permissionsFor(role, hospitalId)[resource] ?? "none", action);
+}
+
+/** Resources a role may at least read: used to build the nav. */
+export function readableResources(role: string, hospitalId?: number | null): Resource[] {
+  const perms = permissionsFor(role, hospitalId);
   return RESOURCES.filter((r) => perms[r] !== "none");
 }

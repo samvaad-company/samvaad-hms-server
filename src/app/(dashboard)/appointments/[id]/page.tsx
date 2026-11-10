@@ -23,6 +23,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SlotPicker } from "@/components/scheduling/SlotPicker";
 import Link from "next/link";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** <input type=date> value → display string matching the rest of the app. */
@@ -183,7 +184,7 @@ export default function AppointmentDetailPage() {
         </Link>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">Appointment Details</div>
-          <div className="text-[17px] font-medium text-[color:var(--ink)] leading-tight">{appt.patientName}</div>
+          <div className="text-[17px] font-medium text-[color:var(--ink)] leading-tight"><PatientName id={appt.patientId} name={appt.patientName} /></div>
         </div>
         <StatusBadge status={appt.status} />
         <div className="flex flex-wrap items-center gap-2 max-lg:w-full">
@@ -381,7 +382,7 @@ export default function AppointmentDetailPage() {
         }
       >
         <div className="mb-3 text-[12px] text-[color:var(--ink-soft)]">
-          {appt.patientName} · {appt.patientAge} yrs
+          <PatientName id={appt.patientId} name={appt.patientName} /> · {appt.patientAge} yrs
           {modal === "reschedule" && (
             <span className="text-[color:var(--ink-soft)]"> — currently {formatDate(appt.date)} at {appt.time}</span>
           )}

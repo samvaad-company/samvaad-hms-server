@@ -8,6 +8,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toIsoDate, todayIso } from "@/lib/dates";
 import type { AppointmentDTO, DoctorDTO } from "@/types/api";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const DOCTOR_COLORS = ["#e11d48", "#1e293b", "#c026d3", "#0d9488", "#2563eb", "#d97706", "#7c3aed", "#059669", "#db2777", "#0891b2"];
 const START_HOUR = 9;
@@ -167,7 +168,7 @@ function Chip({ appt, selected, onSelect }: { appt: AppointmentDTO; selected: bo
       <span className={`block text-[11px] font-medium leading-[14px] truncate ${appt.status === "Cancelled" ? "line-through opacity-70" : ""}`} style={{ color: st.bar }}>
         {appt.time} · {appt.type}
       </span>
-      <span className={`block text-[12px] leading-[16px] text-[#11111c] truncate ${appt.status === "Cancelled" ? "line-through opacity-70" : ""}`}>{appt.patientName}</span>
+      <span className={`block text-[12px] leading-[16px] text-[#11111c] truncate ${appt.status === "Cancelled" ? "line-through opacity-70" : ""}`}><PatientName id={appt.patientId} name={appt.patientName} /></span>
     </button>
   );
 }

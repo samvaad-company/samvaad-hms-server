@@ -23,7 +23,7 @@ const ACTIVE_STATUSES = ["Pending", "Active"];
 
 function requireHospitalAdmin(actor: Session): number {
   const hospitalId = requireHospitalId(actor);
-  if (!can(actor.role, "admin", "write")) {
+  if (!can(actor.role, "admin", "write", actor.hospitalId)) {
     throw new ForbiddenError("You don't have permission to manage radiology links");
   }
   return hospitalId;
@@ -33,7 +33,7 @@ function requireCenterAdmin(actor: Session): number {
   if (actor.radiologyCenterId == null) {
     throw new ForbiddenError("Only a radiology center account can do this");
   }
-  if (!can(actor.role, "radiology", "write")) {
+  if (!can(actor.role, "radiology", "write", actor.hospitalId)) {
     throw new ForbiddenError("You don't have permission to manage radiology links");
   }
   return actor.radiologyCenterId;
@@ -157,11 +157,11 @@ export async function revokeLink(id: number, actor: Session) {
   if (actor.role === "Platform Admin") {
     // no ownership check
   } else if (actor.hospitalId != null) {
-    if (existing.hospital_id !== actor.hospitalId || !can(actor.role, "admin", "write")) {
+    if (existing.hospital_id !== actor.hospitalId || !can(actor.role, "admin", "write", actor.hospitalId)) {
       throw new NotFoundError("Radiology link");
     }
   } else if (actor.radiologyCenterId != null) {
-    if (existing.radiology_center_id !== actor.radiologyCenterId || !can(actor.role, "radiology", "write")) {
+    if (existing.radiology_center_id !== actor.radiologyCenterId || !can(actor.role, "radiology", "write", actor.hospitalId)) {
       throw new NotFoundError("Radiology link");
     }
   } else {

@@ -7,6 +7,7 @@ import { useItem } from "@/lib/api/hooks";
 import type { OtRecordDTO } from "@/types/api";
 import { BookingDetails } from "@/components/ot/BookingDetails";
 import { surgeryOf } from "@/components/ot/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 /** Side panel for one surgery, opened from any view. */
 export function BookingDrawer({ id, canWrite, onClose, onEdit, onDelete, onChanged }: {
@@ -31,7 +32,7 @@ export function BookingDrawer({ id, canWrite, onClose, onEdit, onDelete, onChang
         <header className="flex items-start justify-between gap-3 border-b border-[color:var(--line)] px-6 py-4">
           <div className="min-w-0">
             <h2 className="truncate text-[17px] font-semibold text-[color:var(--ink)]">{b ? surgeryOf(b) : "…"}</h2>
-            {b && <p className="text-[13px] text-[color:var(--ink-soft)]">{b.patientName} · <span className="font-mono">{b.bookingNo}</span></p>}
+            {b && <p className="text-[13px] text-[color:var(--ink-soft)]"><PatientName id={b.patientId} name={b.patientName} /> · <span className="font-mono">{b.bookingNo}</span></p>}
           </div>
           <div className="flex items-center gap-1">
             <Link href={`/ot/${id}`} aria-label="Open full page" className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)]"><ExternalLink size={16} /></Link>

@@ -14,7 +14,7 @@ import { slotsFor } from "@/services/scheduling-service";
  */
 export const GET = withRoute(async (req: ApiRequest) => {
   const session = await requireSession();
-  if (!can(session.role, "appointments", "read") && !can(session.role, "teleconsult", "read")) {
+  if (!can(session.role, "appointments", "read", session.hospitalId) && !can(session.role, "teleconsult", "read", session.hospitalId)) {
     throw new ForbiddenError("You can't view appointment slots");
   }
   const q = new URL(req.url).searchParams;

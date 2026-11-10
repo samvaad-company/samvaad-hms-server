@@ -13,6 +13,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { BloodTransfusionDTO } from "@/types/api";
 import { btn, Empty, mono, REACTION_KINDS, SectionHead, stamp, td, th } from "@/components/bloodbank/shared";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 async function attempt(p: Promise<unknown>) { try { await p; return true; } catch { return false; } }
 const label = "text-[14px] font-medium text-[color:var(--ink)]";
@@ -108,7 +109,7 @@ export function IssuesView({ canWrite }: { canWrite: boolean }) {
               return (
                 <tr key={t.id} className="border-b border-[color:var(--line)] last:border-b-0 hover:bg-[color:var(--faint)]">
                   <td className={`${td} ${mono}`}>{t.issueNo}</td>
-                  <td className={td}>{t.patientName}</td>
+                  <td className={td}><PatientName id={t.patientId} name={t.patientName} /></td>
                   <td className={`${td} ${mono}`}>{t.unitNo} <span className="font-sans text-[color:var(--ink-soft)]">{t.unitGroup}</span></td>
                   <td className={`${td} ${mono}`}>{stamp(t.issuedAt)}</td>
                   <td className={`${td} ${mono}`}>{t.transfusedAt ? `done ${stamp(t.transfusedAt)}` : t.disposition ? "-" : "pending"}</td>

@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/shared/DocumentLetterhead";
 import Link from "next/link";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -97,7 +98,7 @@ export default function BillingDetailPage() {
           <div className="grid grid-cols-2 gap-6 p-8 pb-6" style={{ borderBottom: "1px solid var(--line)" }}>
             <div>
               <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Bill To</div>
-              <div className="text-[15px] font-medium text-[color:var(--ink)]">{bill.patientName}</div>
+              <div className="text-[15px] font-medium text-[color:var(--ink)]"><PatientName id={bill.patientId} name={bill.patientName} /></div>
               {patient && (
                 <>
                   <div className="text-[13px] font-normal text-[color:var(--ink-soft)] mt-1">{patient.patientId ?? "—"}</div>

@@ -110,6 +110,7 @@ export const TABLES = {
   preauthForms: "preauth_forms",
   awarenessEvents: "awareness_events",
   awarenessReads: "awareness_reads",
+  caseFileEntries: "case_file_entries",
   signatureAssets: "signature_assets",
   notifications: "notifications",
   aiTokenUsage: "ai_token_usage",
@@ -1384,6 +1385,8 @@ export interface PreauthFormRow extends Row {
   created_by: string;
   doctor_signed_at: string | null;
   doctor_signed_by: string | null;
+  /** The signature was applied automatically (the doctor had auto-sign on), not by hand. */
+  doctor_signed_auto?: boolean;
   doctor_signature_img: string | null;
   doctor_stamp_img: string | null;
   stamped_at: string | null;
@@ -1434,6 +1437,23 @@ export interface AwarenessReadRow extends Row {
   read_at: string;
 }
 
+/**
+ * One form of an admission's case file (progress note, treatment sheet, TPR chart, …). The whole form is kept as one JSON value, and
+ * `version` goes up on every save so two people editing at once can't silently overwrite each other.
+ */
+export interface CaseFileEntryRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  /** Which form: progress_note, treatment_sheet, … (see src/lib/casefile/forms.ts). */
+  form_key: string;
+  data: Record<string, unknown>;
+  version: number;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /** An image a person or the hospital keeps for signing forms: a doctor's signature, a doctor's stamp, or the hospital's stamp (owner_id 0). */
 export interface SignatureAssetRow extends Row {
   id: number;
@@ -1444,6 +1464,8 @@ export interface SignatureAssetRow extends Row {
   owner_id: number;
   /** A PNG, JPEG or WebP data URL. */
   image: string;
+  /** On a doctor's signature: forms sent to them are signed automatically. */
+  auto_sign?: boolean;
   updated_by: string;
   created_at: string;
   updated_at: string;

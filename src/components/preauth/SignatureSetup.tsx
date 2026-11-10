@@ -10,22 +10,10 @@ import { api } from "@/lib/api/client";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { tw } from "@/lib/design-system";
+import { SignatureUploadModal } from "@/components/preauth/SignatureUploadModal";
 import type { SignatureAssetsDTO } from "@/types/preauth";
 
 type Kind = "doctor_signature" | "doctor_stamp" | "hospital_stamp";
-
-/** Shrinks a chosen picture to at most 520px wide and returns it as a PNG data URL, small enough to keep. */
-async function fileToImage(file: File): Promise<string> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That file isn't a picture.")); i.src = url; });
-    const scale = Math.min(1, 520 / img.width);
-    const c = document.createElement("canvas");
-    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/png");
-  } finally { URL.revokeObjectURL(url); }
-}
 
 function DrawPad({ onSave }: { onSave: (dataUrl: string) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -51,14 +39,9 @@ function DrawPad({ onSave }: { onSave: (dataUrl: string) => void }) {
 
 function Slot({ title, hint, kind, image, onChanged, canDraw }: { title: string; hint: string; kind: Kind; image: string | null; onChanged: () => void; canDraw?: boolean }) {
   const { run, loading, error } = useMutation();
-  const [localError, setLocalError] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [mode, setMode] = useState<"view" | "draw">("view");
   const save = async (dataUrl: string) => { await run(() => api.put("/signature-assets", { kind, image: dataUrl })); setMode("view"); onChanged(); };
-  const pick = async (f: File | undefined) => {
-    if (!f) return;
-    setLocalError("");
-    try { await save(await fileToImage(f)); } catch (e) { setLocalError(e instanceof Error ? e.message : "Couldn't read that picture."); }
-  };
   return (
     <div className="flex min-w-[260px] flex-1 flex-col gap-2 rounded-[12px] border border-[color:var(--line)] p-4">
       <div><p className="text-[14px] font-medium text-[color:var(--ink)]">{title}</p><p className="text-[12px] text-[color:var(--ink-soft)]">{hint}</p></div>
@@ -67,17 +50,45 @@ function Slot({ title, hint, kind, image, onChanged, canDraw }: { title: string;
       </div>
       {mode === "draw" ? <DrawPad onSave={save} /> : (
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[color:var(--line)] px-4 py-[6px] text-[13px] hover:bg-[color:var(--subtle)]">
-            <Upload size={13} /> {image ? "Replace picture" : "Upload picture"}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ""; }} />
-          </label>
+          <button type="button" onClick={() => setUploadOpen(true)} className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[color:var(--line)] px-4 py-[6px] text-[13px] hover:bg-[color:var(--subtle)]"><Upload size={13} /> {image ? "Replace picture" : "Upload picture"}</button>
           {canDraw && <button type="button" onClick={() => setMode("draw")} className="rounded-full border border-[color:var(--line)] px-4 py-[6px] text-[13px] hover:bg-[color:var(--subtle)] cursor-pointer">Draw it</button>}
           {image && <button type="button" onClick={async () => { await run(() => api.del(`/signature-assets?kind=${kind}`)); onChanged(); }} className="inline-flex items-center gap-1 rounded-full px-3 py-[6px] text-[13px] text-[#c8001a] hover:bg-[#ffe9e9] cursor-pointer"><Trash2 size={13} /> Remove</button>}
         </div>
       )}
       {mode === "draw" && <button type="button" onClick={() => setMode("view")} className="self-start text-[12px] text-[color:var(--ink-soft)] underline cursor-pointer">Cancel</button>}
       {loading && <p className="text-[12px] text-[color:var(--ink-soft)]">Saving…</p>}
-      {(error || localError) && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[12px] text-[#c8001a]">{localError || error?.message}</p>}
+      {error && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[12px] text-[#c8001a]">{error.message}</p>}
+      <SignatureUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} title={`Upload ${title.toLowerCase()}`} isStamp={kind !== "doctor_signature"} onSave={save} />
+    </div>
+  );
+}
+
+const AUTO_SIGN_WARNING = [
+  "Turn on automatic signing?",
+  "From now on, every pre-auth form sent to you is signed with your saved signature straight away, without you checking it first. You will get a notification each time, and you can turn this off whenever you like.",
+  "Forms already waiting for you are not signed automatically.",
+].join("\n\n");
+
+/** The doctor's switch for signing pre-auth forms automatically. */
+export function AutoSign({ enabled, hasSignature, onChanged }: { enabled: boolean; hasSignature: boolean; onChanged: () => void }) {
+  const { run, loading, error } = useMutation();
+  const set = async (on: boolean) => {
+    if (on && !confirm(AUTO_SIGN_WARNING)) return;
+    try { await run(() => api.put("/signature-assets/auto-sign", { enabled: on })); onChanged(); } catch { /* shown below */ }
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[12px] border border-[color:var(--line)] p-4">
+      <div className="min-w-[220px] flex-1">
+        <p className="text-[14px] font-medium text-[color:var(--ink)]">Sign pre-auth forms automatically</p>
+        <p className="text-[12px] text-[color:var(--ink-soft)]">
+          {enabled ? "On: forms sent to you are signed with your saved signature as soon as they arrive. You are notified each time." : hasSignature ? "Off: you sign each form yourself. Turn this on and forms sent to you are signed for you, and you are only notified." : "Save your signature first, then you can turn this on."}
+        </p>
+        {error && <p className="mt-1 text-[12px] text-[#c8001a]">{error.message}</p>}
+      </div>
+      <button type="button" role="switch" aria-checked={enabled} aria-label="Sign pre-auth forms automatically" disabled={loading || (!enabled && !hasSignature)} onClick={() => void set(!enabled)}
+        className={`relative h-[26px] w-[46px] shrink-0 rounded-full transition-colors disabled:opacity-50 cursor-pointer ${enabled ? "bg-[color:var(--brand)]" : "bg-[#c9ced6]"}`}>
+        <span className={`absolute top-[3px] h-[20px] w-[20px] rounded-full bg-white shadow transition-all ${enabled ? "left-[23px]" : "left-[3px]"}`} />
+      </button>
     </div>
   );
 }
@@ -87,7 +98,7 @@ export function SignatureSetup() {
   const { user } = useAuth();
   const { item, reload } = useItem<SignatureAssetsDTO>(user?.role === "Doctor" || user?.role === "Super Admin" ? "/signature-assets" : null);
   if (!user || (user.role !== "Doctor" && user.role !== "Super Admin")) return null;
-  const a = item ?? { doctorSignature: null, doctorStamp: null, hospitalStamp: null };
+  const a = item ?? { doctorSignature: null, doctorStamp: null, hospitalStamp: null, autoSign: false };
   return (
     <div id="signature-setup" className={`${tw.surface.card} ${tw.radius.card} scroll-mt-4 p-5`}>
       <p className="text-[15px] font-medium text-[color:var(--ink)]">My signature and stamp</p>
@@ -99,6 +110,7 @@ export function SignatureSetup() {
         </>}
         {user.role === "Super Admin" && <Slot title="Hospital stamp" hint="The hospital's seal that goes on every pre-auth form after the doctor signs." kind="hospital_stamp" image={a.hospitalStamp} onChanged={reload} />}
       </div>
+      {user.role === "Doctor" && <AutoSign enabled={a.autoSign} hasSignature={!!a.doctorSignature} onChanged={reload} />}
     </div>
   );
 }

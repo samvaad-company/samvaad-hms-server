@@ -19,7 +19,7 @@ export interface LinkValues { referredBy: string; familyOf: string; relation: st
 
 export function LoyaltyLinksFields({ patients, ownPatientId, value, onChange }: { patients: PatientDTO[]; ownPatientId: string; value: LinkValues; onChange: (v: LinkValues) => void }) {
   // Not the patient themselves; "None" clears the link.
-  const options = useMemo(() => [{ value: "", label: "None" }, ...patients.filter((p) => String(p.id) !== ownPatientId).map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))], [patients, ownPatientId]);
+  const options = useMemo(() => [{ value: "", label: "None" }, ...patients.filter((p) => String(p.id) !== ownPatientId).map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))], [patients, ownPatientId]);
   return (
     <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
       <FormRow label="Referred by (optional)">

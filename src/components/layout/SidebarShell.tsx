@@ -9,6 +9,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BreadcrumbProvider } from "@/lib/breadcrumb-context";
 import { ChatWidget } from "@/components/chat/ChatWidget";
+import { LoyaltyRankProvider } from "@/components/loyalty/PatientName";
 import { RouteLoader } from "./RouteLoader";
 import { TourProvider } from "@/components/training/TourProvider";
 import { LiveAppointmentsListener } from "@/components/live/LiveAppointmentsListener";
@@ -45,6 +46,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   return (
     <BreadcrumbProvider>
       <TourProvider>
+      <LoyaltyRankProvider>
       <LiveAppointmentsListener />
       <LiveToasts />
       {/* The app frame is fixed to the screen: sidebar and header never move, and the page panel below is the one
@@ -89,6 +91,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         />
         {!fullScreen && <ChatWidget open={aiOpen} onOpenChange={setAiOpen} />}
       </div>
+      </LoyaltyRankProvider>
       </TourProvider>
     </BreadcrumbProvider>
   );

@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Bed, Stethoscope, Calendar, ClipboardList, Trash2 } from "lucide-react";
 import { formatDate, todayIso, toIsoDate } from "@/lib/dates";
 import { FormRow, FormInput } from "@/components/shared/FormRow";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 
 
@@ -404,7 +405,7 @@ export default function IpdDetailPage() {
                   {record.patientName.split(" ").map((n:string) => n[0]).join("").slice(0, 2)}
                 </div>
                 <div>
-                  <p className="text-[18px] font-medium text-[color:var(--ink)]">{record.patientName}</p>
+                  <p className="text-[18px] font-medium text-[color:var(--ink)]"><PatientName id={record.patientId} name={record.patientName} /></p>
                   <p className="text-[13px] font-light text-[color:var(--ink-soft)]">{record.patientId} · {record.patientAge} yrs</p>
                 </div>
                 <StatusBadge status={record.status} />

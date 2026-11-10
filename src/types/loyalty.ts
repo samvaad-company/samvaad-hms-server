@@ -134,6 +134,14 @@ export interface LoyaltySummaryDTO {
   byRank: { key: LoyaltyRankKey; name: string; color: string; count: number }[];
 }
 
+/** A patient's rank by id (and by name when the name is unique), so any screen can show their stars beside their name. */
+export interface LoyaltyRankIndexDTO {
+  enabled: boolean;
+  ranks: Record<string, { name: string; color: string; stars: number }>;
+  byId: Record<number, string>;
+  byName: Record<string, string>;
+}
+
 export interface LoyaltyListDTO { summary: LoyaltySummaryDTO; members: LoyaltyMemberDTO[]; total: number }
 
 export interface LoyaltyLinkDTO {

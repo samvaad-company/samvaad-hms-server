@@ -20,6 +20,7 @@ import { SignatureSetup } from "@/components/preauth/SignatureSetup";
 import { PREAUTH_FORMS } from "@/lib/preauth/forms";
 import type { DoctorDTO, PatientDTO } from "@/types/api";
 import type { PreauthDTO, PreauthPendingDTO, PreauthSummaryDTO } from "@/types/preauth";
+import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLUMNS = [
   { label: "Patient", width: "minmax(160px,1.4fr)" },
@@ -70,7 +71,7 @@ export default function PreauthPage() {
             <p className="font-medium">{pending!.toSign.length > 0 ? `${pending!.toSign.length} form${pending!.toSign.length === 1 ? "" : "s"} waiting for your signature` : `${pending!.toStamp.length} form${pending!.toStamp.length === 1 ? "" : "s"} waiting for the hospital stamp`}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {[...pending!.toSign, ...pending!.toStamp].map((f) => (
-                <button key={f.id} onClick={() => router.push(`/preauth/${f.id}`)} className="rounded-full border border-[#e3c27a] bg-white/70 px-3 py-[3px] text-[12px] hover:bg-white cursor-pointer dark:bg-transparent">{f.patientName} · {f.formName}</button>
+                <button key={f.id} onClick={() => router.push(`/preauth/${f.id}`)} className="rounded-full border border-[#e3c27a] bg-white/70 px-3 py-[3px] text-[12px] hover:bg-white cursor-pointer dark:bg-transparent"><PatientName id={f.patientId} name={f.patientName} /> · {f.formName}</button>
               ))}
             </div>
           </div>
@@ -87,7 +88,7 @@ export default function PreauthPage() {
             ) : shown.map((f) => (
               <div key={f.id} role="button" tabIndex={0} onClick={() => router.push(`/preauth/${f.id}`)} onKeyDown={(e) => { if (e.key === "Enter") router.push(`/preauth/${f.id}`); }}
                 className={`${tw.table.dataRow} cursor-pointer`} style={{ gridTemplateColumns: "var(--cols)" }}>
-                <span className="truncate text-[13px] font-medium text-[color:var(--ink)]">{f.patientName}</span>
+                <span className="truncate text-[13px] font-medium text-[color:var(--ink)]"><PatientName id={f.patientId} name={f.patientName} /></span>
                 <span className="truncate text-[13px] text-[color:var(--ink)]">{f.formName}</span>
                 <span className="truncate text-[13px] text-[color:var(--ink)]">{f.doctorName || "—"}</span>
                 <span><StatusBadge status={f.status} /></span>
@@ -110,7 +111,7 @@ function NewFormModal({ open, onClose, onCreated }: { open: boolean; onClose: ()
   const { run, loading, error, reset } = useMutation();
 
   const formOptions = useMemo(() => PREAUTH_FORMS.map((f) => ({ value: f.key, label: f.name, hint: f.kind })), []);
-  const patientOptions = useMemo(() => patients.map((p) => ({ value: String(p.id), label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` })), [patients]);
+  const patientOptions = useMemo(() => patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` })), [patients]);
   const doctorOptions = useMemo(() => [{ value: "", label: "The patient's own doctor" }, ...doctors.map((d) => ({ value: String(d.id), label: d.name, hint: d.specialty }))], [doctors]);
 
   async function create() {
