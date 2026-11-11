@@ -35,6 +35,8 @@ export function FormInput({
   error,
   max,
   min,
+  maxLength,
+  inputMode,
 }: {
   placeholder?: string;
   value?: string;
@@ -45,10 +47,14 @@ export function FormInput({
   error?: boolean;
   max?: string;
   min?: string;
+  maxLength?: number;
+  inputMode?: "text" | "tel" | "numeric" | "decimal" | "email";
 }) {
   return (
     <input
       type={type}
+      maxLength={maxLength}
+      inputMode={inputMode}
       placeholder={placeholder}
       value={value}
       disabled={disabled}

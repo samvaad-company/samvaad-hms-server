@@ -1,0 +1,43 @@
+insurer,key,pages,doctor_signature_stamp_places,doctor_places_count,hospital_seal_places,needs_more_than_one_doctor_place
+Acko General Insurance,acko,5,p5,1,"p4, p5",no
+Aditya Birla Health Insurance,aditya-birla,4,p3,1,"p2, p3",no
+Bajaj Allianz General Insurance,bajaj-allianz,4,p3,1,"p2, p3",no
+Care Health Insurance,care,3,p3,1,"p3, p3",no
+Cholamandalam MS General Insurance,chola-ms,5,"p2, p4",2,"p2, p4",yes
+Edelweiss General Insurance,edelweiss,3,p3,1,"p2, p3",no
+Ericson TPA,ericson-tpa,6,p6,1,"p4, p6",no
+Family Health Plan TPA,family-health-plan,4,p4,1,"p3, p4",no
+Generali Central Insurance,generali-central,2,"p2, p2",2,"p2, p2",yes
+Geninus India,geninus,4,p4,1,"p3, p4",no
+Go Digit General Insurance,go-digit,4,p4,1,"p3, p4",no
+Good Health TPA,good-health,4,p4,1,"p3, p4",no
+HDFC ERGO Health,hdfc-ergo,3,p3,1,"p3, p3",no
+Health India TPA,health-india,5,p5,1,"p4, p5",no
+Heritage Health TPA,heritage,6,p6,1,"p4, p6",no
+HITPA (Health Insurance TPA of India),hitpa,4,p4,1,"p3, p4",no
+ICICI Lombard,icici-lombard,3,p3,1,p3,no
+ICICI Prudential Life,icici-pru,2,p2,1,"p1, p2",no
+IFFCO Tokio General Insurance,iffco-tokio,2,"p2, p2",2,"p2, p2",yes
+IndusInd (Reliance) General Insurance,indusind-reliance,5,p5,1,p5,no
+Kotak Mahindra General Insurance,kotak,3,p3,1,"p2, p3",no
+Liberty General Insurance,liberty,3,p3,1,"p2, p3",no
+Link K TPA,linkk,4,p4,1,"p3, p4",no
+Magma HDI General Insurance,magma-hdi,4,p4,1,"p3, p4",no
+ManipalCigna Health Insurance,manipal-cigna,3,p3,1,"p2, p3",no
+MDIndia Health Insurance TPA,mdindia,6,p6,1,"p4, p6",no
+Medi Assist Insurance TPA,medi-assist,2,p2,1,p2,no
+MedSave Health Insurance TPA,medsave,4,p4,1,"p3, p4",no
+Navi General Insurance,navi,3,p3,1,"p2, p3",no
+Niva Bupa Health Insurance,niva-bupa,3,p3,1,"p2, p3",no
+Paramount Health Services TPA,paramount,5,p5,1,"p4, p5",no
+Park Mediclaim TPA,park,9,p6,1,"p4, p6",no
+Raheja QBE (Raheja QBI) General Insurance,raheja-qbe,5,p5,1,"p3, p5",no
+Raksha TPA,raksha,6,p6,1,"p4, p6",no
+Royal Sundaram General Insurance,royal-sundaram,3,"p2, p3",2,"p2, p3",yes
+Safeway (Health Assist) TPA,safeway,5,p5,1,"p4, p5",no
+SBI General Insurance,sbi-general,4,p4,1,p4,no
+Star Health and Allied Insurance,star-health,6,p6,1,p6,no
+Tata AIG General Insurance,tata-aig,3,p3,1,"p3, p3",no
+Universal Sompo General Insurance,universal-sompo,3,p3,1,"p2, p3",no
+Vidal Health TPA,vidal,4,p4,1,"p3, p4",no
+Volo (East West Assist) TPA,volo,6,p6,1,"p4, p6",no

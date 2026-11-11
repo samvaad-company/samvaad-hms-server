@@ -313,6 +313,48 @@ test("signatures and stamps: right person, right picture, and nobody sees anothe
   assert.equal(gone.data.doctorStamp, null);
 });
 
+test("the patient's signature: added by drawing or upload, kept on the form, replaced or removed, and printed at every place the form asks for it", async () => {
+  const p = await mkPatient("PA Patient Sign");
+  const f = (await make("kotak", p.id)).data;
+  assert.equal(f.patientSignatureImg, null);
+  const put = (who: string, image: unknown, id = f.id) => as(who, "PUT", `/api/preauth/${id}/patient-signature`, { image });
+  const ok = await put(BILLING, PNG);
+  assert.equal(ok.status, 200, JSON.stringify(ok.error));
+  assert.equal(ok.data.patientSignatureImg, PNG);
+  assert.equal(ok.data.patientSignedBy, "Kavitha Krishnan");
+  assert.ok(ok.data.patientSignedAt);
+  // it comes back with the form, and can be replaced
+  assert.equal((await as(ADMIN, "GET", `/api/preauth/${f.id}`)).data.patientSignatureImg, PNG);
+  const other = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=";
+  assert.equal((await put(ADMIN, other)).data.patientSignatureImg, other);
+  // only a picture, and not too big
+  for (const bad of ["hello", "data:text/html;base64,AAAA", `data:image/png;base64,${"A".repeat(460_000)}`, 42]) assert.ok([400, 422].includes((await put(ADMIN, bad)).status), `refused: ${String(bad).slice(0, 20)}`);
+  assert.ok([400, 422].includes((await as(ADMIN, "PUT", `/api/preauth/${f.id}/patient-signature`, {})).status), "needs the image or null");
+  // can't be changed by someone who doesn't work on pre-auth, or from another hospital
+  assert.equal((await put(PHARMACIST, PNG)).status, 403);
+  assert.equal((await put(OTHER_HOSPITAL, PNG)).status, 404);
+  // it can be added after the doctor has signed and the hospital stamped, and removed again
+  assert.equal((await put(ADMIN, null)).data.patientSignatureImg, null);
+  assert.equal((await as(ADMIN, "GET", `/api/preauth/${f.id}`)).data.patientSignedAt, null);
+});
+
+test("every exact form that asks for the patient's signature has its places mapped, on a page that exists", async () => {
+  const { readFileSync } = await import("node:fs");
+  const dir = "F:/Work/samvaad-hms/samvaad-hms/public/preauth/";
+  let withPlaces = 0;
+  for (const k of EXACT_KEYS) {
+    const t = JSON.parse(readFileSync(`${dir}${k}.json`, "utf8"));
+    const v = t.images?.patientSignature;
+    if (!v) continue;
+    withPlaces++;
+    for (const spot of Array.isArray(v) ? v : [v]) {
+      assert.ok(Number.isInteger(spot.p) && spot.p >= 0 && spot.p < t.pages, `${k}: page ${spot.p}`);
+      assert.ok(spot.w > 20 && spot.h > 10 && spot.x >= 0 && spot.y >= 0, `${k}: size / position`);
+    }
+  }
+  assert.ok(withPlaces >= 30, `only ${withPlaces} forms have a patient signature place`);
+});
+
 test("every exact form has its real PDF and a box map, and only standard fields", async () => {
   const { readFileSync, existsSync } = await import("node:fs");
   const dir = "F:/Work/samvaad-hms/samvaad-hms/public/preauth/";

@@ -30,12 +30,13 @@ interface Props {
   doctorSignatureImg?: string | null;
   doctorStampImg?: string | null;
   hospitalStampImg?: string | null;
+  patientSignatureImg?: string | null;
   doctorSignedAt?: string | null;
   /** Let the doctor fill their qualification and registration number while signing. */
   declarationEditable?: boolean;
 }
 
-export function PreauthDocument({ def, values, onChange, editable, doctorSignatureImg, doctorStampImg, hospitalStampImg, doctorSignedAt, declarationEditable }: Props) {
+export function PreauthDocument({ def, values, onChange, editable, doctorSignatureImg, doctorStampImg, hospitalStampImg, patientSignatureImg, doctorSignedAt, declarationEditable }: Props) {
   const set = (k: string, v: string) => onChange?.(k, v);
   const sections = useMemo(() => PREAUTH_SECTIONS.map((s) => ({ ...s, fields: def.fields.filter((f) => PREAUTH_FIELDS[f.key]?.section === s.key) })).filter((s) => s.fields.length), [def]);
   const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -83,7 +84,7 @@ export function PreauthDocument({ def, values, onChange, editable, doctorSignatu
             <Labelled label="Patient's / insured's name"><Value type="text" k="declPatientName" value={values.declPatientName ?? ""} editable={!!editable} set={set} /></Labelled>
             <Labelled label="Contact number"><Value type="text" k="declPatientContact" value={values.declPatientContact ?? ""} editable={!!editable} set={set} /></Labelled>
             <Labelled label="Email ID (optional)"><Value type="text" k="declPatientEmail" value={values.declPatientEmail ?? ""} editable={!!editable} set={set} /></Labelled>
-            <Labelled label="Patient's / insured's signature"><div className={`h-9 ${line}`} /></Labelled>
+            <Labelled label="Patient's / insured's signature"><div className={`flex h-14 items-end ${line}`}>{patientSignatureImg && /* eslint-disable-next-line @next/next/no-img-element */ <img src={patientSignatureImg} alt="Patient's signature" className="max-h-[52px] max-w-[180px] object-contain" />}</div></Labelled>
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">

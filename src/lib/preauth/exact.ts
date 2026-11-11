@@ -8,7 +8,7 @@ const once = <T>(key: string, load: () => Promise<T>) => { if (!cache.has(key)) 
 
 export const hasExactForm = (formKey: string | undefined): boolean => !!formKey && formKey in EXACT_FORMS;
 
-export async function buildExactPdf(form: Pick<PreauthDTO, "formKey" | "formName" | "patientName" | "doctorSignatureImg" | "doctorStampImg" | "hospitalStampImg" | "doctorSignedAt">, values: PreauthValues): Promise<Blob> {
+export async function buildExactPdf(form: Pick<PreauthDTO, "formKey" | "formName" | "patientName" | "doctorSignatureImg" | "doctorStampImg" | "hospitalStampImg" | "doctorSignedAt"> & { patientSignatureImg?: string | null }, values: PreauthValues): Promise<Blob> {
   const ex = EXACT_FORMS[form.formKey];
   if (!ex) throw new Error("This insurer's form isn't available as a PDF yet.");
   const [pdf, tpl] = await Promise.all([
@@ -17,7 +17,7 @@ export async function buildExactPdf(form: Pick<PreauthDTO, "formKey" | "formName
     once(ex.template, async () => (await (await fetch(ex.template, { cache: "no-cache" })).json()) as PdfTemplate),
   ]);
   const bytes = await fillPreauthPdf(pdf, tpl, values, {
-    doctorSignatureImg: form.doctorSignatureImg, doctorStampImg: form.doctorStampImg, hospitalStampImg: form.hospitalStampImg,
+    doctorSignatureImg: form.doctorSignatureImg, doctorStampImg: form.doctorStampImg, hospitalStampImg: form.hospitalStampImg, patientSignatureImg: form.patientSignatureImg,
     defaultDate: form.doctorSignedAt?.slice(0, 10) ?? null, patientName: form.patientName, formName: form.formName,
   });
   return new Blob([bytes as BlobPart], { type: "application/pdf" });

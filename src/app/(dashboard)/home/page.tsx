@@ -16,6 +16,7 @@ import { DriverPanel } from "@/components/panels/DriverPanel";
 import { ItAdminPanel } from "@/components/panels/ItAdminPanel";
 import { AdminPanel } from "@/components/panels/AdminPanel";
 import { TeleCallerPanel } from "@/components/panels/TeleCallerPanel";
+import { InsurancePanel } from "@/components/panels/InsurancePanel";
 
 const ROLE_PANELS: Record<string, () => React.JSX.Element> = {
   "Doctor": DoctorPanel,
@@ -27,6 +28,7 @@ const ROLE_PANELS: Record<string, () => React.JSX.Element> = {
   "Driver": DriverPanel,
   "IT Admin": ItAdminPanel,
   "Tele Caller": TeleCallerPanel,
+  "Insurance Exec": InsurancePanel,
 };
 
 export default function HomePage() {

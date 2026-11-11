@@ -187,6 +187,10 @@ export interface PreauthDTO extends PreauthSummaryDTO {
   doctorSignatureImg: string | null;
   doctorStampImg: string | null;
   hospitalStampImg: string | null;
+  /** The patient's own signature, added on this form (drawn or uploaded), and who added it and when. */
+  patientSignatureImg: string | null;
+  patientSignedAt: string | null;
+  patientSignedBy: string | null;
 }
 
 /** The images the caller has stored for signing (data URLs, or null): a doctor's signature and stamp, or the hospital's stamp for its top admin. */
@@ -214,4 +218,53 @@ export interface NotificationDTO {
 export interface PreauthPendingDTO {
   toSign: PreauthSummaryDTO[];
   toStamp: PreauthSummaryDTO[];
+}
+
+// ── Claim packet: the signed pre-auth form and its supporting papers in one PDF ─────────────────────────────────────
+
+export type PacketDocKind = "aadhaar" | "pan" | "policy" | "other";
+
+export interface PacketPrescriptionOption { id: number; rxNumber: string; date: string; doctor: string; diagnosis: string; medicineCount: number }
+export interface PacketReportOption { key: string; group: "Lab" | "Radiology"; name: string; date: string; fileName: string }
+export interface PacketDocumentOption { id: number; title: string; category: string; fileName: string; mimeType: string; sizeBytes: number; kind: PacketDocKind; uploadedAt: string }
+
+/** What can go into a form's packet: the patient's prescriptions, uploaded reports, and papers on file (with Aadhaar, PAN and policy picked out). */
+export interface PacketOptionsDTO {
+  formId: number;
+  formName: string;
+  patientId: number | null;
+  patientName: string;
+  /** The packet can be made once the form is signed and stamped. */
+  ready: boolean;
+  prescriptions: PacketPrescriptionOption[];
+  reports: PacketReportOption[];
+  documents: PacketDocumentOption[];
+}
+
+export interface PacketFileDTO {
+  /** "report:lab:12", "document:7" */
+  key: string;
+  label: string;
+  fileName: string;
+  mimeType: string;
+  /** The file as a data URL. */
+  dataUrl: string;
+}
+
+export interface PacketPrescriptionDTO {
+  id: number;
+  rxNumber: string;
+  date: string;
+  doctor: string;
+  diagnosis: string;
+  patientName: string;
+  patientAge: number;
+  gender: string | null;
+  allergies: string | null;
+  items: { medicineName: string; dosage: string; frequency: string; duration: string; instructions: string | null }[];
+}
+
+export interface PacketContentDTO {
+  prescriptions: PacketPrescriptionDTO[];
+  files: PacketFileDTO[];
 }

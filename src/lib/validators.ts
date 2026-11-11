@@ -102,3 +102,18 @@ export function validateIdentityNumber(type: IdentityType, value: string): strin
     default: return /^[A-Z0-9/]{6,20}$/.test(n) ? null : "Enter the document number (6–20 letters or digits)";
   }
 }
+
+/** What can be kept of a mobile number as it is typed: digits only, at most 10. A leading 0 or a pasted +91 is dropped. */
+export function sanitizeMobile(raw: string): string {
+  let d = raw.replace(/\D/g, "").replace(/^0+/, "");
+  if (d.length >= 12 && d.startsWith("91")) d = d.slice(2);
+  return d.slice(0, 10);
+}
+
+/** An ABHA ID is 14 digits; it is often written 12-3456-7890-1234, so dashes and spaces are accepted but not kept. */
+export const normalizeAbha = (raw: string): string => raw.replace(/\D/g, "");
+export const sanitizeAbha = (raw: string): string => normalizeAbha(raw).slice(0, 14);
+export function validateAbha(value: string): string | null {
+  if (!value.trim()) return null;
+  return normalizeAbha(value).length === 14 ? null : "ABHA ID must be exactly 14 digits";
+}

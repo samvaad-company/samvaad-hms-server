@@ -57,7 +57,7 @@ export default function StaffDetailPage() {
   const licenceAlert = staff.licenceExpiry && left <= 60;
 
   return (
-    <div className={`${tw.gutterX} mb-[30px]`}>
+    <div className={`${tw.gutterX} mb-[30px] pt-5`}>
       <div className="flex items-start gap-5">
         <div className="flex shrink-0 flex-col gap-4" style={{ width: 280 }}>
           <div className={`${card} flex flex-col items-center gap-3 p-5`}>

@@ -101,6 +101,10 @@ import type {
   OtRoomRow,
   OtEquipmentRow,
   IpdVitalRow,
+  IpdSheetRow,
+  PatientVaccinationRow,
+  IpdIoRow,
+  OpdVitalRow,
   IpdIvLineRow,
   IpdDoseLogRow,
   IpdNursingTaskRow,
@@ -171,6 +175,7 @@ import {
   toOtRoomDTO,
   toOtEquipmentDTO,
   toIpdVitalDTO,
+  toOpdVitalDTO,
   toIpdIvLineDTO,
   toIpdDoseLogDTO,
   toIpdNursingTaskDTO,
@@ -385,6 +390,10 @@ export const ipdMedicationsRepo = createRepository<IpdMedicationRow, ReturnType<
   TABLES.ipdMedications,
   toIpdMedicationDTO,
 );
+export const patientVaccinationsRepo = createRepository<PatientVaccinationRow, PatientVaccinationRow>(TABLES.patientVaccinations, (row) => row);
+export const ipdSheetsRepo = createRepository<IpdSheetRow, IpdSheetRow>(TABLES.ipdSheets, (row) => row);
+export const ipdIoRepo = createRepository<IpdIoRow, IpdIoRow>(TABLES.ipdIo, (row) => row);
+export const opdVitalsRepo = createRepository<OpdVitalRow, ReturnType<typeof toOpdVitalDTO>>(TABLES.opdVitals, toOpdVitalDTO);
 export const ipdVitalsRepo = createRepository<IpdVitalRow, ReturnType<typeof toIpdVitalDTO>>(TABLES.ipdVitals, toIpdVitalDTO);
 export const ipdIvLinesRepo = createRepository<IpdIvLineRow, ReturnType<typeof toIpdIvLineDTO>>(TABLES.ipdIvLines, toIpdIvLineDTO);
 export const ipdDoseLogRepo = createRepository<IpdDoseLogRow, ReturnType<typeof toIpdDoseLogDTO>>(TABLES.ipdDoseLog, toIpdDoseLogDTO);

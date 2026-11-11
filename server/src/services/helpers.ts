@@ -71,7 +71,9 @@ export function displayDate(d: Date = new Date()): string {
 
 /** Current display time, e.g. "11:30 AM". */
 export function displayTime(d: Date = new Date()): string {
+  // In the hospital's own time zone, not the server's: a server running on UTC would otherwise stamp every check-in 5½ hours early.
   return d.toLocaleTimeString("en-US", {
+    timeZone: process.env.HOSPITAL_TIMEZONE || "Asia/Kolkata",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

@@ -226,6 +226,16 @@ export const ROLE_PERMISSIONS: Record<string, Record<Resource, Access>> = {
     tpa: "write",
     finance: "write",
   }),
+  /**
+   * Insurance desk: handles TPA / insurance claims and the insurers' pre-authorisation forms, and nothing else. Reads patients,
+   * doctors and admissions only so a form can be started for a patient and filled in from the hospital's records.
+   */
+  "Insurance Exec": withOverrides(NONE, {
+    tpa: "write",
+    patients: "read",
+    doctors: "read",
+    ipd: "read",
+  }),
   Pharmacist: withOverrides(NONE, {
     pharmacy: "write",
     prescriptions: "read",

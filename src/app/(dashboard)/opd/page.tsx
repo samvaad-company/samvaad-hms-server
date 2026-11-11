@@ -20,6 +20,7 @@ import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import type { OpdRecord } from "@/types";
 import { PatientName } from "@/components/loyalty/PatientName";
+import { AddVitalsModal } from "@/components/opd/VitalsLog";
 
 const COLUMNS = [
   { label: "Token",  width: "80px" },
@@ -30,7 +31,7 @@ const COLUMNS = [
   { label: "Priority", width: "100px", hideBelow: 700 },
   { label: "Vitals", width: "150px", hideBelow: 900 },
   { label: "Wait",   width: "80px", hideBelow: 1100 },
-  { label: "Check-in", width: "95px", hideBelow: 1280 },
+  { label: "Check-in / out", width: "120px", hideBelow: 1280 },
   { label: "Status", width: "130px" },
   { label: "Action", width: "52px", align: "right" as const },
 ];
@@ -58,7 +59,7 @@ const FILTERS = [
   { id: "Completed",       label: "Completed" },
 ];
 
-const MIN_WIDTH = 1340;
+const MIN_WIDTH = 1365;
 
 /**
  * On a narrower screen the table drops its less important columns (see `hideBelow`) — and what they held moves under the patient's
@@ -86,7 +87,7 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
           <span className="s-doc">{row.doctor}</span>
           <span className="s-pri" style={row.priority === "Emergency" ? { color: "#ff0004" } : row.priority === "Urgent" ? { color: "#ff9000" } : undefined}>{row.priority}</span>
           <span className="s-age">Age {row.patientAge}</span>
-          <span className="s-in">In {row.checkInTime}</span>
+          <span className="s-in">In {row.checkInTime}{row.checkOutTime ? ` · Out ${row.checkOutTime}` : ""}</span>
           <span className="s-wait">Wait {row.waitTime}</span>
           <span className="s-vitals">Vitals: {row.vitalsRecorded ? (vitalsSummary(row.vitals) || "Recorded") : "Pending"}</span>
           {row.reason && <span className="s-reason" title={row.reason}>{row.reason}</span>}
@@ -116,7 +117,10 @@ function OpdRow({ row, actions }: { row: OpdRecord; actions: RowAction[] }) {
         </span>
       </div>
       <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.waitTime}</span>
-      <span className="text-[13px] font-normal text-[color:var(--ink)]">{row.checkInTime}</span>
+      <div className="leading-[17px]">
+        <span className="block text-[13px] font-normal text-[color:var(--ink)]" title="Checked in">In {row.checkInTime}</span>
+        <span className={`block text-[12px] ${row.checkOutTime ? "text-[color:var(--ink)]" : "text-[color:var(--ink-soft)]"}`} title="Checked out">{row.checkOutTime ? `Out ${row.checkOutTime}` : "Out —"}</span>
+      </div>
       <div><StatusBadge status={row.status} /></div>
       <div className="flex justify-end"><RowMenu actions={actions} /></div>
     </div>
@@ -178,7 +182,9 @@ function sendToLabActions(
 }
 
 export default function OpdPage() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  /** A doctor checking a patient in is, by default, the doctor who will see them. */
+  const ownDoctorId = user?.role === "Doctor" && user.doctorId != null ? String(user.doctorId) : "";
   const router = useRouter();
   const canWrite = can("opd", "write");
   const canOrderRadiology = can("radiology", "write");
@@ -187,6 +193,7 @@ export default function OpdPage() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingRow, setEditingRow] = useState<OpdRecordDTO | null>(null);
+  const [vitalsFor, setVitalsFor] = useState<OpdRecordDTO | null>(null);
   const { items: opdRecords, reload } = useList<OpdRecordDTO>("/opd", { all: true });
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
@@ -306,6 +313,9 @@ export default function OpdPage() {
   return (
     <>
       {dialog}
+      <AddVitalsModal open={vitalsFor != null} visitId={vitalsFor?.id ?? null} patientName={vitalsFor?.patientName ?? ""} tokenNumber={vitalsFor?.tokenNumber ?? ""}
+        onClose={() => setVitalsFor(null)} onSaved={reload} />
+
       <Modal open={showModal} onClose={closeModal} title={editingRow ? `Edit OPD Entry — ${editingRow.tokenNumber}` : "New OPD Check-in"}
         footer={
           <>
@@ -382,7 +392,7 @@ export default function OpdPage() {
         title="OPD Queue"
         subtitle="Manage today's outpatient queue — track tokens, vitals, and consultation status in real time."
         stats={[{ icon: Activity, value: `${visible.length}`, label: "Active Tokens" }]}
-        action={canWrite ? { label: "New Check-in", icon: Plus, onClick: () => { setEditingRow(null); setForm(EMPTY); setShowModal(true); } } : undefined}
+        action={canWrite ? { label: "New Check-in", icon: Plus, onClick: () => { setEditingRow(null); setForm({ ...EMPTY, doctorId: ownDoctorId }); setShowModal(true); } } : undefined}
         dateRange={false}
       />
 
@@ -404,7 +414,7 @@ export default function OpdPage() {
                   { label: "Edit", onClick: () => openEdit(r) },
                   { label: "Begin consultation", disabled: r.status !== "Waiting", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "In Consultation" })) },
                   { label: "Mark completed", disabled: r.status === "Completed", onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { status: "Completed" })) },
-                  { label: r.vitalsRecorded ? "Vitals recorded ✓" : "Record vitals", disabled: r.vitalsRecorded, onClick: () => mutate(() => api.patch(`/opd/${r.id}`, { vitalsRecorded: true })) },
+                  { label: r.vitalsRecorded ? "Add / view vitals" : "Record vitals", onClick: () => setVitalsFor(r) },
                 ] : []),
                 ...(canOrderRadiology ? sendToRadiologyActions(r, radiologyCenters, router) : []),
                 ...(canOrderLab ? sendToLabActions(r, labCenters, router) : []),

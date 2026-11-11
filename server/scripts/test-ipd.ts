@@ -210,6 +210,42 @@ test("vitals are validated, and critical ones raise a critical alert that stays 
   assert.equal(latest.spo2, 86);
 });
 
+test("vitals can be taken again and again for one patient in a day; every set is kept, with its note, newest first", async () => {
+  const a = (await as(ADMIN, "POST", "/api/ipd", { patientId: 9, patientName: "Repeat Vitals" })).data;
+  for (const [pulse, note] of [[78, "morning round"], [84, "after walking"], [76, ""], [80, "before sleep"]] as const) {
+    const r = await as(NURSE, "POST", "/api/ipd/nurse/vitals", { admissionId: a.id, pulse, tempC: 37, note });
+    assert.equal(r.status, 201);
+  }
+  const history = (await as(NURSE, "GET", `/api/ipd/nurse/vitals?admissionId=${a.id}`)).data;
+  assert.equal(history.length, 4, "none is overwritten");
+  assert.deepEqual(history.map((v: any) => v.pulse).sort(), [76, 78, 80, 84]);
+  assert.ok(history.some((v: any) => v.note === "after walking"));
+  assert.ok(history[0].recordedAt >= history[3].recordedAt, "newest first");
+  const latest = (await as(NURSE, "GET", "/api/ipd/nurse/vitals")).data.filter((v: any) => v.admissionId === a.id);
+  assert.equal(latest.length, 1, "the round shows one row per patient: the latest set");
+});
+
+test("several sets of vitals can be saved together for one admitted patient, each at its own time, all or none", async () => {
+  const a = (await as(ADMIN, "POST", "/api/ipd", { patientId: 10, patientName: "Batch Vitals" })).data;
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+  const r = await as(NURSE, "POST", "/api/ipd/nurse/vitals", { admissionId: a.id, readings: [
+    { pulse: 82, tempC: 37, recordedAt: hoursAgo(6), note: "6am" },
+    { pulse: 76, tempC: 36.8, recordedAt: hoursAgo(2), note: "10am" },
+    { pulse: 79, tempC: 37.1, recordedAt: hoursAgo(4), note: "8am" },
+  ] });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.length, 3);
+  const history = (await as(NURSE, "GET", `/api/ipd/nurse/vitals?admissionId=${a.id}`)).data;
+  assert.deepEqual(history.map((v: any) => v.note), ["10am", "8am", "6am"], "newest first by the time taken, not the order entered");
+  const latest = (await as(NURSE, "GET", "/api/ipd/nurse/vitals")).data.find((v: any) => v.admissionId === a.id);
+  assert.equal(latest.note, "10am");
+  const bad = await as(NURSE, "POST", "/api/ipd/nurse/vitals", { admissionId: a.id, readings: [{ pulse: 80 }, { pulse: 80, bpSystolic: 120 }] });
+  assert.ok(bad.status === 400 || bad.status === 422);
+  assert.equal((await as(NURSE, "GET", `/api/ipd/nurse/vitals?admissionId=${a.id}`)).data.length, 3, "a refused batch saves nothing");
+  const future = await as(NURSE, "POST", "/api/ipd/nurse/vitals", { admissionId: a.id, pulse: 80, recordedAt: new Date(Date.now() + 3_600_000).toISOString() });
+  assert.ok(future.status === 400 || future.status === 422);
+});
+
 test("an IV bottle runs, is counted on the board, alerts when it is about to finish, and can be stopped", async () => {
   const a = (await as(ADMIN, "POST", "/api/ipd", { patientId: 8, patientName: "Priya Sharma" })).data;
   assert.equal((await as(NURSE, "POST", "/api/ipd/nurse/iv", { admissionId: a.id, fluid: "NS", volumeMl: 500, rateMlHr: 0 })).status, 422);

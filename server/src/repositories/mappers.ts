@@ -43,6 +43,7 @@ import type {
   SerologyDTO,
   RadiologyTestDTO,
   IpdVitalDTO,
+  OpdVitalDTO,
   OtCaseType,
   OtCategory,
   OtFitness,
@@ -114,6 +115,7 @@ import type {
   SignatureRequestRow,
   RadiologyTestRow,
   IpdVitalRow,
+  OpdVitalRow,
   OtRoomRow,
   OtEquipmentRow,
   IpdIvLineRow,
@@ -300,6 +302,9 @@ export function toOpdDTO(r: OpdVisitRow): OpdRecordDTO {
     },
     waitTime: r.wait_time,
     checkInTime: r.check_in_time,
+    checkInAt: r.check_in_at ?? null,
+    checkOutTime: r.check_out_time ?? "",
+    checkOutAt: r.check_out_at ?? null,
     status: r.status as OpdStatus,
     patientId: r.patient_id,
     doctorId: r.doctor_id,
@@ -471,6 +476,22 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     primaryNurse: r.primary_nurse ?? "",
     expectedStayDays: r.expected_stay_days ?? null,
     diet: r.diet ?? "",
+  };
+}
+
+export function toOpdVitalDTO(r: OpdVitalRow): OpdVitalDTO {
+  return {
+    id: r.id,
+    visitId: r.visit_id,
+    patientId: r.patient_id ?? null,
+    recordedAt: r.recorded_at,
+    bpSystolic: r.bp_systolic ?? null,
+    bpDiastolic: r.bp_diastolic ?? null,
+    pulse: r.pulse ?? null,
+    temperature: r.temperature ?? null,
+    spo2: r.spo2 ?? null,
+    note: r.note ?? "",
+    recordedBy: r.recorded_by ?? "",
   };
 }
 

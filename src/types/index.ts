@@ -75,6 +75,10 @@ export interface OpdRecord {
   vitals: Vitals;
   waitTime: string;
   checkInTime: string;
+  /** When the visit was checked out (completed): the clock text and the exact instant; empty until then. */
+  checkOutTime?: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
   status: OpdStatus;
 }
 

@@ -283,32 +283,61 @@ const vitalSchema = {
   note: { type: "string", required: false, max: 300, default: "" },
 } as const;
 
+/** When a set of vitals was taken: now unless a time is given (to enter earlier sets). Not in the future, and not more than two weeks back. */
+export function readingTime(raw: unknown): string {
+  if (raw == null || raw === "") return new Date().toISOString();
+  const t = new Date(String(raw));
+  if (Number.isNaN(t.getTime())) throw new BadRequestError("The time of a reading isn't a valid date and time");
+  const now = Date.now();
+  if (t.getTime() > now + 5 * 60_000) throw new BadRequestError("A reading can't be dated in the future");
+  if (t.getTime() < now - 14 * 24 * 3_600_000) throw new BadRequestError("A reading can't be dated more than two weeks back");
+  return t.toISOString();
+}
+
+const MAX_SETS = 24;
+
+/**
+ * Records vitals for an admitted patient. Send one set, or `readings: [...]` to add several at once (each may carry its own
+ * `recordedAt`); the whole batch is checked first, so either every set is saved or none is. Nothing already recorded is replaced.
+ */
 export async function recordVitals(input: unknown, actor: Session) {
-  const data = validate(vitalSchema, input);
-  const admission = await ipdRepo.getRow(data.admissionId);
+  const body = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const many = Array.isArray(body.readings);
+  const sets = many ? (body.readings as unknown[]) : [body];
+  if (many && (sets.length === 0 || sets.length > MAX_SETS)) throw new BadRequestError(`Add between 1 and ${MAX_SETS} sets of vitals at a time`);
+  const parsed = sets.map((one) => {
+    const raw = (typeof one === "object" && one !== null ? one : {}) as Record<string, unknown>;
+    const data = validate(vitalSchema, { ...raw, admissionId: many ? body.admissionId : raw.admissionId });
+    const readings = [data.tempC, data.pulse, data.bpSystolic, data.spo2, data.respRate];
+    if (readings.every((r) => r == null)) throw new BadRequestError("Enter at least one reading");
+    if ((data.bpSystolic == null) !== (data.bpDiastolic == null)) throw new BadRequestError("Enter both parts of the blood pressure");
+    if (data.bpSystolic != null && data.bpDiastolic != null && data.bpDiastolic >= data.bpSystolic) {
+      throw new BadRequestError("Diastolic pressure must be lower than systolic");
+    }
+    return { data, at: readingTime(raw.recordedAt) };
+  });
+  const admission = await ipdRepo.getRow(parsed[0].data.admissionId);
   assertOwnedByHospital(admission, actor, "Admission");
   if (admission.status === "Discharged") throw new ConflictError("This patient has been discharged");
-  const readings = [data.tempC, data.pulse, data.bpSystolic, data.spo2, data.respRate];
-  if (readings.every((r) => r == null)) throw new BadRequestError("Enter at least one reading");
-  if ((data.bpSystolic == null) !== (data.bpDiastolic == null)) throw new BadRequestError("Enter both parts of the blood pressure");
-  if (data.bpSystolic != null && data.bpDiastolic != null && data.bpDiastolic >= data.bpSystolic) {
-    throw new BadRequestError("Diastolic pressure must be lower than systolic");
+  const out = [];
+  for (const { data, at } of parsed) {
+    const row = await ipdVitalsRepo.create({
+      hospital_id: admission.hospital_id,
+      admission_id: admission.id,
+      recorded_at: at,
+      temp_c: data.tempC ?? null,
+      pulse: data.pulse ?? null,
+      bp_systolic: data.bpSystolic ?? null,
+      bp_diastolic: data.bpDiastolic ?? null,
+      spo2: data.spo2 ?? null,
+      resp_rate: data.respRate ?? null,
+      note: data.note,
+      recorded_by: actor.name,
+    });
+    out.push(toIpdVitalDTO(row as IpdVitalRow));
   }
-  const row = await ipdVitalsRepo.create({
-    hospital_id: admission.hospital_id,
-    admission_id: admission.id,
-    recorded_at: new Date().toISOString(),
-    temp_c: data.tempC ?? null,
-    pulse: data.pulse ?? null,
-    bp_systolic: data.bpSystolic ?? null,
-    bp_diastolic: data.bpDiastolic ?? null,
-    spo2: data.spo2 ?? null,
-    resp_rate: data.respRate ?? null,
-    note: data.note,
-    recorded_by: actor.name,
-  });
-  await audit(actor, "vitals", "ipd", admission.id);
-  return toIpdVitalDTO(row as IpdVitalRow);
+  await audit(actor, "vitals", "ipd", admission.id, out.length > 1 ? { sets: out.length } : undefined);
+  return many ? out : out[0];
 }
 
 /** Recent vitals for one patient, newest first. */

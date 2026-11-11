@@ -27,6 +27,7 @@ const summary = (r: PreauthFormRow): PreauthSummaryDTO => ({
 const full = (r: PreauthFormRow): PreauthDTO => ({
   ...summary(r), values: r.values ?? {}, admissionId: r.admission_id, doctorSignedBy: r.doctor_signed_by, stampedBy: r.stamped_by,
   doctorSignedAuto: !!r.doctor_signed_auto, doctorSignatureImg: r.doctor_signature_img, doctorStampImg: r.doctor_stamp_img, hospitalStampImg: r.hospital_stamp_img,
+  patientSignatureImg: r.patient_signature_img ?? null, patientSignedAt: r.patient_signed_at ?? null, patientSignedBy: r.patient_signed_by ?? null,
 });
 
 async function load(id: number, actor: Session): Promise<PreauthFormRow> {
@@ -233,6 +234,30 @@ export async function stampForm(id: number, actor: Session): Promise<PreauthDTO>
   const tell = [...(row.created_by_id ? [row.created_by_id] : []), ...(row.doctor_id ? await doctorUserIds(row.hospital_id, row.doctor_id) : [])].filter((u) => u !== actor.userId);
   await notifyUsers(row.hospital_id, tell, { kind: "preauth_ready", title: "Pre-auth form is signed, stamped and ready", body: `${row.patient_name} · ${row.form_name}`, link: linkOf(id) });
   await audit(actor, "preauth.stamp", "preauth_form", id);
+  return full(updated);
+}
+
+const PATIENT_IMAGE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const PATIENT_IMAGE_MAX = 450_000;
+
+/**
+ * Adds the patient's signature to the form — `{ image }` — or takes it off (`{ image: null }`). Whoever works on pre-authorisations, or the
+ * doctor it is addressed to, can do this at any point, including after the doctor has signed: the patient often signs last.
+ */
+export async function setPatientSignature(id: number, input: unknown, actor: Session): Promise<PreauthDTO> {
+  const row = await load(id, actor);
+  if (!(canEdit(actor) || (actor.role === "Doctor" && actor.doctorId === row.doctor_id))) throw new ForbiddenError("You can't change this form.");
+  const image = (typeof input === "object" && input !== null ? (input as { image?: unknown }).image : undefined);
+  if (image === undefined) throw new ValidationError([{ field: "image", message: "send the signature picture, or null to remove it" }]);
+  if (image === null) {
+    const cleared = (await preauthFormsRepo.update(id, { patient_signature_img: null, patient_signed_at: null, patient_signed_by: null })) as PreauthFormRow;
+    await audit(actor, "preauth.patient_signature_remove", "preauth_form", id);
+    return full(cleared);
+  }
+  if (typeof image !== "string" || !PATIENT_IMAGE.test(image)) throw new ValidationError([{ field: "image", message: "use a PNG, JPEG or WebP picture" }]);
+  if (image.length > PATIENT_IMAGE_MAX) throw new ValidationError([{ field: "image", message: "that picture is too big — use a smaller one" }]);
+  const updated = (await preauthFormsRepo.update(id, { patient_signature_img: image, patient_signed_at: new Date().toISOString(), patient_signed_by: actor.name })) as PreauthFormRow;
+  await audit(actor, "preauth.patient_signature", "preauth_form", id);
   return full(updated);
 }
 

@@ -209,13 +209,13 @@ const groups: NavGroup[] = [
       { href: "/hr/leave",      label: "Leave",         icon: CalendarOff,   resource: "hr" },
       { href: "/hr/roster",     label: "Shifts & roster", icon: CalendarRange, resource: "hr" },
       { href: "/hr/payroll",    label: "Payroll",       icon: Banknote,  resource: "payroll" },
+      { href: "/roles",         label: "Roles & access", icon: ShieldCheck, resource: "admin", onlyForRoles: ["Super Admin"] },
     ],
   },
   {
     label: "Admin",
     items: [
       { href: "/admin",         label: "Admin Panel",   icon: Settings2, resource: "admin", key: "2" },
-      { href: "/roles",         label: "Roles & access", icon: ShieldCheck, resource: "admin" },
     ],
   },
   {

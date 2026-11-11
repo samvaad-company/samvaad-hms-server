@@ -4,6 +4,7 @@
  * Enquiries — leads before registration. Capture who asked about what, contact them (each contact is
  * counted), then convert the lead into a registered patient or close it.
  */
+import { sanitizeMobile } from "@/lib/validators";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -98,7 +99,7 @@ function NewEnquiryModal({ departments, onClose, onSaved }: { departments: Depar
       <p className="-mt-1 mb-4 text-[13px] text-[color:var(--ink-soft)]">A lead, not a registration — no UHID until you convert.</p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-3">
         <FormRow label="Name" required><FormInput value={form.name} onChange={v => set("name", v)} /></FormRow>
-        <FormRow label="Mobile"><FormInput type="tel" value={form.mobile} onChange={v => set("mobile", v)} /></FormRow>
+        <FormRow label="Mobile"><FormInput type="tel" inputMode="tel" maxLength={14} placeholder="10-digit number" value={form.mobile} onChange={v => set("mobile", sanitizeMobile(v))} /></FormRow>
         <FormRow label="Department">
           <FormSelect value={form.department} onChange={v => set("department", v)} placeholder="Select department"
             options={departments.map(d => ({ value: d.name, label: d.name }))} />

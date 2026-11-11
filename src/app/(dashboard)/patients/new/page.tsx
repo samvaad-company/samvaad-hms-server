@@ -14,7 +14,7 @@ import { useList, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import {
-  IDENTITY_TYPES, validateDob, validateIdentityNumber, validateMobile, todayIso, type IdentityType,
+  IDENTITY_TYPES, validateAbha, validateDob, validateIdentityNumber, validateMobile, sanitizeAbha, sanitizeMobile, todayIso, type IdentityType,
 } from "@/lib/validators";
 
 // ── Option lists ──────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ interface PayerRow { type: string; name: string; policyNumber: string; validUnti
 interface DocRow { type: IdentityType; number: string }
 
 const INITIAL = {
-  name: "", gender: "", years: "", months: "", dob: "", mobile: "", reason: "", referralSource: "", patientCategory: "", incomeGroup: "", visitPurpose: "",
+  name: "", gender: "", years: "", months: "", dob: "", mobile: "", reason: "", referralSource: "", patientCategory: "", incomeGroup: "", visitPurpose: "", doctorId: "",
   medicoLegal: false, temporary: false, dataConsent: false,
   alternatePhone: "", email: "", address: "", addressLine2: "", pincode: "", city: "", state: "",
   title: "", guardianName: "", careOf: "", anniversary: "", bloodGroup: "", maritalStatus: "", religion: "",
@@ -48,7 +48,7 @@ const INITIAL = {
   allergies: "", chronic: "",
   emergencyName: "", emergencyRelation: "", emergencyPhone: "",
   occupation: "", employer: "", designation: "", workPhone: "", privilegeCardNo: "", corporate: "",
-  covidVaccination: "", covidLastDose: "", covidInfected: false,
+  covidVaccination: "", covidLastDose: "", covidLastDoseUnknown: false, covidInfected: false,
 };
 type Form = typeof INITIAL;
 
@@ -129,7 +129,8 @@ function NewPatientForm() {
   const contractOptions = useList<{ id: number; name: string }>("/payer-contracts").items.map(c => ({ value: String(c.id), label: c.name }));
   const router = useRouter();
   const params = useSearchParams();
-  const { can, loading: authLoading } = useAuth();
+  const { can, user, loading: authLoading } = useAuth();
+  const { items: doctors } = useList<{ id: number; name: string; specialty?: string }>("/doctors", { all: true });
   const allowed = can("patients", "write");
   const { run, loading } = useMutation();
   // Opened from an enquiry ("Convert"): start with what we already know about the lead.
@@ -144,11 +145,19 @@ function NewPatientForm() {
   const [docs, setDocs] = useState<DocRow[]>([{ type: "Aadhaar", number: "" }]);
   const [showCovid, setShowCovid] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  /** Fields the person has been in and left, so a wrong number is flagged straight away rather than only at Register. */
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (k: string) => setTouched((t) => (t[k] ? t : { ...t, [k]: true }));
+  /** The emergency contact is the same person as the patient: use the mobile number above. */
+  const [emergencySame, setEmergencySame] = useState(false);
+  // A doctor registering a patient is the one who will see them: start with themselves picked (they can still choose another).
+  useEffect(() => { if (user?.role === "Doctor" && user.doctorId != null) setForm((p) => (p.doctorId ? p : { ...p, doctorId: String(user.doctorId) })); }, [user]);
   const [serverError, setServerError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLDivElement>(null);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(prev => ({ ...prev, [k]: v }));
+  useEffect(() => { if (emergencySame) setForm((p) => (p.emergencyPhone === p.mobile ? p : { ...p, emergencyPhone: p.mobile })); }, [emergencySame, form.mobile]);
 
   // ── Validation ──
   const errors = useMemo(() => {
@@ -159,6 +168,10 @@ function NewPatientForm() {
     else { const m = validateMobile(form.mobile); if (m) e.mobile = m; }
     if (form.alternatePhone) { const m = validateMobile(form.alternatePhone); if (m) e.alternatePhone = m; }
     if (form.emergencyPhone) { const m = validateMobile(form.emergencyPhone); if (m) e.emergencyPhone = m; }
+    if (form.workPhone && form.workPhone.replace(/\D/g, "").length < 6) e.workPhone = "Enter a valid phone number";
+    { const a = validateAbha(form.abhaId); if (a) e.abhaId = a; }
+    // A vaccinated patient needs the date of the last dose, or a note that the exact date is not known.
+    if (showCovid && /vaccinated|booster/i.test(form.covidVaccination) && !/^not /i.test(form.covidVaccination) && !form.covidLastDose && !form.covidLastDoseUnknown) e.covidLastDose = "Enter the date of the last dose, or tick “I don't know the exact date”";
     if (exactDate) { const d = validateDob(form.dob); if (d) e.dob = d; }
     else {
       if (form.years && (!/^\d{1,3}$/.test(form.years) || Number(form.years) > 120)) e.years = "0–120";
@@ -167,14 +180,14 @@ function NewPatientForm() {
     if (form.anniversary && form.anniversary > todayIso()) e.anniversary = "Can't be in the future";
     docs.forEach((d, i) => { const m = validateIdentityNumber(d.type, d.number); if (m) e[`doc${i}`] = m; });
     return e;
-  }, [form, exactDate, docs]);
+  }, [form, exactDate, docs, showCovid]);
 
   const required = [
     { key: "name", label: "Name", done: form.name.trim().length >= 2 },
     { key: "gender", label: "Gender", done: !!form.gender },
     { key: "mobile", label: "Mobile", done: !!form.mobile.trim() && !errors.mobile },
   ];
-  const show = (k: string) => (submitted ? errors[k] : undefined) ?? null;
+  const show = (k: string) => (submitted || touched[k] ? errors[k] : undefined) ?? null;
   const blocked = Object.keys(errors).length > 0;
 
   // ── Submit ──
@@ -192,7 +205,7 @@ function NewPatientForm() {
       gender: form.gender,
       phone: form.mobile.trim(),
       reason: clean(form.reason),
-      referralSource: clean(form.referralSource), patientCategory: clean(form.patientCategory), incomeGroup: clean(form.incomeGroup), visitPurpose: clean(form.visitPurpose),
+      referralSource: clean(form.referralSource), patientCategory: clean(form.patientCategory), incomeGroup: clean(form.incomeGroup), visitPurpose: clean(form.visitPurpose), doctorId: form.doctorId ? Number(form.doctorId) : undefined,
       medicoLegal: form.medicoLegal, temporary: form.temporary, dataConsent: form.dataConsent,
       email: clean(form.email), alternatePhone: clean(form.alternatePhone),
       address: clean(form.address), addressLine2: clean(form.addressLine2),
@@ -215,8 +228,8 @@ function NewPatientForm() {
     if (cleanPayers.length) payload.payers = cleanPayers.map(p => ({ ...p, validUntil: p.validUntil || "", contractId: p.contractId ? Number(p.contractId) : null }));
     const cleanDocs = docs.filter(d => d.number.trim());
     if (cleanDocs.length) payload.identityDocuments = cleanDocs;
-    if (showCovid && (form.covidVaccination || form.covidLastDose || form.covidInfected)) {
-      payload.covid = { vaccination: form.covidVaccination, lastDose: form.covidLastDose, infectedBefore: form.covidInfected };
+    if (showCovid && (form.covidVaccination || form.covidLastDose || form.covidLastDoseUnknown || form.covidInfected)) {
+      payload.covid = { vaccination: form.covidVaccination, lastDose: form.covidLastDoseUnknown ? "" : form.covidLastDose, lastDoseUnknown: form.covidLastDoseUnknown, infectedBefore: form.covidInfected };
     }
 
     try {
@@ -295,7 +308,7 @@ function NewPatientForm() {
     );
   }
 
-  const invalid = (k: string) => submitted && !!errors[k];
+  const invalid = (k: string) => (submitted || !!touched[k]) && !!errors[k];
   const setPayer = (i: number, patch: Partial<PayerRow>) => setPayers(rows => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const setDoc = (i: number, patch: Partial<DocRow>) => setDocs(rows => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -358,7 +371,7 @@ function NewPatientForm() {
               </div>
             </Field>
             <Field label="Mobile" required error={show("mobile")}>
-              <FormInput type="tel" placeholder="10-digit number" value={form.mobile} onChange={v => set("mobile", v)} error={invalid("mobile")} />
+              <FormInput type="tel" inputMode="tel" maxLength={14} placeholder="10-digit number" value={form.mobile} onChange={v => set("mobile", sanitizeMobile(v))} onBlur={() => touch("mobile")} error={invalid("mobile")} />
             </Field>
 
             <Field label={exactDate ? "Date of birth" : "Age"} span={2} error={show("dob") ?? show("years") ?? show("months")}>
@@ -379,6 +392,9 @@ function NewPatientForm() {
             </Field>
             <Field label="Primary complaint" span={2}>
               <FormInput placeholder="Reason for the visit" value={form.reason} onChange={v => set("reason", v)} />
+            </Field>
+            <Field label="Consulting doctor">
+              <FormSelect placeholder="Not assigned" options={doctors.map(d => ({ value: String(d.id), label: d.name }))} value={form.doctorId} onChange={v => set("doctorId", v)} />
             </Field>
             <Field label="Visit purpose">
               <FormSelect placeholder="Not recorded" options={visitPurposes} value={form.visitPurpose} onChange={v => set("visitPurpose", v)} />
@@ -404,7 +420,7 @@ function NewPatientForm() {
         <Card title="Contact & address" hint="How to reach them">
           <Grid>
             <Field label="Alternate mobile" error={show("alternatePhone")}>
-              <FormInput type="tel" value={form.alternatePhone} onChange={v => set("alternatePhone", v)} error={invalid("alternatePhone")} />
+              <FormInput type="tel" inputMode="tel" maxLength={14} placeholder="10-digit number" value={form.alternatePhone} onChange={v => set("alternatePhone", sanitizeMobile(v))} onBlur={() => touch("alternatePhone")} error={invalid("alternatePhone")} />
             </Field>
             <Field label="Email"><FormInput type="email" value={form.email} onChange={v => set("email", v)} /></Field>
             <Field label="Address line 1" span={2}><FormInput value={form.address} onChange={v => set("address", v)} /></Field>
@@ -428,7 +444,7 @@ function NewPatientForm() {
             <Field label="Language"><FormSelect placeholder="Select" options={LANGUAGES} value={form.language} onChange={v => set("language", v)} /></Field>
             <Field label="Nationality"><FormSelect options={NATIONALITIES} value={form.nationality} onChange={v => set("nationality", v)} /></Field>
             <Field label="Education"><FormSelect placeholder="Select" options={EDUCATION} value={form.education} onChange={v => set("education", v)} /></Field>
-            <Field label="ABHA ID" span={2}><FormInput placeholder="14-digit ABHA number" value={form.abhaId} onChange={v => set("abhaId", v)} /></Field>
+            <Field label="ABHA ID" span={2} error={show("abhaId")}><FormInput inputMode="numeric" placeholder="14-digit ABHA number" value={form.abhaId} onChange={v => set("abhaId", sanitizeAbha(v))} onBlur={() => touch("abhaId")} error={invalid("abhaId")} /></Field>
             <Field label="Notes" span={4}><FormTextarea rows={2} value={form.notes} onChange={v => set("notes", v)} /></Field>
           </Grid>
         </Card>
@@ -446,7 +462,12 @@ function NewPatientForm() {
             <Field label="Contact name" span={2}><FormInput placeholder="Full name" value={form.emergencyName} onChange={v => set("emergencyName", v)} /></Field>
             <Field label="Relationship"><FormSelect placeholder="Select" options={RELATIONS} value={form.emergencyRelation} onChange={v => set("emergencyRelation", v)} /></Field>
             <Field label="Phone" error={show("emergencyPhone")}>
-              <FormInput type="tel" value={form.emergencyPhone} onChange={v => set("emergencyPhone", v)} error={invalid("emergencyPhone")} />
+              <FormInput type="tel" inputMode="tel" maxLength={14} placeholder="10-digit number" disabled={emergencySame} value={form.emergencyPhone} onChange={v => set("emergencyPhone", sanitizeMobile(v))} onBlur={() => touch("emergencyPhone")} error={invalid("emergencyPhone")} />
+              <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-[12px] text-[color:var(--ink-soft)]">
+                <input type="checkbox" data-field checked={emergencySame} disabled={!form.mobile}
+                  onChange={(e) => { setEmergencySame(e.target.checked); set("emergencyPhone", e.target.checked ? form.mobile : ""); }} />
+                Same as the mobile number above{!form.mobile ? " (enter it first)" : ""}
+              </label>
             </Field>
           </Grid>
         </Card>
@@ -519,7 +540,13 @@ function NewPatientForm() {
           <Card title="COVID details" hint="Vaccination and infection history">
             <Grid>
               <Field label="Vaccination status" span={2}><FormSelect placeholder="Select" options={COVID_STATUS} value={form.covidVaccination} onChange={v => set("covidVaccination", v)} /></Field>
-              <Field label="Last dose on"><FormInput type="date" max={todayIso()} value={form.covidLastDose} onChange={v => set("covidLastDose", v)} /></Field>
+              <Field label="Last dose on" error={show("covidLastDose")}>
+                <FormInput type="date" max={todayIso()} disabled={form.covidLastDoseUnknown} value={form.covidLastDose} onChange={v => set("covidLastDose", v)} onBlur={() => touch("covidLastDose")} error={invalid("covidLastDose")} />
+                <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-[12px] text-[color:var(--ink-soft)]">
+                  <input type="checkbox" data-field checked={form.covidLastDoseUnknown} onChange={(e) => { set("covidLastDoseUnknown", e.target.checked); if (e.target.checked) set("covidLastDose", ""); }} />
+                  I don&apos;t know the exact date
+                </label>
+              </Field>
               <div className="pt-6"><Toggle label="Had COVID before" hint="The patient has been infected earlier" checked={form.covidInfected} onChange={v => set("covidInfected", v)} /></div>
             </Grid>
           </Card>

@@ -60,5 +60,5 @@ export const isRecommended = (lesson: LessonMeta, role: string): boolean => less
 export const recommendedFor = (role: string): LessonMeta[] => LESSONS.filter((l) => isRecommended(l, role));
 
 /** Roles used by `CLINICAL` etc. are listed above; exported so tests can check every role gets something. */
-export const KNOWN_ROLES = ["Super Admin", "IT Admin", "Doctor", "Head Nurse", "Receptionist", "Tele Caller", "Billing Exec", "Pharmacist", "Lab Technician", "MRD Officer", "HR Manager", "CSSD Technician", "Driver", "Radiology Partner", "Lab Partner"] as const;
+export const KNOWN_ROLES = ["Super Admin", "IT Admin", "Doctor", "Head Nurse", "Receptionist", "Tele Caller", "Billing Exec", "Insurance Exec", "Pharmacist", "Lab Technician", "MRD Officer", "HR Manager", "CSSD Technician", "Driver", "Radiology Partner", "Lab Partner"] as const;
 void CLINICAL;
