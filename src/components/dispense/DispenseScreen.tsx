@@ -57,8 +57,18 @@ export function DispenseScreen() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => searchStock(v), 180);
   }
-  function addStock(s: DispenseStockDTO) {
+  async function addStock(s: DispenseStockDTO) {
     setDone(null);
+    if (s.medicineId && !s.itemId) {
+      // A medicine from the drug directory the pharmacy doesn't hold yet: put it in the inventory (no stock), priced from Masters.
+      try {
+        const made = await api.post<{ id: number }>("/pharmacy", { name: s.name, category: s.category || "General", stock: 0 });
+        setNotice(`${s.name} is now in the inventory with no stock. Add stock under Inventory → Restock before dispensing it.`);
+        setCart((c) => [...c, { itemId: made.id, name: s.name, available: 0, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "" }]);
+      } catch { setNotice(`${s.name} couldn't be added to the inventory.`); }
+      setDrug(""); setChipsOpen(false);
+      return;
+    }
     setCart((c) => c.some((l) => l.itemId === s.itemId) ? c.map((l) => (l.itemId === s.itemId ? { ...l, qty: String(Math.min(s.available, (Number(l.qty) || 0) + 1)) } : l)) : [...c, { itemId: s.itemId, name: s.name, available: s.available, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "" }]);
     setDrug(""); setChipsOpen(false);
   }
@@ -122,7 +132,7 @@ export function DispenseScreen() {
         </div>
         <input value={note} onChange={(e) => setNote(e.target.value)} disabled={!!patient} placeholder="Walk-in note (name / ref).." aria-label="Walk-in note" className="h-[36px] min-w-[180px] flex-1 rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[14px] disabled:opacity-50 focus:border-[color:var(--brand)] focus:outline-none" />
         <div className="relative min-w-[220px] flex-1">
-          <input value={drug} onChange={(e) => onDrugChange(e.target.value)} onFocus={() => { setChipsOpen(true); searchStock(drug); }} onBlur={() => setTimeout(() => setChipsOpen(false), 150)} placeholder="Add drug from stock..." aria-label="Add drug from stock" disabled={!canWrite} className="h-[36px] w-full rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[14px] focus:border-[color:var(--brand)] focus:outline-none" />
+          <input value={drug} onChange={(e) => onDrugChange(e.target.value)} onFocus={() => { setChipsOpen(true); searchStock(drug); }} onBlur={() => setTimeout(() => setChipsOpen(false), 150)} placeholder="Add drug (stock or medicine directory)..." aria-label="Add drug from stock" disabled={!canWrite} className="h-[36px] w-full rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-3 text-[14px] focus:border-[color:var(--brand)] focus:outline-none" />
         </div>
         <div role="radiogroup" aria-label="Billing" className="inline-flex rounded-[8px] border border-[color:var(--line)] bg-[color:var(--subtle)] p-[2px]">
           {BILLING.map((b) => {
@@ -133,7 +143,7 @@ export function DispenseScreen() {
       </div>
       {chipsOpen && chips.length > 0 && (
         <div className="flex flex-wrap gap-2 px-5 pt-2" onMouseDown={(e) => e.preventDefault()}>
-          {chips.map((s) => <button key={s.itemId} onClick={() => addStock(s)} className="rounded-full border border-[color:var(--line)] px-3 py-[4px] text-[12px] hover:bg-[color:var(--subtle)] cursor-pointer">{s.name} <span className="text-[color:var(--ink-soft)]">· {s.available}</span></button>)}
+          {chips.map((s) => <button key={`${s.itemId}-${s.medicineId ?? ""}`} onClick={() => void addStock(s)} className={`rounded-full border px-3 py-[4px] text-[12px] hover:bg-[color:var(--subtle)] cursor-pointer ${s.medicineId ? "border-dashed border-[color:var(--ink-soft)]" : "border-[color:var(--line)]"}`}>{s.name} <span className="text-[color:var(--ink-soft)]">· {s.medicineId ? `not stocked${s.unitPrice ? ` · ₹${s.unitPrice}` : ""}` : s.available}</span></button>)}
         </div>
       )}
 

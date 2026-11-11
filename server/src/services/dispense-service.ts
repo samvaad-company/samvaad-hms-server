@@ -18,6 +18,7 @@ import { withKeyLocks } from "@/lib/key-lock";
 import { localDate } from "@/lib/clock";
 import { computePharmacyStatus, isoDate, nextCode } from "@/services/helpers";
 import { audit } from "@/services/audit";
+import { listMedicines } from "@/services/admin-service";
 import { createBill, updateBill } from "@/services/billing-service";
 import { medicineKey, unitsFor } from "@/services/prescriptions-service";
 import { type Session } from "@/auth/session";
@@ -96,7 +97,14 @@ export async function searchStock(q: string | null, actor: Session): Promise<Dis
     if (expiry && expiry < today) continue;
     out.push({ dto: toStockDto(i, Number(i.stock), expiry), rank: name.startsWith(needle) ? 0 : 1 });
   }
-  return out.sort((a, b) => a.rank - b.rank || a.dto.name.localeCompare(b.dto.name)).slice(0, 8).map((x) => x.dto);
+  const stocked = out.sort((a, b) => a.rank - b.rank || a.dto.name.localeCompare(b.dto.name)).slice(0, 8).map((x) => x.dto);
+  if (needle.length < 2 || stocked.length >= 8) return stocked;
+  // Fill the rest from the drug directory: medicines the pharmacy doesn't hold yet, offered at their Masters price.
+  const have = new Set((rows as PharmacyItemRow[]).map((i) => i.name.toLowerCase()));
+  const { rows: directory } = await listMedicines({ page: 1, pageSize: 12, search: { columns: ["name", "generic"], term: needle }, sort: [{ column: "name", direction: "asc" }] }, actor);
+  const extra: DispenseStockDTO[] = directory.filter((m) => !have.has(m.name.toLowerCase())).slice(0, 8 - stocked.length)
+    .map((m) => ({ itemId: 0, medicineId: m.id, name: m.name, category: m.category, available: 0, unitPrice: Number(m.price ?? 0), nextExpiry: "" }));
+  return [...stocked, ...extra];
 }
 
 /**

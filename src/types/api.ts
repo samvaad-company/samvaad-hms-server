@@ -2271,6 +2271,8 @@ export interface DispenseStockDTO {
   unitPrice: number;
   /** The earliest expiry among the units in date, YYYY-MM-DD, or "" when none is recorded. */
   nextExpiry: string;
+  /** Set (with itemId 0) on a medicine from the drug directory that isn't in this pharmacy's stock yet. */
+  medicineId?: number;
 }
 
 export interface DispenseLineDTO {
