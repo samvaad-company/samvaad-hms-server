@@ -3,6 +3,7 @@
  * and an explicit restock action.
  */
 import { pharmacyRepo } from "@/repositories";
+import { medicinePricesByName } from "@/services/admin-service";
 import { toPharmacyDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { type PharmacyItemRow } from "@/db/tables";
@@ -28,8 +29,16 @@ export const PHARMACY_LIST_CONFIG = {
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
 
+/**
+ * The price shown for a stock item: the price set in Setup → Masters → Medicines when there is one, else the price remembered
+ * from dispensing, else the printed MRP of the medicine of the same name.
+ */
 export async function listPharmacy(options: QueryOptions, actor: Session) {
-  return pharmacyRepo.list(scopeToHospital(options, actor));
+  const res = await pharmacyRepo.list(scopeToHospital(options, actor));
+  const names = [...new Set(res.rows.map((r) => r.name))];
+  if (names.length === 0 || names.length > 500) return res;
+  const prices = await medicinePricesByName(names, actor);
+  return { ...res, rows: res.rows.map((r) => ({ ...r, unitPrice: Number(prices.get(r.name.toLowerCase()) ?? r.unitPrice ?? 0) || 0 })) };
 }
 
 export async function getPharmacyItem(id: number, actor: Session) {

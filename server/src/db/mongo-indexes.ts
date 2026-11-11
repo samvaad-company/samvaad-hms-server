@@ -26,7 +26,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.patients]: ["hospital_id", "status", "patient_code", "doctor_id", "phone", "abha_id"],
   [TABLES.appointments]: ["hospital_id", "status", "type", "doctor_id", "patient_id", "appointment_date"],
   [TABLES.opdVisits]: ["hospital_id", "status", "doctor_id", "patient_id", "token_number", "priority", "appointment_id"],
-  [TABLES.medicines]: ["hospital_id"],
+  [TABLES.medicines]: ["hospital_id", "name", "product_id"],
   [TABLES.prescriptions]: ["hospital_id", "status", "doctor_id", "patient_id", "rx_number"],
   [TABLES.prescriptionItems]: ["prescription_id"],
   [TABLES.pharmacyItems]: ["hospital_id", "status", "category", "name"],

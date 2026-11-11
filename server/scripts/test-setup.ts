@@ -63,9 +63,9 @@ test("id formats: tokens render, the financial year follows its start month, mas
 
 // ── Defaults and generic CRUD ────────────────────────────────────────────────
 
-test("defaults: a hospital starts with 48 services in 7 groups, two rate plans, payers, sponsors and a primary branch", async () => {
-  assert.equal((await list("service")).length, 48);
-  assert.equal((await list("service_group")).length, 7);
+test("defaults: a hospital starts with 62 services in 11 groups, two rate plans, payers, sponsors and a primary branch", async () => {
+  assert.equal((await list("service")).length, 62);
+  assert.equal((await list("service_group")).length, 11);
   assert.equal((await list("rate_plan")).length, 2);
   assert.equal((await list("payer_class")).length, 3);
   assert.equal((await list("sponsor")).length, 20);

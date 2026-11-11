@@ -19,6 +19,8 @@ import { usePagination } from "@/components/shared/Pagination";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import type { Prescription } from "@/types";
+import { TabBar } from "@/components/shared/TabBar";
+import { DownloadPrescriptions } from "@/components/prescriptions/DownloadPrescriptions";
 import { PatientName } from "@/components/loyalty/PatientName";
 
 const COLUMNS = [
@@ -132,6 +134,7 @@ export default function PrescriptionsPage() {
   const { can } = useAuth();
   const canWrite = can("prescriptions", "write");
   const router = useRouter();
+  const [tab, setTab] = useState("list");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<DateRangeId>("all");
@@ -233,6 +236,8 @@ export default function PrescriptionsPage() {
 
       <div className={`${tw.gutterX} mb-[30px]`}>
         <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`} style={{ minHeight: 220 }}>
+          <TabBar tabs={[{ id: "list", label: "Prescriptions" }, { id: "download", label: "Download by patient" }]} activeTab={tab} onTabChange={setTab} />
+          {tab === "download" ? <DownloadPrescriptions prescriptions={prescriptions} /> : <>
           <FilterBar
             filters={FILTERS}
             searchPlaceholder="Search by Rx number, patient, or diagnosis..."
@@ -260,6 +265,7 @@ export default function PrescriptionsPage() {
             </DataTable>
           )}
           {barVisible}
+          </>}
         </div>
       </div>
 

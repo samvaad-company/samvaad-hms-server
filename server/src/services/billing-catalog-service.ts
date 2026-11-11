@@ -7,7 +7,9 @@ import { doctorsRepo, ipdRepo, patientsRepo, wardsRepo } from "@/repositories";
 import { type Session } from "@/auth/session";
 import { assertOwnedByHospital, scopeToHospital } from "@/services/hospital-scope";
 import { groupChain, patientContracts } from "@/services/coverage-service";
-import { effectivePrice, getConfig, listSetup } from "@/services/setup-service";
+import { createSetup, effectivePrice, getConfig, listSetup } from "@/services/setup-service";
+import { audit } from "@/services/audit";
+import { BadRequestError } from "@/lib/errors";
 import { localDate } from "@/lib/clock";
 import type { BillingCatalogDTO, BillingServiceDTO } from "@shared/types/api";
 import type { SetupRecordDTO } from "@shared/types/setup";
@@ -69,6 +71,7 @@ export async function billingCatalog(patientId: number | null, actor: Session, c
     return {
       id: s.id, code: s.code, name: s.name, group: chain.names[0] ?? "", unit: String(s.data.unit ?? ""),
       price: plan ? effectivePrice(plan, plans, s, "general") : Number(s.data.price ?? 0), gstApplies: tax.applies, gstRate: tax.rate, hsnSac: String(s.data.hsnSac ?? ""),
+      billingCategory: String(groups.find((g) => g.id === chain.ids[0])?.data.billingCategory ?? "Other"),
       groupIds: chain.ids, groupNames: chain.names,
     };
   });
@@ -79,4 +82,33 @@ export async function billingCatalog(patientId: number | null, actor: Session, c
     contractId: chosen?.id ?? null,
     doctors: doctors.rows.map((d) => ({ id: d.id, name: d.name })).sort((a, b) => a.name.localeCompare(b.name)),
   };
+}
+
+/** What a hospital with nothing set up yet for a type of bill is offered to start from: the service group and a few typical services. */
+const STARTERS: Record<string, { category: string; group: string; name: string; services: [string, string, number, string][] }> = {
+  OPD: { category: "Consultation", group: "CONS", name: "Consultation", services: [["OPD-GEN", "OPD consultation - General physician", 500, "per visit"], ["OPD-SPL", "OPD consultation - Specialist", 800, "per visit"], ["OPD-FUP", "Follow-up consultation", 300, "per visit"], ["OPD-DRS", "Dressing / minor procedure", 400, "per session"]] },
+  IPD: { category: "IPD charge", group: "IPDC", name: "IPD charges", services: [["IPD-GEN", "General ward bed (per day)", 1500, "per day"], ["IPD-SEMI", "Semi-private room (per day)", 2500, "per day"], ["IPD-PVT", "Private room (per day)", 4000, "per day"], ["IPD-ICU", "ICU bed (per day)", 8000, "per day"], ["IPD-NURS", "Nursing charges (per day)", 500, "per day"], ["IPD-VISIT", "Doctor visit (per visit)", 600, "per visit"]] },
+  Lab: { category: "Laboratory", group: "LABS", name: "Laboratory", services: [["LAB-CBC", "Complete Blood Count", 350, "per test"], ["LAB-LFT", "Liver Function Test", 700, "per test"], ["LAB-KFT", "Kidney Function Test", 650, "per test"], ["LAB-LIP", "Lipid Profile", 600, "per test"], ["LAB-SUG", "Blood Sugar (Fasting / PP)", 120, "per test"], ["LAB-URN", "Urine Routine", 150, "per test"]] },
+  Pharmacy: { category: "Pharmacy", group: "PHAR", name: "Pharmacy", services: [["PHAR-DISP", "Dispensing charge", 20, "per unit"], ["PHAR-HOME", "Home delivery of medicines", 60, "per unit"], ["PHAR-KIT", "Dressing and consumables kit", 250, "per unit"], ["PHAR-COLD", "Cold-chain medicine handling", 40, "per unit"]] },
+  Radiology: { category: "Radiology", group: "RAD", name: "Radiology", services: [["RAD-XRC", "X-Ray Chest (PA)", 500, "per session"], ["RAD-CT", "CT Scan (Plain)", 3500, "per session"], ["RAD-MRI", "MRI (Single Region)", 7000, "per session"]] },
+  Blood: { category: "Blood", group: "BLD", name: "Blood Bank", services: [["BLD-PRBC", "Packed Red Cells (per unit)", 1200, "per unit"], ["BLD-FFP", "Fresh Frozen Plasma (per unit)", 800, "per unit"], ["BLD-PLT", "Platelet Concentrate (per unit)", 600, "per unit"], ["BLD-WB", "Whole Blood (per unit)", 1000, "per unit"]] },
+  Ambulance: { category: "Ambulance", group: "AMB", name: "Ambulance", services: [["AMB-BLS", "Ambulance - Basic Life Support (per trip)", 800, "per visit"], ["AMB-ALS", "Ambulance - Advanced Life Support (per trip)", 2000, "per visit"], ["AMB-KM", "Ambulance - Extra per km", 25, "per unit"]] },
+};
+
+/** Adds the starter group and services for a type of bill to Setup → Masters (only what is missing), so the bill's service list has something to offer. */
+export async function addStarterServices(type: unknown, actor: Session): Promise<{ added: number }> {
+  const st = typeof type === "string" ? STARTERS[type] : undefined;
+  if (!st) throw new BadRequestError(`There are no starter services for ${String(type)} bills. Add them under Setup → Masters → Services.`);
+  const [groups, services] = await Promise.all([listSetup("service_group", actor), listSetup("service", actor)]);
+  let group = groups.find((g) => String(g.data.billingCategory) === st.category) ?? groups.find((g) => g.code.toUpperCase() === st.group);
+  if (!group) group = await createSetup("service_group", { code: st.group, name: st.name, parentId: null, billingCategory: st.category, active: true }, actor);
+  const have = new Set(services.map((x) => x.code.toUpperCase()));
+  let added = 0;
+  for (const [code, name, price, unit] of st.services) {
+    if (have.has(code)) continue;
+    await createSetup("service", { code, name, groupId: group.id, price, unit, gstApplies: false, gstRate: 0, active: true }, actor);
+    added += 1;
+  }
+  await audit(actor, "billing.starter_services", "setup-service", group.id, { type, added });
+  return { added };
 }

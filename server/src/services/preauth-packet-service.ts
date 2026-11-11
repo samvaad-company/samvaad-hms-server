@@ -129,9 +129,10 @@ export async function getPacketContent(formId: number, input: unknown, actor: Se
 export async function uploadPacketDocument(formId: number, kind: unknown, file: File, actor: Session) {
   const form = await load(formId, actor);
   if (!can(actor.role, "tpa", "write", actor.hospitalId)) throw new ForbiddenError("You can't add papers to this form.");
-  if (kind !== "aadhaar" && kind !== "pan" && kind !== "policy") throw new BadRequestError("Say what the paper is: aadhaar, pan or policy.");
+  if (kind !== "aadhaar" && kind !== "pan" && kind !== "policy" && kind !== "other") throw new BadRequestError("Say what the paper is: aadhaar, pan, policy or other.");
   if (!form.patient_id) throw new BadRequestError("This form has no patient.");
   const patient = await patientsRepo.getRow(form.patient_id);
   assertOwnedByHospital(patient, actor, "Patient");
-  return uploadDocument({ file, ownerType: "patient", ownerId: form.patient_id, category: CATEGORY_FOR[kind], title: CATEGORY_FOR[kind] }, actor);
+  const category = kind === "other" ? "Claim packet attachment" : CATEGORY_FOR[kind];
+  return uploadDocument({ file, ownerType: "patient", ownerId: form.patient_id, category, title: kind === "other" ? file.name : category }, actor);
 }

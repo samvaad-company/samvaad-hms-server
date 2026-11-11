@@ -4,6 +4,7 @@
  * IV lines, tasks, handover notes). Alerts are not stored — they are worked out each time from those records,
  * so they can never be out of date; only a nurse's "acknowledged / dismissed" is kept, keyed by a stable id.
  */
+import { syncWardPrescriptions } from "@/services/prescription-ward-sync";
 import {
   ipdRepo,
   ipdNotesRepo,
@@ -71,6 +72,8 @@ interface Ward {
 
 async function loadWard(actor: Session, wardId?: number): Promise<Ward> {
   const admissions = await admitted(actor, wardId);
+  // Recent prescriptions for these patients become ward orders, so a prescribed patient is never missing from the round.
+  await syncWardPrescriptions(admissions, actor).catch(() => undefined);
   const ids = admissions.map((a) => a.id);
   if (ids.length === 0) return { admissions, ids, meds: [], doseLog: [], ivs: [], vitals: [], tasks: [] };
   const [meds, doseLog, ivs, vitals, tasks] = await Promise.all([

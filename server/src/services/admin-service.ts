@@ -9,6 +9,7 @@ import {
   staffRepo,
   doctorsRepo,
   medicinesRepo,
+  setupRecordsRepo,
 } from "@/repositories";
 import {
   toDepartmentDTO,
@@ -18,10 +19,11 @@ import {
 import { hashPassword } from "@/auth/password";
 import { DEFAULT_THEME, THEME_KEYS } from "@shared/lib/theme";
 import { ROLE_PERMISSIONS, RESOURCES } from "@/auth/rbac";
-import { NotFoundError, ConflictError, ForbiddenError, BadRequestError } from "@/lib/errors";
+import { NotFoundError, ConflictError, ForbiddenError, BadRequestError, ValidationError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
+import { type MedicineRow } from "@/db/tables";
 import { type QueryOptions } from "@/db/adapter";
 import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
 
@@ -347,7 +349,61 @@ export const MEDICINE_LIST_CONFIG = {
   defaultSort: [{ column: "name" as const, direction: "asc" as const }],
 };
 
+/**
+ * The imported drug directory is stored once, for every hospital (hospital_id 0); a hospital's own medicines carry its id. The price a
+ * hospital sets in Setup → Masters → Medicines on a shared medicine is kept as a small record of its own (kind "medicine_price"),
+ * so hospitals never see each other's prices.
+ */
+const SHARED = 0;
+const PRICE_KIND = "medicine_price";
+
+async function priceOverrides(actor: Session): Promise<Map<number, { rowId: number; price: number }>> {
+  const { rows } = await setupRecordsRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "kind", op: "eq", value: PRICE_KIND }] }, actor));
+  return new Map((rows as { id: number; data: Record<string, unknown> }[]).map((r) => [Number(r.data?.medicineId), { rowId: r.id, price: Number(r.data?.price) }]));
+}
+
+function withPrice(row: MedicineRow, overrides: Map<number, { rowId: number; price: number }>) {
+  const dto = toMedicineDTO(row);
+  const own = overrides.get(row.id)?.price ?? row.price ?? null;
+  return { ...dto, masterPrice: own, price: own ?? row.mrp ?? null };
+}
+
+/** The price charged for each medicine name (master price if set, else MRP) — used to price stock items. */
+export async function medicinePricesByName(names: string[], actor: Session): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (names.length === 0) return out;
+  const [{ rows }, overrides] = await Promise.all([
+    medicinesRepo.listRows({ unpaged: true, filters: [{ column: "name", op: "in", value: names }, ...(actor.hospitalId == null ? [] : [{ column: "hospital_id", op: "in" as const, value: [actor.hospitalId, SHARED] }])] }),
+    priceOverrides(actor),
+  ]);
+  for (const r of rows) { const p = withPrice(r, overrides).price; if (p != null) out.set(r.name.toLowerCase(), p); }
+  return out;
+}
+
+/** Sets the master price of a medicine (`{ price: number }`), or clears it (`{ price: null }`) so the printed MRP applies again. */
+export async function setMedicinePrice(id: number, input: unknown, actor: Session) {
+  const row = await medicinesRepo.getRow(id);
+  if (!row || (row.hospital_id !== SHARED && row.hospital_id !== actor.hospitalId)) throw new NotFoundError("Medicine");
+  const raw = (typeof input === "object" && input !== null ? (input as { price?: unknown }).price : undefined);
+  if (raw === undefined) throw new ValidationError([{ field: "price", message: "give a price, or null to use the MRP" }]);
+  const price = raw === null || raw === "" ? null : Math.round(Number(raw) * 100) / 100;
+  if (price !== null && (!Number.isFinite(price) || price < 0 || price > 10_000_000)) throw new ValidationError([{ field: "price", message: "price must be a number from 0" }]);
+  if (row.hospital_id === actor.hospitalId) {
+    await medicinesRepo.update(id, { price });
+  } else {
+    const hospitalId = requireHospitalId(actor);
+    const have = (await priceOverrides(actor)).get(id);
+    if (price === null) { if (have) await setupRecordsRepo.remove(have.rowId); }
+    else if (have) await setupRecordsRepo.update(have.rowId, { data: { medicineId: id, price } } as never);
+    else await setupRecordsRepo.create({ hospital_id: hospitalId, kind: PRICE_KIND, code: String(id), name: row.name, active: true, sort_order: 0, data: { medicineId: id, price } } as never);
+  }
+  await audit(actor, "update", "medicine", id, { price });
+  const fresh = (await medicinesRepo.getRow(id)) as MedicineRow;
+  return withPrice(fresh, await priceOverrides(actor));
+}
+
 export async function listMedicines(options: QueryOptions, actor: Session) {
-  const { rows, total } = await medicinesRepo.listRows(scopeToHospital(options, actor));
-  return { rows: rows.map(toMedicineDTO), total };
+  const scoped = actor.hospitalId == null ? options : { ...options, filters: [...(options.filters ?? []), { column: "hospital_id", op: "in" as const, value: [actor.hospitalId, SHARED] }] };
+  const [{ rows, total }, overrides] = await Promise.all([medicinesRepo.listRows(scoped), priceOverrides(actor)]);
+  return { rows: rows.map((r) => withPrice(r as MedicineRow, overrides)), total };
 }

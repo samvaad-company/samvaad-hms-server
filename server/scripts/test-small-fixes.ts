@@ -144,6 +144,74 @@ test("an OPD visit records when it checked in and when it checked out, in the ho
   assert.equal(reopened.checkOutAt, null, "a reopened visit has not left yet");
 });
 
+test("a prescription for a patient in hospital becomes ward orders, so the nurse station shows the patient and its medicines — once", async () => {
+  const patients = (await as(ADMIN, "GET", "/api/patients?pageSize=200")).data;
+  const stays = (await as(ADMIN, "GET", "/api/ipd?pageSize=500")).data;
+  const inHospital = new Set((stays.items ?? stays).filter((r: any) => r.status !== "Discharged").map((r: any) => r.patientRefId));
+  const free = (patients.items ?? patients).filter((p: any) => !inHospital.has(p.id));
+  const adm = (await as(ADMIN, "POST", "/api/ipd", { patientId: free[0].id, patientName: free[0].name, diagnosis: "Fever" })).data;
+  const doctor = (await as(ADMIN, "GET", "/api/doctors?pageSize=5")).data;
+  const doctorId = (doctor.items ?? doctor)[0].id;
+  const rx = await as(ADMIN, "POST", "/api/prescriptions", { patientId: free[0].id, patientName: free[0].name, doctorId, diagnosis: "Fever", status: "Pending", items: [
+    { medicineName: "Inj. Ceftriaxone", dosage: "1 g", frequency: "BD", duration: "3 days", instructions: "slow push" },
+    { medicineName: "Tab. Paracetamol", dosage: "650 mg", frequency: "TDS", duration: "5 days" },
+    { medicineName: "Betadine ointment", dosage: "", frequency: "OD", duration: "" },
+  ] });
+  assert.equal(rx.status, 201, JSON.stringify(rx.error));
+  // the ward sees them: the nurse station lists the patient with three new orders, and the medicines have doses on the chart
+  const live = (await as(ADMIN, "GET", "/api/ipd/board")).data.live.find((l: any) => l.admissionId === adm.id);
+  assert.ok(live, "the patient is on the nurse station board");
+  assert.equal(live.newOrders, 3, "each medicine is an order on the stay");
+  const slots = (await as(ADMIN, "GET", "/api/ipd/nurse/doses")).data.filter((d: any) => d.admissionId === adm.id);
+  const route = (name: string) => slots.find((d: any) => d.medicineName.includes(name))?.route;
+  assert.equal(route("Ceftriaxone"), "IV");
+  assert.equal(route("Paracetamol"), "Oral");
+  assert.equal(route("Betadine"), "Topical");
+  assert.ok(slots.some((d: any) => d.medicineName.includes("Ceftriaxone")));
+  // loading the nurse station again doesn't copy the medicines twice
+  await as(ADMIN, "GET", "/api/ipd/nurse/board");
+  assert.equal((await as(ADMIN, "GET", "/api/ipd/board")).data.live.find((l: any) => l.admissionId === adm.id).newOrders, 3);
+  // a patient who is not in hospital gets no ward orders
+  const rx2 = await as(ADMIN, "POST", "/api/prescriptions", { patientId: free[1].id, patientName: free[1].name, doctorId, diagnosis: "Cold", status: "Pending", items: [{ medicineName: "Tab. Cetirizine", dosage: "10 mg", frequency: "OD", duration: "3 days" }] });
+  assert.equal(rx2.status, 201);
+  const everyone = (await as(ADMIN, "GET", "/api/ipd/nurse/doses")).data;
+  assert.ok(!everyone.some((d: any) => /Cetirizine/.test(d.medicineName)), "no ward orders for a patient who is not in hospital");
+});
+
+test("billing: every service says which billing category it is in, and each type of bill has services in Masters", async () => {
+  const cat = (await as(ADMIN, "GET", "/api/billing/catalog")).data;
+  assert.ok(cat.services.every((s: any) => typeof s.billingCategory === "string" && s.billingCategory));
+  const count = (c: string) => cat.services.filter((s: any) => s.billingCategory === c).length;
+  for (const c of ["Consultation", "Laboratory", "Pharmacy", "Radiology", "Blood", "Ambulance", "IPD charge"]) assert.ok(count(c) > 0, `services in ${c}`);
+  const phar = cat.services.filter((s: any) => s.billingCategory === "Pharmacy");
+  assert.ok(phar.every((s: any) => s.price > 0 && s.name), "each has a name and a price");
+});
+
+test("a type of bill with nothing in Masters can be given starter services, once, by someone who may change Masters", async () => {
+  const before = (await as(ADMIN, "GET", "/api/billing/catalog")).data.services.filter((s: any) => s.billingCategory === "Ambulance").length;
+  assert.equal((await as(RECEPTION, "POST", "/api/billing/catalog/starter", { type: "Ambulance" })).status, 403, "only someone who can change Masters");
+  assert.ok(bad((await as(ADMIN, "POST", "/api/billing/catalog/starter", { type: "Dental" })).status), "only the types that have starters");
+  const first = await as(ADMIN, "POST", "/api/billing/catalog/starter", { type: "Ambulance" });
+  assert.equal(first.status, 200, JSON.stringify(first.error));
+  assert.equal(first.data.added, before === 0 ? 3 : 0, "adds only what is missing");
+  assert.equal((await as(ADMIN, "POST", "/api/billing/catalog/starter", { type: "Ambulance" })).data.added, 0, "a second press adds nothing");
+  assert.ok((await as(ADMIN, "GET", "/api/billing/catalog")).data.services.filter((s: any) => s.billingCategory === "Ambulance").length >= 3);
+});
+
+test("a medicine's price can be set in Masters (by someone who may change Masters), and cleared back to the MRP", async () => {
+  const list = (await as(ADMIN, "GET", "/api/medicines?pageSize=1")).data;
+  assert.ok(list.length > 0, "medicines exist");
+  const id = list[0].id;
+  assert.equal((await as(RECEPTION, "PATCH", `/api/medicines/${id}`, { price: 12 })).status, 403, "only someone who can change Masters");
+  assert.ok(bad((await as(ADMIN, "PATCH", `/api/medicines/${id}`, { price: -1 })).status), "a price can't be negative");
+  const set = (await as(ADMIN, "PATCH", `/api/medicines/${id}`, { price: 12.5 })).data;
+  assert.equal(set.masterPrice, 12.5);
+  assert.equal(set.price, 12.5, "the master price is the one charged");
+  const cleared = (await as(ADMIN, "PATCH", `/api/medicines/${id}`, { price: null })).data;
+  assert.equal(cleared.masterPrice, null);
+  assert.equal(cleared.price, cleared.mrp, "with no master price the MRP applies");
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log(`  PASS  ${t.name}`); }

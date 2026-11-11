@@ -387,6 +387,7 @@ export function toPharmacyDTO(r: PharmacyItemRow): PharmacyItemDTO {
     expiryDate: r.expiry_date,
     supplier: r.supplier,
     status: r.status as PharmacyStatus,
+    unitPrice: Number(r.unit_price ?? 0),
   };
 }
 
@@ -740,6 +741,12 @@ export function toMedicineDTO(r: MedicineRow): MedicineDTO {
     defaultFrequency: r.default_frequency,
     defaultDuration: r.default_duration,
     unit: r.unit,
+    manufacturer: r.manufacturer ?? "",
+    pack: r.pack ?? "",
+    mrp: r.mrp ?? null,
+    masterPrice: r.price ?? null,
+    /** What is charged: the master price if one was set, otherwise the MRP. */
+    price: r.price ?? r.mrp ?? null,
   };
 }
 

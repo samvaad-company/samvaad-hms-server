@@ -411,6 +411,8 @@ export interface BillingServiceDTO {
   gstApplies: boolean;
   gstRate: number;
   hsnSac: string;
+  /** The billing category of the service's group (Setup → Masters → Service groups): decides which bill types offer it. */
+  billingCategory: string;
   /** The service's group and its parents, nearest first — copay rules are per group. */
   groupIds: number[];
   groupNames: string[];
@@ -803,6 +805,14 @@ export interface MedicineDTO {
   defaultFrequency: string;
   defaultDuration: string;
   unit: string;
+  manufacturer: string;
+  pack: string;
+  /** Printed MRP from the drug directory. */
+  mrp: number | null;
+  /** Price set in Setup → Masters → Medicines, if any. */
+  masterPrice: number | null;
+  /** Price charged: the master price when set, else the MRP. */
+  price: number | null;
 }
 
 export interface AdminUserDTO {

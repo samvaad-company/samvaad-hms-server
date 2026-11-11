@@ -377,6 +377,13 @@ export interface MedicineRow extends Row {
   default_frequency: string;
   default_duration: string;
   unit: string;
+  /** Imported drug directory: the product id, marketer, pack description and the printed MRP. */
+  product_id?: string | null;
+  manufacturer?: string | null;
+  pack?: string | null;
+  mrp?: number | null;
+  /** The price set in Setup → Masters → Medicines; when set it is the price charged, otherwise the MRP. */
+  price?: number | null;
   created_at: string;
   updated_at: string;
 }

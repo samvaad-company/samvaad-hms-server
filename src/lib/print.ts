@@ -68,26 +68,55 @@ function standaloneHtml(el: HTMLElement, title: string): string {
 }
 
 /**
- * Download a document as a self-contained HTML file.
+ * Download a document as a PDF.
  *
  * Distinct from `printElement`, which opens the print dialog: this saves a file
- * directly. The file keeps the document's styling and opens (and prints) in any
- * browser, so it works as an attachable copy without adding a PDF dependency.
+ * directly. The element is captured as it looks on screen and cut into A4 pages.
+ * (If that picture can't be taken, the document is saved as a web page rather than lost.)
  */
-export function downloadElement(el: HTMLElement | null, title = "Document"): void {
+export async function downloadElement(el: HTMLElement | null, title = "Document"): Promise<void> {
   if (!el || typeof window === "undefined") return;
+  const name = title.replace(/[^\w.\- ]+/g, "_");
+  try {
+    const blob = await elementToPdfBlob(el);
+    saveBlob(blob, `${name}.pdf`);
+  } catch {
+    // If the picture of the page can't be taken, keep the document rather than lose it: save it as a web page instead.
+    saveBlob(new Blob([standaloneHtml(el, title)], { type: "text/html;charset=utf-8" }), `${name}.html`);
+  }
+}
 
-  const blob = new Blob([standaloneHtml(el, title)], {
-    type: "text/html;charset=utf-8",
-  });
+function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${title.replace(/[^\w.\- ]+/g, "_")}.html`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+/** The element as it looks on screen, cut into A4 pages with a margin, as a PDF. Nothing leaves the browser. */
+export async function elementToPdfBlob(el: HTMLElement): Promise<Blob> {
+  const [{ default: html2canvas }, { PDFDocument }] = await Promise.all([import("html2canvas"), import("pdf-lib")]);
+  const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+  const A4: [number, number] = [595.28, 841.89];
+  const margin = 28;
+  const contentW = A4[0] - margin * 2, contentH = A4[1] - margin * 2;
+  const sliceH = Math.floor((canvas.width * contentH) / contentW);
+  const doc = await PDFDocument.create();
+  for (let y = 0; y < canvas.height; y += sliceH) {
+    const part = document.createElement("canvas");
+    part.width = canvas.width;
+    part.height = Math.min(sliceH, canvas.height - y);
+    part.getContext("2d")?.drawImage(canvas, 0, y, canvas.width, part.height, 0, 0, canvas.width, part.height);
+    const img = await doc.embedPng(part.toDataURL("image/png"));
+    const h = (part.height / canvas.width) * contentW;
+    const page = doc.addPage(A4);
+    page.drawImage(img, { x: margin, y: A4[1] - margin - h, width: contentW, height: h });
+  }
+  return new Blob([(await doc.save()) as BlobPart], { type: "application/pdf" });
 }
 
 /**
