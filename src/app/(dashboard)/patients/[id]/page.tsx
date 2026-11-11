@@ -7,8 +7,10 @@ import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { parseDisplayDate, formatDate } from "@/lib/dates";
-import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
+import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO, OpdVitalDTO } from "@/types/api";
+import { VitalsHistory } from "@/components/opd/VitalsLog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { VaccinationsTab } from "@/components/patients/VaccinationsTab";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { PatientDocuments } from "@/components/patients/PatientDocuments";
 import { PatientIdCardModal } from "@/components/shared/PatientIdCardModal";
@@ -22,22 +24,6 @@ type PatientDetail = PatientDTO & {
   prescriptions: PrescriptionDTO[];
   labTests: LabTestDTO[];
   radiologyTests: RadiologyTestDTO[];
-};
-
-// ─── Vaccination history (not yet captured in the database) ───────────────────
-
-const VACCINATIONS: Record<number, Array<{ name: string; date: string; dose: string; next?: string }>> = {
-  1: [
-    { name: "COVID-19 (Covishield)", date: "10 Mar 2021", dose: "Dose 1" },
-    { name: "COVID-19 (Covishield)", date: "15 Apr 2021", dose: "Dose 2" },
-    { name: "Influenza",             date: "2 Jan 2024",  dose: "Annual", next: "Jan 2025" },
-  ],
-  6: [
-    { name: "COVID-19 (Covaxin)",    date: "20 Feb 2021", dose: "Dose 1" },
-    { name: "COVID-19 (Covaxin)",    date: "25 Mar 2021", dose: "Dose 2" },
-    { name: "Pneumococcal (PPSV23)", date: "12 Jun 2022", dose: "Dose 1" },
-    { name: "Hepatitis B",           date: "1 Aug 2020",  dose: "Complete", next: "—" },
-  ],
 };
 
 // ─── Sub-views ────────────────────────────────────────────────────────────────
@@ -294,29 +280,6 @@ function RadiologyReportsTab({ tests }: { tests: RadiologyTestDTO[] }) {
   );
 }
 
-function VaccinationsTab({ patientId }: { patientId: number }) {
-  const vax = VACCINATIONS[patientId] ?? VACCINATIONS[1];
-  return (
-    <div className="p-5 overflow-x-auto">
-      <div style={{ minWidth: 700 }}>
-        <div className="relative h-10 bg-[color:var(--subtle-3)] rounded-t-[8px]">
-          {[{ l: "Vaccine", x: 20 }, { l: "Dose", x: 300 }, { l: "Date", x: 440 }, { l: "Next Due", x: 600 }].map(c => (
-            <span key={c.l} className="absolute top-1/2 -translate-y-1/2 text-[14px] font-medium text-[color:var(--ink)]" style={{ left: c.x }}>{c.l}</span>
-          ))}
-        </div>
-        {vax.map((v, i) => (
-          <div key={i} className="relative flex items-center h-[52px] border-b border-[color:var(--subtle-2)] last:border-0 hover:bg-[color:var(--faint)] transition-colors" style={{ minWidth: 700 }}>
-            <span className="absolute text-[14px] font-normal text-[color:var(--ink)] whitespace-nowrap" style={{ left: 20 }}>{v.name}</span>
-            <span className="absolute text-[13px] font-normal text-[color:var(--ink-soft)]" style={{ left: 300 }}>{v.dose}</span>
-            <span className="absolute text-[14px] font-normal text-[color:var(--ink)]" style={{ left: 440 }}>{v.date}</span>
-            <span className="absolute text-[13px] font-normal text-[color:var(--ink-soft)]" style={{ left: 600 }}>{v.next ?? "—"}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Header, tabs, overview ───────────────────────────────────────────────────
 
 /** Registration forms often store "none" / "NKDA" when there is nothing to record — that isn't an allergy or condition. */
@@ -493,7 +456,7 @@ function OverviewTab({ patient, now }: { patient: PatientDetail; now: number }) 
       {(patient.identityDocuments.length > 0 || patient.covid || patient.notes || patient.medicoLegal || patient.temporary || patient.dataConsent) && (
         <Group title="Other">
           {patient.identityDocuments.length > 0 && <Field label="Identity documents" wide value={patient.identityDocuments.map(d => `${d.type} ••••${d.last4}`).join(" · ")} />}
-          {patient.covid && <Field label="COVID" wide value={[patient.covid.vaccination, patient.covid.lastDose && `last dose ${formatDate(patient.covid.lastDose)}`, patient.covid.infectedBefore && "had COVID before"].filter(Boolean).join(" · ")} />}
+          {patient.covid && <Field label="COVID" wide value={[patient.covid.vaccination, patient.covid.lastDose ? `last dose ${formatDate(patient.covid.lastDose)}` : patient.covid.lastDoseUnknown ? "last dose date not known" : "", patient.covid.infectedBefore && "had COVID before"].filter(Boolean).join(" · ")} />}
           <Field label="Flags" wide value={[patient.medicoLegal && "Medico-legal case", patient.temporary && "Temporary record", patient.dataConsent && "Data-processing consent given"].filter(Boolean).join(" · ")} />
           <Field label="Notes" wide value={patient.notes} />
         </Group>
@@ -539,6 +502,17 @@ function MedicalHistoryTab({ patient }: { patient: PatientDetail }) {
 
 function VitalsTab({ patientId }: { patientId: number }) {
   const { items: visits } = useList<OpdRecordDTO>("/opd", { all: true, patient_id: patientId });
+  const { items: readings } = useList<OpdVitalDTO>(`/patients/${patientId}/vitals`, { all: true });
+  const visitLabels = Object.fromEntries(visits.map((v) => [v.id, v.tokenNumber]));
+  if (readings.length > 0) {
+    return (
+      <div className="p-5">
+        <p className="mb-4 text-[12px] font-light text-[color:var(--ink-soft)]">Every reading is kept, newest first. Add a new one from the OPD queue (Add / view vitals).</p>
+        <VitalsHistory readings={readings} visitLabels={visitLabels} />
+      </div>
+    );
+  }
+  // Older visits, recorded before readings were logged one by one: show the single set each visit holds.
   const withVitals = visits.filter(v => v.vitalsRecorded).sort((a, b) => b.id - a.id);
   if (withVitals.length === 0) {
     return <p className="p-5 text-[13px] font-light text-[color:var(--ink-soft)]">No vitals recorded for this patient yet.</p>;

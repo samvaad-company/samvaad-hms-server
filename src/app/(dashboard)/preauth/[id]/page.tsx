@@ -1,6 +1,8 @@
 "use client";
 
 /** One pre-auth form: fill it in, send it for signing, then the doctor signs and the hospital's admin stamps it. Prints as the insurer's own form. */
+import { ClaimPacketCard } from "@/components/preauth/ClaimPacketCard";
+import { PatientSignatureCard } from "@/components/preauth/PatientSignatureCard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Download, PenLine, Printer, Send, Stamp, Trash2 } from "lucide-react";
@@ -105,6 +107,8 @@ export default function PreauthFormPage() {
       {form.status === "Ready" && <p className="rounded-[8px] bg-[#dffff3] px-3 py-2 text-[13px] text-[#0b7a47]">Signed by {form.doctorSignedBy}{form.doctorSignedAuto ? " (automatically)" : ""} and stamped by {form.stampedBy}. Ready to send to the insurer.</p>}
 
       {pdfError && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#ff0004]">{pdfError}</p>}
+      <ClaimPacketCard form={form} values={values} getElement={() => docRef.current} />
+      <PatientSignatureCard form={form} canEdit={!!form && (can("tpa", "write") || isItsDoctor)} onChanged={reload} />
       {exact && (
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-full border border-[color:var(--line)] p-[3px] text-[13px]" role="tablist">
@@ -119,7 +123,7 @@ export default function PreauthFormPage() {
       <div ref={docRef} hidden={exact && view === "pdf"} className={`${tw.surface.card} ${tw.radius.card} mx-auto w-full max-w-[900px] overflow-hidden`}>
         <PreauthDocument def={def} values={values} editable={canFill} onChange={(k, v) => { setValues((p) => ({ ...p, [k]: v })); setDirty(true); }}
           declarationEditable={isItsDoctor && form.status === "Awaiting doctor"}
-          doctorSignatureImg={form.doctorSignatureImg} doctorStampImg={form.doctorStampImg} hospitalStampImg={form.hospitalStampImg} doctorSignedAt={form.doctorSignedAt} />
+          doctorSignatureImg={form.doctorSignatureImg} doctorStampImg={form.doctorStampImg} hospitalStampImg={form.hospitalStampImg} patientSignatureImg={form.patientSignatureImg} doctorSignedAt={form.doctorSignedAt} />
       </div>
     </div>
   );

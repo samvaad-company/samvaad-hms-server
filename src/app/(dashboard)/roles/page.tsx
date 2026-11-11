@@ -5,7 +5,7 @@
  * Only the hospital's Super Admin can change it; other admin-panel users see it read-only. The server enforces every level.
  */
 import { useEffect, useMemo, useState } from "react";
-import { RotateCcw, Search, ShieldCheck } from "lucide-react";
+import { ChevronDown, RotateCcw, Search, ShieldCheck } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { api } from "@/lib/api/client";
 import { useItem, useMutation } from "@/lib/api/hooks";
@@ -124,16 +124,19 @@ export default function RolesPage() {
                       {g.items.filter((k) => item.resources.includes(k) && visible(k)).map((k) => {
                         const level = draft[k] ?? current.current[k], base = current.defaults[k], edited = level !== base;
                         return (
-                          <div key={k} className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--subtle-2)] px-4 py-[8px]">
+                          <div key={k} className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--subtle-2)] pl-4 pr-7 py-[8px]">
                             <div className="min-w-[160px]">
                               <p className="text-[14px] text-[color:var(--ink)]">{LABELS[k] ?? k}</p>
                               {edited && <p className="text-[11px] text-[#7a4a00]">Standard: {ACCESS_LABEL[base]}</p>}
                             </div>
+                            <div className="relative w-[190px]">
                             <select value={level} disabled={!canChange || current.locked} aria-label={`${current.role}: ${LABELS[k] ?? k}`}
                               onChange={(e) => { setSaved(false); setDraft((d) => ({ ...d, [k]: e.target.value as AccessLevel })); }}
-                              className={`h-[36px] w-[190px] rounded-[8px] border bg-[color:var(--surface)] px-3 text-[13px] focus:border-[color:var(--brand)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${edited ? "border-[#e3c27a]" : "border-[color:var(--line)]"} ${SHADE[level]}`}>
+                              className={`h-[36px] w-full appearance-none rounded-[8px] border bg-[color:var(--surface)] pl-3 pr-9 text-[13px] focus:border-[color:var(--brand)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${edited ? "border-[#e3c27a]" : "border-[color:var(--line)]"} ${SHADE[level]}`}>
                               {item.levels.map((l) => <option key={l} value={l}>{ACCESS_LABEL[l]}</option>)}
                             </select>
+                            <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-soft)]" />
+                            </div>
                           </div>
                         );
                       })}

@@ -9,6 +9,7 @@ import type { MedicineDTO } from "@/types/api";
 import { PACKAGE_TYPES } from "@/types/setup";
 import { FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
+import { MedicinePicker } from "@/components/shared/MedicinePicker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ErrorNote, outlineBtn, primaryBtn } from "@/components/mrd/shared";
 import { attempt } from "@/components/hr/shared";
@@ -65,7 +66,6 @@ function PackageEditor({ pkg, onChanged }: { pkg: Rec | null; onChanged: (id: nu
   const groups = useSetup("service_group");
   const categories = useSetup("patient_category");
   const centers = useSetup("collection_center");
-  const { items: medicines } = useList<MedicineDTO>("/medicines", { all: true });
   const [draft, setDraft] = useState<Draft>(() => (pkg ? toDraft(pkg) : BLANK));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { run, loading, error, reset } = useMutation();
@@ -141,8 +141,8 @@ function PackageEditor({ pkg, onChanged }: { pkg: Rec | null; onChanged: (id: nu
               <div className="mt-3 grid items-center gap-2" style={{ gridTemplateColumns: "1fr 1fr auto" }}>
                 <SearchSelect placeholder="Add a service or charge…" value="" options={serviceOptions}
                   onChange={(v) => { const s = services.items.find((x) => String(x.id) === v); if (s) set("inclusions", [...draft.inclusions, { kind: "service", refId: s.id, name: s.name, category: groupName(s), qty: "1", rate: str(s.data.price), maxQty: "", maxAmount: "" }]); }} />
-                <SearchSelect placeholder="Add an inventory item (search drugs)…" value="" options={medicines.map((m) => ({ value: String(m.id), label: m.name, hint: m.generic }))}
-                  onChange={(v) => { const m = medicines.find((x) => String(x.id) === v); if (m) set("inclusions", [...draft.inclusions, { kind: "item", refId: m.id, name: m.name, category: m.category, qty: "1", rate: "", maxQty: "", maxAmount: "" }]); }} />
+                <MedicinePicker placeholder="Add an inventory item (search drugs)…"
+                  onPick={(m) => set("inclusions", [...draft.inclusions, { kind: "item", refId: m.id, name: m.name, category: m.category, qty: "1", rate: m.price != null ? String(m.price) : "", maxQty: "", maxAmount: "" }])} />
                 <CategoryAdd label="Category limit" groups={groups.items} onPick={(g) => set("inclusions", [...draft.inclusions, { kind: "category", refId: g.id, name: g.name, category: "Category", qty: "", rate: "", maxQty: "", maxAmount: "" }])} />
               </div>
             </section>

@@ -2,6 +2,7 @@
  * Prescriptions service — issuing prescriptions with line items and dispensing
  * them, which decrements pharmacy inventory (cross-module wiring).
  */
+import { mirrorPrescriptionToWard } from "@/services/prescription-ward-sync";
 import {
   prescriptionsRepo,
   prescriptionItemsRepo,
@@ -149,6 +150,8 @@ export async function createPrescription(input: unknown, actor: Session) {
   }
 
   await audit(actor, "create", "prescription", header.id, { rxNumber, items: items.length });
+  // For a patient who is in hospital, the medicines are also orders for the ward (the nurse station and drug chart).
+  await mirrorPrescriptionToWard(header as PrescriptionRow, items).catch(() => 0);
   return toPrescriptionDTO(header as PrescriptionRow, items);
 }
 

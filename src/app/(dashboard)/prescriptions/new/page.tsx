@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { icd10Codes } from "@/data/icd10";
 import { useList, useMutation } from "@/lib/api/hooks";
+import { useMedicineMatches } from "@/lib/api/useMedicineSearch";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { useAuth } from "@/lib/auth-context";
-import type { PatientDTO, DoctorDTO, MedicineDTO, PrescriptionTemplateDTO } from "@/types/api";
+import type { PatientDTO, DoctorDTO, PrescriptionTemplateDTO } from "@/types/api";
 import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { Modal } from "@/components/shared/Modal";
@@ -32,7 +33,6 @@ export default function NewPrescriptionPage() {
   const { run, loading, error } = useMutation();
   const { items: patients } = useList<PatientDTO>("/patients", { all: true });
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
-  const { items: medicines } = useList<MedicineDTO>("/medicines", { all: true });
   const { items: myTemplates, reload: reloadTemplates } = useList<PrescriptionTemplateDTO>(
     "/prescriptions/templates",
     { all: true },
@@ -76,6 +76,7 @@ export default function NewPrescriptionPage() {
   const [tmplName, setTmplName] = useState("");
   const [tmplRows, setTmplRows] = useState<RxRow[]>([mkRow()]);
   const [tmplMedSearch, setTmplMedSearch] = useState<Record<number, string>>({});
+  const medLookup = useMedicineMatches([...Object.values(medSearch), ...Object.values(tmplMedSearch)]);
 
   const openCreateTemplate = () => {
     setEditingTemplate(null);
@@ -110,7 +111,7 @@ export default function NewPrescriptionPage() {
     const payload = {
       name: tmplName.trim(),
       items: tmplFilledRows.map(r => ({
-        medicineId: medicines.find(m => m.name === r.medicine)?.id,
+        medicineId: medLookup.byName(r.medicine)?.id,
         medicineName: r.medicine,
         dosage: r.dosage,
         frequency: r.frequency,
@@ -155,7 +156,7 @@ export default function NewPrescriptionPage() {
         diagnosis: diagnoses.join("; "),
         status: "Pending",
         items: filledRows.map(r => ({
-          medicineId: medicines.find(m => m.name === r.medicine)?.id,
+          medicineId: medLookup.byName(r.medicine)?.id,
           medicineName: r.medicine,
           dosage: r.dosage,
           frequency: r.frequency,
@@ -172,11 +173,7 @@ export default function NewPrescriptionPage() {
     c.code.toLowerCase().includes(icdSearch.toLowerCase())
   ).slice(0, 6);
 
-  const filteredMed = (query: string) =>
-    medicines.filter(m =>
-      m.name.toLowerCase().includes(query.toLowerCase()) ||
-      m.generic.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5);
+  const filteredMed = (query: string) => medLookup.matches(query).slice(0, 8);
 
   return (
     <>

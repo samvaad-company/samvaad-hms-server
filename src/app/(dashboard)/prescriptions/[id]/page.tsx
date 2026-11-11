@@ -85,7 +85,7 @@ export default function PrescriptionDetailPage() {
   return (
     <>
       {/* Header */}
-      <div className={`${tw.gutterX} pt-2 pb-3 flex items-center gap-3 flex-wrap`}>
+      <div className={`${tw.gutterX} pt-5 pb-3 flex items-center gap-3 flex-wrap`}>
         <Link href="/prescriptions" aria-label="Back to prescriptions" className="flex items-center justify-center w-8 h-8 rounded-full text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] transition-colors">
           <ArrowLeft size={18} />
         </Link>

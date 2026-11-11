@@ -102,7 +102,7 @@ export interface PatientDTO extends Patient {
   payers: { type: string; name: string; policyNumber: string; validUntil: string | null }[];
   /** Identity documents on file — only the type and last four characters are ever returned. */
   identityDocuments: { type: string; last4: string }[];
-  covid: { vaccination: string | null; lastDose: string | null; infectedBefore: boolean } | null;
+  covid: { vaccination: string | null; lastDose: string | null; lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
 }
 
 export interface PrescriptionItemDTO {
@@ -411,6 +411,8 @@ export interface BillingServiceDTO {
   gstApplies: boolean;
   gstRate: number;
   hsnSac: string;
+  /** The billing category of the service's group (Setup → Masters → Service groups): decides which bill types offer it. */
+  billingCategory: string;
   /** The service's group and its parents, nearest first — copay rules are per group. */
   groupIds: number[];
   groupNames: string[];
@@ -500,6 +502,21 @@ export interface IpdBoardDTO {
   live: IpdLiveDTO[];
   /** Rounds seen today among the signed-in doctor's own patients, when they have any. */
   rounds: { seen: number; total: number } | null;
+}
+
+/** One set of vitals taken at an OPD visit; a visit (and a day) can have many. */
+export interface OpdVitalDTO {
+  id: number;
+  visitId: number;
+  patientId: number | null;
+  recordedAt: string;
+  bpSystolic: number | null;
+  bpDiastolic: number | null;
+  pulse: number | null;
+  temperature: number | null;
+  spo2: number | null;
+  note: string;
+  recordedBy: string;
 }
 
 export interface IpdVitalDTO {
@@ -788,6 +805,14 @@ export interface MedicineDTO {
   defaultFrequency: string;
   defaultDuration: string;
   unit: string;
+  manufacturer: string;
+  pack: string;
+  /** Printed MRP from the drug directory. */
+  mrp: number | null;
+  /** Price set in Setup → Masters → Medicines, if any. */
+  masterPrice: number | null;
+  /** Price charged: the master price when set, else the MRP. */
+  price: number | null;
 }
 
 export interface AdminUserDTO {
@@ -2526,4 +2551,132 @@ export interface CombinedBillDTO {
   totals: { gross: number; discount: number; gst: number; total: number; paid: number; due: number };
   billCount: number;
   refundedCount: number;
+}
+
+
+// ── Inpatient chart: treatment sheet, fluid balance, overview, timeline ─────────
+
+export interface IpdInstructionDTO {
+  id: string;
+  text: string;
+  kind: "Nursing" | "Diet";
+  seenBy: string | null;
+  seenAt: string | null;
+}
+
+export interface IpdCallLimitsDTO {
+  spo2Below: number | null;
+  sbpBelow: number | null;
+  sbpAbove: number | null;
+  pulseAbove: number | null;
+  pulseBelow: number | null;
+  respAbove: number | null;
+  tempFAbove: number | null;
+  grbsBelow: number | null;
+  grbsAbove: number | null;
+}
+
+/** One day's treatment sheet. A day with nothing written yet carries the previous day's plan forward (`carriedFrom`). */
+export interface IpdSheetDTO {
+  admissionId: number;
+  date: string;
+  diagnosis: string;
+  plan: string;
+  carriedFrom: string | null;
+  instructions: IpdInstructionDTO[];
+  investigations: string[];
+  callDoctor: { limits: IpdCallLimitsDTO; other: string[] };
+  signedBy: string | null;
+  signedAt: string | null;
+  /** Written for this date (as against shown from an earlier day). */
+  saved: boolean;
+}
+
+export interface IpdIoDTO {
+  id: number;
+  admissionId: number;
+  kind: "In" | "Out";
+  category: string;
+  amountMl: number;
+  recordedAt: string;
+  note: string;
+  recordedBy: string;
+}
+
+export interface IpdIoSummaryDTO {
+  entries: IpdIoDTO[];
+  /** The last 24 hours. */
+  intakeMl: number;
+  outputMl: number;
+  balanceMl: number;
+}
+
+export interface IpdTodoDTO {
+  key: string;
+  text: string;
+  /** The tab of the patient page that deals with it. */
+  tab: string;
+}
+
+export interface IpdWardEventDTO {
+  at: string;
+  medicineName: string;
+  dosage: string;
+  route: string;
+  state: "given" | "missed" | "held";
+  by: string | null;
+}
+
+export interface IpdOverviewDTO {
+  admission: IpdRecordDTO;
+  live: IpdLiveDTO | null;
+  allergyStatus: "" | "No known allergies" | "Has allergies";
+  allergies: string;
+  payer: string;
+  plannedDischargeDate: string | null;
+  dischargeStage: string;
+  stats: { dosesDue: number; ivRunning: number; doctorVisitsToday: number; openOrders: number; balanceDue: number; billed: number; deposit: number };
+  onWard: IpdWardEventDTO[];
+  todo: IpdTodoDTO[];
+  lastVitals: IpdVitalDTO | null;
+  consents: { total: number; signed: number; hasAdmission: boolean };
+  preauth: { total: number; ready: number };
+  /** What must be settled before the patient leaves. */
+  readiness: { ivRunning: number; dosesPending: number; unbilledDoses: number; balanceDue: number; admissionConsent: boolean };
+}
+
+export type IpdTimelineKind = "Admission" | "Medication" | "Vitals" | "Note" | "IV" | "Fluids" | "Billing" | "Consent" | "Insurance" | "Discharge";
+
+export interface IpdTimelineEventDTO {
+  at: string;
+  kind: IpdTimelineKind;
+  title: string;
+  detail: string;
+  by: string;
+  /** Minutes since the event before this one. */
+  sincePrevMin: number | null;
+}
+
+export interface IpdTimelineDTO {
+  timeInHospitalMin: number;
+  longestWaitMin: number;
+  longestWaitLabel: string;
+  events: IpdTimelineEventDTO[];
+}
+
+// ── Patient vaccinations ─────────────────────────────────────────────────────
+
+export interface PatientVaccinationDTO {
+  id: number;
+  patientId: number;
+  vaccine: string;
+  dose: string;
+  /** yyyy-mm-dd, or null when the exact date is not known. */
+  givenOn: string | null;
+  dateUnknown: boolean;
+  /** When the exact date is not known: roughly when ("2021", "March 2021"). */
+  approxWhen: string;
+  nextDue: string | null;
+  note: string;
+  recordedBy: string;
 }

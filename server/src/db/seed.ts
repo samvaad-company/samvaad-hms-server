@@ -100,6 +100,16 @@ function findPatientByName(name: string) {
   return patientsData.find((p) => p.name === name);
 }
 
+/** "9:05 AM" plus some minutes, as the same kind of clock text. */
+function clockPlus(text: string, minutes: number): string {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(text.trim());
+  if (!m) return "";
+  let h = Number(m[1]) % 12 + (m[3].toUpperCase() === "PM" ? 12 : 0);
+  const total = h * 60 + Number(m[2]) + minutes;
+  const hh = Math.floor(total / 60) % 24, mm = total % 60;
+  return `${hh % 12 === 0 ? 12 : hh % 12}:${String(mm).padStart(2, "0")} ${hh >= 12 ? "PM" : "AM"}`;
+}
+
 export async function buildSeed(): Promise<Record<string, Row[]>> {
   const ts = now();
 
@@ -239,6 +249,8 @@ export async function buildSeed(): Promise<Record<string, Row[]>> {
     spo2: o.vitalsRecorded ? 97 + (o.id % 3) : null,
     wait_time: o.waitTime,
     check_in_time: o.checkInTime,
+    // A completed visit left some time after it came in (the demo uses 20-45 minutes).
+    check_out_time: o.status === "Completed" ? clockPlus(o.checkInTime, 20 + (o.id % 6) * 5) : "",
     status: o.status,
     created_at: ts,
     updated_at: ts,

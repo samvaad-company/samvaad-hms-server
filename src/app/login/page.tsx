@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   { role: "Pharmacist",     name: "Arun Tiwari",      email: "arun.tiwari@samvaadhospital.in" },
   { role: "Lab Technician", name: "Sunita Rao",       email: "sunita.rao@samvaadhospital.in" },
   { role: "Billing Exec",   name: "Kavitha Krishnan", email: "kavitha.krishnan@samvaadhospital.in" },
+  { role: "Insurance Exec", name: "Priya Sharma",     email: "priya.sharma@samvaadhospital.in" },
   { role: "IT Admin",       name: "Rahul Saxena",     email: "rahul.saxena@samvaadhospital.in" },
   { role: "Driver",         name: "Vijay Kumar",      email: "vijay.kumar@samvaadhospital.in" },
   { role: "Radiology Partner", name: "Scanwell Diagnostics", email: "reports@scanwell.in" },

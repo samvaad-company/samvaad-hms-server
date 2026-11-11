@@ -18,7 +18,8 @@ export interface PdfTemplate {
   fields: Record<string, { kind: "comb" | "box"; rows: Row[]; repeat?: boolean } | { kind: "gpla"; cells: Spot[] }>;
   checks: Record<string, Record<string, Spot>>;
   chronic: Record<string, { check?: Spot; mm?: Row; yy?: Row; details?: Row[]; text?: { kind: "comb" | "box"; rows: Row[] } }>;
-  images: Record<"hospitalStamp" | "doctorSignature" | "doctorStamp", Spot>;
+  /** Where each picture goes. A form that asks for the signature or stamp in more than one place lists every one. */
+  images: Partial<Record<"hospitalStamp" | "doctorSignature" | "doctorStamp" | "patientSignature", Spot | Spot[]>>;
   /** What the form asks, in its order: a detail with no box of its own on the form is still printed, on the continuation sheet. */
   order?: { key: string; label: string }[];
   /** Guide text printed on the form where a date goes (DD/MM/YYYY): cleared when that date is filled in, so the date reads clearly. */
@@ -29,6 +30,8 @@ export interface FillOptions {
   doctorSignatureImg?: string | null;
   doctorStampImg?: string | null;
   hospitalStampImg?: string | null;
+  /** The patient's own signature, printed at each "Patient / Insured signature" place. */
+  patientSignatureImg?: string | null;
   /** yyyy-mm-dd for the declaration date when the form has none of its own. */
   defaultDate?: string | null;
   patientName?: string;
@@ -262,9 +265,11 @@ export async function fillPreauthPdf(pdfBytes: Uint8Array, tpl: PdfTemplate, val
       p.drawImage(e, { x: spot.x + (spot.w - w) / 2, y: p.getHeight() - spot.y - spot.h + (spot.h - h) / 2, width: w, height: h });
     } catch { /* a picture that can't be read is left off rather than failing the form */ }
   }
-  await place(opts.hospitalStampImg, tpl.images.hospitalStamp);
-  await place(opts.doctorSignatureImg, tpl.images.doctorSignature);
-  await place(opts.doctorStampImg, tpl.images.doctorStamp);
+  const spotsOf = (v: Spot | Spot[] | undefined): Spot[] => (v ? (Array.isArray(v) ? v : [v]) : []);
+  for (const spot of spotsOf(tpl.images.hospitalStamp)) await place(opts.hospitalStampImg, spot);
+  for (const spot of spotsOf(tpl.images.doctorSignature)) await place(opts.doctorSignatureImg, spot);
+  for (const spot of spotsOf(tpl.images.doctorStamp)) await place(opts.doctorStampImg, spot);
+  for (const spot of spotsOf(tpl.images.patientSignature)) await place(opts.patientSignatureImg, spot);
 
   // ── Continuation sheet ──
   if (overflow.length) {

@@ -108,6 +108,8 @@ export function parsePayers(input: unknown): Payer[] {
 export interface CovidDetails {
   vaccination: string | null;
   lastDose: string | null;
+  /** Vaccinated, but the exact date of the last dose is not known. */
+  lastDoseUnknown?: boolean;
   infectedBefore: boolean;
 }
 
@@ -120,7 +122,8 @@ export function parseCovid(input: unknown): CovidDetails | null {
   if (vaccination && !VACCINATION.includes(vaccination)) throw new BadRequestError("Unknown COVID vaccination status");
   const lastDose = str(c.lastDose, 40) || null;
   if (lastDose && Number.isNaN(new Date(lastDose).getTime())) throw new BadRequestError("The last COVID dose date isn't a valid date");
+  const lastDoseUnknown = !lastDose && (c.lastDoseUnknown === true || c.lastDoseUnknown === "true");
   const infectedBefore = c.infectedBefore === true || c.infectedBefore === "true";
-  if (!vaccination && !lastDose && !infectedBefore) return null;
-  return { vaccination, lastDose, infectedBefore };
+  if (!vaccination && !lastDose && !lastDoseUnknown && !infectedBefore) return null;
+  return { vaccination, lastDose, ...(lastDoseUnknown ? { lastDoseUnknown } : {}), infectedBefore };
 }

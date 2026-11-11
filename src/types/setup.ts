@@ -34,7 +34,18 @@ export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 // ── Service catalogue ────────────────────────────────────────────────────────
 
-export const BILLING_CATEGORIES = ["Consultation", "Procedure", "Diagnostic", "Laboratory", "IPD charge", "Package", "Other"] as const;
+export const BILLING_CATEGORIES = ["Consultation", "Procedure", "Diagnostic", "Laboratory", "Radiology", "Pharmacy", "Blood", "Ambulance", "IPD charge", "Package", "Other"] as const;
+
+/** Which service groups (by billing category) a bill of each type draws its services from, in Setup → Masters. */
+export const BILL_TYPE_CATEGORIES: Record<string, readonly (typeof BILLING_CATEGORIES)[number][]> = {
+  OPD: ["Consultation", "Procedure", "Other"],
+  IPD: ["IPD charge", "Package", "Procedure", "Consultation"],
+  Lab: ["Laboratory"],
+  Pharmacy: ["Pharmacy"],
+  Radiology: ["Radiology", "Diagnostic"],
+  Blood: ["Blood"],
+  Ambulance: ["Ambulance"],
+};
 export const SERVICE_UNITS = ["per session", "per day", "per test", "per visit", "per unit", "per hour"] as const;
 
 export const PACKAGE_TYPES = ["Health check", "Multi-visit", "Surgical"] as const;

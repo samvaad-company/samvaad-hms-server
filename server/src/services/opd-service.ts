@@ -2,19 +2,20 @@
  * OPD service — patient check-in queue with token generation, vitals, and
  * consultation status transitions.
  */
-import { opdRepo, patientsRepo, doctorsRepo } from "@/repositories";
-import { toOpdDTO } from "@/repositories/mappers";
+import { opdRepo, opdVitalsRepo, patientsRepo, doctorsRepo } from "@/repositories";
+import { toOpdDTO, toOpdVitalDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { type UnitOfWork } from "@/db/unit-of-work";
 import { TABLES } from "@/db/tables";
-import { type OpdVisitRow } from "@/db/tables";
+import { type OpdVisitRow, type OpdVitalRow } from "@/db/tables";
 import { validate, validatePartial } from "@/lib/validation";
-import { ConflictError } from "@/lib/errors";
+import { BadRequestError, ConflictError } from "@/lib/errors";
 import { withKeyLocks } from "@/lib/key-lock";
 import { allocateSequence } from "@/services/sequences";
 import { localDate } from "@/lib/clock";
 import { displayTime, nextCode } from "@/services/helpers";
 import { audit } from "@/services/audit";
+import { readingTime } from "@/services/nurse-station-service";
 import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
@@ -58,6 +59,27 @@ function hasAnyVital(d: Record<string, unknown>): boolean {
   return ["bpSystolic", "bpDiastolic", "pulse", "temperature", "spo2"].some(
     (k) => d[k] !== undefined && d[k] !== null,
   );
+}
+
+const READINGS = ["bpSystolic", "bpDiastolic", "pulse", "temperature", "spo2"] as const;
+const READING_COLUMN = { bpSystolic: "bp_systolic", bpDiastolic: "bp_diastolic", pulse: "pulse", temperature: "temperature", spo2: "spo2" } as const;
+
+/** Keeps one set of readings in the visit's vitals log. A patient's vitals can be taken as many times as needed, in a visit or in a day. */
+async function logVitals(visit: OpdVisitRow, readings: Partial<Record<(typeof READINGS)[number], number | null>>, note: string, actor: Session, at?: string) {
+  const row = await opdVitalsRepo.create({
+    hospital_id: visit.hospital_id,
+    visit_id: visit.id,
+    patient_id: visit.patient_id ?? null,
+    recorded_at: at ?? new Date().toISOString(),
+    bp_systolic: readings.bpSystolic ?? null,
+    bp_diastolic: readings.bpDiastolic ?? null,
+    pulse: readings.pulse ?? null,
+    temperature: readings.temperature ?? null,
+    spo2: readings.spo2 ?? null,
+    note,
+    recorded_by: actor.name,
+  });
+  return row as OpdVitalRow;
 }
 
 export const OPD_LIST_CONFIG = {
@@ -159,8 +181,12 @@ async function checkInLocked(
     spo2: data.spo2 ?? null,
     wait_time: "0 min",
     check_in_time: displayTime(),
+    check_in_at: new Date().toISOString(),
+    check_out_time: "",
+    check_out_at: null,
     status: "Waiting",
   });
+  if (hasAnyVital(data)) await logVitals(row as OpdVisitRow, data, "At check-in", actor);
   await audit(actor, "checkin", "opd", row.id, { token });
   return toOpdDTO(row as OpdVisitRow);
 }
@@ -172,7 +198,14 @@ export async function updateOpd(id: number, input: unknown, actor: Session) {
   const patch: Record<string, unknown> = {};
   if ("status" in data) {
     patch.status = data.status;
-    if (data.status === "Completed") patch.wait_time = "—";
+    if (data.status === "Completed") {
+      patch.wait_time = "—";
+      // Checked out now — unless the visit already has a check-out (set again only if it was reopened in between).
+      if (!existing.check_out_at) { const now = new Date(); patch.check_out_at = now.toISOString(); patch.check_out_time = displayTime(now); }
+    } else if (existing.check_out_at || existing.check_out_time) {
+      // Reopened: it has not left yet.
+      patch.check_out_at = null; patch.check_out_time = "";
+    }
   }
   if ("doctorId" in data) {
     patch.doctor_id = data.doctorId ?? null;
@@ -191,7 +224,14 @@ export async function updateOpd(id: number, input: unknown, actor: Session) {
   // Entering any reading implicitly marks vitals as recorded.
   if (hasAnyVital(data) && !("vitalsRecorded" in data)) patch.vitals_recorded = true;
 
+  // New readings (different from what the visit already holds) are added to the vitals log rather than lost when the latest is overwritten.
+  const changed = READINGS.some((k) => k in data && data[k] != null && data[k] !== existing[READING_COLUMN[k]]);
   const row = await opdRepo.update(id, patch);
+  if (changed) {
+    const merged: Partial<Record<(typeof READINGS)[number], number | null>> = {};
+    for (const k of READINGS) merged[k] = (k in data ? data[k] : existing[READING_COLUMN[k]]) ?? null;
+    await logVitals(row as OpdVisitRow, merged, "", actor);
+  }
   await audit(actor, "update", "opd", id, patch);
   return toOpdDTO(row as OpdVisitRow);
 }
@@ -217,4 +257,68 @@ async function renumberTokens(actor: Session): Promise<void> {
       await opdRepo.update(ordered[i].id, { token_number: expected });
     }
   }
+}
+
+// ── Vitals log: any number of readings per visit and per day ────────────────
+
+const newVitalsSchema = {
+  bpSystolic: { type: "number", required: false, min: 40, max: 300 },
+  bpDiastolic: { type: "number", required: false, min: 20, max: 200 },
+  pulse: { type: "number", required: false, min: 20, max: 250 },
+  temperature: { type: "number", required: false, min: 90, max: 110 },
+  spo2: { type: "number", required: false, min: 50, max: 100 },
+  note: { type: "string", required: false, max: 300, default: "" },
+} as const;
+
+/**
+ * Adds vitals to a visit and never replaces an earlier set. Send one set, or `readings: [...]` to add several at once (each may carry its
+ * own `recordedAt`); the whole batch is checked first, so either every set is saved or none is. The visit shows its newest set.
+ */
+export async function recordOpdVitals(visitId: number, input: unknown, actor: Session) {
+  const visit = await opdRepo.getRow(visitId);
+  assertOwnedByHospital(visit, actor, "OPD visit");
+  const body = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const many = Array.isArray(body.readings);
+  const sets = many ? (body.readings as unknown[]) : [body];
+  if (many && (sets.length === 0 || sets.length > 24)) throw new BadRequestError("Add between 1 and 24 sets of vitals at a time");
+  const parsed = sets.map((one) => {
+    const raw = (typeof one === "object" && one !== null ? one : {}) as Record<string, unknown>;
+    const data = validate(newVitalsSchema, raw);
+    if (!hasAnyVital(data)) throw new BadRequestError("Enter at least one reading");
+    if ((data.bpSystolic == null) !== (data.bpDiastolic == null)) throw new BadRequestError("Enter both parts of the blood pressure");
+    if (data.bpSystolic != null && data.bpDiastolic != null && data.bpDiastolic >= data.bpSystolic) throw new BadRequestError("Diastolic pressure must be lower than systolic");
+    return { data, at: readingTime(raw.recordedAt) };
+  });
+  const out: OpdVitalRow[] = [];
+  for (const { data, at } of parsed) out.push(await logVitals(visit as OpdVisitRow, data, data.note ?? "", actor, at));
+  // The visit shows its newest set, whichever order they were entered in.
+  const newest = [...out].sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))[0];
+  const { rows: all } = await opdVitalsRepo.listRows({ unpaged: true, filters: [{ column: "visit_id", op: "eq", value: visitId }], sort: [{ column: "recorded_at", direction: "desc" }] });
+  if (all[0]?.id === newest.id) {
+    const patch: Record<string, unknown> = { vitals_recorded: true };
+    for (const k of READINGS) { const v = newest[READING_COLUMN[k]]; if (v != null) patch[READING_COLUMN[k]] = v; }
+    await opdRepo.update(visitId, patch);
+  } else {
+    await opdRepo.update(visitId, { vitals_recorded: true });
+  }
+  await audit(actor, "vitals", "opd", visitId, out.length > 1 ? { sets: out.length } : undefined);
+  return many ? out.map(toOpdVitalDTO) : toOpdVitalDTO(out[0]);
+}
+
+/** Every set of vitals taken at one visit, newest first. */
+export async function listOpdVitals(visitId: number, actor: Session) {
+  const visit = await opdRepo.getRow(visitId);
+  assertOwnedByHospital(visit, actor, "OPD visit");
+  const { rows } = await opdVitalsRepo.listRows({ unpaged: true, filters: [{ column: "visit_id", op: "eq", value: visitId }], sort: [{ column: "recorded_at", direction: "desc" }] });
+  // A visit whose vitals were taken before readings were logged one by one: show the set it holds as its first reading.
+  if (rows.length === 0 && hasAnyVital({ bpSystolic: visit.bp_systolic, bpDiastolic: visit.bp_diastolic, pulse: visit.pulse, temperature: visit.temperature, spo2: visit.spo2 })) {
+    return [toOpdVitalDTO({ id: -visit.id, hospital_id: visit.hospital_id, visit_id: visit.id, patient_id: visit.patient_id, recorded_at: visit.created_at, bp_systolic: visit.bp_systolic, bp_diastolic: visit.bp_diastolic, pulse: visit.pulse, temperature: visit.temperature, spo2: visit.spo2, note: "Earlier reading", recorded_by: "", created_at: visit.created_at, updated_at: visit.updated_at })];
+  }
+  return rows.map(toOpdVitalDTO);
+}
+
+/** A patient's vitals across all their visits, newest first. */
+export async function listPatientVitals(patientId: number, actor: Session) {
+  const { rows } = await opdVitalsRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: patientId }], sort: [{ column: "recorded_at", direction: "desc" }] }, actor));
+  return rows.map(toOpdVitalDTO);
 }

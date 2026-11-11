@@ -28,7 +28,7 @@ import { ageFromDob, displayDate, displayTime } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { toPrescriptionDTO } from "@/repositories/mappers";
-import { mobileRule, dobRule, optionalMobileRule, optionalEmailRule } from "@/lib/field-rules";
+import { mobileRule, dobRule, optionalMobileRule, optionalEmailRule, validateAbha, normalizeAbha } from "@/lib/field-rules";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { enrichLab } from "@/services/lab-service";
 import { enrichRadiology } from "@/services/radiology-service";
@@ -54,7 +54,7 @@ const createSchema = {
   doctorId: { type: "number", required: false },
   allergies: { type: "string", required: false, max: 500 },
   chronic: { type: "string", required: false, max: 500 },
-  abhaId: { type: "string", required: false, max: 40 },
+  abhaId: { type: "string", required: false, max: 40, custom: validateAbha },
   address: { type: "string", required: false, max: 240 },
   city: { type: "string", required: false, max: 80 },
   state: { type: "string", required: false, max: 80 },
@@ -259,7 +259,7 @@ export async function createPatient(input: unknown, actor: Session) {
     pincode: data.pincode ?? null,
     allergies: data.allergies ?? null,
     chronic_conditions: data.chronic ?? null,
-    abha_id: data.abhaId ?? null,
+    abha_id: data.abhaId ? normalizeAbha(data.abhaId) : null,
     emergency_name: data.emergencyName ?? null,
     emergency_relation: data.emergencyRelation ?? null,
     emergency_phone: data.emergencyPhone ?? null,
@@ -310,6 +310,7 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
     if (key in data) patch[col] = (data as Record<string, unknown>)[key];
   }
   Object.assign(patch, profileColumns(data as Record<string, unknown>));
+  if ("abhaId" in data) patch.abha_id = (data as { abhaId?: string }).abhaId ? normalizeAbha((data as { abhaId?: string }).abhaId) : null;
   const body = (input ?? {}) as Record<string, unknown>;
   if ("payers" in body) {
     const payers = parsePayers(body.payers);

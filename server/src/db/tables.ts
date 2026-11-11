@@ -16,6 +16,7 @@ export const TABLES = {
   patients: "patients",
   appointments: "appointments",
   opdVisits: "opd_visits",
+  opdVitals: "opd_vitals",
   medicines: "medicines",
   prescriptions: "prescriptions",
   prescriptionItems: "prescription_items",
@@ -91,6 +92,9 @@ export const TABLES = {
   ipdNotes: "ipd_notes",
   ipdMedications: "ipd_medications",
   ipdVitals: "ipd_vitals",
+  ipdSheets: "ipd_sheets",
+  patientVaccinations: "patient_vaccinations",
+  ipdIo: "ipd_io",
   ipdIvLines: "ipd_iv_lines",
   ipdDoseLog: "ipd_dose_log",
   ipdNursingTasks: "ipd_nursing_tasks",
@@ -279,7 +283,7 @@ export interface PatientRow extends Row {
   privilege_card_no?: string | null;
   payers?: { type: string; name: string; policyNumber: string; validUntil: string | null }[] | null;
   identity_documents?: { type: string; last4: string; fingerprint: string }[] | null;
-  covid_details?: { vaccination: string | null; lastDose: string | null; infectedBefore: boolean } | null;
+  covid_details?: { vaccination: string | null; lastDose: string | null; /** Vaccinated, but the exact date of the last dose is not known. */ lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
   created_at: string;
   updated_at: string;
 }
@@ -354,6 +358,10 @@ export interface OpdVisitRow extends Row {
   spo2: number | null;
   wait_time: string;
   check_in_time: string;
+  /** The exact instants of check-in and check-out, and the clock text for check-out ("" until the visit is completed). */
+  check_in_at?: string | null;
+  check_out_at?: string | null;
+  check_out_time?: string;
   status: string;
   created_at: string;
   updated_at: string;
@@ -369,6 +377,13 @@ export interface MedicineRow extends Row {
   default_frequency: string;
   default_duration: string;
   unit: string;
+  /** Imported drug directory: the product id, marketer, pack description and the printed MRP. */
+  product_id?: string | null;
+  manufacturer?: string | null;
+  pack?: string | null;
+  mrp?: number | null;
+  /** The price set in Setup → Masters → Medicines; when set it is the price charged, otherwise the MRP. */
+  price?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -721,6 +736,48 @@ export interface IpdAdmissionRow extends Row {
   primary_nurse?: string;
   expected_stay_days?: number | null;
   diet?: string;
+  /** "" (not checked) | "No known allergies" | "Has allergies" */
+  allergy_status?: string;
+  allergies?: string;
+  /** Self pay, or the insurer / TPA / sponsor paying. */
+  payer?: string;
+  planned_discharge_date?: string | null;
+  /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
+  discharge_stage?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One day's treatment sheet for an admission. */
+export interface IpdSheetRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  sheet_date: string;
+  plan: string;
+  /** JSON: [{ id, text, kind: "Nursing" | "Diet", seenBy?, seenAt? }] */
+  instructions: string;
+  /** JSON: string[] */
+  investigations: string;
+  /** JSON: { limits: { spo2Below, ... }, other: string[] } */
+  call_doctor: string;
+  signed_by: string | null;
+  signed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One intake or output entry on the fluid balance chart. */
+export interface IpdIoRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  kind: "In" | "Out";
+  category: string;
+  amount_ml: number;
+  recorded_at: string;
+  note: string;
+  recorded_by: string;
   created_at: string;
   updated_at: string;
 }
@@ -1392,6 +1449,10 @@ export interface PreauthFormRow extends Row {
   stamped_at: string | null;
   stamped_by: string | null;
   hospital_stamp_img: string | null;
+  /** The patient's own signature on this form (a PNG / JPEG / WebP data URL), who captured it and when. */
+  patient_signature_img?: string | null;
+  patient_signed_at?: string | null;
+  patient_signed_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2699,6 +2760,41 @@ export interface TrainingProgressRow extends Row {
   completions: number;
   started_at: string;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One set of vitals taken at an OPD visit. A visit can have many; the visit row keeps the latest. */
+export interface OpdVitalRow extends Row {
+  id: number;
+  hospital_id: number;
+  visit_id: number;
+  patient_id: number | null;
+  recorded_at: string;
+  bp_systolic: number | null;
+  bp_diastolic: number | null;
+  pulse: number | null;
+  temperature: number | null;
+  spo2: number | null;
+  note: string;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One vaccination in a patient's history. The date is given, or `date_unknown` says the exact date is not known. */
+export interface PatientVaccinationRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  vaccine: string;
+  dose: string;
+  given_on: string | null;
+  date_unknown: boolean;
+  approx_when: string;
+  next_due: string | null;
+  note: string;
+  recorded_by: string;
   created_at: string;
   updated_at: string;
 }

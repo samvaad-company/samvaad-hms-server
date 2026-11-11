@@ -88,7 +88,7 @@ export default function LabReportDetailPage() {
   return (
     <>
       {/* Actions */}
-      <div className={`${tw.gutterX} mb-4 pt-2 flex items-center justify-end`}>
+      <div className={`${tw.gutterX} mb-4 pt-5 flex items-center justify-end`}>
         <div className="flex items-center gap-2">
           {isReady ? (
             <>

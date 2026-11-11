@@ -1,5 +1,6 @@
 "use client";
 
+import { BILL_TYPE_CATEGORIES } from "@/types/setup";
 import { useEffect, useRef, useState } from "react";
 import { tw } from "@/lib/design-system";
 import { BarChart3, Plus, Trash2 } from "lucide-react";
@@ -11,7 +12,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { BillDTO, BillingCatalogDTO, PatientDTO } from "@/types/api";
+import type { BillDTO, BillingCatalogDTO, PatientDTO, PharmacyItemDTO } from "@/types/api";
 import { priceLines, r2 } from "@/types/billing";
 import { splitCoverage } from "@/types/coverage";
 import { PayoutsView } from "@/components/billing/PayoutsView";
@@ -23,6 +24,7 @@ import { usePagination } from "@/components/shared/Pagination";
 import { TabBar } from "@/components/shared/TabBar";
 import { FormRow, FormInput, FormSelect } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
+import { MedicinePicker } from "@/components/shared/MedicinePicker";
 import type { Bill } from "@/types";
 import { RankPill } from "@/components/loyalty/LoyaltyCard";
 import type { LoyaltyPricingDTO } from "@/types/loyalty";
@@ -81,6 +83,7 @@ interface LineItem { id: number; serviceId: string; description: string; qty: nu
 const GST_RATES = [0, 5, 12, 18, 28];
 const CUSTOM = "custom";
 const blankLine = (): LineItem => ({ id: Date.now() + Math.random(), serviceId: "", description: "", qty: 1, rate: 0, gstPct: 0 });
+const STARTER_TYPES = ["OPD", "IPD", "Lab", "Pharmacy", "Radiology", "Blood", "Ambulance"];
 const rupee = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreated: () => void }) {
@@ -98,7 +101,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   const [discountEdited, setDiscountEdited] = useState(false);
   const cardLineFor = useRef("");
   // Prices, GST and payment modes come from Setup → Masters; the patient's category picks the rate plan.
-  const { item: base } = useItem<BillingCatalogDTO>(patientId ? `/billing/catalog?patientId=${patientId}` : "/billing/catalog");
+  const { item: base, reload: reloadCatalog } = useItem<BillingCatalogDTO>(patientId ? `/billing/catalog?patientId=${patientId}` : "/billing/catalog");
   // A patient covered by a sponsor contract is billed under it unless the cashier says self-pay; a contract that names its own
   // rate plan prices the bill from that plan.
   const [choice, setChoice] = useState<string | undefined>(undefined);
@@ -108,6 +111,19 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   const { item: viaContract } = useItem<BillingCatalogDTO>(patientId && contract?.ratePlan ? `/billing/catalog?patientId=${patientId}&contractId=${contract.id}` : null);
   const catalog = contract?.ratePlan && viaContract ? viaContract : base;
   const services = catalog?.services ?? [];
+  // The services offered depend on the type of bill: Setup → Masters groups each service under a billing category, and each bill type draws from its own.
+  const forType = services.filter(s => (BILL_TYPE_CATEGORIES[billType] ?? []).includes(s.billingCategory as never));
+  const offered = forType.length ? forType : services;
+  const { can } = useAuth();
+  // OPD, IPD and pharmacy bills can also carry medicines: the pharmacy's stock list, at the price the counter charges.
+  const withMedicines = ["OPD", "IPD", "Pharmacy"].includes(billType);
+  const { items: stock } = useList<PharmacyItemDTO>(withMedicines ? "/pharmacy" : null, { limit: 500 });
+  const medicines = withMedicines ? stock.filter(m => m.status !== "Expired") : [];
+  const [starting, setStarting] = useState(false);
+  async function addStarter() {
+    setStarting(true);
+    try { await api.post("/billing/catalog/starter", { type: billType }); reloadCatalog(); } catch { /* the note stays; nothing was added */ } finally { setStarting(false); }
+  }
   const settings = catalog?.settings ?? { gstOnBills: true, pricesInclusive: false, roundOff: true, invoicePrefix: "" };
 
   const updateRow = (id: number, patch: Partial<LineItem>) => setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
@@ -135,6 +151,11 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   }, [card?.rankKey, billType, patientId]);
   const pick = (id: number, value: string) => {
     if (value === CUSTOM) return updateRow(id, { serviceId: CUSTOM, description: "", rate: 0, gstPct: 0 });
+    if (value.startsWith("med:")) {
+      const m = stock.find(x => `med:${x.id}` === value);
+      if (m) updateRow(id, { serviceId: CUSTOM, description: m.name, rate: m.unitPrice ?? 0, gstPct: 0 });
+      return;
+    }
     const svc = services.find(s => String(s.id) === value);
     if (svc) updateRow(id, { serviceId: value, description: svc.name, rate: svc.price, gstPct: svc.gstRate });
   };
@@ -235,6 +256,22 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             <Plus size={13} /> Add Item
           </button>
         </div>
+        {services.length > 0 && (
+          <p className={`text-[12px] ${forType.length ? "text-[color:var(--ink-soft)]" : "text-[#8a5300]"}`}>
+            {forType.length
+              ? `${forType.length} ${billType === "Blood" ? "blood bank" : billType} ${forType.length === 1 ? "service" : "services"} from Setup → Masters, priced from ${catalog?.planName || "the rate plan"}.`
+              : `No ${billType === "Blood" ? "blood bank" : billType} services in Setup → Masters yet, so every service is shown. Add them under Setup → Masters → Services, in a service group whose billing category is ${(BILL_TYPE_CATEGORIES[billType] ?? ["Other"])[0]}.`}
+            {!forType.length && STARTER_TYPES.includes(billType) && can("admin", "write") && (
+              <button type="button" disabled={starting} onClick={addStarter} className="ml-2 cursor-pointer font-medium underline disabled:opacity-50">{starting ? "Adding…" : `Add starter ${billType} services`}</button>
+            )}
+          </p>
+        )}
+        {withMedicines && (
+          <div className="max-w-[420px]">
+            <MedicinePicker placeholder="Search the medicine directory to add a medicine…"
+              onPick={m => setItems(prev => [...(prev.length === 1 && !prev[0].serviceId ? [] : prev), { ...blankLine(), serviceId: CUSTOM, description: m.name, qty: 1, rate: m.price ?? 0, gstPct: 0 }])} />
+          </div>
+        )}
         <div className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 px-3">
           {["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
             <span key={h} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
@@ -251,7 +288,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                     placeholder="Select service…"
                     value={raw.serviceId}
                     onChange={v => pick(item.id, v)}
-                    options={[...services.map(s => ({ value: String(s.id), label: s.name, hint: `${s.code} ${s.group}` })), { value: CUSTOM, label: "Custom charge…", hint: "not in the catalogue" }]}
+                    options={[...offered.map(s => ({ value: String(s.id), label: `${s.name} — ${rupee(s.price)}${s.unit ? ` ${s.unit}` : ""}`, hint: `${s.code} · ${s.group}` })), ...medicines.map(m => ({ value: `med:${m.id}`, label: `${m.name} — ${m.unitPrice ? rupee(m.unitPrice) : "set price"}`, hint: `Medicine · ${m.category}${m.stock <= 0 ? " · out of stock" : ""}` })), { value: CUSTOM, label: "Custom charge…", hint: "not in the catalogue" }]}
                   />
                   {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value })} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
                 </div>

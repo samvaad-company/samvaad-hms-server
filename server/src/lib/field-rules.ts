@@ -29,6 +29,14 @@ export function validateMobile(value: unknown): string | null {
   return null;
 }
 
+/** An ABHA ID is exactly 14 digits (it may be written 12-3456-7890-1234). */
+export const normalizeAbha = (raw: unknown): string => String(raw ?? "").replace(/\D/g, "");
+export function validateAbha(value: unknown): string | null {
+  const digits = normalizeAbha(value);
+  if (!String(value ?? "").trim()) return null;
+  return digits.length === 14 ? null : "ABHA ID must be exactly 14 digits";
+}
+
 /**
  * A date of birth must be a real date, not in the future, and within a
  * plausible human lifespan.

@@ -170,6 +170,18 @@ test("the change is recorded in the audit log", async () => {
   await as(ADMIN, "PUT", "/api/admin/role-access", { role: "Receptionist", reset: true });
 });
 
+test("the Insurance Exec handles insurance only: TPA claims and pre-auth forms, no billing, pharmacy or admin", async () => {
+  const INSURANCE = "priya.sharma@samvaadhospital.in";
+  assert.equal((await as(INSURANCE, "GET", "/api/tpa")).status, 200);
+  assert.equal((await as(INSURANCE, "GET", "/api/tpa/claims")).status, 200);
+  assert.equal((await as(INSURANCE, "GET", "/api/preauth")).status, 200);
+  assert.equal((await as(INSURANCE, "GET", "/api/patients")).status, 200, "reads patients to start a form");
+  for (const path of ["/api/billing/bills", "/api/pharmacy/medicines", "/api/admin/users", "/api/ambulance/calls"]) {
+    assert.equal((await as(INSURANCE, "GET", path)).status, 403, path);
+  }
+  assert.equal((await as(INSURANCE, "POST", "/api/patients", {})).status, 403, "cannot register patients");
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log(`  PASS  ${t.name}`); }
