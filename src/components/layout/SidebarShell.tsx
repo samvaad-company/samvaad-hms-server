@@ -75,6 +75,8 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
         >
           <div className="relative h-full">
             {children}
+            {/* Breathing room under the last card of every page (a page that fills the whole height hides it: see globals.css). */}
+            <div aria-hidden data-page-end className="h-6 shrink-0" />
             <RouteLoader />
           </div>
         </main>

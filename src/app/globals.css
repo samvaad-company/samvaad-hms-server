@@ -349,3 +349,6 @@ html {
 @media (max-width: 480px) {
   #app-scroll .grid.grid-cols-2:not([class*="sm:grid-cols"]):not([class*="md:grid-cols"]):not([class*="lg:grid-cols"]):has(select, textarea) { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Pages that fill the whole height (two-pane screens) don't get the bottom spacer, so they don't gain a second scrollbar. */
+#app-scroll > div > .h-full ~ [data-page-end], #app-scroll > div > [class*="h-[calc(100"] ~ [data-page-end] { display: none; }
