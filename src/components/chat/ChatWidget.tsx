@@ -59,7 +59,7 @@ export function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
       />
 
       <aside
-        aria-label="AI assistant"
+        aria-label="KAYA AI"
         aria-hidden={!open}
         className={`fixed top-0 right-0 bottom-0 z-[58] w-full sm:w-[420px] lg:w-[400px] lg:z-50 bg-[color:var(--surface)] border-l border-[color:var(--line)] shadow-2xl lg:shadow-none flex flex-col overflow-hidden transition-[transform,visibility] duration-[220ms] ease-in-out ${
           open ? "translate-x-0 visible" : "translate-x-full invisible"
@@ -70,7 +70,7 @@ export function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
             <div className="w-7 h-7 rounded-full bg-[color:var(--brand-soft)] flex items-center justify-center">
               <Sparkles size={14} className="text-[color:var(--brand)]" strokeWidth={1.5} />
             </div>
-            <span className="text-[14px] font-medium text-[color:var(--ink)]">AI Assistant</span>
+            <span className="text-[14px] font-medium text-[color:var(--ink)]">KAYA AI</span>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -92,7 +92,7 @@ export function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
             <button
               onClick={() => onOpenChange(false)}
               title="Close"
-              aria-label="Close AI assistant"
+              aria-label="Close KAYA AI"
               className="w-8 h-8 flex items-center justify-center rounded-full text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] hover:text-[color:var(--ink)] transition-colors cursor-pointer"
             >
               <X size={16} />
@@ -114,7 +114,7 @@ export function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
           onChange={setInput}
           onSend={handleSend}
           disabled={streaming || loadingThread || Boolean(quota?.exceeded)}
-          placeholder={quota?.blocked ? "AI access paused" : quota?.exceeded ? "Monthly AI quota used up" : undefined}
+          placeholder={quota?.blocked ? "KAYA AI access paused" : quota?.exceeded ? "Monthly KAYA AI quota used up" : undefined}
         />
       </aside>
     </>

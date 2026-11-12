@@ -16,12 +16,13 @@ import { SponsorsView } from "@/components/setup/SponsorViews";
 import { PaymentsView, PayoutRulesView, ReferralsView } from "@/components/setup/PaymentViews";
 import { IdFormatsView, ClinicalFormsView } from "@/components/setup/IdFormatViews";
 import { DepartmentsView, SIMPLE_SPECS, SimpleMasterView } from "@/components/setup/SimpleMasters";
+import { BillingRemarksView } from "@/components/setup/BillingRemarksView";
 import { MedicinesView } from "@/components/setup/MedicinesView";
 import { LoyaltyProgramView } from "@/components/setup/LoyaltyProgramView";
 
 const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Catalog & pricing", items: [["services", "Services"], ["medicines", "Medicines"], ["rate_plans", "Rate plans"], ["packages", "Packages"], ["tax", "Tax & GST"]] },
-  { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
+  { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["billing_remarks", "Billing remarks"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
   { group: "Clinical", items: [["clinical_forms", "Clinical forms"]] },
@@ -33,6 +34,7 @@ const IDS = NAV.flatMap((g) => g.items.map((i) => i[0]));
 function Section({ id }: { id: string }) {
   switch (id) {
     case "services": return <ServicesView />;
+    case "billing_remarks": return <BillingRemarksView />;
     case "medicines": return <MedicinesView />;
     case "rate_plans": return <RatePlansView />;
     case "packages": return <PackagesView />;

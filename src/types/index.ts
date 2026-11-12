@@ -148,6 +148,8 @@ export interface Bill {
   gst: number;
   total: number;
   status: BillingStatus;
+  /** When the bill was raised, "HH:mm". */
+  billTime?: string;
 }
 
 export interface IpdRecord {

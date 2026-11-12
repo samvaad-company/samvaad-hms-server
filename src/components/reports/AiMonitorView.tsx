@@ -58,7 +58,7 @@ function Activity({ series }: { series: AiMonitorDTO["series"] }) {
       </div>
       <div className="mt-1 flex gap-[3px] text-[10px] text-[color:var(--ink-soft)]">{series.map((s, i) => <span key={s.date} className="flex-1 overflow-visible whitespace-nowrap text-center">{i % every === 0 ? dm(s.date) : ""}</span>)}</div>
       <p className="mt-2 flex gap-4 text-[12px] text-[color:var(--ink-soft)]">
-        {[["#7c5cff", "Scribe notes"], ["var(--brand)", "AI chat questions"], ["#12a150", "WhatsApp bot messages"]].map(([c, l]) => <span key={l} className="inline-flex items-center gap-[6px]"><span className="inline-block h-[9px] w-[9px] rounded-[2px]" style={{ background: c }} />{l}</span>)}
+        {[["#7c5cff", "Scribe notes"], ["var(--brand)", "KAYA AI chat questions"], ["#12a150", "WhatsApp bot messages"]].map(([c, l]) => <span key={l} className="inline-flex items-center gap-[6px]"><span className="inline-block h-[9px] w-[9px] rounded-[2px]" style={{ background: c }} />{l}</span>)}
       </p>
     </div>
   );
@@ -71,7 +71,7 @@ export function AiMonitorView() {
   const [last, setLast] = useState<AiMonitorDTO | null>(null);
   if (a && a !== last) setLast(a);
   const d = a ?? last;
-  if (!d) return <p className="px-5 py-10 text-[14px] text-[color:var(--ink-soft)]">{error ? "The AI monitor couldn't be loaded." : "Loading…"}</p>;
+  if (!d) return <p className="px-5 py-10 text-[14px] text-[color:var(--ink-soft)]">{error ? "The KAYA AI monitor couldn't be loaded." : "Loading…"}</p>;
   return (
     <div className="px-5 pb-6 pt-4">
       <div className="flex items-center justify-between gap-3">
@@ -86,7 +86,7 @@ export function AiMonitorView() {
 
       <Section title="Activity"><Activity series={d.series} /></Section>
 
-      <Section title="AI scribe" note="consultation notes written from the doctor's recording">
+      <Section title="KAYA AI scribe" note="consultation notes written from the doctor's recording">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Stat label="Notes" value={d.scribe.notes} /><Stat label="Recorded" value={`${d.scribe.minutes} min`} /><Stat label="Patients" value={d.scribe.patients} /><Stat label="Doctors using it" value={d.scribe.byDoctor.length} />
         </div>
@@ -99,7 +99,7 @@ export function AiMonitorView() {
         )}
       </Section>
 
-      <Section title="AI chat" note="how often staff use the assistant (the questions themselves aren't shown)">
+      <Section title="KAYA AI chat" note="how often staff use the assistant (the questions themselves aren't shown)">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3"><Stat label="Questions" value={d.chat.questions} /><Stat label="Answers" value={d.chat.answers} /><Stat label="Conversations" value={d.chat.threads} /><Stat label="People asking" value={d.chat.users} /></div>
       </Section>
 

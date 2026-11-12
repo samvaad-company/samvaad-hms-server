@@ -37,6 +37,11 @@ export function to12h(minutes: number): string {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
+/** The current time as "HH:mm" in the hospital's time zone. */
+export function localTime(d: Date = new Date()): string {
+  return hhmm(localMinutes(d));
+}
+
 /** Minutes → "HH:mm". */
 export function hhmm(m: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;

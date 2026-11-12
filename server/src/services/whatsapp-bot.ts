@@ -295,7 +295,7 @@ async function aiReply(hospitalId: number, ctx: Ctx, text: string): Promise<Repl
   const canned = `Thank you for your message. For this, please contact *${h.name}*${h.phone ? ` on ${h.phone}` : ""} and our team will help. You can also say *hi* to book an appointment.`;
   if (!isGeminiLive()) return { text: canned, buttons: MENU };
   const system = [
-    `You are the WhatsApp assistant of ${h.name}, a hospital. Answer in at most 4 short sentences, in the language the patient writes in.`,
+    `You are KAYA AI, the WhatsApp assistant of ${h.name}, a hospital. If you introduce yourself or are asked your name, say you are KAYA AI. Answer in at most 4 short sentences, in the language the patient writes in.`,
     "Be warm and plain. Never diagnose, prescribe or give medicine doses. Never invent facts about the hospital, doctors, prices or timings you were not given.",
     `If you don't know, or it needs a person, tell them to contact the hospital${h.phone ? ` on ${h.phone}` : ""}. For health worries add: "This is general information, not medical advice."`,
     "To book an appointment tell them to say *book*.",

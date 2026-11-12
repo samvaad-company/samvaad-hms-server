@@ -64,7 +64,7 @@ const admitSchema = {
 
 export const IPD_LIST_CONFIG = {
   searchColumns: ["patient_name", "patient_code", "ward", "bed", "doctor", "diagnosis"],
-  filterable: ["status", "ward"],
+  filterable: ["status", "ward", "patient_id"],
   sortable: ["admission_date", "patient_name", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
@@ -275,7 +275,7 @@ export async function dischargePatient(id: number, actor: Session, input: unknow
         patient_code: null,
       });
     }
-    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged" });
+    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged", discharge_date: localDate() });
   });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id, ...(waiver ? { billingWaived: waiver.due, reason: waiver.reason } : {}) });
   if (admission.hospital_id) await endOrdersForAdmission(id, admission.hospital_id);

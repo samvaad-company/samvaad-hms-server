@@ -79,12 +79,12 @@ export function AiReviewCard({
 
   return (
     <section
-      aria-label="AI review"
+      aria-label="KAYA AI review"
       className={`rounded-[10px] border bg-[color:var(--surface)] px-4 py-3 ${review ? CARD_BORDER[review.verdict] : "border-[color:var(--line)]"}`}
     >
       <div className="flex items-center gap-2 flex-wrap">
         <Sparkles size={14} className="text-[color:var(--ink)] shrink-0" />
-        <span className="text-[13px] font-medium text-[color:var(--ink)]">AI review</span>
+        <span className="text-[13px] font-medium text-[color:var(--ink)]">KAYA AI review</span>
         {verdict && (
           <span className={`inline-flex items-center gap-[5px] rounded-full border px-[10px] py-[2px] text-[12px] font-medium ${verdict.pill}`}>
             <verdict.icon size={12} /> {verdict.label}

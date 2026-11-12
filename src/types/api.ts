@@ -398,6 +398,23 @@ export interface BillDTO extends Bill {
   contractName?: string;
   payerShare?: number;
   patientShare?: number;
+  /** When the bill was raised, "HH:mm" ("" on bills from before bill times were kept). */
+  billTime?: string;
+  /** For an IPD bill: the admission it is for and the dates it covers. */
+  admissionId?: number;
+  admissionNo?: string;
+  admissionDate?: string;
+  dischargeDate?: string;
+  admissionDeposit?: number;
+  /** Who gave how much discount (OPD and IPD bills). */
+  discountDetails?: Record<string, { percent: number; amount: number }>;
+  remarks?: string;
+  /** Cash, or Cashless (an insurer / TPA pays) with which one and the policy number. */
+  payType?: "Cash" | "Cashless";
+  tpaName?: string;
+  policyNumber?: string;
+  /** The patient's details when the bill was raised. */
+  patientDetails?: Record<string, string>;
 }
 
 /** One service the billing counter can pick, priced from the patient's rate plan and taxed from its GST mapping. */
@@ -440,6 +457,10 @@ export interface BillingCatalogDTO {
   /** Active payment modes from Setup → Masters. */
   paymentModes: string[];
   settings: { gstOnBills: boolean; pricesInclusive: boolean; roundOff: boolean; invoicePrefix: string };
+  /** The note printed on IPD bills above a limit (Setup → Masters → Billing remarks). */
+  ipdRemark: { enabled: boolean; limit: number; text: string };
+  /** Insurers, TPAs and government schemes from Setup → Masters → Sponsors, for cashless bills. */
+  payers: { id: number; name: string; type: string }[];
   /** Contracts the patient is covered under today (empty for self-pay patients). */
   contracts: BillingContractDTO[];
   /** The contract the prices above came from, if one was chosen. */
@@ -471,6 +492,8 @@ export interface IpdRecordDTO extends IpdRecord {
   primaryNurse: string;
   expectedStayDays: number | null;
   diet: string;
+  /** The day the patient was discharged ("" while still admitted). */
+  dischargeDate: string;
 }
 
 /** Live state of one admission, for the admissions list and the nurse station. */

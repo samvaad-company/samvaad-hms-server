@@ -1,7 +1,8 @@
 /**
  * Billing service — invoices with server-computed GST and totals.
  */
-import { billsRepo, billItemsRepo, billPayoutsRepo, doctorsRepo, patientsRepo } from "@/repositories";
+import { billsRepo, billItemsRepo, billPayoutsRepo, doctorsRepo, ipdRepo, patientsRepo } from "@/repositories";
+import { localTime } from "@/lib/clock";
 import { toBillDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { transactional } from "@/db/unit-of-work";
@@ -67,6 +68,74 @@ interface Line { serviceId: number | null; code: string; name: string; quantity:
  * the service's GST mapping — whatever price the browser showed is ignored, so a bill can't carry a price the hospital didn't set.
  * A custom line (no service) brings its own price and GST rate.
  */
+const DISCOUNT_WHO = ["hospital", "doctor", "company", "tpa"] as const;
+
+/**
+ * "Discount details": how much each of the hospital, the doctor, the company and the TPA is giving off, each as a percentage of the
+ * charges or a rupee amount. Returns what to store and the total discount. A percentage wins over an amount when both are sent.
+ */
+function discountFrom(raw: unknown, base: number): { details: Record<string, { percent: number; amount: number }>; total: number } | null {
+  if (!isRecord(raw)) return null;
+  const errors: FieldError[] = [];
+  const details: Record<string, { percent: number; amount: number }> = {};
+  let total = 0;
+  for (const who of DISCOUNT_WHO) {
+    const d = isRecord(raw[who]) ? raw[who] as Record<string, unknown> : {};
+    const percent = Number(d.percent ?? 0), amount = Number(d.amount ?? 0);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) { errors.push({ field: `discountDetails.${who}`, message: "the percentage must be from 0 to 100" }); continue; }
+    if (!Number.isFinite(amount) || amount < 0) { errors.push({ field: `discountDetails.${who}`, message: "the amount must be a number from 0" }); continue; }
+    const given = percent > 0 ? r2((base * percent) / 100) : r2(amount);
+    details[who] = { percent: percent > 0 ? r2(percent) : base > 0 ? r2((given / base) * 100) : 0, amount: given };
+    total += given;
+  }
+  if (errors.length) throw new ValidationError(errors);
+  total = r2(total);
+  if (total > r2(base)) throw new ValidationError([{ field: "discountDetails", message: "the discounts together can't be more than the bill" }]);
+  return { details, total };
+}
+
+/** The admission an IPD bill is for: it must be this patient's, in this hospital. */
+async function admissionFor(raw: unknown, patientId: number | null, actor: Session) {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const a = await ipdRepo.getRow(Number(raw));
+  assertOwnedByHospital(a, actor, "Admission");
+  if (patientId !== null && a.patient_id !== patientId) throw new ValidationError([{ field: "admissionId", message: "that admission belongs to a different patient" }]);
+  return a;
+}
+
+/** The note an IPD bill carries: whatever was sent, otherwise the remark from Masters when the bill is above its limit. */
+async function remarkFor(sent: unknown, type: string, total: number, actor: Session): Promise<string | null> {
+  if (typeof sent === "string") return sent.trim().slice(0, 500) || null;
+  if (type !== "IPD") return null;
+  const cfg = await getConfig("billing", actor);
+  return cfg.ipdRemarkEnabled !== false && total > Number(cfg.ipdRemarkLimit ?? 5000) ? String(cfg.ipdRemarkText ?? "").slice(0, 500) || null : null;
+}
+
+/** Cash, or Cashless with the insurer / TPA and policy number (a cashless bill must say who pays). */
+function payerFrom(body: Record<string, unknown>): { payType: "Cash" | "Cashless"; tpa: string | null; policy: string | null } {
+  const payType = body.payType === "Cashless" ? "Cashless" : "Cash";
+  if (payType === "Cash") return { payType, tpa: null, policy: null };
+  const tpa = typeof body.tpaName === "string" ? body.tpaName.trim().slice(0, 160) : "";
+  const policy = typeof body.policyNumber === "string" ? body.policyNumber.trim().slice(0, 80) : "";
+  if (!tpa) throw new ValidationError([{ field: "tpaName", message: "choose the insurance company / TPA that pays a cashless bill" }]);
+  return { payType, tpa, policy: policy || null };
+}
+
+/** The patient's details as printed on the bill. */
+function patientSnapshot(patient: { patient_code?: string; name: string; age: number; gender: string; phone: string; address?: string | null; city?: string | null; state?: string | null; pincode?: string | null; doctor?: string; referral_source?: string | null } | null, admission: { admission_no?: string; admission_date?: string; doctor?: string } | null, body: Record<string, unknown>, payType: string): Record<string, string> {
+  const text = (v: unknown, n = 160) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+  const address = [patient?.address, patient?.city, patient?.state, patient?.pincode].filter(Boolean).join(", ");
+  return Object.fromEntries(Object.entries({
+    uhid: patient?.patient_code ?? "", name: patient?.name ?? "", age: patient ? String(patient.age) : "", sex: patient?.gender ?? "", phone: patient?.phone ?? "", address,
+    consultingDoctor: admission?.doctor || text(body.consultingDoctor) || patient?.doctor || "",
+    referringDoctor: text(body.referringDoctor) || patient?.referral_source || "",
+    patientType: payType === "Cashless" ? "Credit" : "Cash",
+  }).filter(([, v]) => v !== ""));
+}
+
+/** "HH:mm" as sent (the cashier may set it), otherwise now. */
+const timeOf = (sent: unknown): string => (typeof sent === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(sent) ? sent : localTime());
+
 async function resolveLines(raw: unknown, patientId: number | null, actor: Session, contractPlanId: number | null = null): Promise<Line[]> {
   if (!Array.isArray(raw) || raw.length === 0) throw new ValidationError([{ field: "items", message: "add at least one charge" }]);
   if (raw.length > 100) throw new ValidationError([{ field: "items", message: "a bill can have at most 100 lines" }]);
@@ -121,11 +190,13 @@ export async function createBill(input: unknown, actor: Session) {
     const base = computeBillTotals(data.amount, data.discount ?? 0, data.type);
     const gst = switches.gstOnBills ? base.gst : 0;
     const total = switches.gstOnBills ? base.total : r2(Math.max(0, data.amount - (data.discount ?? 0)));
+    const simplePayer = payerFrom(body);
     const issued = await takeInvoiceNumber();
     const billNumber = issued.number;
     const row = await billsRepo.create({
       hospital_id: actor.hospitalId, bill_number: billNumber, patient_id: data.patientId ?? null, patient_name: patientName, type: data.type, bill_date: displayDate(),
-      amount: data.amount, discount: data.discount, gst, total, status: data.status, payment_mode: paymentMode || null,
+      amount: data.amount, discount: data.discount, gst, total, status: data.status, payment_mode: paymentMode || null, bill_time: timeOf(body.billTime),
+      pay_type: simplePayer.payType, tpa_name: simplePayer.tpa, policy_number: simplePayer.policy, patient_details: patientSnapshot(patient, null, body, simplePayer.payType),
     }).catch(async (err) => { await issued.release(); throw err; });
     await audit(actor, "create", "bill", row.id, { billNumber, total });
     return toBillDTO(row as BillRow);
@@ -146,8 +217,10 @@ export async function createBill(input: unknown, actor: Session) {
   }
 
   const lines = await resolveLines(body.items, data.patientId ?? null, actor, contract?.ratePlanId ?? null);
-  const discount = r2(data.discount ?? 0);
-  if (discount > r2(lines.reduce((n, l) => n + l.quantity * l.unitPrice, 0))) throw new ValidationError([{ field: "discount", message: "the discount can't be more than the bill" }]);
+  const base = r2(lines.reduce((n, l) => n + l.quantity * l.unitPrice, 0));
+  const split_ = discountFrom(body.discountDetails, base);
+  const discount = split_ ? split_.total : r2(data.discount ?? 0);
+  if (discount > base) throw new ValidationError([{ field: "discount", message: "the discount can't be more than the bill" }]);
   const priced = computeLines(lines, discount, switches);
   const [services, groups] = await Promise.all([listSetup("service", actor), listSetup("service_group", actor)]);
   const split = contract ? splitUnder(contract, coverageLines(lines, priced.totals, services, groups)) : null;
@@ -167,6 +240,14 @@ export async function createBill(input: unknown, actor: Session) {
   }
   const payouts = computePayouts(await payoutRules(actor), { billType: data.type, billDate: displayDate(), lines: payoutLines, doctor, referral });
 
+  const admission = data.type === "IPD" ? await admissionFor(body.admissionId, data.patientId ?? null, actor) : null;
+  const payer = payerFrom(body);
+  const snapshot = patientSnapshot(patient, admission, body, payer.payType);
+  if (patient && body.savePolicyToPatient === true && payer.payType === "Cashless" && (patient.insurer !== payer.tpa || (payer.policy && patient.policy_number !== payer.policy))) {
+    await patientsRepo.update(patient.id, { insurer: payer.tpa, ...(payer.policy ? { policy_number: payer.policy } : {}) } as never);
+    await audit(actor, "update", "patient", patient.id, { insurer: payer.tpa, policyNumber: payer.policy });
+  }
+  const remarks = await remarkFor(body.remarks, data.type, priced.total, actor);
   const issued = await takeInvoiceNumber();
   const billNumber = issued.number;
   const billId = await transactional("billing.create", async (uow) => {
@@ -175,6 +256,9 @@ export async function createBill(input: unknown, actor: Session) {
       amount: priced.amount, discount, gst: priced.gst, total: priced.total, status: data.status, payment_mode: paymentMode || null,
       doctor_id: doctor?.id ?? null, doctor_name: doctor?.name ?? null,
       contract_id: contract?.id ?? null, contract_name: contract?.name ?? null, payer_share: payerShare, patient_share: r2(priced.total - payerShare),
+      bill_time: timeOf(body.billTime), remarks, pay_type: payer.payType, tpa_name: payer.tpa, policy_number: payer.policy, patient_details: snapshot,
+      ...(split_ ? { discount_details: split_.details } : {}),
+      ...(admission ? { admission_id: admission.id, admission_no: admission.admission_no ?? null, admission_date: admission.admission_date, discharge_date: admission.discharge_date ?? null, admission_deposit: Number(admission.deposit_amount ?? 0) } : {}),
     });
     for (const [i, l] of lines.entries()) {
       await uow.insert(TABLES.billItems, { hospital_id: actor.hospitalId, bill_id: bill.id, service_id: l.serviceId, code: l.code, name: l.name, quantity: l.quantity, unit_price: l.unitPrice, gst_rate: l.gstRate, hsn_sac: l.hsnSac, amount: priced.amounts[i], payer_amount: split?.lines[i].payer ?? 0 });

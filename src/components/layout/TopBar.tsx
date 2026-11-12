@@ -270,21 +270,21 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
 
       <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
 
-        {/* AI assistant: opens the side drawer on any screen */}
-        {can("chat") && (
+        {/* KAYA AI: opens the side drawer on any screen; hidden while the drawer is open (it has its own close button) */}
+        {can("chat") && !aiOpen && (
           <button
             type="button"
             data-tour="ai-launcher"
             onClick={onToggleAi}
             aria-pressed={aiOpen}
-            aria-label={aiOpen ? "Close AI assistant" : "Open AI assistant"}
-            title={aiOpen ? "Close AI assistant" : "Open AI assistant"}
-            className={`h-[34px] flex items-center gap-[6px] rounded-full px-3 text-[13px] font-medium transition-colors cursor-pointer shrink-0 ${
+            aria-label={aiOpen ? "Close KAYA AI" : "Open KAYA AI"}
+            title={aiOpen ? "Close KAYA AI" : "Open KAYA AI"}
+            className={`h-[30px] flex items-center justify-center gap-[6px] rounded-full px-3 text-[13px] leading-none font-medium transition-colors cursor-pointer shrink-0 ${
               aiOpen ? "bg-[color:var(--brand)] text-white" : "bg-[color:var(--surface)] text-[color:var(--brand)] shadow-[0_1px_4px_rgba(0,0,0,0.08)] hover:bg-[color:var(--brand-soft)]"
             }`}
           >
             <Sparkles size={16} strokeWidth={1.7} />
-            <span className="max-sm:hidden">AI</span>
+            <span className="max-sm:hidden leading-none">KAYA AI</span>
           </button>
         )}
 

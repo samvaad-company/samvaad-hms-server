@@ -189,15 +189,15 @@ const groups: NavGroup[] = [
     label: "Reports",
     items: [
       { href: "/analytics",     label: "Analytics",     icon: BarChart3,    resource: "reports", key: "S" },
-      { href: "/ai-monitor",    label: "AI monitor",    icon: Cpu,          resource: "reports" },
+      { href: "/ai-monitor",    label: "KAYA AI monitor",    icon: Cpu,          resource: "reports" },
       { href: "/reports",       label: "Reports",       icon: FileBarChart, resource: "reports" },
       { href: "/audit",         label: "Audit",         icon: ScrollText,   resource: "admin" },
     ],
   },
   {
-    label: "AI",
+    label: "KAYA AI",
     items: [
-      { href: "/ai", label: "AI Usage & Access", icon: Zap, onlyForRoles: ["Super Admin", "IT Admin"] },
+      { href: "/ai", label: "KAYA AI usage & access", icon: Zap, onlyForRoles: ["Super Admin", "IT Admin"] },
     ],
   },
   {

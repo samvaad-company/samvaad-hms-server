@@ -232,6 +232,10 @@ export function defaultConfig(key: ConfigKey, hospital: HospitalRow | null): Rec
         manualPaymentModes: ["Cash", "Upi", "Card"],
         roleDiscountLimits: { Receptionist: null, "Billing staff": null, Doctor: null },
         userDiscountLimits: {},
+        // A note printed on IPD bills above a limit (Setup → Masters → Billing remarks).
+        ipdRemarkEnabled: true,
+        ipdRemarkLimit: 5000,
+        ipdRemarkText: "** SPECIAL SINGLE ROOM INCLUDING NURSING CHARGE (SPECIAL SINGLE ROOM RS.4500/- + NURSING CHARGE RS.600/-)",
       };
     case "notifications":
       return {

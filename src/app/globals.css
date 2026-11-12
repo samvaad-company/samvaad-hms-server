@@ -259,6 +259,8 @@ html {
   }
   #app-scroll [data-gt-row] > * { min-width: 0; overflow-wrap: anywhere; flex-wrap: wrap; text-align: left !important; justify-content: flex-start !important; }
   #app-scroll [data-gt-row] > :first-child { grid-column: 1 / -1; }
+  /* A cell that carries a full-width note (an error or warning) takes the whole row instead of a half-width column. */
+  #app-scroll [data-gt-row] > :has(> .w-full) { grid-column: 1 / -1; }
   #app-scroll [data-gt-row] > :empty { display: none !important; }
   #app-scroll [data-gt-row] > *, #app-scroll [data-gt-row] .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
   #app-scroll [data-gt-row] > [data-label]:not(:first-child)::before {
@@ -333,6 +335,17 @@ html {
   #app-scroll [data-row] > button, #app-scroll [data-row] > a { flex-shrink: 0; }
   /* Two-up card grids that hold flex rows go to one column. */
   #app-scroll [style*="grid-template-columns: repeat(2,"]:not([style*="repeat(auto-"]):not([data-gt-row]) { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* A text column (flex-1) next to buttons: give it a real width to wrap at, so the buttons drop under it instead of squeezing
+     it into a one-word-wide column. Covers rows that wrap, and rows whose buttons wrap among themselves. */
+  #app-scroll .flex-wrap > .flex-1:not(input):not(select):not(textarea):not(button):not(.truncate) { flex: 1 1 14rem; min-width: min(14rem, 100%); }
+  #app-scroll .flex:not(.flex-col):not(.flex-wrap):has(> .flex-1:not(input):not(select):not(textarea) ~ .flex-wrap) { flex-wrap: wrap; }
+  #app-scroll .flex:not(.flex-col):not(.flex-wrap) > .flex-1:not(input):not(select):not(textarea):not(button):not(.truncate):has(+ .flex-wrap) { flex: 1 1 14rem; min-width: min(14rem, 100%); }
 }
 
 
+
+/* Phones: a two-column form grid that holds dropdowns or text areas goes to one column, so labels and hints have room. */
+@media (max-width: 480px) {
+  #app-scroll .grid.grid-cols-2:not([class*="sm:grid-cols"]):not([class*="md:grid-cols"]):not([class*="lg:grid-cols"]):has(select, textarea) { grid-template-columns: minmax(0, 1fr); }
+}

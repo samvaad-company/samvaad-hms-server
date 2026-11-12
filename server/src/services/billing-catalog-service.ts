@@ -61,9 +61,9 @@ export async function loadPatientPlan(patientId: number | null, actor: Session, 
 export async function billingCatalog(patientId: number | null, actor: Session, contractId: number | null = null): Promise<BillingCatalogDTO> {
   const contracts = await patientContracts(patientId, actor);
   const chosen = contractId !== null ? contracts.find((c) => c.id === contractId) ?? null : null;
-  const [{ plan, plans, services, groups, today }, modes, hospital, doctors] = await Promise.all([
+  const [{ plan, plans, services, groups, today }, modes, hospital, doctors, billingCfg, sponsors] = await Promise.all([
     loadPatientPlan(patientId, actor, chosen?.ratePlanId ?? null), listSetup("payment_mode", actor, { activeOnly: true }), getConfig("hospital", actor),
-    doctorsRepo.listRows(scopeToHospital({ unpaged: true }, actor)),
+    doctorsRepo.listRows(scopeToHospital({ unpaged: true }, actor)), getConfig("billing", actor), listSetup("sponsor", actor),
   ]);
   const out: BillingServiceDTO[] = services.map((s) => {
     const tax = taxFor(s, today);
@@ -79,6 +79,8 @@ export async function billingCatalog(patientId: number | null, actor: Session, c
     planId: plan?.id ?? null, planName: plan?.name ?? "", services: out, paymentModes: modes.map((m) => m.name),
     settings: { gstOnBills: hospital.gstOnBills !== false, pricesInclusive: hospital.pricesInclusive === true, roundOff: hospital.roundOff !== false, invoicePrefix: String(hospital.invoicePrefix ?? "") },
     contracts: contracts.map((c) => ({ id: c.id, name: c.name, sponsor: c.sponsor, sponsorType: c.sponsorType, validFrom: c.validFrom, validTo: c.validTo, ratePlan: plans.find((p) => p.id === c.ratePlanId)?.name ?? "", terms: c.terms, past: c.past })),
+    ipdRemark: { enabled: billingCfg.ipdRemarkEnabled !== false, limit: Number(billingCfg.ipdRemarkLimit ?? 5000), text: String(billingCfg.ipdRemarkText ?? "") },
+    payers: sponsors.filter((x) => x.active).map((x) => ({ id: x.id, name: x.name, type: String(x.data.type ?? "") })),
     contractId: chosen?.id ?? null,
     doctors: doctors.rows.map((d) => ({ id: d.id, name: d.name })).sort((a, b) => a.name.localeCompare(b.name)),
   };

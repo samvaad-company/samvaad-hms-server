@@ -21,8 +21,8 @@ export default function AiPage() {
             <Zap size={18} className="text-[color:var(--ink-soft)]" />
           </div>
           <div>
-            <h1 className="text-[26px] font-medium text-[color:var(--ink)] leading-8">AI</h1>
-            <p className="text-[14px] font-light text-[color:var(--ink-soft)]">Staff token use, analytics, and who may use the AI assistant.</p>
+            <h1 className="text-[26px] font-medium text-[color:var(--ink)] leading-8">KAYA AI</h1>
+            <p className="text-[14px] font-light text-[color:var(--ink-soft)]">Staff token use, analytics, and who may use KAYA AI.</p>
           </div>
         </div>
       </div>

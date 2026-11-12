@@ -442,6 +442,12 @@ export function toBillDTO(r: BillRow): BillDTO {
     patientId: r.patient_id,
     ...(r.contract_id ? { contractId: r.contract_id, contractName: r.contract_name ?? "", payerShare: Number(r.payer_share ?? 0), patientShare: Number(r.patient_share ?? r.total) } : {}),
     ...(r.doctor_name ? { doctorName: r.doctor_name } : {}),
+    billTime: r.bill_time ?? "",
+    ...(r.admission_id ? { admissionId: r.admission_id, admissionNo: r.admission_no ?? "", admissionDate: r.admission_date ?? "", dischargeDate: r.discharge_date ?? "", admissionDeposit: Number(r.admission_deposit ?? 0) } : {}),
+    ...(r.discount_details ? { discountDetails: r.discount_details } : {}),
+    ...(r.remarks ? { remarks: r.remarks } : {}),
+    ...(r.pay_type ? { payType: r.pay_type as "Cash" | "Cashless", tpaName: r.tpa_name ?? "", policyNumber: r.policy_number ?? "" } : {}),
+    ...(r.patient_details ? { patientDetails: r.patient_details } : {}),
   };
 }
 
@@ -477,6 +483,7 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     primaryNurse: r.primary_nurse ?? "",
     expectedStayDays: r.expected_stay_days ?? null,
     diet: r.diet ?? "",
+    dischargeDate: r.discharge_date ?? "",
   };
 }
 

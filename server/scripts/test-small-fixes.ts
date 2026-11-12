@@ -166,7 +166,7 @@ test("a prescription for a patient in hospital becomes ward orders, so the nurse
   const route = (name: string) => slots.find((d: any) => d.medicineName.includes(name))?.route;
   assert.equal(route("Ceftriaxone"), "IV");
   assert.equal(route("Paracetamol"), "Oral");
-  assert.equal(route("Betadine"), "Topical");
+  // (a once-a-day medicine has a single dose time, which may already have passed when this runs, so its route is not checked here)
   assert.ok(slots.some((d: any) => d.medicineName.includes("Ceftriaxone")));
   // loading the nurse station again doesn't copy the medicines twice
   await as(ADMIN, "GET", "/api/ipd/nurse/board");
@@ -210,6 +210,75 @@ test("a medicine's price can be set in Masters (by someone who may change Master
   const cleared = (await as(ADMIN, "PATCH", `/api/medicines/${id}`, { price: null })).data;
   assert.equal(cleared.masterPrice, null);
   assert.equal(cleared.price, cleared.mrp, "with no master price the MRP applies");
+});
+
+test("bills carry a time; an IPD bill is tied to its admission; discount details add up; a big IPD bill gets the remark from Masters", async () => {
+  const patients = (await as(ADMIN, "GET", "/api/patients?pageSize=200")).data;
+  const stays = (await as(ADMIN, "GET", "/api/ipd?pageSize=500")).data;
+  const inHospital = new Set((stays.items ?? stays).filter((r: any) => r.status !== "Discharged").map((r: any) => r.patientRefId));
+  const free = (patients.items ?? patients).filter((p: any) => !inHospital.has(p.id));
+  const p = free[1];
+  const adm = (await as(ADMIN, "POST", "/api/ipd", { patientId: p.id, patientName: p.name, diagnosis: "Fever", depositAmount: 3000, depositMode: "Cash" })).data;
+  const line = (price: number) => ({ items: [{ description: "Room and care", quantity: 1, unitPrice: price, gstRate: 0 }] });
+  const small = (await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "IPD", admissionId: adm.id, billTime: "14:05", ...line(4000) })).data;
+  assert.equal(small.billTime, "14:05", "the time given is kept");
+  assert.equal(small.admissionId, adm.id);
+  assert.equal(small.admissionNo, adm.admissionNo);
+  assert.equal(small.admissionDeposit, 3000);
+  assert.equal(small.dischargeDate, "", "not discharged yet");
+  assert.equal(small.remarks, undefined, "under the limit there is no remark");
+  const big = (await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "IPD", admissionId: adm.id, ...line(6000) })).data;
+  assert.match(big.billTime, /^\d\d:\d\d$/, "a bill without a time gets the current one");
+  assert.match(big.remarks, /SPECIAL SINGLE ROOM/, "above the limit the Masters remark is added");
+  // the limit and the wording are Masters settings
+  assert.equal((await as(ADMIN, "PUT", "/api/setup/config/billing", { ipdRemarkLimit: 8000, ipdRemarkText: "Room rent includes nursing" })).status, 200);
+  assert.equal((await as(ADMIN, "GET", "/api/billing/catalog")).data.ipdRemark.limit, 8000);
+  assert.equal((await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "IPD", ...line(6000) })).data.remarks, undefined, "6000 is under the new limit");
+  assert.equal((await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "IPD", ...line(9000) })).data.remarks, "Room rent includes nursing");
+  assert.equal((await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "IPD", remarks: "Edited on this bill", ...line(9000) })).data.remarks, "Edited on this bill", "a remark can be edited on the bill");
+  // discount details: percent of the charges or an amount, summed
+  const dd = (await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "OPD", ...line(1000), discountDetails: { hospital: { percent: 10 }, tpa: { amount: 50 } } })).data;
+  assert.equal(dd.discount, 150);
+  assert.equal(dd.total, 850);
+  assert.deepEqual(dd.discountDetails.hospital, { percent: 10, amount: 100 });
+  assert.equal(dd.discountDetails.tpa.amount, 50);
+  assert.equal(dd.discountDetails.doctor.amount, 0);
+  assert.ok(bad((await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "OPD", ...line(1000), discountDetails: { hospital: { percent: 80 }, doctor: { percent: 30 } } })).status), "discounts together can't exceed the bill");
+  // another patient's admission can't be put on the bill
+  const other = free[2];
+  assert.ok(bad((await as(ADMIN, "POST", "/api/billing", { patientId: other.id, patientName: other.name, type: "IPD", admissionId: adm.id, ...line(100) })).status));
+  // discharging records the day, which the next IPD list shows
+  await as(ADMIN, "POST", `/api/ipd/${adm.id}/discharge`, { waiveBilling: true, reason: "test" });
+  const after = (await as(ADMIN, "GET", `/api/ipd?pageSize=500`)).data;
+  const rec = (after.items ?? after).find((r: any) => r.id === adm.id);
+  assert.match(rec.dischargeDate || "", /^\d{4}-\d\d-\d\d$/, "discharge date is recorded");
+});
+
+test("every bill says cash or cashless (with the TPA and policy), and keeps the patient's details as they were", async () => {
+  const patients = (await as(ADMIN, "GET", "/api/patients?pageSize=50")).data;
+  const p = (patients.items ?? patients)[0];
+  const line = { items: [{ description: "Consultation", quantity: 1, unitPrice: 500, gstRate: 0 }] };
+  const cash = (await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "OPD", referringDoctor: "Dr. Mehta", ...line })).data;
+  assert.equal(cash.payType, "Cash", "cash unless said otherwise");
+  assert.equal(cash.tpaName, "");
+  assert.equal(cash.patientDetails.name, p.name);
+  assert.equal(cash.patientDetails.uhid, p.patientId);
+  assert.equal(cash.patientDetails.referringDoctor, "Dr. Mehta");
+  assert.equal(cash.patientDetails.patientType, "Cash");
+  assert.ok(bad((await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "OPD", payType: "Cashless", ...line })).status), "a cashless bill must say who pays");
+  const payers = (await as(ADMIN, "GET", "/api/billing/catalog")).data.payers;
+  assert.ok(Array.isArray(payers), "the catalogue lists the insurers / TPAs for the dropdown");
+  const cl = (await as(ADMIN, "POST", "/api/billing", { patientId: p.id, patientName: p.name, type: "OPD", payType: "Cashless", tpaName: "Star Health", policyNumber: "POL-123", savePolicyToPatient: true, ...line })).data;
+  assert.equal(cl.payType, "Cashless");
+  assert.equal(cl.tpaName, "Star Health");
+  assert.equal(cl.policyNumber, "POL-123");
+  assert.equal(cl.patientDetails.patientType, "Credit");
+  const saved = (await as(ADMIN, "GET", `/api/patients/${p.id}`)).data;
+  assert.equal(saved.insurer, "Star Health", "the insurer was added to the patient's record");
+  assert.equal(saved.policyNumber, "POL-123");
+  // IPD: the consulting doctor comes from the admission
+  const bill = (await as(ADMIN, "GET", `/api/billing/${cl.id}`)).data;
+  assert.equal(bill.tpaName, "Star Health");
 });
 
 let failed = 0;

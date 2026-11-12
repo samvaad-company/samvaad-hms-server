@@ -178,8 +178,8 @@ function Overview({ data }: { data: AiUsageDTO }) {
     <>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Tile icon={Zap} value={compact(data.totals.used)} label="Tokens used by staff" />
-        <Tile icon={MessageSquare} value={fmt(data.totals.messages)} label="AI answers" />
-        <Tile icon={Users} value={fmt(data.totals.activeUsers)} label="People using AI" />
+        <Tile icon={MessageSquare} value={fmt(data.totals.messages)} label="KAYA AI answers" />
+        <Tile icon={Users} value={fmt(data.totals.activeUsers)} label="People using KAYA AI" />
         <Tile icon={Gauge} value={fmt(data.totals.near)} label="Running low" tone={data.totals.near ? "warn" : undefined} />
         <Tile icon={AlertTriangle} value={fmt(data.totals.exceeded + data.totals.blocked)} label="Stopped (limit or paused)" tone={data.totals.exceeded + data.totals.blocked ? "bad" : undefined} />
       </div>

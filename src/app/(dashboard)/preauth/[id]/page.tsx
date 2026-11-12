@@ -111,9 +111,9 @@ export default function PreauthFormPage() {
       <PatientSignatureCard form={form} canEdit={!!form && (can("tpa", "write") || isItsDoctor)} onChanged={reload} />
       {exact && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-full border border-[color:var(--line)] p-[3px] text-[13px]" role="tablist">
+          <div className="inline-flex max-w-full flex-wrap rounded-[22px] border border-[color:var(--line)] p-[3px] text-[13px]" role="tablist">
             {([["fill", "Fill in details"], ["pdf", `${form.formName} form (PDF)`]] as const).map(([id2, label]) => (
-              <button key={id2} role="tab" aria-selected={view === id2} onClick={() => setView(id2)} className={`cursor-pointer rounded-full px-4 py-[5px] ${view === id2 ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)]"}`}>{label}</button>
+              <button key={id2} role="tab" aria-selected={view === id2} onClick={() => setView(id2)} className={`cursor-pointer rounded-full px-4 py-[5px] text-left ${view === id2 ? "bg-[color:var(--brand)] text-white" : "text-[color:var(--ink-soft)]"}`}>{label}</button>
             ))}
           </div>
           <span className="text-[12px] text-[color:var(--ink-soft)]">The PDF is the insurer&apos;s own form with your details in its boxes. Print and Download use it.</span>

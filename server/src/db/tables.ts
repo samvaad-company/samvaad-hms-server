@@ -566,6 +566,25 @@ export interface BillRow extends Row {
   contract_name?: string | null;
   payer_share?: number;
   patient_share?: number | null;
+  /** The time the bill was raised, "HH:mm" in the hospital's time zone. */
+  bill_time?: string | null;
+  /** The IPD admission an IPD bill is for, with the dates it covers (admission date, and discharge date once discharged). */
+  admission_id?: number | null;
+  admission_no?: string | null;
+  admission_date?: string | null;
+  discharge_date?: string | null;
+  /** What had been paid in advance on the admission when the bill was raised. */
+  admission_deposit?: number | null;
+  /** Who gave how much discount: { hospital|doctor|company|tpa: { percent, amount } } (OPD and IPD bills). */
+  discount_details?: Record<string, { percent: number; amount: number }> | null;
+  /** A note printed on the bill (for IPD, the remark from Setup → Masters → Billing remarks when the bill is large). */
+  remarks?: string | null;
+  /** "Cash", or "Cashless" when an insurer / TPA pays; then which one and the policy number. */
+  pay_type?: string | null;
+  tpa_name?: string | null;
+  policy_number?: string | null;
+  /** The patient's details as they were when the bill was raised (UHID, age / sex, address, doctors, patient type, …). */
+  patient_details?: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }
@@ -742,6 +761,8 @@ export interface IpdAdmissionRow extends Row {
   /** Self pay, or the insurer / TPA / sponsor paying. */
   payer?: string;
   planned_discharge_date?: string | null;
+  /** The day the patient was discharged, YYYY-MM-DD. */
+  discharge_date?: string | null;
   /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
   discharge_stage?: string;
   created_at: string;

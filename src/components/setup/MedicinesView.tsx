@@ -65,7 +65,7 @@ export function MedicinesView() {
         </div>
       </div>
       <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)]">
-        <table className="w-full min-w-[860px] text-left text-[13px]">
+        <table data-keep-table className="w-full min-w-[860px] text-left text-[13px]">
           <thead className="bg-[color:var(--subtle)] text-[11px] uppercase tracking-wide text-[color:var(--ink-soft)]">
             <tr><th className="px-3 py-2">Medicine</th><th className="px-3 py-2">Composition</th><th className="px-3 py-2">Pack</th><th className="px-3 py-2">MRP</th><th className="px-3 py-2">Price charged</th></tr>
           </thead>
@@ -73,7 +73,7 @@ export function MedicinesView() {
             {rows.map((m) => (
               <tr key={m.id} className="border-t border-[color:var(--line)] align-middle">
                 <td className="px-3 py-2"><span className="block text-[color:var(--ink)]">{m.name}</span><span className="block text-[11px] text-[color:var(--ink-soft)]">{m.manufacturer}</span></td>
-                <td className="max-w-[240px] px-3 py-2 text-[color:var(--ink-soft)]">{m.generic}</td>
+                <td className="min-w-[220px] max-w-[300px] px-3 py-2 text-[color:var(--ink-soft)]">{m.generic}</td>
                 <td className="px-3 py-2 text-[color:var(--ink-soft)]">{m.pack || m.unit}</td>
                 <td className="px-3 py-2">{rupee(m.mrp)}</td>
                 <td className="px-3 py-2"><PriceCell key={`${m.id}-${m.masterPrice}`} m={m} canEdit={canEdit} onSaved={(u) => setRows((r) => r.map((x) => (x.id === u.id ? u : x)))} /></td>

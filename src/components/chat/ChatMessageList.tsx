@@ -150,6 +150,7 @@ function Bubble({
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`flex flex-col gap-1 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
+        {!isUser && <span className="px-1 text-[11px] font-medium text-[color:var(--brand)]">KAYA AI</span>}
         <div
           className={
             isUser
@@ -181,7 +182,7 @@ function Bubble({
         {!isUser && tokensTotal != null && (
           <span
             className="flex flex-wrap items-center gap-x-2 px-1 text-[10px] font-normal text-[color:var(--ink-soft)]"
-            title="AI tokens used to answer this question, lookups included"
+            title="KAYA AI tokens used to answer this question, lookups included"
           >
             <Zap size={10} className="shrink-0" />
             <b className="font-medium text-[color:var(--ink)]">{tokensTotal.toLocaleString("en-IN")} tokens</b>
