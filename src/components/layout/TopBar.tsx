@@ -284,7 +284,7 @@ export const TopBar = memo(function TopBar({ onOpenMenu, aiOpen, onToggleAi }: T
             }`}
           >
             <Sparkles size={16} strokeWidth={1.7} />
-            <span className="max-sm:hidden leading-none">KAYA AI</span>
+            <span className="max-sm:hidden leading-none mt-[3px]">KAYA AI</span>
           </button>
         )}
 
