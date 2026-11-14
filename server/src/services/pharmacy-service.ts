@@ -3,6 +3,7 @@
  * and an explicit restock action.
  */
 import { pharmacyRepo } from "@/repositories";
+import { findParty } from "@/services/pharmacy-parties-service";
 import { medicinePricesByName } from "@/services/admin-service";
 import { toPharmacyDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
@@ -20,11 +21,22 @@ const schema = {
   minStock: { type: "number", required: false, min: 0, default: 0 },
   expiryDate: { type: "string", required: false, max: 40, default: "" },
   supplier: { type: "string", required: false, max: 160, default: "" },
+  manufacturer: { type: "string", required: false, max: 160, default: "" },
+  hsn: { type: "string", required: false, max: 8, pattern: /^\d{4,8}$/ },
+  isH1: { type: "boolean", required: false },
 } as const;
 
+/** The Masters records a manufacturer / supplier name on an item points at (so renaming them there follows). */
+async function partyFields(data: { supplier?: string; manufacturer?: string }, actor: Session): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  if (data.supplier !== undefined) { const s = data.supplier ? await findParty("supplier", { name: data.supplier }, actor) : null; out.supplier = s?.name ?? data.supplier; out.supplier_id = s?.id ?? null; }
+  if (data.manufacturer !== undefined) { const m = data.manufacturer ? await findParty("manufacturer", { name: data.manufacturer }, actor) : null; out.manufacturer = m?.name ?? data.manufacturer; out.manufacturer_id = m?.id ?? null; }
+  return out;
+}
+
 export const PHARMACY_LIST_CONFIG = {
-  searchColumns: ["name", "category", "supplier"],
-  filterable: ["status", "category"],
+  searchColumns: ["name", "category", "supplier", "manufacturer"],
+  filterable: ["status", "category", "is_h1"],
   sortable: ["name", "stock", "expiry_date", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "asc" as const }],
 };
@@ -57,8 +69,10 @@ export async function createPharmacyItem(input: unknown, actor: Session) {
     stock: data.stock,
     min_stock: data.minStock,
     expiry_date: data.expiryDate,
-    supplier: data.supplier,
     status,
+    hsn: data.hsn ?? "",
+    is_h1: data.isH1 === true,
+    ...(await partyFields(data, actor)),
   });
   await audit(actor, "create", "pharmacy", row.id);
   return toPharmacyDTO(row as PharmacyItemRow);
@@ -74,7 +88,10 @@ export async function updatePharmacyItem(id: number, input: unknown, actor: Sess
   if ("stock" in data) patch.stock = data.stock;
   if ("minStock" in data) patch.min_stock = data.minStock;
   if ("expiryDate" in data) patch.expiry_date = data.expiryDate;
-  if ("supplier" in data) patch.supplier = data.supplier;
+  if ("hsn" in data) patch.hsn = data.hsn ?? "";
+  if (typeof input === "object" && input !== null && "hsn" in input && ((input as { hsn?: unknown }).hsn === "" || (input as { hsn?: unknown }).hsn === null)) patch.hsn = ""; // clearing the HSN
+  if ("isH1" in data) patch.is_h1 = data.isH1 === true;
+  Object.assign(patch, await partyFields(data, actor));
 
   const stock = (patch.stock as number) ?? existing.stock;
   const minStock = (patch.min_stock as number) ?? existing.min_stock;

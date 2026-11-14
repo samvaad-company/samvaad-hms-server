@@ -101,13 +101,15 @@ async function linkedFor(adm: IpdAdmissionRow, actor: Session): Promise<CaseFile
     const slots = doseSlots([{ ...m, status: "Active" }], doses, days[0], days[days.length - 1]);
     const perDay: Record<string, ("" | "due" | "given" | "held")[]> = {};
     const givenBy: Record<string, string[]> = {};
+    const givenAt: Record<string, string[]> = {};
     for (const s of slots) {
       const d = dateOf(s.scheduledAt), w = windowOf(s.scheduledAt);
-      perDay[d] ??= ["", "", "", ""]; givenBy[d] ??= ["", "", "", ""];
+      perDay[d] ??= ["", "", "", ""]; givenBy[d] ??= ["", "", "", ""]; givenAt[d] ??= ["", "", "", ""];
       perDay[d][w] = s.state === "given" ? "given" : s.state === "held" ? "held" : "due";
       if (s.givenBy) givenBy[d][w] = s.givenBy;
+      if (s.givenAt) givenAt[d][w] = s.givenAt;
     }
-    return { id: m.id, name: m.medicine_name, dosage: m.dosage, frequency: m.frequency, route: m.route, start: m.start_date, end: m.end_date, status: m.status, days: perDay, givenBy };
+    return { id: m.id, name: m.medicine_name, dosage: m.dosage, frequency: m.frequency, route: m.route, start: m.start_date, end: m.end_date, status: m.status, days: perDay, givenBy, givenAt };
   });
 
   // The same patient's prescriptions written since admission.

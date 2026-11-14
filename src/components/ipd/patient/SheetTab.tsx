@@ -217,7 +217,7 @@ export function SheetTab({ ctx }: { ctx: ChartCtx }) {
                     {mine.length === 0 ? <span className="text-[12px] text-[color:var(--ink-soft)]">No fixed doses{date === today ? " — give when needed" : ""}</span> : mine.map((d) => (
                       <span key={d.key} className="inline-flex items-center gap-1 rounded-full border border-[color:var(--line)] px-[8px] py-[2px] text-[12px]">
                         <span className="font-mono">{timeOf(d.scheduledAt)}</span>
-                        {d.state === "given" ? <span className="text-[#0b7a47]">given{d.givenBy ? ` · ${d.givenBy}` : ""}</span>
+                        {d.state === "given" ? <span className="text-[#0b7a47]">given{d.givenBy ? ` · ${d.givenBy}` : ""}{d.givenAt ? ` · ${timeOf(d.givenAt)}` : ""}</span>
                           : d.state === "held" ? <span className="text-[#a35a00]">held</span>
                           : d.state === "missed" ? <span className="text-[#b3001b]">missed</span>
                           : editable && date === today ? <><button className="cursor-pointer text-[color:var(--brand)] hover:underline" onClick={() => give(d, "Given")}>Give</button><button className="cursor-pointer text-[color:var(--ink-soft)] hover:underline" onClick={() => { setHold(d); setHoldWhy(""); }}>Hold</button></>

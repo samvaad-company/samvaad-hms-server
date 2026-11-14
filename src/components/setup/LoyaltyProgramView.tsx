@@ -5,6 +5,7 @@
  * fee, the lab/pharmacy/radiology/IPD discounts and the benefits each includes), the rules that turn a patient's history into
  * points, and when a card goes inactive. Changes apply to billing and to every patient's card straight away.
  */
+import { LoadingBlock } from "@/components/shared/Spinner";
 import { useState } from "react";
 import { RotateCcw, Save } from "lucide-react";
 import { api } from "@/lib/api/client";
@@ -52,7 +53,7 @@ export function LoyaltyProgramView() {
   const [draft, setDraft] = useState<LoyaltyProgram | null>(null);
   const [saved, setSaved] = useState(false);
   if (item && !draft) setDraft(structuredClone(item));
-  if (!draft) return <p className="py-10 text-[14px] text-[color:var(--ink-soft)]">Loading…</p>;
+  if (!draft) return <LoadingBlock label="Loading the loyalty programme…" />;
 
   const patchRank = (key: string, patch: Partial<LoyaltyRank>) => { setSaved(false); setDraft({ ...draft, ranks: draft.ranks.map((r) => (r.key === key ? { ...r, ...patch } : r)) }); };
   const patchRule = (key: keyof Omit<LoyaltyScoring, "inactiveMonths">, patch: Partial<LoyaltyRule>) => { setSaved(false); setDraft({ ...draft, scoring: { ...draft.scoring, [key]: { ...draft.scoring[key], ...patch } } }); };

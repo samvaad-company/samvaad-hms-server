@@ -5,6 +5,7 @@
  *   npm run test:ipd
  */
 import assert from "node:assert/strict";
+import { prepareIpd } from "./lib/ipd-fixtures";
 
 Object.assign(process.env, {
   DATABASE_DRIVER: process.env.DATABASE_DRIVER || "memory",
@@ -41,9 +42,10 @@ async function rawAs(email: string, method: string, path: string, body?: unknown
 async function endLiveStays(email: string, patientId: unknown): Promise<void> {
   if (patientId == null) return;
   const stays = ((await rawAs(email, "GET", "/api/ipd?all=true")).data as any[]).filter((a) => a.patientRefId === patientId && a.status !== "Discharged");
-  for (const a of stays) await rawAs(email, "POST", `/api/ipd/${a.id}/discharge`, { waiveBilling: true, reason: "test fixture" });
+  for (const a of stays) { await prepareIpd("POST", `/api/ipd/${a.id}/discharge`); await rawAs(email, "POST", `/api/ipd/${a.id}/discharge`, { waiveBilling: true, reason: "test fixture" }); }
 }
 async function as(email: string, method: string, path: string, body?: unknown) {
+  await prepareIpd(method, path, body);
   if (method === "POST" && path === "/api/ipd") await endLiveStays(email, (body as { patientId?: unknown } | undefined)?.patientId);
   return rawAs(email, method, path, body);
 }

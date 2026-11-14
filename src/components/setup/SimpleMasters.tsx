@@ -76,6 +76,17 @@ export const SIMPLE_SPECS: Record<string, Spec> = {
     rows: () => [[code()], [name], [{ key: "address", label: "Address" }], [{ key: "contactPerson", label: "Contact person" }], [{ key: "phone", label: "Phone" }], [{ key: "email", label: "Email" }], [active]],
     meta: (r) => (r.data.contactPerson ? <Muted>{str(r.data.contactPerson)}</Muted> : null),
   },
+  manufacturers: {
+    kind: "manufacturer", title: "Manufacturers", singular: "manufacturer", blurb: "Who makes the medicines. Renaming one here updates every medicine, purchase bill and credit entry that carries it.", hasCode: false,
+    rows: () => [[name], [{ key: "contactPerson", label: "Contact person" }, { key: "phone", label: "Phone" }], [{ key: "email", label: "Email" }], [{ key: "address", label: "Address" }], [active]],
+    meta: (r) => (r.data.contactPerson || r.data.phone ? <Muted>{[str(r.data.contactPerson), str(r.data.phone)].filter(Boolean).join(" · ")}</Muted> : null),
+  },
+  suppliers: {
+    kind: "supplier", title: "Suppliers", singular: "supplier", blurb: "Who the pharmacy buys from. Renaming one here updates every medicine, purchase bill and credit entry that carries it.", hasCode: false,
+    rows: () => [[name], [{ key: "contactPerson", label: "Contact person" }, { key: "phone", label: "Phone" }], [{ key: "email", label: "Email" }], [{ key: "address", label: "Address" }],
+      [{ key: "gstin", label: "GSTIN", mono: true, upper: true }, { key: "drugLicenceNo", label: "Drug licence no.", mono: true, upper: true }], [{ key: "creditDays", label: "Credit days", type: "number", hint: "How long the supplier gives to pay a credit bill." }], [active]],
+    meta: (r) => (r.data.gstin ? <Muted>{str(r.data.gstin)}{num(r.data.creditDays) ? ` · ${num(r.data.creditDays)} days credit` : ""}</Muted> : null),
+  },
   drug_racks: {
     kind: "drug_rack", title: "Drug racks", singular: "drug rack", blurb: "Drug racks are shared across registration, admission and billing.",
     rows: () => [[code("Code", "R-A1")], [name], [{ key: "location", label: "Location", placeholder: "Store 1 · Shelf B" }], [active]],

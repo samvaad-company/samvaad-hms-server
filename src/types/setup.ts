@@ -12,6 +12,7 @@ export const SETUP_KINDS = [
   "patient_category", "visit_purpose", "arrival_status", "income_group", "referral_source",
   "specialty", "org_unit", "id_format", "clinical_form", "protocol",
   "ward_class", "consulting_room", "facility_area", "collection_center", "lab_collection_center", "drug_rack",
+  "manufacturer", "supplier",
   "branch",
 ] as const;
 export type SetupKind = (typeof SETUP_KINDS)[number];

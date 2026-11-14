@@ -80,7 +80,7 @@ function usable(batches: PharmacyBatchRow[], today: string): PharmacyBatchRow[] 
 // ── Reading ──────────────────────────────────────────────────────────────────
 
 const toStockDto = (i: PharmacyItemRow, available: number, nextExpiry: string): DispenseStockDTO => ({
-  itemId: i.id, name: i.name, category: i.category, available, unitPrice: Number(i.unit_price ?? 0), nextExpiry,
+  itemId: i.id, name: i.name, category: i.category, available, unitPrice: Number(i.unit_price ?? 0), nextExpiry, isH1: i.is_h1 === true,
 });
 
 /** Medicines matching a search (name or category), with what is in date on the shelf. An empty search lists the first few. */
@@ -153,7 +153,7 @@ export async function patientRx(patientId: number, actor: Session): Promise<Disp
         const expired = match ? (isoDate(match.expiry_date) !== "" && isoDate(match.expiry_date) < today) : true;
         return {
           medicineName: it.medicine_name, dosage: it.dosage, frequency: it.frequency, duration: it.duration, quantity: unitsFor(it.frequency, it.duration),
-          itemId: match ? match.id : null, itemName: match?.name ?? "", available: match && !expired ? Math.max(0, Number(match.stock)) : 0, unitPrice: Number(match?.unit_price ?? 0),
+          itemId: match ? match.id : null, itemName: match?.name ?? "", available: match && !expired ? Math.max(0, Number(match.stock)) : 0, unitPrice: Number(match?.unit_price ?? 0), isH1: match?.is_h1 === true,
         };
       }),
     });
@@ -183,7 +183,7 @@ function toDto(d: PharmacyDispenseRow, lines: PharmacyDispenseLineRow[], returns
     billing: d.billing as DispenseBilling, billLabel: billLabel(d), billNumber: d.bill_number ?? null, admissionNo: d.admission_no ?? null, subtotal: Number(d.subtotal),
     status: d.status as DispenseDTO["status"], dispensedBy: d.dispensed_by, at: d.created_at,
     summary: names.length > 1 ? `${names[0]} +${names.length - 1} more` : names[0] ?? "",
-    lines: lines.map((l): DispenseLineDTO => ({ id: l.id, itemId: l.item_id, medicineName: l.medicine_name, batchNo: l.batch_no, expiryDate: l.expiry_date ?? "", quantity: l.quantity, returnedQty: l.returned_qty, returnable: l.quantity - l.returned_qty, unitPrice: Number(l.unit_price), lineTotal: Number(l.line_total) })),
+    lines: lines.map((l): DispenseLineDTO => ({ id: l.id, itemId: l.item_id, medicineName: l.medicine_name, batchNo: l.batch_no, expiryDate: l.expiry_date ?? "", quantity: l.quantity, returnedQty: l.returned_qty, returnable: l.quantity - l.returned_qty, unitPrice: Number(l.unit_price), lineTotal: Number(l.line_total), isH1: l.is_h1 === true })),
     returns: returns.map((r): DispenseReturnDTO => ({ id: r.id, lineId: r.line_id, medicineName: r.medicine_name, batchNo: r.batch_no, quantity: r.quantity, condition: r.condition as ReturnCondition, creditNoteNo: r.credit_note_no ?? "", creditValue: Number(r.credit_value), reason: r.reason ?? "", returnedBy: r.returned_by, at: r.created_at })),
   };
 }
@@ -202,7 +202,7 @@ export async function getDispense(id: number, actor: Session): Promise<DispenseD
 
 // ── Dispensing ───────────────────────────────────────────────────────────────
 
-interface Request { itemId: number; quantity: number; unitPrice: number | null }
+interface Request { itemId: number; quantity: number; unitPrice: number | null; isH1: boolean }
 
 function parseRequest(input: unknown): { lines: Request[]; billing: DispenseBilling; patientId: number | null; walkInNote: string; prescriptionId: number | null } {
   const body = isRecord(input) ? input : {};
@@ -225,7 +225,8 @@ function parseRequest(input: unknown): { lines: Request[]; billing: DispenseBill
     if (!Number.isInteger(quantity) || quantity <= 0 || quantity > MAX_QTY) { errors.push({ field: `lines[${i}]`, message: "quantity must be a whole number of units" }); continue; }
     if (price !== null && (!Number.isFinite(price) || price < 0 || price > 10_000_000)) { errors.push({ field: `lines[${i}]`, message: "price must be a number from 0" }); continue; }
     const prev = merged.get(itemId);
-    merged.set(itemId, prev ? { ...prev, quantity: prev.quantity + quantity, unitPrice: prev.unitPrice ?? price } : { itemId, quantity, unitPrice: price });
+    const h1 = l.isH1 === true;
+    merged.set(itemId, prev ? { ...prev, quantity: prev.quantity + quantity, unitPrice: prev.unitPrice ?? price, isH1: prev.isH1 || h1 } : { itemId, quantity, unitPrice: price, isH1: h1 });
   }
   if (errors.length) throw new ValidationError(errors);
   if (billing !== "none" && patientId === null) throw new ValidationError([{ field: "billing", message: "pick a patient to bill — or choose No bill for a walk-in" }]);
@@ -256,7 +257,7 @@ export async function createDispense(input: unknown, actor: Session): Promise<Di
   const lockKeys = req.lines.map((l) => `pharmacy-stock:${hospitalId}:${l.itemId}`);
   const result = await withKeyLocks(lockKeys, async () => {
     // Work out every draw first; nothing changes unless every medicine can be filled.
-    const plan: { item: PharmacyItemRow; draws: { batch: PharmacyBatchRow; take: number }[]; price: number }[] = [];
+    const plan: { item: PharmacyItemRow; draws: { batch: PharmacyBatchRow; take: number }[]; price: number; h1: boolean }[] = [];
     for (const l of req.lines) {
       const item = await pharmacyRepo.getRow(l.itemId);
       if (!item || item.hospital_id !== hospitalId) throw new ValidationError([{ field: "lines", message: "one of those medicines is not in this pharmacy" }]);
@@ -266,7 +267,8 @@ export async function createDispense(input: unknown, actor: Session): Promise<Di
       let need = l.quantity;
       const draws: { batch: PharmacyBatchRow; take: number }[] = [];
       for (const b of batches) { if (need <= 0) break; const take = Math.min(need, Number(b.quantity)); draws.push({ batch: b, take }); need -= take; }
-      plan.push({ item: item as PharmacyItemRow, draws, price: money(l.unitPrice ?? Number(item.unit_price ?? 0)) });
+      // A medicine that is H1 in the inventory always goes in the register; the pharmacist can also tick one that isn't marked.
+      plan.push({ item: item as PharmacyItemRow, draws, price: money(l.unitPrice ?? Number(item.unit_price ?? 0)), h1: l.isH1 || item.is_h1 === true });
     }
     const subtotal = money(plan.reduce((n, p) => n + p.price * p.draws.reduce((m, d) => m + d.take, 0), 0));
 
@@ -283,7 +285,7 @@ export async function createDispense(input: unknown, actor: Session): Promise<Di
           await uow.update(TABLES.pharmacyBatches, batch.id, { quantity: Number(batch.quantity) - take });
           await uow.insert(TABLES.pharmacyDispenseLines, {
             hospital_id: hospitalId, dispense_id: d.id, item_id: p.item.id, medicine_name: p.item.name, batch_id: batch.id, batch_no: batch.batch_no, expiry_date: batch.expiry_date ?? "",
-            quantity: take, returned_qty: 0, unit_price: p.price, line_total: money(take * p.price),
+            quantity: take, returned_qty: 0, unit_price: p.price, line_total: money(take * p.price), is_h1: p.h1,
           });
           drawn += take;
         }

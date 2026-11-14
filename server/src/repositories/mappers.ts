@@ -388,6 +388,9 @@ export function toPharmacyDTO(r: PharmacyItemRow): PharmacyItemDTO {
     supplier: r.supplier,
     status: r.status as PharmacyStatus,
     unitPrice: Number(r.unit_price ?? 0),
+    manufacturer: r.manufacturer ?? "",
+    hsn: r.hsn ?? "",
+    isH1: r.is_h1 === true,
   };
 }
 
@@ -1086,6 +1089,9 @@ export function toPurchaseOrderItemDTO(r: PurchaseOrderItemRow): PurchaseOrderIt
     medicineName: r.medicine_name,
     quantity: r.quantity,
     unitCost: Number(r.unit_cost),
+    manufacturer: r.manufacturer ?? "",
+    hsn: r.hsn ?? "",
+    isH1: r.is_h1 === true,
   };
 }
 
@@ -1104,6 +1110,10 @@ export function toPurchaseOrderDTO(
     status: r.status,
     notes: r.notes,
     items: items.map(toPurchaseOrderItemDTO),
+    paymentType: r.payment_type === "Credit" ? "Credit" : "Cash",
+    paymentStatus: r.payment_status === "Unpaid" ? "Unpaid" : "Paid",
+    creditApplied: Number(r.credit_applied ?? 0),
+    netPayable: Number(r.net_payable ?? r.total),
   };
 }
 
@@ -1114,6 +1124,7 @@ export function toPharmacySaleItemDTO(r: PharmacySaleItemRow): PharmacySaleItemD
     quantity: r.quantity,
     unitPrice: Number(r.unit_price),
     lineTotal: Number(r.line_total),
+    isH1: r.is_h1 === true,
   };
 }
 

@@ -64,6 +64,9 @@ export const TABLES = {
   whatsappAccounts: "whatsapp_accounts",
   whatsappMessages: "whatsapp_messages",
   pharmacyBatches: "pharmacy_batches",
+  supplierCredits: "supplier_credits",
+  combinedBills: "combined_bills",
+  ipdDischargeClearances: "ipd_discharge_clearances",
   pharmacyDispenses: "pharmacy_dispenses",
   pharmacyDispenseLines: "pharmacy_dispense_lines",
   pharmacyReturns: "pharmacy_returns",
@@ -429,6 +432,12 @@ export interface PharmacyItemRow extends Row {
   status: string;
   /** ₹ per unit the counter charges; remembered from the first price entered at dispensing when unset. */
   unit_price?: number | null;
+  /** Who makes it and who supplies it (names from Setup → Masters), its HSN code, and whether it is a Schedule H1 drug. */
+  manufacturer?: string | null;
+  manufacturer_id?: number | null;
+  supplier_id?: number | null;
+  hsn?: string | null;
+  is_h1?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -485,6 +494,8 @@ export interface PharmacyDispenseLineRow extends Row {
   returned_qty: number;
   unit_price: number;
   line_total: number;
+  /** A Schedule H1 drug: the line goes in the H1 register. Set when the medicine is H1 in the inventory or the pharmacist ticks it. */
+  is_h1?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -765,6 +776,8 @@ export interface IpdAdmissionRow extends Row {
   discharge_date?: string | null;
   /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
   discharge_stage?: string;
+  /** The signed admission consent this admission was made on (one consent covers one admission). */
+  admission_consent_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -1614,12 +1627,21 @@ export interface PurchaseOrderRow extends Row {
   hospital_id: number;
   po_number: string;
   supplier: string;
+  supplier_id?: number | null;
   order_date: string;
   expected_date: string;
   item_count: number;
+  /** The goods total (before any supplier credit). */
   total: number;
   status: string;
   notes: string;
+  /** "Cash" (paid now) or "Credit" (paid to the supplier later). */
+  payment_type?: string | null;
+  /** "Paid" / "Unpaid". */
+  payment_status?: string | null;
+  /** Supplier credit (from stock returned earlier) taken off this bill, and what is left to pay. */
+  credit_applied?: number | null;
+  net_payable?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -1631,7 +1653,39 @@ export interface PurchaseOrderItemRow extends Row {
   medicine_name: string;
   quantity: number;
   unit_cost: number;
+  manufacturer?: string | null;
+  manufacturer_id?: number | null;
+  hsn?: string | null;
+  is_h1?: boolean | null;
   created_at: string;
+}
+
+/**
+ * The money side of stock returned to a supplier. A return earns the same amount as credit with that supplier and manufacturer;
+ * the next purchase bill for the same pair uses it up. Each row is one movement (positive = credit earned or given back,
+ * negative = credit used), so the history reads as it happened and the balance is the sum.
+ */
+export interface SupplierCreditRow extends Row {
+  id: number;
+  hospital_id: number;
+  supplier: string;
+  supplier_id?: number | null;
+  manufacturer: string;
+  manufacturer_id?: number | null;
+  /** "Return" (stock sent back, credit earned) | "Applied" (used on a purchase bill) | "Reversal" (a bill's credit given back) | "Adjustment". */
+  entry_type: string;
+  /** + credit earned / given back, − credit used. */
+  amount: number;
+  reference: string;
+  purchase_order_id?: number | null;
+  pharmacy_item_id?: number | null;
+  medicine_name?: string | null;
+  quantity?: number | null;
+  unit_cost?: number | null;
+  reason?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PharmacySaleRow extends Row {
@@ -1661,6 +1715,8 @@ export interface PharmacySaleItemRow extends Row {
   quantity: number;
   unit_price: number;
   line_total: number;
+  /** A Schedule H1 drug: the line goes in the H1 register. */
+  is_h1?: boolean | null;
   created_at: string;
 }
 
@@ -2816,6 +2872,48 @@ export interface PatientVaccinationRow extends Row {
   next_due: string | null;
   note: string;
   recorded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A combined bill as issued: the invoice number, who it was for and the statement itself (`snapshot`), kept so it can be traced later. */
+export interface CombinedBillRow extends Row {
+  id: number;
+  hospital_id: number;
+  invoice_no: string;
+  patient_id: number;
+  patient_name: string;
+  period_from: string | null;
+  period_to: string | null;
+  bill_count: number;
+  gross: number;
+  discount: number;
+  gst: number;
+  total: number;
+  paid: number;
+  due: number;
+  snapshot: unknown;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One department's answer to "this patient is about to be discharged": cleared, or flagged with a bill still to pay. Re-asked (round + 1) after the patient pays. */
+export interface IpdDischargeClearanceRow extends Row {
+  id: number;
+  hospital_id: number;
+  admission_id: number;
+  /** pharmacy | lab | radiology | bloodbank | ot | ambulance */
+  department: string;
+  /** "Pending" (waiting for the department) | "Cleared" | "Flagged" (a bill is still to be paid) */
+  status: string;
+  amount_due: number;
+  note: string;
+  round: number;
+  requested_by: string;
+  requested_at: string;
+  responded_by: string;
+  responded_at: string | null;
   created_at: string;
   updated_at: string;
 }

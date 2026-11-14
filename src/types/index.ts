@@ -123,6 +123,10 @@ export interface PharmacyItem {
   status: PharmacyStatus;
   /** ₹ per unit the counter charges (0 when not set yet). */
   unitPrice?: number;
+  manufacturer?: string;
+  hsn?: string;
+  /** A Schedule H1 drug (sold only on a prescription, with a register kept). */
+  isH1?: boolean;
 }
 
 export interface LabTest {

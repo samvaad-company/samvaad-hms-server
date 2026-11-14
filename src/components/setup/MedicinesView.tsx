@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { LoadingBlock, Spinner } from "@/components/shared/Spinner";
 import type { MedicineDTO } from "@/types/api";
 
 const PAGE = 50;
@@ -64,7 +65,8 @@ export function MedicinesView() {
             className="h-[34px] w-full rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] pl-8 pr-3 text-[13px] focus:border-[color:var(--brand)] focus:outline-none" />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)]">
+      {loading && rows.length === 0 ? <LoadingBlock label="Loading medicines…" /> : (
+      <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)]" aria-busy={loading}>
         <table data-keep-table className="w-full min-w-[860px] text-left text-[13px]">
           <thead className="bg-[color:var(--subtle)] text-[11px] uppercase tracking-wide text-[color:var(--ink-soft)]">
             <tr><th className="px-3 py-2">Medicine</th><th className="px-3 py-2">Composition</th><th className="px-3 py-2">Pack</th><th className="px-3 py-2">MRP</th><th className="px-3 py-2">Price charged</th></tr>
@@ -83,8 +85,9 @@ export function MedicinesView() {
           </tbody>
         </table>
       </div>
+      )}
       <div className="flex items-center justify-between text-[12px] text-[color:var(--ink-soft)]">
-        <span>Page {page} of {pages.toLocaleString("en-IN")}</span>
+        <span className="inline-flex items-center gap-2">Page {page} of {pages.toLocaleString("en-IN")}{loading && rows.length > 0 && <><Spinner size={12} /> Loading…</>}</span>
         <div className="flex gap-2">
           <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)} className="h-[30px] rounded-full border border-[color:var(--line)] px-4 disabled:opacity-40 cursor-pointer">Previous</button>
           <button type="button" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)} className="h-[30px] rounded-full border border-[color:var(--line)] px-4 disabled:opacity-40 cursor-pointer">Next</button>

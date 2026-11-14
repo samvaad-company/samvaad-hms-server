@@ -12,6 +12,7 @@ import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
 import { REGISTRY, hasCode, type Field, type KindDef } from "@/services/setup-registry";
+import { isPartyKind, partyInUse, renameParty } from "@/services/pharmacy-parties-service";
 import { seedSetupDefaults, defaultConfig, ID_FORMAT_DEFAULTS, BED_CHARGE_CLASS } from "@/services/setup-defaults";
 import { CONFIG_KEYS, RATE_SCOPES, SETUP_KINDS, maskProblem, type ConfigKey, type RateScope, type SetupKind, type SetupRecordDTO } from "@shared/types/setup";
 
@@ -21,7 +22,7 @@ export const isConfigKey = (k: string): k is ConfigKey => (CONFIG_KEYS as readon
 /** Masters other screens pick from (patient registration, billing…): any signed-in user may read them. */
 export const PUBLIC_READ = new Set<SetupKind>([
   "service_group", "service", "patient_category", "visit_purpose", "arrival_status", "income_group", "specialty", "ward_class",
-  "consulting_room", "facility_area", "collection_center", "payer_class", "payment_mode", "referral_source", "org_unit"
+  "consulting_room", "facility_area", "collection_center", "payer_class", "payment_mode", "referral_source", "org_unit", "manufacturer", "supplier",
 ]);
 
 const toDto = (r: SetupRecordRow): SetupRecordDTO => ({
@@ -349,10 +350,12 @@ export async function updateSetup(kind: SetupKind, id: number, input: unknown, a
   const hospitalId = requireHospitalId(actor);
   await owned(kind, id, actor);
   const p = await parseInput(kind, input, actor, "update");
+  let oldName = "";
   const row = await withKeyLocks([`setup:${hospitalId}:${kind}`], async () => {
     const rows = await allOfKind(kind, actor);
     const current = rows.find((r) => r.id === id);
     if (!current) throw new NotFoundError(def.label);
+    oldName = current.name;
     const data = { ...(current.data ?? {}), ...p.data };
     if (kind === "id_format" && "mask" in p.data && p.data.mask !== current.data?.defaultMask) data.custom = true;
     if (kind === "clinical_form" && "status" in p.data && p.data.status === "Published" && current.data?.status !== "Published") data.version = Number(current.data?.version ?? 0) + 1;
@@ -366,6 +369,8 @@ export async function updateSetup(kind: SetupKind, id: number, input: unknown, a
     if (def.oneOf && data[def.oneOf] === true) await enforceOneOf(kind, rows, id, def.oneOf);
     return updated;
   });
+  // A manufacturer or supplier renamed here is renamed on every medicine, purchase bill and credit entry that carries it.
+  if (isPartyKind(kind) && oldName && oldName !== row.name) await renameParty(kind, id, oldName, row.name, actor);
   await audit(actor, "update", `setup-${kind}`, id, { name: row.name });
   return toDto(row);
 }
@@ -381,6 +386,10 @@ export async function deleteSetup(kind: SetupKind, id: number, actor: Session): 
     for (const u of def.usedBy ?? []) {
       const users = (await allOfKind(u.kind, actor)).filter((r) => (r.data ?? {})[u.field] === id && !(u.kind === kind && r.id === id));
       if (users.length) throw new ConflictError(`${row.name} is used by ${users.length} ${u.what} — change or remove those first`);
+    }
+    if (isPartyKind(kind)) {
+      const used = await partyInUse(kind, id, row.name, actor);
+      if (used) throw new ConflictError(`${row.name} is used by ${used} — change or remove those first`);
     }
     if (kind === "ward_class" || kind === "facility_area") {
       const column = kind === "ward_class" ? "ward_class_id" : "facility_area_id";

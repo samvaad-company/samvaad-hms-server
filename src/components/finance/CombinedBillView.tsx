@@ -1,19 +1,21 @@
 "use client";
 
 /**
- * Finance → Combined bill: pick a patient (and, if wanted, a date range) and get every charge on one statement: IPD, consultation,
- * pharmacy, lab, radiology and the rest, grouped with subtotals, the prescriptions beneath, and the totals. Print it or save as PDF.
+ * Billing → Combined bill: pick a patient (and, if wanted, a date range) and issue every charge on one statement: IPD, consultation,
+ * pharmacy, lab, radiology and the rest, grouped with subtotals, the prescriptions beneath, and the totals. Each statement gets an
+ * invoice number and is kept in the history below, where it can be opened again, printed or saved as PDF.
  */
 import { useMemo, useRef, useState } from "react";
-import { Download, FileText, Printer } from "lucide-react";
+import { Download, Eye, FileText, Printer } from "lucide-react";
 import { tw } from "@/lib/design-system";
 import { formatDate } from "@/lib/dates";
-import { useItem, useList } from "@/lib/api/hooks";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
+import { api } from "@/lib/api/client";
 import { printElement, downloadElement } from "@/lib/print";
 import { DocumentLetterhead, useHospital } from "@/components/shared/DocumentLetterhead";
 import { FormRow, FormInput } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
-import type { CombinedBillDTO, PatientDTO } from "@/types/api";
+import type { CombinedBillDTO, CombinedBillHistoryDTO, PatientDTO } from "@/types/api";
 
 const money = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -23,34 +25,45 @@ export function CombinedBillView() {
   const [patientId, setPatientId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [path, setPath] = useState<string | null>(null);
+  const [bill, setBill] = useState<CombinedBillDTO | null>(null);
+  const [search, setSearch] = useState("");
+  const [opening, setOpening] = useState<number | null>(null);
+  const [openError, setOpenError] = useState("");
   const docRef = useRef<HTMLDivElement>(null);
+  const { run, loading, error } = useMutation();
+  const { item: history, reload: reloadHistory } = useItem<CombinedBillHistoryDTO[]>("/finance/combined-bill/history");
 
   const options = useMemo(() => patients.map((p) => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` })), [patients]);
-  const { item: bill, loading, error } = useItem<CombinedBillDTO>(path);
 
-  const generate = () => {
-    const q = new URLSearchParams({ patientId });
-    if (from) q.set("from", from);
-    if (to) q.set("to", to);
-    setPath(`/finance/combined-bill?${q.toString()}`);
+  const generate = async () => {
+    const body: Record<string, unknown> = { patientId: Number(patientId) };
+    if (from) body.from = from;
+    if (to) body.to = to;
+    setOpenError("");
+    try { setBill(await run(() => api.post<CombinedBillDTO>("/finance/combined-bill", body))); reloadHistory(); } catch { /* the message shows above the statement */ }
   };
-  const title = bill ? `Combined bill — ${bill.patient.name}` : "Combined bill";
+  const open = async (id: number) => {
+    setOpening(id); setOpenError("");
+    try { setBill(await api.get<CombinedBillDTO>(`/finance/combined-bill/${id}`)); } catch (e) { setOpenError((e as Error).message); } finally { setOpening(null); }
+  };
+  const title = bill ? `Combined bill ${bill.invoiceNo ?? ""} - ${bill.patient.name}` : "Combined bill";
+  const q = search.trim().toLowerCase();
+  const rows = (history ?? []).filter((h) => !q || h.invoiceNo.toLowerCase().includes(q) || h.patientName.toLowerCase().includes(q));
   const empty = bill && bill.sections.length === 0;
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6">
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-end">
-        <FormRow label="Patient *"><SearchSelect placeholder="Search a patient…" value={patientId} onChange={(v) => { setPatientId(v); setPath(null); }} options={options} /></FormRow>
-        <FormRow label="From (optional)"><FormInput type="date" value={from} onChange={(v) => { setFrom(v); setPath(null); }} /></FormRow>
-        <FormRow label="To (optional)"><FormInput type="date" value={to} onChange={(v) => { setTo(v); setPath(null); }} /></FormRow>
+        <FormRow label="Patient *"><SearchSelect placeholder="Search a patient…" value={patientId} onChange={(v) => setPatientId(v)} options={options} /></FormRow>
+        <FormRow label="From (optional)"><FormInput type="date" value={from} onChange={(v) => setFrom(v)} /></FormRow>
+        <FormRow label="To (optional)"><FormInput type="date" value={to} onChange={(v) => setTo(v)} /></FormRow>
         <button onClick={generate} disabled={!patientId || loading} className="inline-flex h-[40px] items-center justify-center gap-2 rounded-full bg-[color:var(--brand)] px-5 text-[13px] text-white hover:bg-[color:var(--brand-hover)] disabled:opacity-50 cursor-pointer">
-          <FileText size={14} /> {loading ? "Preparing…" : "Create combined bill"}
+          <FileText size={14} /> {loading ? "Creating…" : "Create combined bill"}
         </button>
       </div>
-      <p className="text-[12px] text-[color:var(--ink-soft)]">Leave the dates empty to include everything this patient has been billed. For one admission, set From to the admission date and To to the discharge date.</p>
+      <p className="text-[12px] text-[color:var(--ink-soft)]">Creating a combined bill gives it an invoice number and saves it in the history below. Leave the dates empty to include everything this patient has been billed. For one admission, set From to the admission date and To to the discharge date.</p>
 
-      {error && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#ff0004]">{error.message}</p>}
+      {(error || openError) && <p className="rounded-[8px] bg-[#ffe9e9] px-3 py-2 text-[13px] text-[#ff0004]">{error?.message ?? openError}</p>}
 
       {bill && (
         <>
@@ -61,9 +74,11 @@ export function CombinedBillView() {
           </div>
 
           <div ref={docRef} className={`${tw.surface.card} ${tw.radius.card} mx-auto w-full max-w-[900px] overflow-hidden`}>
-            <DocumentLetterhead hospital={hospital} compact right={<><div className="text-[16px] font-medium text-[color:var(--ink)]">Combined Bill</div><div className="mt-1 text-[12px] text-[color:var(--ink-soft)]">{bill.period.from || bill.period.to ? `${bill.period.from ? formatDate(bill.period.from) : "Start"} to ${bill.period.to ? formatDate(bill.period.to) : "today"}` : "All charges"}</div></>} />
+            <DocumentLetterhead hospital={hospital} compact right={<><div className="text-[16px] font-medium text-[color:var(--ink)]">Combined Bill</div>{bill.invoiceNo && <div className="mt-1 text-[13px] font-medium text-[color:var(--brand)]">Invoice {bill.invoiceNo}</div>}<div className="mt-1 text-[12px] text-[color:var(--ink-soft)]">{bill.period.from || bill.period.to ? `${bill.period.from ? formatDate(bill.period.from) : "Start"} to ${bill.period.to ? formatDate(bill.period.to) : "today"}` : "All charges"}</div></>} />
 
             <div className="grid grid-cols-1 gap-x-6 gap-y-2 border-b border-[color:var(--subtle-2)] px-6 py-4 text-[13px] sm:grid-cols-2">
+              {bill.invoiceNo && <Info label="Invoice no." value={bill.invoiceNo} />}
+              {bill.createdAt && <Info label="Issued on" value={formatDate(bill.createdAt.slice(0, 10))} />}
               <Info label="Patient" value={bill.patient.name} />
               <Info label="Patient ID" value={bill.patient.code} />
               <Info label="Age / Sex" value={`${bill.patient.age} / ${bill.patient.gender}`} />
@@ -131,6 +146,41 @@ export function CombinedBillView() {
           </div>
         </>
       )}
+
+      <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--subtle-2)] px-4 py-3">
+          <div><p className="text-[14px] font-medium text-[color:var(--ink)]">Combined bill history</p><p className="text-[12px] text-[color:var(--ink-soft)]">Every combined bill issued, with its invoice number.</p></div>
+          <div className="w-full sm:w-[260px]"><FormInput value={search} onChange={setSearch} placeholder="Search invoice no. or patient…" /></div>
+        </div>
+        {rows.length === 0 ? (
+          <p className="px-4 py-10 text-center text-[13px] text-[color:var(--ink-soft)]">{history && history.length ? "No combined bill matches that search." : "No combined bills have been issued yet."}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-[13px]">
+              <thead>
+                <tr className="bg-[color:var(--subtle)] text-left text-[11px] uppercase tracking-wider text-[color:var(--ink-soft)]">
+                  <th className="px-4 py-2 font-medium">Invoice no.</th><th className="px-2 py-2 font-medium">Patient</th><th className="px-2 py-2 font-medium">Period</th><th className="px-2 py-2 font-medium">Issued</th>
+                  <th className="px-2 py-2 text-right font-medium">Bills</th><th className="px-2 py-2 text-right font-medium">Total (₹)</th><th className="px-2 py-2 text-right font-medium">Due (₹)</th><th className="px-4 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((h) => (
+                  <tr key={h.id} className="border-b border-[color:var(--subtle-2)]">
+                    <td className="whitespace-nowrap px-4 py-2 font-medium text-[color:var(--brand)]">{h.invoiceNo}</td>
+                    <td className="px-2 py-2 text-[color:var(--ink)]">{h.patientName}</td>
+                    <td className="whitespace-nowrap px-2 py-2 text-[color:var(--ink-soft)]">{h.periodFrom || h.periodTo ? `${h.periodFrom ? formatDate(h.periodFrom) : "Start"} – ${h.periodTo ? formatDate(h.periodTo) : "today"}` : "All charges"}</td>
+                    <td className="whitespace-nowrap px-2 py-2 text-[color:var(--ink-soft)]">{formatDate(h.createdAt.slice(0, 10))}<span className="block text-[11px]">{h.createdBy}</span></td>
+                    <td className="px-2 py-2 text-right">{h.billCount}</td>
+                    <td className="px-2 py-2 text-right">{money(h.total)}</td>
+                    <td className="px-2 py-2 text-right">{money(h.due)}</td>
+                    <td className="px-4 py-2 text-right"><button onClick={() => open(h.id)} disabled={opening === h.id} className="inline-flex h-[30px] items-center gap-1 rounded-full border border-[color:var(--line)] px-3 text-[12px] text-[color:var(--ink-soft)] hover:bg-[color:var(--subtle)] disabled:opacity-50 cursor-pointer"><Eye size={13} /> {opening === h.id ? "Opening…" : "View"}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

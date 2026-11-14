@@ -143,6 +143,9 @@ export const REGISTRY: Record<SetupKind, KindDef> = {
   }),
   lab_collection_center: simple("Lab collection centre", { fields: { address: S(200), contactPerson: S(80), phone: S(20), email: S(120) } }),
   drug_rack: simple("Drug rack", { fields: { location: S(120) } }),
+  // Who makes and who sells the medicines the pharmacy stocks. Renaming one updates the pharmacy's records; one in use can't be deleted.
+  manufacturer: { label: "Manufacturer", code: "optional", uniqueName: true, sort: "name", fields: { contactPerson: S(80), phone: S(20), email: S(120), address: S(200) } },
+  supplier: { label: "Supplier", code: "optional", uniqueName: true, sort: "name", fields: { contactPerson: S(80), phone: S(20), email: S(120), address: S(200), gstin: S(15), drugLicenceNo: S(40), creditDays: N({ max: 365, def: 0 }) } },
   branch: {
     label: "Branch", code: "required", sort: "order", oneOf: "isPrimary",
     fields: {

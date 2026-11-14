@@ -15,6 +15,7 @@ import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import type { BillDTO, BillingCatalogDTO, IpdRecordDTO, PatientDTO, PharmacyItemDTO } from "@/types/api";
 import { priceLines, r2 } from "@/types/billing";
 import { splitCoverage } from "@/types/coverage";
+import { CombinedBillView } from "@/components/finance/CombinedBillView";
 import { PayoutsView } from "@/components/billing/PayoutsView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -641,6 +642,7 @@ export default function BillingPage() {
   const TABS = [
     { id: "all",     label: "All Bills", count: bills.length },
     ...(canWrite ? [{ id: "new", label: "New Bill" }] : []),
+    { id: "combined", label: "Combined Bill" },
     { id: "lookup",  label: "Bill Lookup" },
     { id: "payouts", label: "Payouts" },
   ];
@@ -694,6 +696,7 @@ export default function BillingPage() {
             </>
           )}
           {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}
+          {tab === "combined" && <CombinedBillView />}
           {tab === "lookup" && <LookupView bills={bills} />}
           {tab === "payouts" && <PayoutsView canWrite={canWrite} />}
         </div>

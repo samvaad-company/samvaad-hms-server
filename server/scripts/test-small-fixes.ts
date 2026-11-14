@@ -6,6 +6,7 @@
  *   npm run test:smallfixes
  */
 import assert from "node:assert/strict";
+import { prepareIpd } from "./lib/ipd-fixtures";
 
 Object.assign(process.env, {
   DATABASE_DRIVER: "memory",
@@ -27,6 +28,7 @@ async function request(method: string, path: string, opts: { body?: unknown; hea
 }
 const cookies = new Map<string, string>();
 async function as(email: string, method: string, path: string, body?: unknown) {
+  await prepareIpd(method, path, body);
   if (!cookies.has(email)) {
     const login = await request("POST", "/api/auth/login", { body: { email, password: "Samvaad@123" } });
     assert.equal(login.status, 200, `login ${email}`);

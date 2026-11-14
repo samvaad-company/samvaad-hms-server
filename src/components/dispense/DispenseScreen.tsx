@@ -16,7 +16,8 @@ import { ErrorNote, outlineBtn, primaryBtn } from "@/components/mrd/shared";
 import { attempt } from "@/components/hr/shared";
 import { RecentDispensing } from "@/components/dispense/RecentDispensing";
 
-interface CartLine { itemId: number; name: string; available: number; qty: string; price: string }
+/** `h1` ticks the line into the H1 register; `h1Locked` is a medicine that is H1 in the inventory (always registered). */
+interface CartLine { itemId: number; name: string; available: number; qty: string; price: string; h1: boolean; h1Locked: boolean }
 
 const BILLING: { id: DispenseBilling; label: string; needsPatient: boolean }[] = [
   { id: "separate", label: "Separate bill", needsPatient: true },
@@ -64,12 +65,12 @@ export function DispenseScreen() {
       try {
         const made = await api.post<{ id: number }>("/pharmacy", { name: s.name, category: s.category || "General", stock: 0 });
         setNotice(`${s.name} is now in the inventory with no stock. Add stock under Inventory → Restock before dispensing it.`);
-        setCart((c) => [...c, { itemId: made.id, name: s.name, available: 0, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "" }]);
+        setCart((c) => [...c, { itemId: made.id, name: s.name, available: 0, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "", h1: false, h1Locked: false }]);
       } catch { setNotice(`${s.name} couldn't be added to the inventory.`); }
       setDrug(""); setChipsOpen(false);
       return;
     }
-    setCart((c) => c.some((l) => l.itemId === s.itemId) ? c.map((l) => (l.itemId === s.itemId ? { ...l, qty: String(Math.min(s.available, (Number(l.qty) || 0) + 1)) } : l)) : [...c, { itemId: s.itemId, name: s.name, available: s.available, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "" }]);
+    setCart((c) => c.some((l) => l.itemId === s.itemId) ? c.map((l) => (l.itemId === s.itemId ? { ...l, qty: String(Math.min(s.available, (Number(l.qty) || 0) + 1)) } : l)) : [...c, { itemId: s.itemId, name: s.name, available: s.available, qty: "1", price: s.unitPrice > 0 ? String(s.unitPrice) : "", h1: s.isH1 === true, h1Locked: s.isH1 === true }]);
     setDrug(""); setChipsOpen(false);
   }
   async function choosePatient(p: PatientDTO | null) {
@@ -86,7 +87,7 @@ export function DispenseScreen() {
       const qty = Math.min(l.quantity, l.available);
       const at = next.findIndex((c) => c.itemId === l.itemId);
       if (at >= 0) next[at] = { ...next[at], qty: String(Math.min(l.available, (Number(next[at].qty) || 0) + qty)) };
-      else next.push({ itemId: l.itemId, name: l.itemName, available: l.available, qty: String(qty), price: l.unitPrice > 0 ? String(l.unitPrice) : "" });
+      else next.push({ itemId: l.itemId, name: l.itemName, available: l.available, qty: String(qty), price: l.unitPrice > 0 ? String(l.unitPrice) : "", h1: l.isH1 === true, h1Locked: l.isH1 === true });
     }
     setCart(next); setRxId(r.prescriptionId);
     setNotice(missing.length ? `Not in stock or not stocked: ${missing.join(", ")}.` : null);
@@ -100,7 +101,7 @@ export function DispenseScreen() {
     const ok = await attempt(run(async () => {
       result = await api.post<DispenseDTO>("/pharmacy/dispense", {
         patientId: patient?.id, walkInNote: patient ? "" : note, prescriptionId: rxId ?? undefined, billing,
-        lines: cart.map((l) => ({ itemId: l.itemId, quantity: Number(l.qty), unitPrice: l.price === "" ? undefined : Number(l.price) })),
+        lines: cart.map((l) => ({ itemId: l.itemId, quantity: Number(l.qty), unitPrice: l.price === "" ? undefined : Number(l.price), isH1: l.h1 || l.h1Locked })),
       });
     }));
     if (ok && result) {
@@ -170,8 +171,8 @@ export function DispenseScreen() {
           <div className="flex min-h-[110px] items-center justify-center rounded-[10px] border border-dashed border-[color:var(--line)] text-[14px] text-[color:var(--ink-soft)]">Scan a patient and load their Rx, or search stock to add medicines.</div>
         ) : (
           <div className="overflow-x-auto rounded-[10px] border border-[color:var(--line)]">
-            <table className="w-full min-w-[620px] text-left text-[13px]">
-              <thead><tr className="border-b border-[color:var(--line)] bg-[color:var(--faint)] text-[12px] text-[color:var(--ink-soft)]"><th className="px-3 py-2 font-medium">Medicine</th><th className="w-[90px] px-2 font-medium">In stock</th><th className="w-[90px] px-2 font-medium">Qty</th><th className="w-[110px] px-2 font-medium">Price (₹)</th><th className="w-[110px] px-2 text-right font-medium">Amount</th><th className="w-[40px]" /></tr></thead>
+            <table className="w-full min-w-[680px] text-left text-[13px]">
+              <thead><tr className="border-b border-[color:var(--line)] bg-[color:var(--faint)] text-[12px] text-[color:var(--ink-soft)]"><th className="px-3 py-2 font-medium">Medicine</th><th className="w-[90px] px-2 font-medium">In stock</th><th className="w-[90px] px-2 font-medium">Qty</th><th className="w-[110px] px-2 font-medium">Price (₹)</th><th className="w-[54px] px-2 font-medium" title="Schedule H1 drug: goes in the H1 register">H1</th><th className="w-[110px] px-2 text-right font-medium">Amount</th><th className="w-[40px]" /></tr></thead>
               <tbody>
                 {cart.map((l) => {
                   const n = Number(l.qty);
@@ -182,6 +183,7 @@ export function DispenseScreen() {
                       <td className="px-2 font-mono text-[12px] text-[color:var(--ink-soft)]">{l.available}</td>
                       <td className="px-2"><input aria-label={`${l.name} quantity`} type="number" min={1} max={l.available} value={l.qty} onChange={(e) => patchLine(l.itemId, { qty: e.target.value })} className={`h-[32px] w-[70px] rounded-[6px] border px-2 text-right font-mono ${over ? "border-[#c8001a]" : "border-[color:var(--line)]"}`} /></td>
                       <td className="px-2"><input aria-label={`${l.name} price`} type="number" min={0} step="0.01" value={l.price} placeholder="0.00" onChange={(e) => patchLine(l.itemId, { price: e.target.value })} className="h-[32px] w-[90px] rounded-[6px] border border-[color:var(--line)] px-2 text-right font-mono" /></td>
+                      <td className="px-2"><input type="checkbox" aria-label={`${l.name} is a Schedule H1 drug`} checked={l.h1 || l.h1Locked} disabled={l.h1Locked} title={l.h1Locked ? "This medicine is marked H1 in the inventory" : "Tick for a Schedule H1 drug: it goes in the H1 register"} onChange={(e) => patchLine(l.itemId, { h1: e.target.checked })} /></td>
                       <td className="px-2 text-right font-mono">{inr((Number(l.qty) || 0) * (Number(l.price) || 0))}</td>
                       <td><button aria-label={`Remove ${l.name}`} onClick={() => setCart((c) => c.filter((x) => x.itemId !== l.itemId))} className="p-2 text-[color:var(--ink-soft)] hover:text-[#c8001a] cursor-pointer"><Trash2 size={14} /></button></td>
                     </tr>

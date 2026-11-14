@@ -5,6 +5,7 @@
  *   npm run test:ipdchart
  */
 import assert from "node:assert/strict";
+import { prepareIpd } from "./lib/ipd-fixtures";
 
 Object.assign(process.env, {
   DATABASE_DRIVER: "memory",
@@ -26,6 +27,7 @@ async function request(method: string, path: string, opts: { body?: unknown; hea
 }
 const cookies = new Map<string, string>();
 async function as(email: string, method: string, path: string, body?: unknown) {
+  await prepareIpd(method, path, body);
   if (!cookies.has(email)) {
     const login = await request("POST", "/api/auth/login", { body: { email, password: "Samvaad@123" } });
     assert.equal(login.status, 200, `login ${email}`);
@@ -115,7 +117,9 @@ test("fluid balance: intake and output are charted any number of times, with the
 test("the overview lists what is still to do, and the list shrinks as things are done", async () => {
   const before = (await as(DOCTOR, "GET", `/api/ipd/${adm}/overview`)).data;
   const keys = before.todo.map((t: any) => t.key);
-  for (const k of ["allergy", "vitals", "note", "round", "consent", "deposit"]) assert.ok(keys.includes(k), `to do: ${k}`);
+  for (const k of ["allergy", "vitals", "note", "round", "deposit"]) assert.ok(keys.includes(k), `to do: ${k}`);
+  // The admission needed a signed consent, so there is nothing left to do about it, and there is no final bill yet.
+  assert.ok(!keys.includes("consent")); assert.equal(before.readiness.admissionConsent, true); assert.equal(before.readiness.finalBill, false);
   assert.equal(before.payer, "Self pay");
   await as(NURSE, "POST", "/api/ipd/nurse/vitals", { admissionId: adm, pulse: 80, tempC: 37 });
   await as(DOCTOR, "POST", "/api/ipd/notes", { admissionId: adm, noteType: "Doctor Round", content: "Stable" });

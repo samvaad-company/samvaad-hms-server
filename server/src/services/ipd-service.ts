@@ -32,6 +32,8 @@ import { type Session } from "@/auth/session";
 import { scopeToOwnDoctor } from "@/services/doctor-scope";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { nextNumber } from "@/services/id-service";
+import { listPatientConsents } from "@/services/consents-service";
+import { assertDepartmentsCleared, assertFinalBill } from "@/services/ipd-clearance-service";
 
 export const ADMISSION_TYPES = ["Emergency", "Planned", "Day care", "Maternity", "Transfer in"] as const;
 export const DEPOSIT_MODES = ["Cash", "UPI", "Card"] as const;
@@ -102,6 +104,20 @@ async function nextAdmissionNo(actor: Session): Promise<string> {
   return nextNumber("admission", actor, async () => (await ipdRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => r.admission_no ?? ""), { prefix, pad: 5 });
 }
 
+/**
+ * Admission needs the patient's signed admission consent. One consent covers one admission: the ones already used on a stay don't count again.
+ * `consents` lists every admission consent the patient has made, with what stage it is at, so the admit screen can show them.
+ */
+export async function admissionConsentStatus(patientId: number, actor: Session) {
+  const patient = await patientsRepo.getRow(patientId);
+  assertOwnedByHospital(patient, actor, "Patient");
+  const stays = await ipdRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: patientId }] }, actor));
+  const used = new Set((stays.rows as IpdAdmissionRow[]).map((a) => a.admission_consent_id).filter((v): v is number => v != null));
+  const mine = (await listPatientConsents(patientId, actor)).filter((c) => c.templateKey === "admission-consent" && !used.has(c.id));
+  const signed = mine.filter((c) => c.status === "Signed").sort((a, b) => (b.signedAt ?? "").localeCompare(a.signedAt ?? "") || b.id - a.id)[0] ?? null;
+  return { ready: !!signed, consentId: signed?.id ?? null, usedIds: [...used] };
+}
+
 /** A patient has one stay at a time: two clerks admitting the same person at once must not both succeed. */
 export async function admitPatient(input: unknown, actor: Session) {
   const data = validate(admitSchema, input);
@@ -154,6 +170,14 @@ async function admitLocked(data: ReturnType<typeof validate<typeof admitSchema>>
     if (live) throw new ConflictError(`${live.patient_name} is already admitted${live.bed ? ` (bed ${live.bed})` : ""}. Discharge or transfer that stay first`);
   }
 
+  // No admission without the patient's signed consent: if the form was made but not signed, the admission does not happen.
+  if (!data.patientId) throw new BadRequestError("Admission needs the patient's signed consent, so pick a registered patient (register them first if they are new)");
+  const consent = await admissionConsentStatus(data.patientId, actor);
+  if (!consent.ready) {
+    throw new ConflictError("The admission consent has not been signed, so the patient can't be admitted. Create the admission consent, get it signed (on paper or on the phone), then admit.", { code: "consent_required" });
+  }
+  const consentId = consent.consentId;
+
   const wardRow = ward
     ? await wardsRepo.findRow([
         { column: "name", op: "eq", value: ward },
@@ -200,6 +224,7 @@ async function admitLocked(data: ReturnType<typeof validate<typeof admitSchema>>
       primary_nurse: nurse.name,
       expected_stay_days: data.expectedStayDays ?? null,
       diet: data.diet,
+      admission_consent_id: consentId,
     });
   });
   await audit(actor, "admit", "ipd", row.id, { bedId, ward, admissionNo });
@@ -265,6 +290,9 @@ export async function dischargePatient(id: number, actor: Session, input: unknow
   if (admission.status === "Discharged") {
     throw new ConflictError("Patient is already discharged");
   }
+  // The final bill must exist, and every department the patient used has to have cleared them, before anything else.
+  await assertFinalBill(admission as IpdAdmissionRow, actor);
+  await assertDepartmentsCleared(admission as IpdAdmissionRow, actor);
   const waiver = await billingClearance(admission, input, actor);
   const row = await transactional("ipd.discharge", async (uow) => {
     if (admission.bed_id) {
