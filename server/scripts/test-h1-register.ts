@@ -147,6 +147,50 @@ test("bad dates are refused; only people who can read the pharmacy can open the 
   assert.equal((await as(RECEPTION, "GET", "/api/pharmacy/h1-register")).status, 403);
 });
 
+test("a medicine billed on a Billing-screen bill is an H1 line when the inventory says so (automatic) or it is ticked, and shows in the register", async () => {
+  const line = (description: string, extra: Record<string, unknown> = {}) => ({ description, quantity: 2, unitPrice: 30, gstRate: 0, ...extra });
+  const r = await as(ADMIN, "POST", "/api/billing", { patientId: patA.id, patientName: patA.name, type: "Pharmacy", items: [line("Alprazolam 0.5 Tab H1"), line("Plain Cough Syrup", { isH1: true, givenBy: "Nurse Asha" }), line("Plain Cough Syrup"), line("Consumables kit")] });
+  assert.equal(r.status, 201, JSON.stringify(r.error));
+  const flags = r.data.items.map((i: any) => !!i.isH1);
+  assert.deepEqual(flags, [true, true, false, false], "the H1 medicine is automatic; the ticked one too; the rest are not");
+  assert.equal(r.data.items[0].hsnSac, "30049099", "the HSN comes from the inventory");
+  const mine = (await register(`?patientId=${patA.id}`)).entries.filter((e) => e.source === "Bill" && e.reference === r.data.billNumber);
+  assert.equal(mine.length, 2);
+  assert.ok(mine.every((e) => e.quantity === 2 && e.billNumber === r.data.billNumber));
+  const byName = Object.fromEntries(mine.map((e) => [e.medicineName, e]));
+  assert.equal(byName["Alprazolam 0.5 Tab H1"].givenBy, "Dr. Kevin Carter", "defaults to the biller's name");
+  assert.equal(byName["Plain Cough Syrup"].givenBy, "Nurse Asha", "the biller can name someone else");
+  assert.ok(Number(byName["Alprazolam 0.5 Tab H1"].givenById) > 0 && byName["Plain Cough Syrup"].givenById === byName["Alprazolam 0.5 Tab H1"].givenById, "the user id is saved either way");
+  // a refunded bill's H1 lines show as returned
+  await as(ADMIN, "PATCH", `/api/billing/${r.data.id}`, { status: "Paid" });
+  await as(ADMIN, "PATCH", `/api/billing/${r.data.id}`, { status: "Refunded" });
+  const refunded = (await register(`?patientId=${patA.id}`)).entries.filter((e) => e.source === "Bill" && e.reference === r.data.billNumber);
+  assert.ok(refunded.every((e) => e.returnedQty === 2), "a refunded bill is returned");
+});
+
+test("a billed or sold medicine takes the earliest-expiring batch by default, or the batch that was chosen; a sale takes its units from it", async () => {
+  const { pharmacyRepo, pharmacyBatchesRepo } = await import("@/repositories");
+  const it = await newItem("Batchy Tab", { stock: 10, expiryDate: "2031-06-01" });
+  const first = (await as(ADMIN, "GET", `/api/pharmacy/${it.id}/batches`)).data;
+  assert.equal(first.length, 1, "the stock is one opening batch");
+  await pharmacyBatchesRepo.create({ hospital_id: (await pharmacyRepo.getRow(it.id))!.hospital_id, item_id: it.id, batch_no: "B-EARLY", expiry_date: "2030-01-01", quantity: 5 } as never);
+  await pharmacyRepo.update(it.id, { stock: 15 } as never);
+  const batches = (await as(ADMIN, "GET", `/api/pharmacy/${it.id}/batches`)).data;
+  assert.deepEqual(batches.map((b: any) => b.batchNo), ["B-EARLY", first[0].batchNo], "earliest expiry first");
+  const line = (extra: Record<string, unknown> = {}) => ({ description: "Batchy Tab", quantity: 2, unitPrice: 5, gstRate: 0, ...extra });
+  const bill = await as(ADMIN, "POST", "/api/billing", { patientId: patA.id, patientName: patA.name, type: "Pharmacy", items: [line(), line({ batchNo: first[0].batchNo }), line({ isH1: true })] });
+  assert.equal(bill.status, 201, JSON.stringify(bill.error));
+  assert.deepEqual(bill.data.items.map((i: any) => i.batchNo), ["B-EARLY", first[0].batchNo, "B-EARLY"]);
+  const bad1 = await as(ADMIN, "POST", "/api/billing", { patientId: patA.id, patientName: patA.name, type: "Pharmacy", items: [line({ batchNo: "NOPE" })] });
+  assert.ok(bad(bad1.status), "a batch that isn't in stock is refused");
+  const sale = await as(ADMIN, "POST", "/api/pharmacy/sales", { patientId: patA.id, paymentMode: "Cash", items: [{ medicineName: "Batchy Tab", pharmacyItemId: it.id, quantity: 7, unitPrice: 5, isH1: true }] });
+  assert.equal(sale.status, 201, JSON.stringify(sale.error));
+  const after = (await as(ADMIN, "GET", `/api/pharmacy/${it.id}/batches`)).data;
+  assert.deepEqual(after.map((b: any) => [b.batchNo, b.quantity]), [[first[0].batchNo, 8]], "B-EARLY (5) is used up first, then 2 from the next");
+  const reg = (await register(`?patientId=${patA.id}`)).entries.filter((e) => e.medicineName === "Batchy Tab");
+  assert.deepEqual(reg.map((e) => e.batchNo).sort(), ["B-EARLY", `B-EARLY, ${first[0].batchNo}`].sort(), "the register shows the batch (a bill line and a sale line)");
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log(`  PASS  ${t.name}`); }

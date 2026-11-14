@@ -24,6 +24,7 @@ import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/sh
 import type { PharmacyItem } from "@/types";
 import { PatientName } from "@/components/loyalty/PatientName";
 import { PurchasePanel } from "@/components/pharmacy/PurchasePanel";
+import { BatchSelect } from "@/components/pharmacy/BatchSelect";
 import { H1RegisterPanel } from "@/components/pharmacy/H1RegisterPanel";
 import { useSetup } from "@/components/setup/ui";
 
@@ -77,7 +78,7 @@ const PO_STATUS: Record<string, string> = {
   Cancelled:"bg-[#ffe9e9] text-[#ff0004]",
 };
 
-interface Line { medicineName: string; quantity: string; price: string; pharmacyItemId?: number; isH1?: boolean }
+interface Line { medicineName: string; quantity: string; price: string; pharmacyItemId?: number; isH1?: boolean; batchNo?: string }
 
 /** Comparable form of a medicine name: lowercase, no strength or packaging — mirrors the server's rx-to-stock matching. */
 function medicineKey(name: string): string {
@@ -210,6 +211,8 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
 
   const [patientId, setPatientId] = useState("");
   const [rxNumber, setRxNumber] = useState("");
+  const [givenBy, setGivenBy] = useState("");
+  const { user } = useAuth();
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState<DiscountType>("flat");
@@ -276,9 +279,11 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           unitPrice: Number(l.price) || 0,
           pharmacyItemId: l.pharmacyItemId,
           isH1: l.isH1 === true || (l.pharmacyItemId ? items.find(x => x.id === l.pharmacyItemId)?.isH1 === true : false),
+          givenBy: givenBy.trim() || undefined,
+          batchNo: l.batchNo || undefined,
         })),
     }));
-    setPatientId(""); setRxNumber(""); setDiscount(""); setDiscountType("flat");
+    setPatientId(""); setRxNumber(""); setGivenBy(""); setDiscount(""); setDiscountType("flat");
     setLines([{ medicineName: "", quantity: "", price: "" }]);
     reload(); onChanged();
   }
@@ -436,6 +441,9 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
               ]}
             />
           </FormRow>
+          <FormRow label="H1 drugs given by" hint="Defaults to you. Your user ID is saved with it in the H1 register.">
+            <input value={givenBy} onChange={e => setGivenBy(e.target.value)} maxLength={80} placeholder={user?.name ?? "Name"} aria-label="H1 drugs given by" className="w-full text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
+          </FormRow>
           <FormRow label="Payment Mode">
             <FormSelect value={paymentMode} onChange={setPaymentMode}
               options={["Cash","UPI","Card","Cheque","Insurance"].map(m => ({ value: m, label: m }))} />
@@ -480,7 +488,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
                 <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 54px 36px" }}>
                   <MedicinePicker items={items} value={l.medicineName}
                     placeholder="Scan barcode or search medicine"
-                    onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id, isH1: m?.isH1 === true })} />
+                    onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id, isH1: m?.isH1 === true, batchNo: "" })} />
                   <input value={l.quantity} type="number" placeholder="Qty"
                     onChange={(e) => setLine(i, { quantity: e.target.value })}
                     className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
@@ -494,6 +502,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
                     disabled={lines.length === 1}
                     className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
                 </div>
+                {stockMatch && !outOfStock && <BatchSelect itemId={stockMatch.id} value={l.batchNo ?? ""} onChange={(batchNo) => setLine(i, { batchNo })} />}
                 {(notFound || outOfStock) && (
                   <p className="text-[11px] font-normal text-[#ff0004] pl-1">
                     {notFound ? "Not found in pharmacy inventory — remove or pick the matching item." : "Out of stock — remove this line or wait for restock."}

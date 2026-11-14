@@ -3,7 +3,7 @@
  * for, the prescriber, the quantity and when. A line is in the register when its medicine is marked H1 in the inventory or the
  * pharmacist ticked "H1" on it. It can be filtered by dates, by patient and by a search word.
  */
-import { billsRepo, patientsRepo, pharmacyDispenseLinesRepo, pharmacyDispensesRepo, pharmacySaleItemsRepo, pharmacySalesRepo, prescriptionsRepo } from "@/repositories";
+import { billItemsRepo, billsRepo, patientsRepo, pharmacyDispenseLinesRepo, pharmacyDispensesRepo, pharmacySaleItemsRepo, pharmacySalesRepo, prescriptionsRepo } from "@/repositories";
 import { type PharmacyDispenseRow, type PharmacySaleRow } from "@/db/tables";
 import { ValidationError } from "@/lib/errors";
 import { localDate, localTime } from "@/lib/clock";
@@ -24,9 +24,10 @@ export async function h1Register(q: H1Query, actor: Session): Promise<H1Register
   if (errors.length) throw new ValidationError(errors);
 
   const flagged = [{ column: "is_h1", op: "eq" as const, value: true }];
-  const [{ rows: dLines }, { rows: sItems }] = await Promise.all([
+  const [{ rows: dLines }, { rows: sItems }, { rows: bItems }] = await Promise.all([
     pharmacyDispenseLinesRepo.listRows(scopeToHospital({ unpaged: true, filters: flagged }, actor)),
     pharmacySaleItemsRepo.listRows({ unpaged: true, filters: flagged }),
+    billItemsRepo.listRows(scopeToHospital({ unpaged: true, filters: flagged }, actor)),
   ]);
 
   const [{ rows: dispenses }, { rows: sales }, { rows: patients }, { rows: rxs }, { rows: bills }] = await Promise.all([
@@ -57,7 +58,7 @@ export async function h1Register(q: H1Query, actor: Session): Promise<H1Register
     entries.push({
       key: `dispense:${l.id}`, source: "Dispense", date: localDate(at), time: localTime(at), patientId: d.patient_id ?? null, patientName: d.patient_name, ...person(d.patient_id ?? null),
       prescriber: rx?.doctor ?? "", rxNumber: d.rx_number ?? "", medicineName: l.medicine_name, quantity: l.quantity, returnedQty: l.returned_qty ?? 0, batchNo: l.batch_no ?? "",
-      reference: d.dispense_no, billNumber: d.bill_number ?? "", givenBy: d.dispensed_by ?? "",
+      reference: d.dispense_no, billNumber: d.bill_number ?? "", givenBy: d.dispensed_by ?? "", givenById: d.dispensed_by_id ?? null,
     });
   }
   for (const i of sItems) {
@@ -67,8 +68,20 @@ export async function h1Register(q: H1Query, actor: Session): Promise<H1Register
     const rx = s.rx_number ? rxByNumber.get(s.rx_number) : undefined;
     entries.push({
       key: `sale:${i.id}`, source: "Sale", date: localDate(at), time: localTime(at), patientId: s.patient_id ?? null, patientName: s.patient_name, ...person(s.patient_id ?? null),
-      prescriber: rx?.doctor ?? "", rxNumber: s.rx_number ?? "", medicineName: i.medicine_name, quantity: i.quantity, returnedQty: 0, batchNo: "",
-      reference: s.sale_number, billNumber: s.bill_id ? billById.get(s.bill_id)?.bill_number ?? "" : "", givenBy: "",
+      prescriber: rx?.doctor ?? "", rxNumber: s.rx_number ?? "", medicineName: i.medicine_name, quantity: i.quantity, returnedQty: 0, batchNo: i.batch_no ?? "",
+      reference: s.sale_number, billNumber: s.bill_id ? billById.get(s.bill_id)?.bill_number ?? "" : "", givenBy: i.given_by ?? "", givenById: i.given_by_id ?? null,
+    });
+  }
+
+  // Medicines billed from the Billing screen (a Pharmacy, OPD or IPD bill with an H1 line).
+  for (const i of bItems) {
+    const b = billById.get(i.bill_id);
+    if (!b) continue;
+    const at = new Date(b.created_at);
+    entries.push({
+      key: `bill:${i.id}`, source: "Bill", date: localDate(at), time: localTime(at), patientId: b.patient_id ?? null, patientName: b.patient_name, ...person(b.patient_id ?? null),
+      prescriber: b.doctor_name ?? "", rxNumber: "", medicineName: i.name, quantity: i.quantity, returnedQty: b.status === "Refunded" ? i.quantity : 0, batchNo: i.batch_no ?? "",
+      reference: b.bill_number, billNumber: b.bill_number, givenBy: i.given_by ?? "", givenById: i.given_by_id ?? null,
     });
   }
 

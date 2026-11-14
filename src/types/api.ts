@@ -308,6 +308,8 @@ export interface TeleconsultConfigDTO {
   currency: string;
   gatewayMode: "razorpay" | "mock" | "off";
   google: { configured: boolean; connected: boolean; needsReconnect: boolean; meetAccessControl: boolean; lastError: string | null; accountEmail: string };
+  /** The consent the patient accepts when booking, as worded in Masters. */
+  consent: { required: boolean; title: string; text: string };
 }
 
 export interface OpdRecordDTO extends OpdRecord {
@@ -383,6 +385,12 @@ export interface BillItemDTO {
   gstRate: number;
   hsnSac: string;
   amount: number;
+  /** A Schedule H1 drug (it is in the H1 register). */
+  isH1?: boolean;
+  /** Who handed over the H1 drug. */
+  givenBy?: string;
+  /** The batch the medicine came from. */
+  batchNo?: string;
 }
 
 export interface BillDTO extends Bill {
@@ -2333,10 +2341,13 @@ export interface DispenseStockDTO {
 }
 
 /** One H1 drug given to a patient, as the H1 register lists it. */
+/** A batch of a medicine that still holds stock. */
+export interface PharmacyBatchDTO { id: number; batchNo: string; expiryDate: string; quantity: number; expired: boolean }
+
 export interface H1RegisterEntryDTO {
   key: string;
   /** Counter dispense or sale. */
-  source: "Dispense" | "Sale";
+  source: "Dispense" | "Sale" | "Bill";
   /** YYYY-MM-DD in the hospital's time zone. */
   date: string;
   time: string;
@@ -2355,6 +2366,8 @@ export interface H1RegisterEntryDTO {
   reference: string;
   billNumber: string;
   givenBy: string;
+  /** The user who gave it (for tracking), when known. */
+  givenById: number | null;
 }
 
 export interface H1RegisterDTO {

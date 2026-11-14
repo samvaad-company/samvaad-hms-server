@@ -476,6 +476,7 @@ export interface PharmacyDispenseRow extends Row {
   /** Dispensed | Part returned | Returned */
   status: string;
   dispensed_by: string;
+  dispensed_by_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -615,6 +616,13 @@ export interface BillItemRow extends Row {
   amount: number;
   /** What the contract pays for this line (0 on a self-pay bill). */
   payer_amount?: number;
+  /** A Schedule H1 drug billed on this line: it goes in the H1 register. */
+  is_h1?: boolean | null;
+  /** Who handed the H1 drug over (a name, the biller by default) and that user's id, so it can be tracked. */
+  given_by?: string | null;
+  given_by_id?: number | null;
+  /** The batch the units came from (several, comma-separated, when a sale spans batches). */
+  batch_no?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1717,6 +1725,11 @@ export interface PharmacySaleItemRow extends Row {
   line_total: number;
   /** A Schedule H1 drug: the line goes in the H1 register. */
   is_h1?: boolean | null;
+  /** Who handed the H1 drug over (a name, the biller by default) and that user's id, so it can be tracked. */
+  given_by?: string | null;
+  given_by_id?: number | null;
+  /** The batch the units came from (several, comma-separated, when a sale spans batches). */
+  batch_no?: string | null;
   created_at: string;
 }
 
@@ -2023,6 +2036,9 @@ export interface TeleconsultBookingRow extends Row {
   /** Set when the fee was returned (online refund id, or a note for cash/UPI that staff hand back). */
   refund_reference?: string | null;
   refunded_at?: string | null;
+  /** When the patient accepted the video-consultation consent (null when the hospital doesn't ask for one), and the wording they accepted. */
+  consent_accepted_at?: string | null;
+  consent_text?: string | null;
   created_at: string;
   updated_at: string;
 }

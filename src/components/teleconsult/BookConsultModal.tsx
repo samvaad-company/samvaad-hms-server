@@ -29,6 +29,9 @@ export function BookConsultModal({
   const blank = { patientId: "", doctorId: "", date: "", time: "", reason: "", paymentMode: "cash", reference: "" };
   const [form, setForm] = useState(blank);
   const [error, setError] = useState<string | null>(null);
+  /** The patient has agreed to the video-consultation consent (the wording comes from Masters). */
+  const [agreed, setAgreed] = useState(false);
+  const consent = config?.consent;
   const [slotsKey, setSlotsKey] = useState(0);
   /** Only doctors who have turned video on (and the hospital allows it) can be booked for one. */
   const videoDoctors = doctors.filter(d => d.videoEnabled && d.status !== "On Leave");
@@ -40,16 +43,17 @@ export function BookConsultModal({
     { value: "cash", label: "Cash" }, { value: "upi", label: "UPI" }, { value: "card", label: "Card" },
     ...(isAdmin ? [{ value: "waived", label: "Fee waived" }] : []),
   ], [isAdmin]);
-  const ready = form.patientId && form.doctorId && form.date && form.time && form.reason.trim().length >= 2;
+  const ready = form.patientId && form.doctorId && form.date && form.time && form.reason.trim().length >= 2 && (!consent?.required || agreed);
 
   async function submit() {
     setError(null);
     try {
       await run(() => api.post("/teleconsult/bookings", {
         patientId: Number(form.patientId), doctorId: Number(form.doctorId), date: form.date, time: form.time,
-        reason: form.reason, paymentMode: form.paymentMode, reference: form.reference || undefined,
+        reason: form.reason, paymentMode: form.paymentMode, reference: form.reference || undefined, consent: consent?.required ? agreed : undefined,
       }));
       setForm(blank);
+      setAgreed(false);
       onBooked();
       onClose();
     } catch (e) {
@@ -103,6 +107,16 @@ export function BookConsultModal({
             <FormRow label="Payment reference" hint="Optional — receipt or UPI transaction id">
               <FormInput value={form.reference} onChange={v => set("reference", v)} />
             </FormRow>
+          </div>
+        )}
+        {consent?.required && (
+          <div className="col-span-2 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--subtle)] p-3">
+            <p className="text-[13px] font-medium text-[color:var(--ink)]">{consent.title}</p>
+            <div className="mt-1 max-h-[140px] overflow-y-auto whitespace-pre-line text-[12px] text-[color:var(--ink-soft)]">{consent.text}</div>
+            <label className="mt-2 flex cursor-pointer items-start gap-2 text-[13px] text-[color:var(--ink)]">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-[3px]" />
+              <span>The patient has read and accepts this consent for the video consultation.</span>
+            </label>
           </div>
         )}
         {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error}</div>}

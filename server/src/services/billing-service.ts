@@ -1,7 +1,8 @@
 /**
  * Billing service — invoices with server-computed GST and totals.
  */
-import { billsRepo, billItemsRepo, billPayoutsRepo, doctorsRepo, ipdRepo, patientsRepo } from "@/repositories";
+import { billsRepo, billItemsRepo, billPayoutsRepo, doctorsRepo, ipdRepo, patientsRepo, pharmacyRepo } from "@/repositories";
+import { pickBatchLabel } from "@/services/pharmacy-batch-service";
 import { localTime } from "@/lib/clock";
 import { toBillDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
@@ -36,7 +37,7 @@ const itemsSchema = { ...createSchema, amount: { type: "number", required: false
 const CUSTOM_GST = [0, 5, 12, 18, 28];
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
-const toItemDto = (r: BillItemRow): BillItemDTO => ({ id: r.id, serviceId: r.service_id, code: r.code, name: r.name, quantity: r.quantity, unitPrice: Number(r.unit_price), gstRate: Number(r.gst_rate), hsnSac: r.hsn_sac ?? "", amount: Number(r.amount), ...(Number(r.payer_amount ?? 0) > 0 ? { payerAmount: Number(r.payer_amount) } : {}) });
+const toItemDto = (r: BillItemRow): BillItemDTO => ({ id: r.id, serviceId: r.service_id, code: r.code, name: r.name, quantity: r.quantity, unitPrice: Number(r.unit_price), gstRate: Number(r.gst_rate), hsnSac: r.hsn_sac ?? "", amount: Number(r.amount), ...(r.is_h1 ? { isH1: true, givenBy: r.given_by ?? "" } : {}), ...(r.batch_no ? { batchNo: r.batch_no } : {}), ...(Number(r.payer_amount ?? 0) > 0 ? { payerAmount: Number(r.payer_amount) } : {}) });
 
 async function itemsOf(billId: number, actor: Session): Promise<BillItemRow[]> {
   const { rows } = await billItemsRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "bill_id", op: "eq", value: billId }] }, actor));
@@ -61,7 +62,7 @@ export async function getBill(id: number, actor: Session) {
   return { ...toBillDTO(row), paymentMode: row.payment_mode ?? null, ...(items.length ? { items: items.map(toItemDto) } : {}) };
 }
 
-interface Line { serviceId: number | null; code: string; name: string; quantity: number; unitPrice: number; gstRate: number; hsnSac: string }
+interface Line { serviceId: number | null; code: string; name: string; quantity: number; unitPrice: number; gstRate: number; hsnSac: string; isH1: boolean; givenBy: string; batchNo: string }
 
 /**
  * Turn the submitted lines into priced, taxed ones. A line that names a service is priced from the patient's rate plan and taxed from
@@ -150,7 +151,7 @@ async function resolveLines(raw: unknown, patientId: number | null, actor: Sessi
       const svc = services.find((s) => s.id === Number(l.serviceId));
       if (!svc) { errors.push({ field: `items[${i}]`, message: "that service isn't in the catalogue (or is switched off)" }); continue; }
       const tax = taxFor(svc, today);
-      out.push({ serviceId: svc.id, code: svc.code, name: svc.name, quantity, unitPrice: r2(plan ? effectivePrice(plan, plans, svc, "general") : Number(svc.data.price ?? 0)), gstRate: tax.rate, hsnSac: String(svc.data.hsnSac ?? "") });
+      out.push({ serviceId: svc.id, code: svc.code, name: svc.name, quantity, unitPrice: r2(plan ? effectivePrice(plan, plans, svc, "general") : Number(svc.data.price ?? 0)), gstRate: tax.rate, hsnSac: String(svc.data.hsnSac ?? ""), isH1: false, givenBy: "", batchNo: "" });
       continue;
     }
     const name = typeof l.description === "string" ? l.description.trim().slice(0, 160) : "";
@@ -158,7 +159,9 @@ async function resolveLines(raw: unknown, patientId: number | null, actor: Sessi
     if (!name) { errors.push({ field: `items[${i}]`, message: "pick a service or describe the charge" }); continue; }
     if (!Number.isFinite(price) || price < 0 || price > 100_000_000) { errors.push({ field: `items[${i}]`, message: "price must be a number from 0" }); continue; }
     if (!CUSTOM_GST.includes(rate)) { errors.push({ field: `items[${i}]`, message: `GST must be one of ${CUSTOM_GST.join(", ")}%` }); continue; }
-    out.push({ serviceId: null, code: "", name, quantity, unitPrice: r2(price), gstRate: rate, hsnSac: "" });
+    // A custom line that names a medicine in the inventory takes its HSN, and is an H1 line when the medicine is H1 (or the cashier ticked it).
+    const stock = await pharmacyRepo.findRow([{ column: "name", op: "eq", value: name }, { column: "hospital_id", op: "eq", value: actor.hospitalId }]);
+    out.push({ serviceId: null, code: "", name, quantity, unitPrice: r2(price), gstRate: rate, hsnSac: stock?.hsn ?? "", isH1: l.isH1 === true || stock?.is_h1 === true, givenBy: typeof l.givenBy === "string" ? l.givenBy.trim().slice(0, 80) : "", batchNo: stock ? await pickBatchLabel(stock, typeof l.batchNo === "string" ? l.batchNo : "", actor) : "" });
   }
   if (errors.length) throw new ValidationError(errors);
   return out;
@@ -261,7 +264,7 @@ export async function createBill(input: unknown, actor: Session) {
       ...(admission ? { admission_id: admission.id, admission_no: admission.admission_no ?? null, admission_date: admission.admission_date, discharge_date: admission.discharge_date ?? null, admission_deposit: Number(admission.deposit_amount ?? 0) } : {}),
     });
     for (const [i, l] of lines.entries()) {
-      await uow.insert(TABLES.billItems, { hospital_id: actor.hospitalId, bill_id: bill.id, service_id: l.serviceId, code: l.code, name: l.name, quantity: l.quantity, unit_price: l.unitPrice, gst_rate: l.gstRate, hsn_sac: l.hsnSac, amount: priced.amounts[i], payer_amount: split?.lines[i].payer ?? 0 });
+      await uow.insert(TABLES.billItems, { hospital_id: actor.hospitalId, bill_id: bill.id, service_id: l.serviceId, code: l.code, name: l.name, quantity: l.quantity, unit_price: l.unitPrice, gst_rate: l.gstRate, hsn_sac: l.hsnSac, amount: priced.amounts[i], payer_amount: split?.lines[i].payer ?? 0, is_h1: l.isH1, ...(l.isH1 ? { given_by: l.givenBy || actor.name, given_by_id: actor.userId } : {}), ...(l.batchNo ? { batch_no: l.batchNo } : {}) });
     }
     for (const p of payouts) {
       await uow.insert<BillPayoutRow>(TABLES.billPayouts, {

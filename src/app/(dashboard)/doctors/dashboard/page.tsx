@@ -6,7 +6,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import type { OpdRecordDTO, DoctorDTO, BillDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Users, CheckCircle, XCircle, Clock, DollarSign, Stethoscope } from "lucide-react";
+import { Users, CheckCircle, XCircle, Clock, IndianRupee, Stethoscope } from "lucide-react";
 import { PatientName } from "@/components/loyalty/PatientName";
 
 /** Most frequent non-empty value, used for "top reason". */
@@ -63,7 +63,7 @@ export default function DoctorDashboardPage() {
     { icon: Clock,       label: "Waiting",        value: String(waiting),      color: "text-[#ff9000]",  bg: "bg-[#fff2e0]" },
     { icon: CheckCircle, label: "Completed",      value: String(completed),    color: "text-[#00955c]",  bg: "bg-[#dffff3]" },
     { icon: XCircle,     label: "In Consultation",value: String(inConsult),    color: "text-[#007cff]",  bg: "bg-[#d6eaff]" },
-    { icon: DollarSign,  label: "Revenue (Paid)", value: `₹${revenue.toLocaleString("en-IN")}`, color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
+    { icon: IndianRupee,  label: "Revenue (Paid)", value: `₹${revenue.toLocaleString("en-IN")}`, color: "text-[#007cff]", bg: "bg-[#d6eaff]" },
   ];
 
   const QUICK_STATS = [

@@ -48,7 +48,7 @@ const byExpiry = (a: PharmacyBatchRow, b: PharmacyBatchRow) => ((a.expiry_date |
  * Make the item's batches add up to its stock. Stock added elsewhere becomes a new batch (with the item's own expiry); stock
  * taken away elsewhere is written off the earliest-expiring batches. Call while holding the item's lock.
  */
-async function syncBatches(item: PharmacyItemRow, actor: Session): Promise<PharmacyBatchRow[]> {
+export async function syncBatches(item: PharmacyItemRow, actor: Session): Promise<PharmacyBatchRow[]> {
   let rows = (await batchesOf(item.id, actor)).sort(byExpiry);
   const sum = rows.reduce((n, b) => n + Number(b.quantity), 0);
   const stock = Math.max(0, Number(item.stock));
@@ -73,7 +73,7 @@ async function syncBatches(item: PharmacyItemRow, actor: Session): Promise<Pharm
 const inDate = (b: PharmacyBatchRow, today: string) => !b.expiry_date || b.expiry_date >= today;
 
 /** Fit-to-dispense units of an item, per batch, soonest to expire first. */
-function usable(batches: PharmacyBatchRow[], today: string): PharmacyBatchRow[] {
+export function usable(batches: PharmacyBatchRow[], today: string): PharmacyBatchRow[] {
   return batches.filter((b) => Number(b.quantity) > 0 && inDate(b, today)).sort(byExpiry);
 }
 
@@ -277,7 +277,7 @@ export async function createDispense(input: unknown, actor: Session): Promise<Di
     const id = await transactional("pharmacy.dispense", async (uow) => {
       const d = await uow.insert<PharmacyDispenseRow>(TABLES.pharmacyDispenses, {
         hospital_id: hospitalId, dispense_no: dispenseNo, patient_id: req.patientId, patient_name: patientName, walk_in_note: req.walkInNote, prescription_id: req.prescriptionId,
-        rx_number: rxNumber, billing: req.billing, bill_id: null, bill_number: null, admission_id: null, admission_no: null, subtotal, status: "Dispensed", dispensed_by: actor.name,
+        rx_number: rxNumber, billing: req.billing, bill_id: null, bill_number: null, admission_id: null, admission_no: null, subtotal, status: "Dispensed", dispensed_by: actor.name, dispensed_by_id: actor.userId,
       });
       for (const p of plan) {
         let drawn = 0;

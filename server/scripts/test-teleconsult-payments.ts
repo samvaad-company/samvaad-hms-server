@@ -259,7 +259,7 @@ const nextPatient = () => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10][patientCounter++ % 10]
 async function start(opts: { patientId?: number; slot?: ReturnType<typeof nextSlot> } = {}) {
   const slot = opts.slot ?? nextSlot();
   const patientId = opts.patientId ?? nextPatient();
-  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "test visit" });
+  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "test visit", consent: true });
   assert.equal(r.status, 201, `start booking: ${JSON.stringify(r.error)}`);
   return { slot, patientId, booking: r.data.booking as { id: number }, payment: r.data.payment as { orderId: string; amountPaise: number; keyId: string } };
 }
@@ -710,7 +710,7 @@ test("refund made in the Razorpay dashboard is mirrored by the refund.processed 
 
 test("staff booking (cash) is ledgered with an id, and cancelling returns the fee on record", async () => {
   const slot = nextSlot();
-  const r = await staff("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "front desk", paymentMode: "cash", reference: "RCPT-77" });
+  const r = await staff("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "front desk", paymentMode: "cash", consent: true, reference: "RCPT-77" });
   assert.equal(r.status, 201, JSON.stringify(r.error));
   const appt = (await apptsOf(r.data.id))[0];
   assert.equal(appt.payment_id, "RCPT-77");
@@ -728,7 +728,7 @@ test("staff booking (cash) is ledgered with an id, and cancelling returns the fe
 
   // Waived and reference-less bookings still get a findable id.
   const s2 = nextSlot();
-  const w = await staff("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: s2.doctorId, date: s2.date, time: s2.time, reason: "waived", paymentMode: "waived" });
+  const w = await staff("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: s2.doctorId, date: s2.date, time: s2.time, reason: "waived", paymentMode: "waived", consent: true });
   assert.equal(w.status, 201);
   assert.ok((await apptsOf(w.data.id))[0].payment_id?.startsWith("WAIVED-"));
 });
@@ -782,7 +782,7 @@ test("free consultation confirms immediately with its own ledger id", async () =
   await setPrice(0);
   const slot = nextSlot();
   const patientId = nextPatient();
-  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "free visit" });
+  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "free visit", consent: true });
   assert.equal(r.status, 201);
   assert.equal(r.data.payment, null);
   assert.equal(r.data.booking.status, "confirmed");
@@ -796,7 +796,7 @@ test("free consultation confirms immediately with its own ledger id", async () =
 test("price tampering, past times, closed days and double booking are all refused", async () => {
   const slot = nextSlot();
   const patientId = nextPatient();
-  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "tamper", amount: 1, price: 1, hospitalId: 2 });
+  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "tamper", amount: 1, price: 1, hospitalId: 2, consent: true });
   assert.equal(r.status, 201);
   assert.equal(r.data.payment.amountPaise, 50000, "client amount ignored");
   assert.equal(rz.orders.get(r.data.payment.orderId)!.amount, 50000);
@@ -808,10 +808,10 @@ test("price tampering, past times, closed days and double booking are all refuse
   assert.equal((await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: 2, date: slot.date, time: "03:00", reason: "night" })).status, 400);
 
   // Someone else wants the slot while it's held for the first patient.
-  const other = await portal("POST", "/api/portal/teleconsult/bookings", { patientId: patientId === 1 ? 2 : 1, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "same slot" });
+  const other = await portal("POST", "/api/portal/teleconsult/bookings", { patientId: patientId === 1 ? 2 : 1, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "same slot", consent: true });
   assert.equal(other.status, 409);
   // The same patient asking again gets the same open order back.
-  const again = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "retry" });
+  const again = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "retry", consent: true });
   assert.equal(again.status, 201);
   assert.equal(again.data.payment.orderId, r.data.payment.orderId);
   assert.equal(again.data.booking.id, r.data.booking.id);
@@ -821,7 +821,7 @@ test("one patient can't pile up unpaid bookings", async () => {
   const patientId = nextPatient();
   for (let i = 0; i < 3; i++) await start({ patientId });
   const slot = nextSlot();
-  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "one too many" });
+  const r = await portal("POST", "/api/portal/teleconsult/bookings", { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "one too many", consent: true });
   assert.equal(r.status, 409);
 });
 
@@ -840,10 +840,10 @@ test("portal routes need the portal key; public link routes need a genuine token
   const session = await request("GET", `/api/public/teleconsult/session?token=${token}`);
   assert.equal(session.status, 200);
   assert.equal(session.data.price, 500);
-  assert.ok(!JSON.stringify(session.data).includes("phone"), "no personal details beyond the first name");
+  assert.ok(!JSON.stringify(session.data).includes("\"phone\""), "no personal details beyond the first name");
 
   const slot = nextSlot();
-  const b = await request("POST", "/api/public/teleconsult/bookings", { body: { token, patientId: 999, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "via link", amount: 1 } });
+  const b = await request("POST", "/api/public/teleconsult/bookings", { body: { token, patientId: 999, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "via link", amount: 1, consent: true } });
   assert.equal(b.status, 201, JSON.stringify(b.error));
   assert.equal(b.data.booking.patientId, patientId, "token decides the patient, not the body");
   const p = pay(b.data.payment.orderId);
@@ -1180,7 +1180,7 @@ test("if only the calendar entry fails after the room was made, the patient stil
 
 test("the patient's email reaches the Google invite: given at booking, at confirmation, from the payment window, or from their record", async () => {
   const invited = (apptId: number) => g.events.get(`samvaadtc${apptId}`)!.attendees;
-  const body = (slot: ReturnType<typeof nextSlot>, patientId: number, email?: string) => ({ patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "email test", ...(email !== undefined ? { email } : {}) });
+  const body = (slot: ReturnType<typeof nextSlot>, patientId: number, email?: string) => ({ patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "email test", consent: true, ...(email !== undefined ? { email } : {}) });
 
   // 1. with the booking (and tidied up: trimmed, lower-cased)
   const s1 = nextSlot(); const pid1 = nextPatient();
@@ -1265,6 +1265,29 @@ test("consultations list shows status, phase and link for the patient only", asy
   assert.ok(mine.startsAt);
   const other = await portal("GET", `/api/portal/teleconsult/consultations/${mine.appointmentId}?patientId=${patientId === 1 ? 2 : 1}`);
   assert.equal(other.status, 404);
+});
+
+test("video consultation consent: shown from Masters, must be ticked, and the accepted wording is kept with the booking", async () => {
+  const slot = nextSlot();
+  const patientId = nextPatient();
+  const base = { patientId, doctorId: slot.doctorId, date: slot.date, time: slot.time, reason: "consent check" };
+  const cfg = (await staff("GET", "/api/teleconsult/config")).data;
+  assert.equal(cfg.consent.required, true);
+  assert.match(cfg.consent.text, /video consultation/i);
+  assert.equal((await staff("POST", "/api/teleconsult/bookings", { ...base, paymentMode: "cash" })).status, 400);
+  assert.equal((await staff("POST", "/api/teleconsult/bookings", { ...base, paymentMode: "cash", consent: false })).status, 400);
+  assert.equal((await portal("POST", "/api/portal/teleconsult/bookings", base)).status, 400);
+  assert.equal((await staff("PATCH", "/api/setup/config/teleconsult", { consentText: "Custom wording for video visits." })).status, 200);
+  assert.equal((await staff("GET", "/api/teleconsult/config")).data.consent.text, "Custom wording for video visits.");
+  assert.equal((await portal("GET", `/api/portal/teleconsult/config?patientId=${patientId}`)).data.consent.text, "Custom wording for video visits.");
+  const ok = await staff("POST", "/api/teleconsult/bookings", { ...base, paymentMode: "cash", consent: true });
+  assert.equal(ok.status, 201, JSON.stringify(ok.error));
+  const row = await teleconsultBookingsRepo.getRow(ok.data.id);
+  assert.equal(row?.consent_text, "Custom wording for video visits.");
+  assert.ok(row?.consent_accepted_at);
+  assert.equal((await staff("PATCH", "/api/setup/config/teleconsult", { consentRequired: false })).status, 200);
+  const s2 = nextSlot();
+  assert.equal((await staff("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: s2.doctorId, date: s2.date, time: s2.time, reason: "no consent needed", paymentMode: "cash" })).status, 201);
 });
 
 // ── Run ──────────────────────────────────────────────────────────────────────

@@ -41,6 +41,7 @@ import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/ser
 import { findParty } from "@/services/pharmacy-parties-service";
 import { creditLock, planCredit, recordApplied, releaseCredit } from "@/services/supplier-credit-service";
 import { nextNumber } from "@/services/id-service";
+import { allocateBatches, type BatchTake } from "@/services/pharmacy-batch-service";
 
 export const PO_STATUSES = ["Pending", "Received", "Cancelled"] as const;
 export const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Insurance"] as const;
@@ -347,7 +348,7 @@ const saleSchema = {
   discount: { type: "number", required: false, min: 0, default: 0 },
 } as const;
 
-interface SaleLine { pharmacyItemId?: number; medicineName: string; quantity: number; unitPrice?: number; isH1?: boolean }
+interface SaleLine { pharmacyItemId?: number; medicineName: string; quantity: number; unitPrice?: number; isH1?: boolean; givenBy?: string; batchNo?: string }
 
 /**
  * Record a counter sale: decrements stock for every line, stores the sale and
@@ -364,7 +365,8 @@ export async function createSale(input: unknown, actor: Session) {
   }
 
   // Resolve every line and check availability before mutating anything.
-  const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number; h1: boolean }[] = [];
+  const usedBatches = new Map<number, number>();
+  const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number; h1: boolean; givenBy: string; batchNo: string; takes: BatchTake[] }[] = [];
   for (const l of lines) {
     const byId = l.pharmacyItemId ? await pharmacyRepo.getRow(l.pharmacyItemId) : null;
     const stock =
@@ -383,7 +385,8 @@ export async function createSale(input: unknown, actor: Session) {
       );
     }
     // A medicine that is H1 in the inventory always goes in the register; the pharmacist can also tick one that isn't marked.
-    resolved.push({ stock, qty, unitPrice: Number(l.unitPrice ?? 0), h1: l.isH1 === true || stock.is_h1 === true });
+    const alloc = await allocateBatches(stock, qty, typeof l.batchNo === "string" ? l.batchNo : "", actor, usedBatches);
+    resolved.push({ stock, qty, unitPrice: Number(l.unitPrice ?? 0), batchNo: alloc.label, takes: alloc.takes, h1: l.isH1 === true || stock.is_h1 === true, givenBy: typeof l.givenBy === "string" ? l.givenBy.trim().slice(0, 80) : "" });
   }
 
   let patientName = data.patientName || "Walk-in";
@@ -431,7 +434,10 @@ export async function createSale(input: unknown, actor: Session) {
         unit_price: r.unitPrice,
         line_total: r.qty * r.unitPrice,
         is_h1: r.h1,
+        ...(r.h1 ? { given_by: r.givenBy || actor.name, given_by_id: actor.userId } : {}),
+        ...(r.batchNo ? { batch_no: r.batchNo } : {}),
       });
+      for (const t of r.takes) await uow.update(TABLES.pharmacyBatches, t.batchId, { quantity: t.left });
       const newStock = r.stock.stock - r.qty;
       await uow.update(TABLES.pharmacyItems, r.stock.id, {
         stock: newStock,

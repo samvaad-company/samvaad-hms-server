@@ -19,6 +19,9 @@ const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n
 const field = "h-[34px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-2 text-[13px] text-[color:var(--ink)] focus:border-[color:var(--brand)] focus:outline-none";
 const chip = "h-[28px] rounded-full border border-[color:var(--line)] px-3 text-[12px] text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer";
 
+/** "16:39" → "4:39 PM". */
+const clock12 = (t: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(t); if (!m) return t || "—"; const h = Number(m[1]); return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`; };
+
 const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 export function H1RegisterPanel() {
@@ -97,13 +100,13 @@ export function H1RegisterPanel() {
           <div className="hidden print:block px-4 py-3 text-[13px]"><b>{hospital.name}</b> — Schedule H1 drug register{from || to ? ` (${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : "today"})` : ""}</div>
           <table data-keep-table className="w-full min-w-[980px] text-left text-[13px]">
             <thead className="bg-[color:var(--subtle-3)] text-[12px] text-[color:var(--ink)]"><tr>
-              <th className="px-4 py-2 font-medium">Date</th><th className="px-3 py-2 font-medium">Patient</th><th className="px-3 py-2 font-medium">Prescriber</th><th className="px-3 py-2 font-medium">Medicine</th>
+              <th className="px-4 py-2 font-medium">Date &amp; time</th><th className="px-3 py-2 font-medium">Patient</th><th className="px-3 py-2 font-medium">Prescriber</th><th className="px-3 py-2 font-medium">Medicine</th>
               <th className="px-3 py-2 text-right font-medium">Qty</th><th className="px-3 py-2 font-medium">Batch</th><th className="px-3 py-2 font-medium">Ref.</th><th className="px-3 py-2 font-medium">Given by</th>
             </tr></thead>
             <tbody>
               {entries.map((e) => (
                 <tr key={e.key} className="border-t border-[color:var(--subtle-2)] align-top">
-                  <td className="px-4 py-2 whitespace-nowrap text-[color:var(--ink)]">{formatDate(e.date)}<span className="block text-[11px] text-[color:var(--ink-soft)]">{e.time}</span></td>
+                  <td className="px-4 py-2 whitespace-nowrap text-[color:var(--ink)]">{formatDate(e.date)}<span className="block text-[12px] font-medium text-[color:var(--ink)]">{clock12(e.time)}</span></td>
                   <td className="px-3 py-2"><span className="block font-medium text-[color:var(--ink)]">{e.patientName}</span><span className="block text-[11px] text-[color:var(--ink-soft)]">{[e.patientAge != null ? `${e.patientAge} yrs` : "", e.patientPhone].filter(Boolean).join(" · ")}</span>{e.patientAddress && <span className="block text-[11px] text-[color:var(--ink-soft)]">{e.patientAddress}</span>}</td>
                   <td className="px-3 py-2 text-[color:var(--ink)]">{e.prescriber || "—"}{e.rxNumber && <span className="block font-mono text-[11px] text-[color:var(--ink-soft)]">{e.rxNumber}</span>}</td>
                   <td className="px-3 py-2 text-[color:var(--ink)]"><span className="mr-2 rounded-full bg-[#ffe9e9] px-2 py-[1px] text-[10px] font-medium text-[#c8001a]">H1</span>{e.medicineName}</td>

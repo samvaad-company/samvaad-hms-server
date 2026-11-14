@@ -17,6 +17,7 @@ import { PaymentsView, PayoutRulesView, ReferralsView } from "@/components/setup
 import { IdFormatsView, ClinicalFormsView } from "@/components/setup/IdFormatViews";
 import { DepartmentsView, SIMPLE_SPECS, SimpleMasterView } from "@/components/setup/SimpleMasters";
 import { BillingRemarksView } from "@/components/setup/BillingRemarksView";
+import { TeleconsultConsentView } from "@/components/setup/TeleconsultConsentView";
 import { ManufacturerMedicines } from "@/components/setup/ManufacturerMedicines";
 import { Spinner, LoadingBlock } from "@/components/shared/Spinner";
 import { useFetching } from "@/lib/api/useFetching";
@@ -29,6 +30,7 @@ const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
   { group: "Clinical", items: [["clinical_forms", "Clinical forms"]] },
+  { group: "Video consultation", items: [["teleconsult_consent", "Consent form"]] },
   { group: "Loyalty", items: [["loyalty", "Loyalty programme"]] },
   { group: "Pharmacy", items: [["manufacturers", "Manufacturers"], ["suppliers", "Suppliers"]] },
   { group: "Facility", items: [["ward_classes", "Ward classes"], ["consulting_rooms", "Consulting rooms"], ["facility_areas", "Facility areas"], ["service_collection_centers", "Collection centers"], ["collection_centers", "Lab collection centers"], ["drug_racks", "Drug racks"]] },
@@ -41,6 +43,7 @@ function Section({ id }: { id: string }) {
   switch (id) {
     case "services": return <ServicesView />;
     case "billing_remarks": return <BillingRemarksView />;
+    case "teleconsult_consent": return <TeleconsultConsentView />;
     case "medicines": return <MedicinesView />;
     case "rate_plans": return <RatePlansView />;
     case "packages": return <PackagesView />;

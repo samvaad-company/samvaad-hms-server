@@ -596,6 +596,13 @@ async function configRow(key: ConfigKey, actor: Session): Promise<SetupRecordRow
   return (rows as SetupRecordRow[])[0];
 }
 
+/** A hospital's configuration for callers who are not signed in (the patient's booking page and app): the stored values over the defaults. */
+export async function hospitalConfig(key: ConfigKey, hospitalId: number): Promise<Record<string, unknown>> {
+  const hospital = await hospitalsRepo.getRow(hospitalId);
+  const { rows } = await setupRecordsRepo.listRows({ unpaged: true, filters: [{ column: "hospital_id", op: "eq", value: hospitalId }, { column: "kind", op: "eq", value: `config:${key}` }] });
+  return { ...defaultConfig(key, hospital ?? null), ...(((rows as SetupRecordRow[])[0]?.data as Record<string, unknown> | undefined) ?? {}) };
+}
+
 export async function getConfig(key: ConfigKey, actor: Session): Promise<Record<string, unknown>> {
   await ensureDefaults(actor);
   const hospital = await hospitalsRepo.getRow(requireHospitalId(actor));
@@ -622,7 +629,7 @@ export async function updateConfig(key: ConfigKey, input: unknown, actor: Sessio
       else patch[field] = n ?? model;
     } else if (typeof model === "string") {
       const s = value === null || value === undefined ? "" : String(value).trim();
-      if (s.length > 500) errors.push({ field, message: `${humanise(field)} is too long` }); else patch[field] = s;
+      if (s.length > (field === "consentText" ? 5000 : 500)) errors.push({ field, message: `${humanise(field)} is too long` }); else patch[field] = s;
     } else if (Array.isArray(model)) {
       if (!Array.isArray(value) || value.length > 100 || value.some((v) => typeof v !== "string" || v.length > 200)) errors.push({ field, message: `${humanise(field)} must be a short list of text` });
       else patch[field] = value;

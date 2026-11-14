@@ -12,7 +12,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { BillDTO, BillingCatalogDTO, IpdRecordDTO, PatientDTO, PharmacyItemDTO } from "@/types/api";
+import type { BillDTO, BillingCatalogDTO, IpdRecordDTO, PatientDTO, PharmacyBatchDTO, PharmacyItemDTO } from "@/types/api";
 import { priceLines, r2 } from "@/types/billing";
 import { splitCoverage } from "@/types/coverage";
 import { CombinedBillView } from "@/components/finance/CombinedBillView";
@@ -80,7 +80,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
 // ─── New Bill ─────────────────────────────────────────────────────────────────
 
 /** A line on the bill being built: a catalogue service (priced and taxed by the server's rate plan) or a custom charge. */
-interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number; /** Priced from the patient's loyalty card. */ card?: boolean }
+interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number; /** Priced from the patient's loyalty card. */ card?: boolean; /** A Schedule H1 drug: goes in the H1 register. `h1Locked` = the inventory marks this medicine H1, so it is always ticked. */ isH1?: boolean; h1Locked?: boolean; /** The inventory item this line is, its batches, and the one chosen (earliest expiring by default). */ itemId?: number; batches?: PharmacyBatchDTO[]; batchNo?: string }
 const GST_RATES = [0, 5, 12, 18, 28];
 const CUSTOM = "custom";
 const blankLine = (): LineItem => ({ id: Date.now() + Math.random(), serviceId: "", description: "", qty: 1, rate: 0, gstPct: 0 });
@@ -115,7 +115,10 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   // The services offered depend on the type of bill: Setup → Masters groups each service under a billing category, and each bill type draws from its own.
   const forType = services.filter(s => (BILL_TYPE_CATEGORIES[billType] ?? []).includes(s.billingCategory as never));
   const offered = forType.length ? forType : services;
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  // Who hands over the H1 drugs on this bill: the biller by default, or whoever they type (the user id is saved by the server).
+  const [givenBy, setGivenBy] = useState("");
+  const h1Given = givenBy.trim() || user?.name || "";
   // OPD, IPD and pharmacy bills can also carry medicines: the pharmacy's stock list, at the price the counter charges.
   const withMedicines = ["OPD", "IPD", "Pharmacy"].includes(billType);
   const { items: stock } = useList<PharmacyItemDTO>(withMedicines ? "/pharmacy" : null, { limit: 500 });
@@ -198,11 +201,34 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
     setItems(prev => (prev.length === 1 && !prev[0].serviceId ? [{ ...prev[0], serviceId: CUSTOM, description: `OPD consultation — ${card.rankName} card`, qty: 1, rate: card.opdFee, gstPct: 0, card: true }] : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.rankKey, billType, patientId]);
+  // Load the batches of a medicine line: the earliest-expiring one in date is chosen by default, and the cashier can pick another.
+  const loadBatches = (id: number, itemId: number) => {
+    api.get<PharmacyBatchDTO[]>(`/pharmacy/${itemId}/batches`)
+      .then(batches => setItems(prev => prev.map(i => {
+        if (i.id !== id) return i;
+        const keep = batches.find(b => b.batchNo === i.batchNo && !b.expired);
+        return { ...i, itemId, batches, batchNo: keep?.batchNo ?? batches.find(b => !b.expired)?.batchNo ?? "" };
+      })))
+      .catch(() => undefined);
+  };
+  // A medicine the inventory marks as H1 is ticked automatically (and can't be unticked); the server checks again when the bill is saved.
+  const checkH1 = (id: number, name: string) => {
+    const n = name.trim();
+    if (n.length < 2) return;
+    api.list<PharmacyItemDTO>("/pharmacy", { search: n, pageSize: 6 })
+      .then(r => {
+        const hit = r.data.find(x => x.name.toLowerCase() === n.toLowerCase());
+        if (!hit) return;
+        if (hit.isH1) setItems(prev => prev.map(i => (i.id === id ? { ...i, isH1: true, h1Locked: true } : i)));
+        loadBatches(id, hit.id);
+      })
+      .catch(() => undefined);
+  };
   const pick = (id: number, value: string) => {
     if (value === CUSTOM) return updateRow(id, { serviceId: CUSTOM, description: "", rate: 0, gstPct: 0 });
     if (value.startsWith("med:")) {
       const m = stock.find(x => `med:${x.id}` === value);
-      if (m) updateRow(id, { serviceId: CUSTOM, description: m.name, rate: m.unitPrice ?? 0, gstPct: 0 });
+      if (m) { updateRow(id, { serviceId: CUSTOM, description: m.name, rate: m.unitPrice ?? 0, gstPct: 0, isH1: m.isH1 === true, h1Locked: m.isH1 === true, itemId: m.id, batches: undefined, batchNo: "" }); loadBatches(id, m.id); }
       return;
     }
     const svc = services.find(s => String(s.id) === value);
@@ -258,7 +284,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         status: payMode ? "Paid" : "Pending",
         paymentMode: payMode || undefined,
         items: filled.map(i => i.serviceId === CUSTOM
-          ? { description: i.description, quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct }
+          ? { description: i.description, quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct, ...(i.isH1 ? { isH1: true, givenBy: h1Given } : {}), ...(i.batchNo ? { batchNo: i.batchNo } : {}) }
           : { serviceId: Number(i.serviceId), quantity: i.qty }),
       }),
     );
@@ -385,6 +411,13 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             <Plus size={13} /> Add Item
           </button>
         </div>
+        {withMedicines && items.some(i => i.isH1) && (
+          <label className="flex flex-wrap items-center gap-2 rounded-[8px] bg-[color:var(--subtle)] px-3 py-2 text-[12px] text-[color:var(--ink)]">
+            <span className="font-medium">H1 drugs given by</span>
+            <input value={givenBy} onChange={e => setGivenBy(e.target.value)} maxLength={80} placeholder={user?.name ?? "Name"} aria-label="H1 drugs given by" className="h-[30px] w-[220px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-2 text-[13px] focus:border-[color:var(--brand)] focus:outline-none" />
+            <span className="text-[color:var(--ink-soft)]">Defaults to you ({user?.name ?? "the signed-in user"}); your user ID is saved with it in the H1 register.</span>
+          </label>
+        )}
         {services.length > 0 && (
           <p className={`text-[12px] ${forType.length ? "text-[color:var(--ink-soft)]" : "text-[#8a5300]"}`}>
             {forType.length
@@ -398,12 +431,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         {withMedicines && (
           <div className="max-w-[420px]">
             <MedicinePicker placeholder="Search the medicine directory to add a medicine…"
-              onPick={m => setItems(prev => [...(prev.length === 1 && !prev[0].serviceId ? [] : prev), { ...blankLine(), serviceId: CUSTOM, description: m.name, qty: 1, rate: m.price ?? 0, gstPct: 0 }])} />
+              onPick={m => { const line = { ...blankLine(), serviceId: CUSTOM, description: m.name, qty: 1, rate: m.price ?? 0, gstPct: 0 }; setItems(prev => [...(prev.length === 1 && !prev[0].serviceId ? [] : prev), line]); checkH1(line.id, m.name); }} />
           </div>
         )}
-        <div className="overflow-x-auto pb-1"><div className="flex min-w-[720px] flex-col gap-2">
-        <div className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 px-3">
-          {["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
+        <div className="overflow-x-auto pb-1"><div className={`flex flex-col gap-2 ${withMedicines ? "min-w-[790px]" : "min-w-[720px]"}`}>
+        <div className={`grid ${withMedicines ? "grid-cols-[2fr_80px_110px_100px_60px_120px_40px]" : "grid-cols-[2fr_80px_110px_100px_120px_40px]"} gap-2 px-3`}>
+          {(withMedicines ? ["Service", "Qty", "Rate (₹)", "GST %", "H1", "Amount (₹)", ""] : ["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""]).map(h => (
             <span key={h} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
           ))}
         </div>
@@ -412,7 +445,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             const custom = item.serviceId === CUSTOM;
             const raw = items[idx];
             return (
-              <div key={item.id} className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 items-center">
+              <div key={item.id} className={`grid ${withMedicines ? "grid-cols-[2fr_80px_110px_100px_60px_120px_40px]" : "grid-cols-[2fr_80px_110px_100px_120px_40px]"} gap-2 items-center`}>
                 <div className="flex flex-col gap-1 min-w-0">
                   <SearchSelect
                     placeholder="Select service…"
@@ -420,7 +453,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                     onChange={v => pick(item.id, v)}
                     options={[...offered.map(s => ({ value: String(s.id), label: `${s.name} — ${rupee(s.price)}${s.unit ? ` ${s.unit}` : ""}`, hint: `${s.code} · ${s.group}` })), ...medicines.map(m => ({ value: `med:${m.id}`, label: `${m.name} — ${m.unitPrice ? rupee(m.unitPrice) : "set price"}`, hint: `Medicine · ${m.category}${m.stock <= 0 ? " · out of stock" : ""}` })), { value: CUSTOM, label: "Custom charge…", hint: "not in the catalogue" }]}
                   />
-                  {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value })} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
+                  {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value, ...(raw.h1Locked ? { isH1: false, h1Locked: false } : {}), ...(raw.itemId ? { itemId: undefined, batches: undefined, batchNo: "" } : {}) })} onBlur={e => { if (withMedicines) checkH1(item.id, e.target.value); }} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
+                  {custom && withMedicines && raw.batches && raw.batches.length > 0 && (
+                    <select value={raw.batchNo ?? ""} onChange={e => updateRow(item.id, { batchNo: e.target.value })} aria-label="Batch" title="The batch this medicine comes from (the earliest expiring one in date by default)" className={input}>
+                      {raw.batches.map(b => <option key={b.id} value={b.batchNo} disabled={b.expired}>{`Batch ${b.batchNo}${b.expiryDate ? ` · exp ${formatDate(b.expiryDate)}` : ""} · ${b.quantity} in stock${b.expired ? " · expired" : ""}`}</option>)}
+                    </select>
+                  )}
                 </div>
                 <input type="number" min={1} value={item.qty} onChange={e => updateRow(item.id, { qty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} className={`${input} text-center`} aria-label="Quantity" />
                 {custom
@@ -429,6 +467,11 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                 {custom
                   ? <select value={raw.gstPct} onChange={e => updateRow(item.id, { gstPct: Number(e.target.value) })} className={input} aria-label="GST rate">{GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select>
                   : <span className="text-[13px] text-[color:var(--ink-soft)] px-3">{item.serviceId ? (settings.gstOnBills ? `${item.gstPct}%` : "off") : "—"}</span>}
+                {withMedicines && (custom
+                  ? <label className="flex items-center justify-center gap-1 text-[12px] text-[color:var(--ink)] cursor-pointer" title={raw.h1Locked ? "This medicine is marked H1 in the inventory" : "Tick for a Schedule H1 drug: it goes in the H1 register"}>
+                      <input type="checkbox" aria-label="Schedule H1 drug" checked={raw.isH1 === true} disabled={raw.h1Locked === true} onChange={e => updateRow(item.id, { isH1: e.target.checked })} /> H1
+                    </label>
+                  : <span className="text-center text-[13px] text-[color:var(--ink-soft)]">—</span>)}
                 <span className="text-[13px] font-medium text-[color:var(--ink)] px-3">{rupee(item.qty * item.rate)}</span>
                 {items.length > 1 ? (
                   <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} aria-label="Remove line" className="flex items-center justify-center text-[#ff0004] hover:text-red-700 transition-colors">

@@ -12,6 +12,7 @@ interface Doctor { id: number; name: string; specialty: string; patientsPerHour?
 interface SessionInfo {
   hospitalName: string; patientFirstName: string; enabled: boolean;
   price: number | null; currency: string; paymentMode: "razorpay" | "mock" | "off"; doctors: Doctor[];
+  consent?: { required: boolean; title: string; text: string };
 }
 interface Slot { value: string; label: string; status?: "open" | "booked" | "full" }
 interface SlotsInfo { isOpen: boolean; closedReason: string | null; slots: Slot[]; note?: string; hours?: { label: string; booked: number; capacity: number; full: boolean }[] }
@@ -70,6 +71,7 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
   const [time, setTime] = useState("");
   const [reason, setReason] = useState("");
   const [email, setEmail] = useState("");
+  const [agreed, setAgreed] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
   }, [done, token]);
 
   const doctor = useMemo(() => info?.doctors.find((d) => String(d.id) === doctorId), [info, doctorId]);
-  const ready = !!(doctorId && date && time && reason.trim().length >= 2);
+  const ready = !!(doctorId && date && time && reason.trim().length >= 2 && (!info?.consent?.required || agreed));
 
   async function verify(booking: Booking, r: RazorpayResponse) {
     setBusy(true);
@@ -159,7 +161,7 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
     setError(null);
     try {
       const res = await call<{ booking: Booking; payment: PaymentInfo | null }>("POST", "/bookings", {
-        token, doctorId: Number(doctorId), date, time, reason: reason.trim(), email: email.trim() || undefined,
+        token, doctorId: Number(doctorId), date, time, reason: reason.trim(), email: email.trim() || undefined, consent: info?.consent?.required ? agreed : undefined,
       });
       if (!res.payment) { setDone(res.booking); return; } // free consultation
       setPending({ booking: res.booking, payment: res.payment });
@@ -297,6 +299,17 @@ export default function BookVideoPage({ params }: { params: Promise<{ token: str
           <input type="email" className={`${field} h-[48px]`} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
       </section>
+
+      {info.consent?.required && (
+        <section className="bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[18px] p-5 flex flex-col gap-3">
+          <h2 className="text-[15px] font-medium text-[color:var(--ink)]">{info.consent.title}</h2>
+          <div className="max-h-[200px] overflow-y-auto whitespace-pre-line text-[13px] leading-5 text-[color:var(--ink-soft)]">{info.consent.text}</div>
+          <label className="flex cursor-pointer items-start gap-3 text-[14px] text-[color:var(--ink)]">
+            <input type="checkbox" checked={agreed} onChange={(e) => { setAgreed(e.target.checked); setError(null); }} className="mt-[3px] h-4 w-4" />
+            <span>I have read and accept this consent for my video consultation.</span>
+          </label>
+        </section>
+      )}
 
       {error && <p className="text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[10px] px-4 py-3">{error}</p>}
 

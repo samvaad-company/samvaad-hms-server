@@ -30,7 +30,7 @@ export interface SetupRecordDTO {
 }
 
 /** Singleton configuration blobs (one per hospital): the hospital's identity and the Settings sections. */
-export const CONFIG_KEYS = ["hospital", "billing", "notifications", "security", "plan", "referral"] as const;
+export const CONFIG_KEYS = ["hospital", "billing", "notifications", "security", "plan", "referral", "teleconsult"] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 // ── Service catalogue ────────────────────────────────────────────────────────
