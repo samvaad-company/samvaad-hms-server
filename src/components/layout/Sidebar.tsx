@@ -85,6 +85,8 @@ interface NavItem {
    * nav destination.
    */
   hiddenForRoles?: string[];
+  /** Visible to anyone who can write to at least one of these resources (a page shared by several departments). */
+  anyResource?: string[];
   /** Show only to these roles (a personal page that isn't a permission on a shared resource). */
   onlyForRoles?: string[];
   /** Active only on this exact path (not on pages below it): an overview page that sits above its siblings. */
@@ -129,6 +131,7 @@ const groups: NavGroup[] = [
       { href: "/pharmacy",      label: "Pharmacy",      icon: Pill,         resource: "pharmacy", exact: true, key: "M" },
       { href: "/lab",           label: "Lab",           icon: FlaskConical, resource: "lab", key: "L" },
       { href: "/radiology",     label: "Radiology",     icon: ScanLine,     resource: "radiology", key: "X" },
+      { href: "/clearances",    label: "Discharge clearance", icon: ClipboardCheck, anyResource: ["pharmacy", "lab", "radiology", "bloodbank", "ot", "ambulance"] },
       { href: "/tasks",         label: "Task Board",    icon: ClipboardList, resource: "tasks", key: "T" },
     ],
   },
@@ -189,15 +192,15 @@ const groups: NavGroup[] = [
     label: "Reports",
     items: [
       { href: "/analytics",     label: "Analytics",     icon: BarChart3,    resource: "reports", key: "S" },
-      { href: "/ai-monitor",    label: "AI monitor",    icon: Cpu,          resource: "reports" },
+      { href: "/ai-monitor",    label: "KAYA AI monitor",    icon: Cpu,          resource: "reports" },
       { href: "/reports",       label: "Reports",       icon: FileBarChart, resource: "reports" },
       { href: "/audit",         label: "Audit",         icon: ScrollText,   resource: "admin" },
     ],
   },
   {
-    label: "AI",
+    label: "KAYA AI",
     items: [
-      { href: "/ai", label: "AI Usage & Access", icon: Zap, onlyForRoles: ["Super Admin", "IT Admin"] },
+      { href: "/ai", label: "KAYA AI usage & access", icon: Zap, onlyForRoles: ["Super Admin", "IT Admin"] },
     ],
   },
   {
@@ -255,6 +258,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, drawerOpen, 
           items: group.items.filter(
             (item) =>
               (!item.resource || (user ? can(item.resource) : false)) &&
+              (!item.anyResource || (user ? item.anyResource.some((r) => can(r, "write")) : false)) &&
               !item.hiddenForRoles?.includes(user?.role ?? "") &&
               (!item.onlyForRoles || item.onlyForRoles.includes(user?.role ?? "")),
           ),

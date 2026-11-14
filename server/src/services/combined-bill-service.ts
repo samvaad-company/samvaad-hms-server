@@ -1,15 +1,18 @@
 /**
  * The combined bill: everything one patient was charged, on one statement. Bills are grouped by what they were for (IPD, consultation,
  * pharmacy, lab, radiology, …), each group lists its lines with date, quantity, rate and amount and a subtotal, and the prescriptions
- * written in the period are listed beneath (they carry no charge). Nothing is stored: it is assembled from the patient's bills.
+ * written in the period are listed beneath (they carry no charge). The statement is assembled from the patient's bills; issuing it
+ * saves a copy with its own invoice number (CB-00000001…) so every combined bill can be found again in the history.
  */
-import { billsRepo, billItemsRepo, ipdRepo, patientsRepo, prescriptionsRepo, prescriptionItemsRepo } from "@/repositories";
-import type { BillItemRow, BillRow, IpdAdmissionRow, PatientRow, PrescriptionItemRow, PrescriptionRow } from "@/db/tables";
-import { ValidationError } from "@/lib/errors";
+import { combinedBillsRepo, billsRepo, billItemsRepo, ipdRepo, patientsRepo, prescriptionsRepo, prescriptionItemsRepo } from "@/repositories";
+import type { CombinedBillRow, BillItemRow, BillRow, IpdAdmissionRow, PatientRow, PrescriptionItemRow, PrescriptionRow } from "@/db/tables";
+import { NotFoundError, ValidationError } from "@/lib/errors";
+import { nextCode } from "@/services/helpers";
+import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
 import { assertOwnedByHospital, scopeToHospital } from "@/services/hospital-scope";
 import { r2 } from "@shared/types/billing";
-import type { CombinedBillDTO, CombinedBillSection } from "@shared/types/api";
+import type { CombinedBillDTO, CombinedBillHistoryDTO, CombinedBillSection } from "@shared/types/api";
 
 /** The order sections print in, and the heading each one gets. */
 const SECTIONS: { type: string; title: string }[] = [
@@ -24,7 +27,7 @@ const SECTIONS: { type: string; title: string }[] = [
 
 const isDate = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
-export async function combinedBill(query: URLSearchParams, actor: Session): Promise<CombinedBillDTO> {
+async function assemble(query: URLSearchParams, actor: Session): Promise<CombinedBillDTO> {
   const patientId = Number(query.get("patientId"));
   if (!Number.isInteger(patientId) || patientId <= 0) throw new ValidationError([{ field: "patientId", message: "choose a patient" }]);
   const from = query.get("from") ?? "", to = query.get("to") ?? "";
@@ -93,4 +96,54 @@ export async function combinedBill(query: URLSearchParams, actor: Session): Prom
     billCount: counted.length,
     refundedCount: bills.length - counted.length,
   };
+}
+
+/** A preview of the statement; nothing is saved. */
+export const combinedBill = assemble;
+
+const INVOICE_PREFIX = "CB-";
+
+const toHistory = (r: CombinedBillRow): CombinedBillHistoryDTO => ({
+  id: r.id, invoiceNo: r.invoice_no, patientId: r.patient_id, patientName: r.patient_name, periodFrom: r.period_from ?? null, periodTo: r.period_to ?? null,
+  billCount: Number(r.bill_count), total: Number(r.total), paid: Number(r.paid), due: Number(r.due), createdAt: r.created_at, createdBy: r.created_by ?? "",
+});
+
+const parseSnapshot = (v: unknown): CombinedBillDTO => (typeof v === "string" ? JSON.parse(v) : v) as CombinedBillDTO;
+
+/** Issue the combined bill: build the statement, give it the next invoice number and keep a copy in the history. */
+export async function issueCombinedBill(input: unknown, actor: Session): Promise<CombinedBillDTO> {
+  const b = (input ?? {}) as Record<string, unknown>;
+  const q = new URLSearchParams();
+  for (const k of ["patientId", "from", "to"] as const) if (b[k] !== undefined && b[k] !== null && b[k] !== "") q.set(k, String(b[k]));
+  const bill = await assemble(q, actor);
+  if (bill.sections.length === 0) throw new ValidationError([{ field: "patientId", message: "this patient has no bills in that period" }]);
+  const existing = (await combinedBillsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows.map((r) => (r as CombinedBillRow).invoice_no);
+  const invoiceNo = nextCode(existing, INVOICE_PREFIX, 8);
+  const row = (await combinedBillsRepo.create({
+    hospital_id: actor.hospitalId, invoice_no: invoiceNo, patient_id: bill.patient.id, patient_name: bill.patient.name,
+    period_from: bill.period.from, period_to: bill.period.to, bill_count: bill.billCount,
+    gross: bill.totals.gross, discount: bill.totals.discount, gst: bill.totals.gst, total: bill.totals.total, paid: bill.totals.paid, due: bill.totals.due,
+    snapshot: { ...bill, invoiceNo }, created_by: actor.name,
+  } as never)) as CombinedBillRow;
+  await audit(actor, "create", "combined_bill", row.id, { invoiceNo, patientId: bill.patient.id, total: bill.totals.total });
+  return { ...bill, id: row.id, invoiceNo, createdAt: row.created_at, createdBy: actor.name };
+}
+
+/** Every combined bill issued, newest first; `q` matches the invoice number or the patient's name. */
+export async function combinedBillHistory(query: URLSearchParams, actor: Session): Promise<CombinedBillHistoryDTO[]> {
+  const q = (query.get("q") ?? "").trim().toLowerCase();
+  const patientId = Number(query.get("patientId"));
+  const rows = (await combinedBillsRepo.listRows(scopeToHospital({ unpaged: true }, actor))).rows as CombinedBillRow[];
+  return rows
+    .filter((r) => (!patientId || r.patient_id === patientId) && (!q || r.invoice_no.toLowerCase().includes(q) || r.patient_name.toLowerCase().includes(q)))
+    .sort((a, b) => b.id - a.id)
+    .map(toHistory);
+}
+
+/** One issued combined bill, exactly as it was issued. */
+export async function getCombinedBill(id: number, actor: Session): Promise<CombinedBillDTO> {
+  const row = (await combinedBillsRepo.getRow(id)) as CombinedBillRow | null;
+  if (!row) throw new NotFoundError("Combined bill");
+  assertOwnedByHospital(row, actor, "Combined bill");
+  return { ...parseSnapshot(row.snapshot), id: row.id, invoiceNo: row.invoice_no, createdAt: row.created_at, createdBy: row.created_by ?? "" };
 }

@@ -1,13 +1,18 @@
 "use client";
 
-/** Discharge: what must be settled first, the steps (summary, bill, leaving), the planned date and the discharge consents. */
-import { useState } from "react";
+/**
+ * Discharge: what must be settled first, the steps (summary, bill, leaving), the planned date and the discharge consents.
+ * The patient can only leave once the final bill has been generated and every department the patient used (pharmacy, in-house lab
+ * and radiology, blood bank, OT, ambulance) has been asked and has cleared them; a department that flags a pending bill is asked
+ * again once the patient has paid.
+ */
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { dischargeAdmission } from "@/lib/ipd-discharge";
 import { useList, useMutation } from "@/lib/api/hooks";
-import type { ConsentDTO, IpdMedicationDTO } from "@/types/api";
+import type { ConsentDTO, IpdClearanceDTO, IpdMedicationDTO } from "@/types/api";
 import { FormInput, FormRow, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import { NewConsentDialog } from "@/components/ipd/patient/PaperworkTabs";
 import { Card, ChartCtx, ErrorLine, Notice, Pill, btn, dayShort, done, inr, inputCls } from "@/components/ipd/patient/ui";
@@ -36,6 +41,7 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
   const pid = ctx.record.patientRefId;
   const { items: consents, reload: reloadConsents } = useList<ConsentDTO>(pid ? `/patients/${pid}/consents` : null);
   const { items: meds } = useList<IpdMedicationDTO>("/ipd/medications", { all: true, admission_id: ctx.id });
+  const { items: clearances, reload: reloadClearances } = useList<IpdClearanceDTO>(`/ipd/${ctx.id}/clearances`);
   const { run, loading, error, reset } = useMutation();
   const [type, setType] = useState(TYPES[0]);
   const [planned, setPlanned] = useState(o?.plannedDischargeDate ?? "");
@@ -44,9 +50,20 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
   const [homeOpen, setHomeOpen] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  const answering = !ctx.discharged && clearances.some((c) => c.status === "Pending");
+  // While a department has not answered, look again every few seconds.
+  useEffect(() => {
+    if (!answering) return;
+    const t = setInterval(reloadClearances, 6000);
+    return () => clearInterval(t);
+  }, [answering, reloadClearances]);
+
   if (!o) return <p className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">Loading…</p>;
   const r = o.readiness;
-  const open = [!(r.ivRunning === 0), !(r.dosesPending === 0), !(r.balanceDue === 0), !r.admissionConsent].filter(Boolean).length;
+  const notCleared = clearances.filter((c) => c.status !== "Cleared");
+  const allCleared = notCleared.length === 0;
+  const canLeave = r.finalBill && allCleared;
+  const open = [!(r.ivRunning === 0), !(r.dosesPending === 0), !(r.balanceDue === 0), !r.admissionConsent, !r.finalBill, !allCleared].filter(Boolean).length;
   const stage = ctx.discharged ? 4 : o.dischargeStage === "Bill cleared" ? 3 : o.dischargeStage === "Doctor's summary" ? 2 : o.dischargeStage ? 1 : 0;
   const editable = ctx.canWrite && !ctx.discharged;
   const dischargeConsents = consents.filter((c) => /lama|refusal/i.test(c.templateKey));
@@ -56,8 +73,15 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
     if (await done(run(() => api.patch(`/ipd/${ctx.id}/stay`, body)))) ctx.refresh();
   }
   async function start() {
-    // Starting the discharge asks the doctor for the summary and the billing desk for the final bill; the bed stays with the patient until they leave.
+    // Starting the discharge asks the doctor for the summary and the billing desk for the final bill, and tells every department the
+    // patient used that they are about to go; the bed stays with the patient until they leave.
+    if (!(await done(run(() => api.post(`/ipd/${ctx.id}/clearances`, {}))))) return;
+    reloadClearances();
     await stay({ dischargeStage: "Doctor's summary" });
+  }
+  /** Ask the departments again: the ones that flagged a bill (once the patient has paid), or any the patient has used since. */
+  async function askAgain(department?: string) {
+    if (await done(run(() => api.post(`/ipd/${ctx.id}/clearances`, department ? { department } : {})))) reloadClearances();
   }
   async function writeSummary() {
     const content = [`DISCHARGE SUMMARY`, `Type: ${type}`, `Condition at discharge: ${form.condition || "—"}`, form.summary, form.followUp && `Follow-up: ${form.followUp}`].filter(Boolean).join("\n");
@@ -77,9 +101,27 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
           <Check1 ok={r.dosesPending === 0}>{r.dosesPending === 0 ? "No doses pending" : `${r.dosesPending} dose${r.dosesPending === 1 ? "" : "s"} due now`}</Check1>
           <Check1 ok={r.admissionConsent} action={!r.admissionConsent && editable ? <button className="cursor-pointer text-[12px] text-[color:var(--brand)] hover:underline" onClick={() => ctx.go("consents")}>Make</button> : undefined}>{r.admissionConsent ? "Admission consent on file" : "There is no admission consent on file"}</Check1>
           <Check1 ok={r.unbilledDoses === 0} action={r.unbilledDoses ? <button className="cursor-pointer text-[12px] text-[color:var(--brand)] hover:underline" onClick={() => ctx.go("medicines")}>Review</button> : undefined}>{r.unbilledDoses === 0 ? "No missed doses on the chart" : `${r.unbilledDoses} missed ${r.unbilledDoses === 1 ? "dose" : "doses"} with no record of being given`}</Check1>
+          <Check1 ok={r.finalBill} action={!r.finalBill ? <Link href="/billing" className="text-[12px] text-[color:var(--brand)] hover:underline">Billing</Link> : undefined}>{r.finalBill ? "Final IPD bill generated" : "The final IPD bill has not been generated"}</Check1>
+          <Check1 ok={allCleared && (clearances.length > 0 || stage > 0 || ctx.discharged)}>{clearances.length === 0 ? (stage > 0 || ctx.discharged ? "No department has anything to clear" : "Departments are asked when the discharge starts") : allCleared ? "Every department has cleared the patient" : `${notCleared.length} department${notCleared.length === 1 ? "" : "s"} yet to clear`}</Check1>
           <Check1 ok={r.balanceDue === 0} action={r.balanceDue ? <Link href="/billing" className="text-[12px] text-[color:var(--brand)] hover:underline">Billing</Link> : undefined}>{r.balanceDue === 0 ? "Nothing left to collect" : `${inr(r.balanceDue)} still to collect`}</Check1>
         </div>
       </Card>
+
+      {(clearances.length > 0 || (stage > 0 && !ctx.discharged)) && (
+        <Card title="Department clearance" hint="Each department the patient used is told the patient is about to be discharged and says whether a bill is still pending. The patient can leave only when all of them have cleared."
+          action={editable && stage > 0 ? <button className={`${btn.base} ${btn.ghost}`} disabled={loading} onClick={() => askAgain()}>Ask any new departments</button> : undefined}>
+          {clearances.length === 0 ? <p className="py-3 text-[13px] text-[color:var(--ink-soft)]">The patient has no entry in any department that needs to clear them.</p> : clearances.map((c) => (
+            <div key={c.id} className="flex flex-wrap items-center gap-3 border-t border-[color:var(--subtle-2)] py-[9px] text-[13px] first:border-t-0">
+              <span className="w-[150px] shrink-0 font-medium text-[color:var(--ink)]">{c.label}</span>
+              <Pill tone={c.status === "Cleared" ? "ok" : c.status === "Flagged" ? "bad" : "warn"}>{c.status === "Pending" ? "Waiting for them" : c.status === "Flagged" ? "Pending bill" : "Cleared"}</Pill>
+              <span className="min-w-0 flex-1 text-[12px] text-[color:var(--ink-soft)]">
+                {c.status === "Flagged" ? `${c.amountDue > 0 ? `${inr(c.amountDue)} to pay` : "Payment pending"}${c.note ? ` — ${c.note}` : ""}${c.respondedBy ? ` · ${c.respondedBy}` : ""}` : c.status === "Cleared" ? `${c.respondedBy ? `by ${c.respondedBy}` : ""}${c.round > 1 ? ` · asked ${c.round} times` : ""}` : `Asked${c.round > 1 ? ` again (${c.round})` : ""} by ${c.requestedBy}`}
+              </span>
+              {c.status === "Flagged" && editable && <button className={`${btn.base} ${btn.solid}`} disabled={loading} onClick={() => askAgain(c.department)}>Patient has paid — ask again</button>}
+            </div>
+          ))}
+        </Card>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 text-[12px]">
         {STEPS.map((s, i) => (
@@ -116,7 +158,9 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
       ) : (
         <Card title="Ready for the patient to leave" hint="The summary is written. Once the bill is cleared the patient can go; the bed then goes to housekeeping.">
           {r.balanceDue > 0 && <Notice tone="warn">{inr(r.balanceDue)} is still to collect. Settle it at billing — or, with billing access, discharge anyway and give a reason.</Notice>}
-          {editable && <div className="mt-3"><button className={`${btn.base} ${btn.solid}`} disabled={loading || r.ivRunning > 0} onClick={() => leave()}>Patient has left — discharge</button>{r.ivRunning > 0 && <span className="ml-3 text-[12px] text-[#b3001b]">Stop the IV first.</span>}</div>}
+          {!r.finalBill && <Notice tone="warn">The final IPD bill has not been generated. Raise it in Billing before the patient can be discharged.</Notice>}
+          {r.finalBill && !allCleared && <Notice tone="warn">Discharge is not happening yet: {notCleared.map((c) => c.status === "Flagged" ? `${c.label} has a bill pending${c.amountDue > 0 ? ` (${inr(c.amountDue)})` : ""}` : `${c.label} has not answered`).join("; ")}.</Notice>}
+          {editable && <div className="mt-3"><button className={`${btn.base} ${btn.solid}`} disabled={loading || r.ivRunning > 0 || !canLeave} onClick={() => leave()}>Patient has left — discharge</button>{r.ivRunning > 0 && <span className="ml-3 text-[12px] text-[#b3001b]">Stop the IV first.</span>}</div>}
         </Card>
       )}
 

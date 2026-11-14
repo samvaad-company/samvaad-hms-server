@@ -308,6 +308,8 @@ export interface TeleconsultConfigDTO {
   currency: string;
   gatewayMode: "razorpay" | "mock" | "off";
   google: { configured: boolean; connected: boolean; needsReconnect: boolean; meetAccessControl: boolean; lastError: string | null; accountEmail: string };
+  /** The consent the patient accepts when booking, as worded in Masters. */
+  consent: { required: boolean; title: string; text: string };
 }
 
 export interface OpdRecordDTO extends OpdRecord {
@@ -383,6 +385,12 @@ export interface BillItemDTO {
   gstRate: number;
   hsnSac: string;
   amount: number;
+  /** A Schedule H1 drug (it is in the H1 register). */
+  isH1?: boolean;
+  /** Who handed over the H1 drug. */
+  givenBy?: string;
+  /** The batch the medicine came from. */
+  batchNo?: string;
 }
 
 export interface BillDTO extends Bill {
@@ -398,6 +406,23 @@ export interface BillDTO extends Bill {
   contractName?: string;
   payerShare?: number;
   patientShare?: number;
+  /** When the bill was raised, "HH:mm" ("" on bills from before bill times were kept). */
+  billTime?: string;
+  /** For an IPD bill: the admission it is for and the dates it covers. */
+  admissionId?: number;
+  admissionNo?: string;
+  admissionDate?: string;
+  dischargeDate?: string;
+  admissionDeposit?: number;
+  /** Who gave how much discount (OPD and IPD bills). */
+  discountDetails?: Record<string, { percent: number; amount: number }>;
+  remarks?: string;
+  /** Cash, or Cashless (an insurer / TPA pays) with which one and the policy number. */
+  payType?: "Cash" | "Cashless";
+  tpaName?: string;
+  policyNumber?: string;
+  /** The patient's details when the bill was raised. */
+  patientDetails?: Record<string, string>;
 }
 
 /** One service the billing counter can pick, priced from the patient's rate plan and taxed from its GST mapping. */
@@ -440,6 +465,10 @@ export interface BillingCatalogDTO {
   /** Active payment modes from Setup → Masters. */
   paymentModes: string[];
   settings: { gstOnBills: boolean; pricesInclusive: boolean; roundOff: boolean; invoicePrefix: string };
+  /** The note printed on IPD bills above a limit (Setup → Masters → Billing remarks). */
+  ipdRemark: { enabled: boolean; limit: number; text: string };
+  /** Insurers, TPAs and government schemes from Setup → Masters → Sponsors, for cashless bills. */
+  payers: { id: number; name: string; type: string }[];
   /** Contracts the patient is covered under today (empty for self-pay patients). */
   contracts: BillingContractDTO[];
   /** The contract the prices above came from, if one was chosen. */
@@ -471,6 +500,8 @@ export interface IpdRecordDTO extends IpdRecord {
   primaryNurse: string;
   expectedStayDays: number | null;
   diet: string;
+  /** The day the patient was discharged ("" while still admitted). */
+  dischargeDate: string;
 }
 
 /** Live state of one admission, for the admissions list and the nurse station. */
@@ -1392,6 +1423,9 @@ export interface PurchaseOrderItemDTO {
   medicineName: string;
   quantity: number;
   unitCost: number;
+  manufacturer: string;
+  hsn: string;
+  isH1: boolean;
 }
 
 export interface PurchaseOrderDTO {
@@ -1405,7 +1439,34 @@ export interface PurchaseOrderDTO {
   status: string;
   notes: string;
   items: PurchaseOrderItemDTO[];
+  /** Cash (paid now) or Credit (paid to the supplier later), and whether it has been paid. */
+  paymentType: "Cash" | "Credit";
+  paymentStatus: "Paid" | "Unpaid";
+  /** Supplier credit from returned stock that was taken off this bill, and what is left to pay. */
+  creditApplied: number;
+  netPayable: number;
 }
+
+/** One movement in the supplier credit history. */
+export interface SupplierCreditDTO {
+  id: number;
+  supplier: string;
+  manufacturer: string;
+  entryType: "Return" | "Applied" | "Reversal" | "Adjustment";
+  /** + credit earned or given back, − credit used. */
+  amount: number;
+  reference: string;
+  purchaseOrderId: number | null;
+  medicineName: string;
+  quantity: number | null;
+  unitCost: number | null;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** What is owed to the pharmacy by one supplier for one manufacturer's goods. */
+export interface SupplierCreditBalanceDTO { supplier: string; manufacturer: string; balance: number }
 
 export interface PharmacySaleItemDTO {
   id: number;
@@ -1413,6 +1474,8 @@ export interface PharmacySaleItemDTO {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** A Schedule H1 drug (it is in the H1 register). */
+  isH1: boolean;
 }
 
 export interface PharmacySaleDTO {
@@ -2271,6 +2334,45 @@ export interface DispenseStockDTO {
   unitPrice: number;
   /** The earliest expiry among the units in date, YYYY-MM-DD, or "" when none is recorded. */
   nextExpiry: string;
+  /** Set (with itemId 0) on a medicine from the drug directory that isn't in this pharmacy's stock yet. */
+  medicineId?: number;
+  /** A Schedule H1 drug. */
+  isH1?: boolean;
+}
+
+/** One H1 drug given to a patient, as the H1 register lists it. */
+/** A batch of a medicine that still holds stock. */
+export interface PharmacyBatchDTO { id: number; batchNo: string; expiryDate: string; quantity: number; expired: boolean }
+
+export interface H1RegisterEntryDTO {
+  key: string;
+  /** Counter dispense or sale. */
+  source: "Dispense" | "Sale" | "Bill";
+  /** YYYY-MM-DD in the hospital's time zone. */
+  date: string;
+  time: string;
+  patientId: number | null;
+  patientName: string;
+  patientAge: number | null;
+  patientPhone: string;
+  patientAddress: string;
+  /** The prescriber, from the prescription when there is one. */
+  prescriber: string;
+  rxNumber: string;
+  medicineName: string;
+  quantity: number;
+  returnedQty: number;
+  batchNo: string;
+  reference: string;
+  billNumber: string;
+  givenBy: string;
+  /** The user who gave it (for tracking), when known. */
+  givenById: number | null;
+}
+
+export interface H1RegisterDTO {
+  entries: H1RegisterEntryDTO[];
+  summary: { entries: number; patients: number; units: number };
 }
 
 export interface DispenseLineDTO {
@@ -2284,6 +2386,8 @@ export interface DispenseLineDTO {
   returnable: number;
   unitPrice: number;
   lineTotal: number;
+  /** A Schedule H1 drug (it is in the H1 register). */
+  isH1: boolean;
 }
 
 export interface DispenseReturnDTO {
@@ -2337,6 +2441,8 @@ export interface DispenseRxLineDTO {
   itemName: string;
   available: number;
   unitPrice: number;
+  /** The matched medicine is a Schedule H1 drug. */
+  isH1?: boolean;
 }
 
 export interface DispenseRxDTO {
@@ -2541,8 +2647,69 @@ export interface PerformanceDTO {
 export interface CombinedBillLine { name: string; date: string; quantity: number; rate: number; amount: number; billNumber: string }
 export interface CombinedBillSection { type: string; title: string; lines: CombinedBillLine[]; subtotal: number }
 
+/** One department's answer to "this patient is about to be discharged". */
+export interface IpdClearanceDTO {
+  id: number;
+  admissionId: number;
+  /** pharmacy | lab | radiology | bloodbank | ot | ambulance */
+  department: string;
+  label: string;
+  status: "Pending" | "Cleared" | "Flagged";
+  /** What the department says is still to be paid (Flagged). */
+  amountDue: number;
+  note: string;
+  /** How many times the department has been asked (it goes up each time the patient has paid and it is asked again). */
+  round: number;
+  requestedBy: string;
+  requestedAt: string;
+  respondedBy: string;
+  respondedAt: string | null;
+  /** Unpaid bills of this department's type for the patient since admission, to help it decide. */
+  unpaidBills: number;
+  patientName: string;
+  admissionNo: string;
+  bed: string;
+  ward: string;
+}
+
+/** What a department sees: the patients waiting on it, the ones it flagged, and its recent answers. */
+export interface IpdClearanceInboxDTO {
+  waiting: IpdClearanceDTO[];
+  flagged: IpdClearanceDTO[];
+  answered: IpdClearanceDTO[];
+}
+
+/** Whether an admission consent is signed and ready to admit on. */
+export interface AdmissionConsentStatusDTO {
+  ready: boolean;
+  consentId: number | null;
+  /** Consents already used on an earlier admission (they don't count again). */
+  usedIds: number[];
+}
+
+/** One row of the combined-bill history. */
+export interface CombinedBillHistoryDTO {
+  id: number;
+  invoiceNo: string;
+  patientId: number;
+  patientName: string;
+  periodFrom: string | null;
+  periodTo: string | null;
+  billCount: number;
+  total: number;
+  paid: number;
+  due: number;
+  createdAt: string;
+  createdBy: string;
+}
+
 /** Everything one patient was charged, on one statement. */
 export interface CombinedBillDTO {
+  /** Set once the statement has been issued and saved: its invoice number and the history record it lives in. */
+  id?: number;
+  invoiceNo?: string;
+  createdAt?: string;
+  createdBy?: string;
   patient: { id: number; name: string; code: string; age: number; gender: string; phone: string; address: string };
   period: { from: string | null; to: string | null };
   admission: { admissionNo: string; admittedOn: string; ward: string; bed: string; doctor: string; diagnosis: string; status: string } | null;
@@ -2642,7 +2809,7 @@ export interface IpdOverviewDTO {
   consents: { total: number; signed: number; hasAdmission: boolean };
   preauth: { total: number; ready: number };
   /** What must be settled before the patient leaves. */
-  readiness: { ivRunning: number; dosesPending: number; unbilledDoses: number; balanceDue: number; admissionConsent: boolean };
+  readiness: { ivRunning: number; dosesPending: number; unbilledDoses: number; balanceDue: number; admissionConsent: boolean; /** An IPD bill for this stay exists. */ finalBill: boolean };
 }
 
 export type IpdTimelineKind = "Admission" | "Medication" | "Vitals" | "Note" | "IV" | "Fluids" | "Billing" | "Consent" | "Insurance" | "Discharge";

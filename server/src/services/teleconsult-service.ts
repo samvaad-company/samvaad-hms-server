@@ -40,6 +40,7 @@ import {
 } from "@/services/payment-gateway";
 import { isDuplicateKeyError, linkPaymentToAppointment, recordPayment } from "@/services/teleconsult-ledger";
 import { logger } from "@/lib/logger";
+import { hospitalConfig } from "@/services/setup-service";
 import { localDate, parseClock, to12h, zonedInstant } from "@/lib/clock";
 import {
   assertSlot,
@@ -59,6 +60,21 @@ const verifyLookupBudgetMs = () => Number(process.env.TELECONSULT_VERIFY_BUDGET_
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+/** The consent a patient accepts when booking a video consultation, as the hospital has worded it in Masters. */
+export async function teleconsultConsent(hospitalId: number) {
+  const cfg = await hospitalConfig("teleconsult", hospitalId);
+  const text = String(cfg.consentText ?? "").trim();
+  return { required: cfg.consentRequired !== false && text.length > 0, title: String(cfg.consentTitle ?? "") || "Video consultation consent", text };
+}
+
+/** Booking needs the patient's tick when the hospital asks for consent; returns what to store on the booking. */
+async function consentFor(hospitalId: number, accepted: boolean | undefined) {
+  const c = await teleconsultConsent(hospitalId);
+  if (!c.required) return { consent_accepted_at: null, consent_text: null };
+  if (accepted !== true) throw new BadRequestError("Please accept the video consultation consent to book");
+  return { consent_accepted_at: new Date().toISOString(), consent_text: c.text };
+}
+
 export async function teleconsultConfig(hospitalId: number) {
   const hospital = await hospitalsRepo.getRow(hospitalId);
   if (!hospital) throw new NotFoundError("Hospital");
@@ -69,6 +85,7 @@ export async function teleconsultConfig(hospitalId: number) {
     currency: "INR",
     gatewayMode: gatewayMode(),
     google,
+    consent: await teleconsultConsent(hospitalId),
   };
 }
 
@@ -100,6 +117,8 @@ const bookingSchema = {
   time: { type: "string", required: true, max: 20 },
   reason: { type: "string", required: true, min: 2, max: 240 },
   email: { type: "string", required: false, max: 160, pattern: /.+@.+\..+/ },
+  /** The patient ticked the video-consultation consent. */
+  consent: { type: "boolean", required: false },
 } as const;
 
 const staffSchema = {
@@ -202,6 +221,7 @@ export async function createPortalBooking(input: unknown, source: "portal" | "li
   }
 
   const { patient, hospital, doctor, minutes, hospitalId, email } = await prepare(data, null);
+  const consent = await consentFor(hospitalId, data.consent);
   const amount = Number(hospital.teleconsult_price);
 
   const booking = await teleconsultBookingsRepo.create({
@@ -225,6 +245,7 @@ export async function createPortalBooking(input: unknown, source: "portal" | "li
     appointment_id: null,
     failure_reason: null,
     created_by: null,
+    ...consent,
   });
 
   if (amount === 0) {
@@ -250,6 +271,7 @@ export async function createStaffBooking(input: unknown, actor: Session) {
     throw new ForbiddenError("Only an admin can waive the consultation fee");
   }
   const { patient, hospital, doctor, minutes, email } = await prepare(data, hospitalId);
+  const consent = await consentFor(hospitalId, data.consent);
   const amount = data.paymentMode === "waived" ? 0 : Number(hospital.teleconsult_price);
 
   const booking = await teleconsultBookingsRepo.create({
@@ -273,6 +295,7 @@ export async function createStaffBooking(input: unknown, actor: Session) {
     appointment_id: null,
     failure_reason: null,
     created_by: actor.userId,
+    ...consent,
   });
   const confirmed = await confirmBooking(booking.id, {
     mode: data.paymentMode, paymentId: offlinePaymentId(booking, data.paymentMode, data.reference ?? null), via: "staff", actor,
@@ -722,6 +745,7 @@ export async function publicBookingSession(token: string | null) {
     price: hospital.teleconsult_price ?? null,
     currency: "INR",
     paymentMode: gatewayMode(),
+    consent: await teleconsultConsent(hospitalId),
     doctors: doctors
       .filter((d) => d.status !== "On Leave" && videoOn(d, hospital))
       .map((d) => ({ id: d.id, name: d.name, specialty: d.specialty, patientsPerHour: patientsPerHourOf(d) }))

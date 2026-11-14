@@ -11,7 +11,7 @@ import { PerformanceView } from "@/components/reports/PerformanceView";
 
 const TABS = [
   { id: "performance", label: "Hospital performance" },
-  { id: "ai", label: "AI usage" },
+  { id: "ai", label: "KAYA AI usage" },
 ];
 
 export default function AiMonitorPage() {

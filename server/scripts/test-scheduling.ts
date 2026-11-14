@@ -299,10 +299,10 @@ test("a doctor's video hours are not offered — or accepted — for in-person v
   assert.equal(staff.status, 400);
   assert.match(staff.error!.message, /takes video consultations only at that time/);
   assert.match((await portalBook(doc, wed, "11:00")).error!.message, /takes video consultations only at that time/);
-  const ip = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "12:30", reason: "video at an in-person time", paymentMode: "cash" });
+  const ip = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "12:30", reason: "video at an in-person time", paymentMode: "cash", consent: true });
   assert.equal(ip.status, 400);
   assert.match(ip.error!.message, /sees in-person patients at that time/);
-  const ok = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "10:30", reason: "video", paymentMode: "cash" });
+  const ok = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "10:30", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(ok.status, 201, JSON.stringify(ok.error));
 
   // The booked video time now shows as booked in the video list, and the in-person list is unchanged.
@@ -317,12 +317,12 @@ test("video and in-person share the doctor's hourly quota", async () => {
   // Video window 10:30–11:30 straddles two clock hours; quota is 2 per clock hour.
   await setDoctor(doc, { perHour: 2, video: true, windows: [{ day: "Friday", start: "10:30", end: "11:30" }] });
   assert.equal((await staffBook(doc, fri, "10:00")).status, 201, "in-person 10:00");
-  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: fri, time: "10:30", reason: "video", paymentMode: "cash" });
+  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: fri, time: "10:30", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(v.status, 201, JSON.stringify(v.error));
   // Hour 10 now has 2 (one in-person, one video): full for everyone.
   const s = await slotsOf(doc, fri, "video");
   assert.equal(statusAt(s, "10:30"), "booked");
-  const second = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: fri, time: "11:00", reason: "video2", paymentMode: "cash" });
+  const second = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: fri, time: "11:00", reason: "video2", paymentMode: "cash", consent: true });
   assert.equal(second.status, 201, "11:00 is in the next clock hour");
 });
 
@@ -332,7 +332,7 @@ test("a doctor turning video off hands the hours back to in-person; existing vid
   const doc = nextDoctor();
   const mon = freshDate(1);
   await setDoctor(doc, { perHour: 2, video: true, windows: [{ day: "Monday", start: "09:00", end: "11:00" }] });
-  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: mon, time: "09:30", reason: "video", paymentMode: "cash" });
+  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: mon, time: "09:30", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(v.status, 201);
   assert.equal(statusAt(await slotsOf(doc, mon), "09:00"), "absent");
 
@@ -340,7 +340,7 @@ test("a doctor turning video off hands the hours back to in-person; existing vid
   assert.equal(statusAt(await slotsOf(doc, mon), "09:00"), "open", "9:00 is an in-person time again");
   assert.equal((await slotsOf(doc, mon, "video")).slots.length, 0);
   assert.match((await slotsOf(doc, mon, "video")).closedReason ?? "", /isn't taking video consultations/);
-  assert.equal((await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: mon, time: "10:00", reason: "video", paymentMode: "cash" })).status, 400);
+  assert.equal((await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: mon, time: "10:00", reason: "video", paymentMode: "cash", consent: true })).status, 400);
   const still = (await appointmentsRepo.listRows({ filters: [{ column: "booking_id", op: "eq", value: v.data.id }], unpaged: true })).rows;
   assert.equal(still.length, 1, "the already-booked consultation is untouched");
   assert.equal(still[0].status, "Upcoming");
@@ -396,7 +396,7 @@ test("doctors set their own schedule; others can't; bad input is refused; warnin
   const wed = freshDate(3);
   await setDoctor(doc, { perHour: 2, video: true, windows: [{ day: "Wednesday", start: "09:00", end: "11:00" }] });
   await connectGoogle();
-  assert.equal((await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "09:00", reason: "video", paymentMode: "cash" })).status, 201);
+  assert.equal((await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "09:00", reason: "video", paymentMode: "cash", consent: true })).status, 201);
   assert.equal((await staffBook(doc, wed, "12:00")).status, 201);
   const narrowed = await admin("PUT", `/api/doctors/${doc}/schedule`, { videoHours: [{ day: "Wednesday", start: "10:00", end: "11:00" }] });
   assert.equal(narrowed.status, 200);
@@ -462,7 +462,7 @@ test("who may reschedule: admin, the appointment's own doctor, and the tele-call
   const created = await admin("POST", "/api/admin/users", { name: "Tara Caller", email: "tara.caller@samvaadhospital.in", password: "Samvaad@123", role: "Tele Caller" });
   assert.ok(created.status === 201 || created.status === 409, JSON.stringify(created.error)); // 409 = already created by an earlier pass
   const tele = (m: string, p: string, b?: unknown) => as("tara.caller@samvaadhospital.in", m, p, b);
-  const video = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: 2, date, time: "09:00", reason: "video", paymentMode: "cash" });
+  const video = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: 2, date, time: "09:00", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(video.status, 201, JSON.stringify(video.error));
   const vAppt = (await appointmentsRepo.listRows({ filters: [{ column: "booking_id", op: "eq", value: video.data.id }], unpaged: true })).rows[0];
   assert.equal((await tele("POST", `/api/appointments/${vAppt.id}/reschedule`, { date: date2, time: "09:30" })).status, 200, "tele-caller moves a video consultation");
@@ -476,7 +476,7 @@ test("a rescheduled video consultation keeps its link and booking, moves its cal
   const wed = freshDate(3);
   const wed2 = freshDate(3);
   await setDoctor(doc, { perHour: 2, video: true, windows: [{ day: "Wednesday", start: "09:00", end: "11:00" }] });
-  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "09:00", reason: "video", paymentMode: "cash" });
+  const v = await admin("POST", "/api/teleconsult/bookings", { patientId: nextPatient(), doctorId: doc, date: wed, time: "09:00", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(v.status, 201, JSON.stringify(v.error));
   const appt = (await appointmentsRepo.listRows({ filters: [{ column: "booking_id", op: "eq", value: v.data.id }], unpaged: true })).rows[0];
   assert.ok(appt.video_url, "link created");
@@ -599,7 +599,7 @@ test("a patient moving a video consultation: same doctor's video hours only, lin
   const th2 = freshDate(4);
   await setDoctor(doc, { perHour: 2, video: true, windows: [{ day: "Thursday", start: "16:00", end: "18:00" }] });
   const patientId = nextPatient();
-  const v = await admin("POST", "/api/teleconsult/bookings", { patientId, doctorId: doc, date: th, time: "16:00", reason: "video", paymentMode: "cash" });
+  const v = await admin("POST", "/api/teleconsult/bookings", { patientId, doctorId: doc, date: th, time: "16:00", reason: "video", paymentMode: "cash", consent: true });
   assert.equal(v.status, 201, JSON.stringify(v.error));
   const appt = (await appointmentsRepo.listRows({ filters: [{ column: "booking_id", op: "eq", value: v.data.id }], unpaged: true })).rows[0];
 

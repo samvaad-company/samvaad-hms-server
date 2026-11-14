@@ -42,7 +42,7 @@ export interface CaseFileLinkedDTO {
   doctorNotes: { date: string; time: string; by: string; text: string }[];
   dailyNotes: { date: string; time: string; by: string; text: string }[];
   /** Each medicine ordered, and for every day the four sheet windows (8am–2pm, 2pm–8pm, 8pm–2am, 2am–8am): "" none due, "due", "given" or "held". */
-  medicines: { id: number; name: string; dosage: string; frequency: string; route: string; start: string; end: string; status: string; days: Record<string, ("" | "due" | "given" | "held")[]> ; givenBy: Record<string, string[]> }[];
+  medicines: { id: number; name: string; dosage: string; frequency: string; route: string; start: string; end: string; status: string; days: Record<string, ("" | "due" | "given" | "held")[]> ; givenBy: Record<string, string[]>; /** When each dose was recorded as given (ISO), by day and window. */ givenAt: Record<string, string[]> }[];
   prescriptions: { rx: string; date: string; doctor: string; diagnosis: string; items: { name: string; dosage: string; frequency: string; duration: string; instructions: string }[] }[];
   ivLines: { date: string; time: string; fluid: string; volumeMl: number; rateMlHr: number; status: string; by: string }[];
   handovers: { date: string; shift: string; note: string; author: string }[];

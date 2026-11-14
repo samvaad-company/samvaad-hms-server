@@ -18,7 +18,7 @@ export function AiQuotaBar({ quota }: { quota: AiQuotaDTO | null }) {
       <div role="alert" className="shrink-0 flex items-start gap-2 px-4 py-3 bg-[#ffe9e9] dark:bg-[#3a1d1f] border-t border-[#ffc8c8] dark:border-[#5a2a2d] text-[12px] leading-[17px] text-[#b4000a] dark:text-[#ff9a9d]">
         <AlertTriangle size={15} className="shrink-0 mt-[1px]" />
         <span>
-          <b className="font-medium">Your AI access is paused.</b> Please contact your administrator or manager to turn it back on.
+          <b className="font-medium">Your KAYA AI access is paused.</b> Please contact your administrator or manager to turn it back on.
         </span>
       </div>
     );
@@ -29,7 +29,7 @@ export function AiQuotaBar({ quota }: { quota: AiQuotaDTO | null }) {
       <div role="alert" className="shrink-0 flex items-start gap-2 px-4 py-3 bg-[#ffe9e9] dark:bg-[#3a1d1f] border-t border-[#ffc8c8] dark:border-[#5a2a2d] text-[12px] leading-[17px] text-[#b4000a] dark:text-[#ff9a9d]">
         <AlertTriangle size={15} className="shrink-0 mt-[1px]" />
         <span>
-          <b className="font-medium">Your monthly AI quota is used up</b> ({fmt(quota.used)} of {fmt(quota.limit ?? 0)} tokens).
+          <b className="font-medium">Your monthly KAYA AI quota is used up</b> ({fmt(quota.used)} of {fmt(quota.limit ?? 0)} tokens).
           Please contact your administrator or manager to increase your limit. It renews on {renewal(quota.renewsOn)}.
         </span>
       </div>

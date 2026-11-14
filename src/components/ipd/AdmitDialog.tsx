@@ -1,19 +1,22 @@
 "use client";
 
 /**
- * Admit a patient. Only the patient is required — the bed, the doctor, the reason, the family contact, the
- * deposit and the nurse can all be filled in later. Six steps on one screen: patient, reason and doctor,
- * family contact, bed, deposit, primary nurse.
+ * Admit a patient. The patient and their SIGNED admission consent are required - without the signed consent the admission does
+ * not happen, so the consent can be made, printed, signed on paper or sent to the phone right here. The bed, the doctor, the reason,
+ * the family contact, the deposit and the nurse can all be filled in later. Seven steps on one screen: patient, consent, reason and
+ * doctor, family contact, bed, deposit, primary nurse.
  */
-import { useMemo, useState } from "react";
-import { BedDouble, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BedDouble, ChevronRight, FileSignature, Plus } from "lucide-react";
 import { api } from "@/lib/api/client";
-import { useList, useMutation } from "@/lib/api/hooks";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
 import { Modal } from "@/components/shared/Modal";
 import { done } from "@/components/ipd/nurse/shared";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
-import type { BedDTO, DepositMode, DoctorDTO, IpdAdmissionType, PatientDTO, StaffDTO, WardDTO } from "@/types/api";
+import { ConsentRow } from "@/components/consents/ConsentRow";
+import { patientLanguage } from "@/components/consents/NewConsentDrawer";
+import type { AdmissionConsentStatusDTO, BedDTO, ConsentDTO, DepositMode, DoctorDTO, IpdAdmissionType, PatientDTO, StaffDTO, WardDTO } from "@/types/api";
 
 const TYPES: IpdAdmissionType[] = ["Emergency", "Planned", "Day care", "Maternity", "Transfer in"];
 const MODES: DepositMode[] = ["Cash", "UPI", "Card"];
@@ -35,6 +38,52 @@ const pill = (active: boolean) =>
       ? "bg-[color:var(--ink)] border-[color:var(--ink)] text-[color:var(--surface)]"
       : "bg-[color:var(--surface)] border-[color:var(--line)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"
   }`;
+
+/** The admission consent: made here, signed on paper or on the phone; the admission can't happen until one is signed. */
+function AdmissionConsent({ patient, onStatus }: { patient: PatientDTO | undefined; onStatus: (ready: boolean) => void }) {
+  const pid = patient?.id;
+  const { item: status, reload: reloadStatus } = useItem<AdmissionConsentStatusDTO>(pid ? `/ipd/admission-consent?patientId=${pid}` : null);
+  const { items: all, reload: reloadList } = useList<ConsentDTO>(pid ? `/patients/${pid}/consents` : null);
+  const { run, loading, error } = useMutation();
+  const mine = all.filter((c) => c.templateKey === "admission-consent" && !(status?.usedIds ?? []).includes(c.id));
+  const ready = !!status?.ready;
+  const waiting = mine.some((c) => c.status === "Waiting");
+  const reload = () => { reloadStatus(); reloadList(); };
+
+  useEffect(() => { onStatus(ready); }, [ready, onStatus]);
+  // While a link is out on the patient's phone, look again every few seconds so the dialog notices the moment it is signed.
+  useEffect(() => {
+    if (!waiting) return;
+    const t = setInterval(() => { reloadStatus(); reloadList(); }, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting]);
+
+  async function make() {
+    if (!patient) return;
+    await done(run(async () => { await api.post(`/patients/${patient.id}/consents`, { template: "admission-consent", language: patientLanguage(patient.language), includeEnglish: false }); }));
+    reload();
+  }
+
+  if (!patient) return <p className="text-[12px] text-[color:var(--ink-soft)]">Pick the patient first - the admission consent is made for them.</p>;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className={`flex items-center gap-2 rounded-[8px] border px-3 py-2 text-[12px] ${ready ? "border-[#9fe3c6] bg-[#dffff3] text-[#0b7a47]" : "border-[#f3cf7d] bg-[#fff2d6] text-[#8a5300]"}`}>
+        <FileSignature size={14} className="shrink-0" />
+        <span className="flex-1">{ready ? "Signed admission consent on file - ready to admit." : "The patient can't be admitted until the admission consent is signed."}</span>
+      </div>
+      {mine.length > 0 && (
+        <div className="divide-y divide-[color:var(--line)] rounded-[10px] border border-[color:var(--line)]">
+          {mine.map((c) => <ConsentRow key={c.id} consent={c} canWrite onChanged={reload} />)}
+        </div>
+      )}
+      {!ready && !mine.some((c) => c.status === "Draft" || c.status === "Waiting") && (
+        <button type="button" onClick={make} disabled={loading} className="inline-flex h-[32px] w-fit items-center gap-[6px] rounded-[8px] border border-[color:var(--brand)] px-3 text-[13px] font-medium text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] cursor-pointer disabled:opacity-50"><Plus size={14} /> {loading ? "Making…" : "Create admission consent"}</button>
+      )}
+      {error && <p className="text-[12px] text-[#c8001a]">{error.message}</p>}
+    </div>
+  );
+}
 
 export function AdmitDialog({
   open,
@@ -69,6 +118,7 @@ export function AdmitDialog({
   const [moreOpen, setMoreOpen] = useState(false);
   const [stayDays, setStayDays] = useState("");
   const [diet, setDiet] = useState("");
+  const [consentReady, setConsentReady] = useState(false);
 
   const free = useMemo(() => beds.filter((b) => b.status === "Available"), [beds]);
   const wardNames = useMemo(() => {
@@ -117,7 +167,7 @@ export function AdmitDialog({
       open={open}
       onClose={close}
       title="Admit patient"
-      subtitle="Pick the patient and a bed - everything else is optional and can be filled in later."
+      subtitle="Pick the patient and get the admission consent signed - the bed and everything else can be filled in later."
       width={900}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
@@ -126,7 +176,7 @@ export function AdmitDialog({
           </span>
           <div className="flex items-center gap-2">
             <button onClick={close} className="h-[36px] px-5 rounded-[8px] text-[13px] font-medium text-[color:var(--ink)] hover:bg-[color:var(--subtle)] cursor-pointer transition-colors">Cancel</button>
-            <button onClick={admit} disabled={loading || !patientId}
+            <button onClick={admit} disabled={loading || !patientId || !consentReady} title={patientId && !consentReady ? "Get the admission consent signed first" : undefined}
               className="h-[36px] px-5 rounded-[8px] text-[13px] font-medium text-white bg-[color:var(--brand)] hover:bg-[color:var(--brand-hover)] cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? "Admitting…" : "Admit patient"}
             </button>
@@ -147,8 +197,13 @@ export function AdmitDialog({
             />
           </section>
 
+          <section className="flex flex-col gap-2">
+            <Step n={2} title="Admission consent (must be signed)" />
+            <AdmissionConsent patient={patients.find((p) => String(p.id) === patientId)} onStatus={setConsentReady} />
+          </section>
+
           <section className="flex flex-col gap-3">
-            <Step n={2} title="Reason & doctor" />
+            <Step n={3} title="Reason & doctor" />
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Admission type">
               {TYPES.map((t) => (
                 <button key={t} type="button" role="radio" aria-checked={type === t} onClick={() => setType(t)} className={pill(type === t)}>{t}</button>
@@ -172,7 +227,7 @@ export function AdmitDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <Step n={3} title="Family contact" />
+            <Step n={4} title="Family contact" />
             <div className="grid grid-cols-3 gap-2">
               <FormInput placeholder="Name" value={family.name} onChange={(v) => setFamily((f) => ({ ...f, name: v }))} />
               <FormInput placeholder="Relation" value={family.relation} onChange={(v) => setFamily((f) => ({ ...f, relation: v }))} />
@@ -184,7 +239,7 @@ export function AdmitDialog({
         {/* Right: bed, deposit, nurse */}
         <div className="flex flex-col gap-5 min-w-0">
           <section className="flex flex-col gap-2">
-            <Step n={4} title="Bed" />
+            <Step n={5} title="Bed" />
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setWardFilter("")} className={`${pill(wardFilter === "")} !bg-[color:var(--subtle)] ${wardFilter === "" ? "!text-[color:var(--ink)] !border-[color:var(--line)]" : ""}`}>
                 All wards <span className="ml-1 text-[color:var(--ink-soft)]">{free.length}</span>
@@ -215,7 +270,7 @@ export function AdmitDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <Step n={5} title="Admission deposit" />
+            <Step n={6} title="Admission deposit" />
             <div className="flex items-center gap-2">
               <div className="flex-1"><FormInput type="number" placeholder="₹  amount (optional)" value={deposit} onChange={setDeposit} min="0" /></div>
               <div role="radiogroup" aria-label="Deposit mode" className="inline-flex flex-wrap gap-[3px] max-w-full p-[3px] rounded-[8px] bg-[color:var(--subtle)] border border-[color:var(--line)]">
@@ -230,7 +285,7 @@ export function AdmitDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <Step n={6} title="Primary nurse" />
+            <Step n={7} title="Primary nurse" />
             <FormSelect placeholder="Assign later" value={nurseId} onChange={setNurseId}
               options={[{ value: "", label: "Assign later" }, ...nurses.map((n) => ({ value: String(n.id), label: n.name }))]} />
           </section>

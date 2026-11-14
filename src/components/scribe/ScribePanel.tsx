@@ -204,7 +204,7 @@ export function ScribePanel({
             <Sparkles size={16} className="text-[color:var(--brand)]" strokeWidth={1.75} />
           </div>
           <div>
-            <div className="text-[14px] font-medium text-[color:var(--ink)]">AI Consultation Scribe</div>
+            <div className="text-[14px] font-medium text-[color:var(--ink)]">KAYA AI Consultation Scribe</div>
             <div className="text-[11px] font-light text-[color:var(--ink-soft)] flex items-center gap-[6px]">
               {geminiLive ? (
                 <span className="inline-flex items-center gap-1 px-[6px] py-[1px] rounded-full bg-[#dffff3] text-[#00955c] font-medium">

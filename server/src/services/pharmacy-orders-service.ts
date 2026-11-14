@@ -30,14 +30,18 @@ import {
   type PharmacySaleRow,
   type PharmacySaleItemRow,
 } from "@/db/tables";
-import { NotFoundError, BadRequestError, ConflictError } from "@/lib/errors";
+import { NotFoundError, BadRequestError, ConflictError, ValidationError, type FieldError } from "@/lib/errors";
+import { withKeyLocks } from "@/lib/key-lock";
 import { validate, validatePartial } from "@/lib/validation";
 import { displayDate, nextCode, isoDate } from "@/services/helpers";
 import { computePharmacyStatus } from "@/services/helpers";
 import { audit } from "@/services/audit";
 import { type Session } from "@/auth/session";
-import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
+import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
+import { findParty } from "@/services/pharmacy-parties-service";
+import { creditLock, planCredit, recordApplied, releaseCredit } from "@/services/supplier-credit-service";
 import { nextNumber } from "@/services/id-service";
+import { allocateBatches, type BatchTake } from "@/services/pharmacy-batch-service";
 
 export const PO_STATUSES = ["Pending", "Received", "Cancelled"] as const;
 export const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Insurance"] as const;
@@ -46,15 +50,18 @@ export const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Insurance"] as c
 
 export const PO_LIST_CONFIG = {
   searchColumns: ["po_number", "supplier"],
-  filterable: ["status", "supplier"],
+  filterable: ["status", "supplier", "payment_type", "payment_status"],
   sortable: ["order_date", "po_number", "created_at"],
   defaultSort: [{ column: "id" as const, direction: "desc" as const }],
 };
+
+export const PAYMENT_TYPES = ["Cash", "Credit"] as const;
 
 const poSchema = {
   supplier: { type: "string", required: true, min: 2, max: 160 },
   expectedDate: { type: "string", required: false, max: 40, default: "" },
   notes: { type: "string", required: false, max: 500, default: "" },
+  paymentType: { type: "enum", required: false, values: PAYMENT_TYPES, default: "Cash" },
 } as const;
 
 export async function listPurchaseOrders(options: QueryOptions, actor: Session) {
@@ -79,54 +86,84 @@ export async function getPurchaseOrder(id: number, actor: Session) {
   return toPurchaseOrderDTO(row, await poItems(id));
 }
 
-interface POLine { medicineName: string; quantity: number; unitCost?: number; pharmacyItemId?: number }
+interface POLine { medicineName: string; quantity: number; unitCost?: number; pharmacyItemId?: number; manufacturer?: string; hsn?: string; isH1?: boolean }
+interface CleanLine { medicineName: string; quantity: number; unitCost: number; pharmacyItemId: number | null; manufacturer: string; manufacturerId: number | null; hsn: string; isH1: boolean }
 
-export async function createPurchaseOrder(input: unknown, actor: Session) {
-  const data = validate(poSchema, input);
-  const lines = ((input as { items?: POLine[] })?.items ?? []).filter(
-    (l) => l?.medicineName?.trim() && Number(l.quantity) > 0,
-  );
-  if (lines.length === 0) {
-    throw new BadRequestError("Add at least one medicine with a quantity");
-  }
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
-  const { rows: existing } = await purchaseOrdersRepo.listRows(
-    scopeToHospital({ unpaged: true }, actor),
-  );
-  const poNumber = await nextNumber("purchase_order", actor, existing.map((r) => r.po_number), { prefix: "PO-", pad: 4 });
-
-  const total = lines.reduce(
-    (sum, l) => sum + Number(l.quantity) * Number(l.unitCost ?? 0),
-    0,
-  );
-
-  const row = await purchaseOrdersRepo.create({
-    hospital_id: actor.hospitalId,
-    po_number: poNumber,
-    supplier: data.supplier,
-    order_date: displayDate(),
-    expected_date: isoDate(data.expectedDate),
-    item_count: lines.length,
-    total,
-    status: "Pending",
-    notes: data.notes,
-  });
-
-  for (const l of lines) {
-    await purchaseOrderItemsRepo.create({
-      purchase_order_id: row.id,
-      pharmacy_item_id: l.pharmacyItemId ?? null,
-      medicine_name: l.medicineName.trim(),
-      quantity: Number(l.quantity),
-      unit_cost: Number(l.unitCost ?? 0),
+/**
+ * The lines of a bill, checked and completed: whole quantities, a cost, an HSN code that looks like one (4–8 digits), and the
+ * manufacturer — taken from the medicine in the inventory when the line doesn't name one, and linked to the Masters record.
+ */
+async function cleanLines(raw: unknown, actor: Session): Promise<CleanLine[]> {
+  const list = (Array.isArray(raw) ? raw : []).filter((l: POLine) => l?.medicineName?.trim() && Number(l.quantity) > 0) as POLine[];
+  if (list.length === 0) throw new BadRequestError("Add at least one medicine with a quantity");
+  if (list.length > 200) throw new BadRequestError("A bill can have at most 200 lines");
+  const errors: FieldError[] = [];
+  const out: CleanLine[] = [];
+  for (const [i, l] of list.entries()) {
+    const quantity = Number(l.quantity), unitCost = Number(l.unitCost ?? 0);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1_000_000) { errors.push({ field: `items[${i}].quantity`, message: "quantity must be a whole number" }); continue; }
+    if (!Number.isFinite(unitCost) || unitCost < 0 || unitCost > 100_000_000) { errors.push({ field: `items[${i}].unitCost`, message: "cost must be a number from 0" }); continue; }
+    const hsn = String(l.hsn ?? "").trim();
+    if (hsn && !/^\d{4,8}$/.test(hsn)) { errors.push({ field: `items[${i}].hsn`, message: "HSN must be 4 to 8 digits" }); continue; }
+    const item = l.pharmacyItemId ? await pharmacyRepo.getRow(Number(l.pharmacyItemId)) : null;
+    const owned = item && item.hospital_id === actor.hospitalId ? item : null;
+    const mName = String(l.manufacturer ?? "").trim() || (owned?.manufacturer ?? "");
+    const m = mName ? await findParty("manufacturer", { name: mName }, actor) : null;
+    out.push({
+      medicineName: l.medicineName.trim().slice(0, 160), quantity, unitCost: r2(unitCost), pharmacyItemId: owned?.id ?? null,
+      manufacturer: m?.name ?? mName, manufacturerId: m?.id ?? null, hsn: hsn || (owned?.hsn ?? ""), isH1: typeof l.isH1 === "boolean" ? l.isH1 : owned?.is_h1 === true,
     });
   }
+  if (errors.length) throw new ValidationError(errors);
+  return out;
+}
 
-  await audit(actor, "create", "purchase-order", row.id, { poNumber });
+const goods = (lines: CleanLine[]) => r2(lines.reduce((sum, l) => sum + l.quantity * l.unitCost, 0));
+
+const lineRow = (poId: number, l: CleanLine) => ({
+  purchase_order_id: poId, pharmacy_item_id: l.pharmacyItemId, medicine_name: l.medicineName, quantity: l.quantity, unit_cost: l.unitCost,
+  manufacturer: l.manufacturer, manufacturer_id: l.manufacturerId, hsn: l.hsn, is_h1: l.isH1,
+});
+
+/** A cash bill is paid when it is made; a credit bill is paid later — unless supplier credit covers all of it. */
+const paymentStatusFor = (type: string, net: number) => (type === "Credit" && net > 0.004 ? "Unpaid" : "Paid");
+
+export async function createPurchaseOrder(input: unknown, actor: Session) {
+  const hospitalId = requireHospitalId(actor);
+  const data = validate(poSchema, input);
+  const body = (typeof input === "object" && input !== null ? input : {}) as { items?: unknown; useCredit?: unknown };
+  const lines = await cleanLines(body.items, actor);
+  const supplier = await findParty("supplier", { name: data.supplier }, actor);
+  const supplierName = supplier?.name ?? data.supplier;
+
+  const { rows: existing } = await purchaseOrdersRepo.listRows(scopeToHospital({ unpaged: true }, actor));
+  const poNumber = await nextNumber("purchase_order", actor, existing.map((r) => r.po_number), { prefix: "PO-", pad: 4 });
+  const total = goods(lines);
+
+  // Supplier credit from stock returned earlier is taken off, for the same supplier and manufacturer, unless the bill says not to.
+  const row = await withKeyLocks([creditLock(hospitalId, supplierName)], async () => {
+    const credit = body.useCredit === false ? [] : await planCredit(supplierName, lines, actor);
+    const applied = r2(credit.reduce((n, c) => n + c.amount, 0));
+    const net = r2(total - applied);
+    return transactional("pharmacy.createPO", async (uow) => {
+      const po = await uow.insert<PurchaseOrderRow>(TABLES.purchaseOrders, {
+        hospital_id: hospitalId, po_number: poNumber, supplier: supplierName, supplier_id: supplier?.id ?? null, order_date: displayDate(), expected_date: isoDate(data.expectedDate),
+        item_count: lines.length, total, status: "Pending", notes: data.notes, payment_type: data.paymentType, payment_status: paymentStatusFor(data.paymentType, net),
+        credit_applied: applied, net_payable: net,
+      });
+      for (const l of lines) await uow.insert(TABLES.purchaseOrderItems, lineRow(po.id, l));
+      await recordApplied(uow, po.id, poNumber, supplierName, supplier?.id ?? null, credit, actor);
+      return po;
+    });
+  });
+
+  await audit(actor, "create", "purchase-order", row.id, { poNumber, paymentType: data.paymentType, creditApplied: row.credit_applied });
   return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(row.id));
 }
 
-/** Receiving a PO adds its quantities to pharmacy stock. */
+/** Receiving a PO adds its quantities to pharmacy stock, and records each medicine's manufacturer, HSN and H1 flag on the inventory item. */
 export async function receivePurchaseOrder(id: number, actor: Session) {
   const row = await purchaseOrdersRepo.getRow(id);
   assertOwnedByHospital(row, actor, "Purchase order");
@@ -158,10 +195,15 @@ export async function receivePurchaseOrder(id: number, actor: Session) {
       continue;
     }
     const newStock = stock.stock + item.quantity;
-    await uow.update(TABLES.pharmacyItems, stock.id, {
+    const patch: Record<string, unknown> = {
       stock: newStock,
       status: computePharmacyStatus(newStock, stock.min_stock, stock.expiry_date),
-    });
+    };
+    if (item.manufacturer) { patch.manufacturer = item.manufacturer; patch.manufacturer_id = item.manufacturer_id ?? null; }
+    if (item.hsn) patch.hsn = item.hsn;
+    if (item.is_h1 != null) patch.is_h1 = item.is_h1 === true;
+    if (!stock.supplier && row.supplier) { patch.supplier = row.supplier; patch.supplier_id = row.supplier_id ?? null; }
+    await uow.update(TABLES.pharmacyItems, stock.id, patch);
     applied.push({ name: stock.name, added: item.quantity, to: newStock });
   }
   await uow.update(TABLES.purchaseOrders, id, { status: "Received" });
@@ -182,22 +224,45 @@ export async function updatePurchaseOrderStatus(id: number, status: string, acto
   if (status === "Received") return receivePurchaseOrder(id, actor);
   const existing = await purchaseOrdersRepo.getRow(id);
   assertOwnedByHospital(existing, actor, "Purchase order");
+  if (existing.status === "Received" && status !== "Received") throw new ConflictError("A received purchase order can't be changed back — its stock is already in");
+  if (status === "Cancelled" && existing.status !== "Cancelled") {
+    // A cancelled bill gives back the supplier credit it used.
+    const row = await withKeyLocks([creditLock(requireHospitalId(actor), existing.supplier)], () => transactional("pharmacy.cancelPO", async (uow) => {
+      await releaseCredit(uow, id, existing.po_number, actor);
+      return uow.update<PurchaseOrderRow>(TABLES.purchaseOrders, id, { status, credit_applied: 0, net_payable: Number(existing.total), payment_status: existing.payment_type === "Credit" ? "Unpaid" : existing.payment_status });
+    }));
+    await audit(actor, "update", "purchase-order", id, { status });
+    return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
+  }
   const row = await purchaseOrdersRepo.update(id, { status });
   await audit(actor, "update", "purchase-order", id, { status });
+  return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
+}
+
+/** A credit bill has been paid to the supplier. */
+export async function payPurchaseOrder(id: number, actor: Session) {
+  const existing = await purchaseOrdersRepo.getRow(id);
+  assertOwnedByHospital(existing, actor, "Purchase order");
+  if (existing.status === "Cancelled") throw new ConflictError("A cancelled purchase order has nothing to pay");
+  if (existing.payment_status === "Paid") throw new ConflictError("This bill is already paid");
+  const row = await purchaseOrdersRepo.update(id, { payment_status: "Paid" });
+  await audit(actor, "pay", "purchase-order", id, { amount: Number(existing.net_payable ?? existing.total) });
   return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
 }
 
 const poEditSchema = {
   supplier: { type: "string", required: false, min: 2, max: 160 },
   expectedDate: { type: "string", required: false, max: 40 },
+  paymentType: { type: "enum", required: false, values: PAYMENT_TYPES },
 } as const;
 
 /**
- * Full content edit (supplier, expected date, line items) — distinct from
- * `updatePurchaseOrderStatus`. Once a PO has been received, its items already
- * moved stock, so editing is restricted to Pending orders only.
+ * Full content edit (supplier, expected date, payment type, line items) — distinct from `updatePurchaseOrderStatus`. Once a PO has
+ * been received, its items already moved stock, so editing is restricted to Pending orders only. The supplier credit the bill used
+ * is given back and worked out again for what the bill now holds.
  */
 export async function updatePurchaseOrder(id: number, input: unknown, actor: Session) {
+  const hospitalId = requireHospitalId(actor);
   const existing = await purchaseOrdersRepo.getRow(id);
   assertOwnedByHospital(existing, actor, "Purchase order");
   if (existing.status !== "Pending") {
@@ -205,47 +270,48 @@ export async function updatePurchaseOrder(id: number, input: unknown, actor: Ses
   }
 
   const data = validatePartial(poEditSchema, input);
-  const lines = (input as { items?: POLine[] })?.items?.filter(
-    (l) => l?.medicineName?.trim() && Number(l.quantity) > 0,
-  );
-  if (lines && lines.length === 0) {
-    throw new BadRequestError("Add at least one medicine with a quantity");
-  }
+  const body = (typeof input === "object" && input !== null ? input : {}) as { items?: unknown; useCredit?: unknown };
+  const lines = body.items !== undefined ? await cleanLines(body.items, actor) : null;
+  const newSupplier = "supplier" in data ? await findParty("supplier", { name: data.supplier }, actor) : null;
+  const supplierName = "supplier" in data ? (newSupplier?.name ?? String(data.supplier)) : existing.supplier;
+  const supplierId = "supplier" in data ? newSupplier?.id ?? null : existing.supplier_id ?? null;
+  const paymentType = ("paymentType" in data ? data.paymentType : existing.payment_type) ?? "Cash";
 
-  const patch: Record<string, unknown> = {};
-  if ("supplier" in data) patch.supplier = data.supplier;
-  if ("expectedDate" in data) patch.expected_date = isoDate(data.expectedDate);
-  if (lines) {
-    patch.item_count = lines.length;
-    patch.total = lines.reduce((sum, l) => sum + Number(l.quantity) * Number(l.unitCost ?? 0), 0);
-  }
+  await withKeyLocks([creditLock(hospitalId, existing.supplier), creditLock(hospitalId, supplierName)], async () => {
+    await transactional("pharmacy.editPO", async (uow) => {
+      // Give back what the bill used, then work it out again from what it holds now.
+      await releaseCredit(uow, id, existing.po_number, actor);
+      const current = lines ?? (await poItems(id)).map((i): CleanLine => ({
+        medicineName: i.medicine_name, quantity: i.quantity, unitCost: Number(i.unit_cost), pharmacyItemId: i.pharmacy_item_id, manufacturer: i.manufacturer ?? "", manufacturerId: i.manufacturer_id ?? null, hsn: i.hsn ?? "", isH1: i.is_h1 === true,
+      }));
+      const total = goods(current);
+      const credit = body.useCredit === false ? [] : await planCredit(supplierName, current, actor);
+      const applied = r2(credit.reduce((n, c) => n + c.amount, 0));
+      const net = r2(total - applied);
+      const patch: Record<string, unknown> = { total, item_count: current.length, credit_applied: applied, net_payable: net, payment_type: paymentType, payment_status: paymentStatusFor(paymentType, net), supplier: supplierName, supplier_id: supplierId };
+      if ("expectedDate" in data) patch.expected_date = isoDate(data.expectedDate);
+      await uow.update(TABLES.purchaseOrders, id, patch);
+      if (lines) {
+        for (const i of await poItems(id)) await uow.remove(TABLES.purchaseOrderItems, i.id);
+        for (const l of lines) await uow.insert(TABLES.purchaseOrderItems, lineRow(id, l));
+      }
+      await recordApplied(uow, id, existing.po_number, supplierName, supplierId, credit, actor);
+    });
+  });
 
-  const row = await purchaseOrdersRepo.update(id, patch);
-  if (!row) throw new NotFoundError("Purchase order");
-
-  if (lines) {
-    for (const i of await poItems(id)) await purchaseOrderItemsRepo.remove(i.id);
-    for (const l of lines) {
-      await purchaseOrderItemsRepo.create({
-        purchase_order_id: id,
-        pharmacy_item_id: l.pharmacyItemId ?? null,
-        medicine_name: l.medicineName.trim(),
-        quantity: Number(l.quantity),
-        unit_cost: Number(l.unitCost ?? 0),
-      });
-    }
-  }
-
-  await audit(actor, "update", "purchase-order", id, patch);
+  const row = await purchaseOrdersRepo.getRow(id);
+  await audit(actor, "update", "purchase-order", id, { supplier: supplierName, paymentType });
   return toPurchaseOrderDTO(row as PurchaseOrderRow, await poItems(id));
 }
 
 export async function deletePurchaseOrder(id: number, actor: Session) {
   const existing = await purchaseOrdersRepo.getRow(id);
   assertOwnedByHospital(existing, actor, "Purchase order");
-  const items = await poItems(id);
-  for (const i of items) await purchaseOrderItemsRepo.remove(i.id);
-  await purchaseOrdersRepo.remove(id);
+  await withKeyLocks([creditLock(requireHospitalId(actor), existing.supplier)], () => transactional("pharmacy.deletePO", async (uow) => {
+    await releaseCredit(uow, id, existing.po_number, actor);
+    for (const i of await poItems(id)) await uow.remove(TABLES.purchaseOrderItems, i.id);
+    await uow.remove(TABLES.purchaseOrders, id);
+  }));
   await audit(actor, "delete", "purchase-order", id);
 }
 
@@ -282,7 +348,7 @@ const saleSchema = {
   discount: { type: "number", required: false, min: 0, default: 0 },
 } as const;
 
-interface SaleLine { pharmacyItemId?: number; medicineName: string; quantity: number; unitPrice?: number }
+interface SaleLine { pharmacyItemId?: number; medicineName: string; quantity: number; unitPrice?: number; isH1?: boolean; givenBy?: string; batchNo?: string }
 
 /**
  * Record a counter sale: decrements stock for every line, stores the sale and
@@ -299,7 +365,8 @@ export async function createSale(input: unknown, actor: Session) {
   }
 
   // Resolve every line and check availability before mutating anything.
-  const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number }[] = [];
+  const usedBatches = new Map<number, number>();
+  const resolved: { stock: PharmacyItemRow; qty: number; unitPrice: number; h1: boolean; givenBy: string; batchNo: string; takes: BatchTake[] }[] = [];
   for (const l of lines) {
     const byId = l.pharmacyItemId ? await pharmacyRepo.getRow(l.pharmacyItemId) : null;
     const stock =
@@ -317,7 +384,9 @@ export async function createSale(input: unknown, actor: Session) {
         `Only ${stock.stock} unit(s) of ${stock.name} in stock (needed ${qty})`,
       );
     }
-    resolved.push({ stock, qty, unitPrice: Number(l.unitPrice ?? 0) });
+    // A medicine that is H1 in the inventory always goes in the register; the pharmacist can also tick one that isn't marked.
+    const alloc = await allocateBatches(stock, qty, typeof l.batchNo === "string" ? l.batchNo : "", actor, usedBatches);
+    resolved.push({ stock, qty, unitPrice: Number(l.unitPrice ?? 0), batchNo: alloc.label, takes: alloc.takes, h1: l.isH1 === true || stock.is_h1 === true, givenBy: typeof l.givenBy === "string" ? l.givenBy.trim().slice(0, 80) : "" });
   }
 
   let patientName = data.patientName || "Walk-in";
@@ -364,7 +433,11 @@ export async function createSale(input: unknown, actor: Session) {
         quantity: r.qty,
         unit_price: r.unitPrice,
         line_total: r.qty * r.unitPrice,
+        is_h1: r.h1,
+        ...(r.h1 ? { given_by: r.givenBy || actor.name, given_by_id: actor.userId } : {}),
+        ...(r.batchNo ? { batch_no: r.batchNo } : {}),
       });
+      for (const t of r.takes) await uow.update(TABLES.pharmacyBatches, t.batchId, { quantity: t.left });
       const newStock = r.stock.stock - r.qty;
       await uow.update(TABLES.pharmacyItems, r.stock.id, {
         stock: newStock,

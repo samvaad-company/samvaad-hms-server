@@ -116,7 +116,7 @@ export function PatientSignatureCard({ form, canEdit, onChanged }: { form: Preau
   return (
     <section className="rounded-[12px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3">
       <div className="flex flex-wrap items-center gap-4">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[220px] flex-1 basis-[220px]">
           <h3 className="text-[13px] font-semibold text-[color:var(--ink)]">Patient&apos;s signature</h3>
           <p className="text-[12px] text-[color:var(--ink-soft)]">
             {form.patientSignatureImg

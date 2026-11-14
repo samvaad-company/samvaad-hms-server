@@ -23,12 +23,18 @@ import { SearchSelect } from "@/components/shared/SearchSelect";
 import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/shared/DocumentLetterhead";
 import type { PharmacyItem } from "@/types";
 import { PatientName } from "@/components/loyalty/PatientName";
+import { PurchasePanel } from "@/components/pharmacy/PurchasePanel";
+import { BatchSelect } from "@/components/pharmacy/BatchSelect";
+import { H1RegisterPanel } from "@/components/pharmacy/H1RegisterPanel";
+import { useSetup } from "@/components/setup/ui";
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 const INV_COLUMNS = [
   { label: "Medicine",  width: "minmax(160px,1.5fr)" },
-  { label: "Category",  width: "minmax(120px,1fr)" },
+  { label: "Category",  width: "minmax(110px,0.9fr)" },
+  { label: "Manufacturer", width: "minmax(130px,1fr)" },
+  { label: "HSN",       width: "80px" },
   { label: "Stock",     width: "100px" },
   { label: "Min Stock", width: "90px" },
   { label: "Expiry",    width: "110px" },
@@ -41,15 +47,17 @@ const INV_FILTERS = [
   { id: "LowStock", label: "Low Stock" }, { id: "OutOfStock", label: "Out of Stock" },
   { id: "Expired", label: "Expired" },
 ];
-const MIN_WIDTH = 1120;
+const MIN_WIDTH = 1380;
 
 function InventoryRow({ row, actions }: { row: PharmacyItem; actions: RowAction[] }) {
   const isLow = row.stock < row.minStock && row.stock > 0;
   const isOut = row.stock === 0;
   return (
     <div className={tw.table.dataRow} style={{ gridTemplateColumns: "var(--cols)" }}>
-      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}</span>
+      <span className="text-[13px] font-medium text-[color:var(--ink)] truncate">{row.name}{row.isH1 && <span className="ml-2 rounded-full bg-[#ffe9e9] px-2 py-[1px] text-[10px] font-medium text-[#c8001a]" title="Schedule H1 drug">H1</span>}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.category}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)] truncate">{row.manufacturer || "—"}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink-soft)]">{row.hsn || "—"}</span>
       <span className={`text-[13px] font-medium ${isOut ? "text-[#ff0004]" : isLow ? "text-[#ff9000]" : "text-[color:var(--ink)]"}`}>
         {row.stock} units
       </span>
@@ -70,7 +78,7 @@ const PO_STATUS: Record<string, string> = {
   Cancelled:"bg-[#ffe9e9] text-[#ff0004]",
 };
 
-interface Line { medicineName: string; quantity: string; price: string; pharmacyItemId?: number }
+interface Line { medicineName: string; quantity: string; price: string; pharmacyItemId?: number; isH1?: boolean; batchNo?: string }
 
 /** Comparable form of a medicine name: lowercase, no strength or packaging — mirrors the server's rx-to-stock matching. */
 function medicineKey(name: string): string {
@@ -144,305 +152,6 @@ function MedicinePicker({
   );
 }
 
-function PurchaseView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: () => void }) {
-  const { items: orders, reload } = useList<PurchaseOrderDTO>("/pharmacy/purchase-orders", { all: true });
-  const { run, loading, error } = useMutation();
-  const [notice, setNotice] = useState<string | null>(null);
-  const suppliers = [...new Set(items.map(i => i.supplier).filter(Boolean))].sort();
-  const hospital = useHospital();
-  const poDocRef = useRef<HTMLDivElement>(null);
-
-  const [supplier, setSupplier] = useState("");
-  const [expectedDate, setExpectedDate] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ medicineName: "", quantity: "", price: "" }]);
-
-  const setLine = (i: number, patch: Partial<Line>) =>
-    setLines(prev => prev.map((l, n) => (n === i ? { ...l, ...patch } : l)));
-  const total = lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.price) || 0), 0);
-
-  // View / Edit dialogs
-  const [viewingPO, setViewingPO] = useState<PurchaseOrderDTO | null>(null);
-  const [pendingPODownload, setPendingPODownload] = useState(false);
-  const [editingPO, setEditingPO] = useState<PurchaseOrderDTO | null>(null);
-  const [editSupplier, setEditSupplier] = useState("");
-  const [editExpectedDate, setEditExpectedDate] = useState("");
-  const [editLines, setEditLines] = useState<Line[]>([]);
-  const { run: runEdit, loading: editLoading, error: editError } = useMutation();
-
-  useEffect(() => {
-    if (viewingPO && pendingPODownload) {
-      downloadElement(poDocRef.current, viewingPO.poNumber);
-      setPendingPODownload(false);
-    }
-  }, [viewingPO, pendingPODownload]);
-
-  function downloadPO(po: PurchaseOrderDTO) {
-    setViewingPO(po);
-    setPendingPODownload(true);
-  }
-
-  const setEditLine = (i: number, patch: Partial<Line>) =>
-    setEditLines(prev => prev.map((l, n) => (n === i ? { ...l, ...patch } : l)));
-  const editTotal = editLines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.price) || 0), 0);
-
-  function openEditPO(po: PurchaseOrderDTO) {
-    setEditingPO(po);
-    setEditSupplier(po.supplier);
-    setEditExpectedDate(po.expectedDate ?? "");
-    setEditLines(po.items.map(it => ({
-      medicineName: it.medicineName, quantity: String(it.quantity), price: String(it.unitCost),
-    })));
-  }
-
-  async function saveEditPO() {
-    if (!editingPO) return;
-    await runEdit(() => api.patch(`/pharmacy/purchase-orders/${editingPO.id}`, {
-      supplier: editSupplier,
-      expectedDate: editExpectedDate,
-      items: editLines
-        .filter(l => l.medicineName.trim() && Number(l.quantity) > 0)
-        .map(l => ({ medicineName: l.medicineName, quantity: Number(l.quantity), unitCost: Number(l.price) || 0, pharmacyItemId: l.pharmacyItemId })),
-    }));
-    setEditingPO(null);
-    reload();
-  }
-
-  async function createPO() {
-    await run(() => api.post("/pharmacy/purchase-orders", {
-      supplier, expectedDate,
-      items: lines
-        .filter(l => l.medicineName.trim() && Number(l.quantity) > 0)
-        .map(l => ({
-          medicineName: l.medicineName,
-          quantity: Number(l.quantity),
-          unitCost: Number(l.price) || 0,
-          pharmacyItemId: l.pharmacyItemId,
-        })),
-    }));
-    setSupplier(""); setExpectedDate("");
-    setLines([{ medicineName: "", quantity: "", price: "" }]);
-    reload();
-  }
-
-  async function receive(po: PurchaseOrderDTO) {
-    const res = await api.post<PurchaseOrderDTO & { receipt?: { applied: { name: string; added: number }[]; unmatched: string[] } }>(
-      `/pharmacy/purchase-orders/${po.id}/receive`);
-    const r = res?.receipt;
-    const parts: string[] = [];
-    if (r?.applied?.length) parts.push(`Stock increased: ${r.applied.map(a => `${a.name} (+${a.added})`).join(", ")}.`);
-    if (r?.unmatched?.length) parts.push(`Not in inventory: ${r.unmatched.join(", ")}.`);
-    setNotice(parts.join(" ") || "Purchase order received.");
-    reload(); onChanged();
-  }
-
-  return (
-    <div className="p-5 flex flex-col gap-5">
-      {/* View PO */}
-      <Modal open={!!viewingPO} onClose={() => setViewingPO(null)} title={viewingPO ? `Purchase Order — ${viewingPO.poNumber}` : ""} width={700}
-        footer={viewingPO && (
-          <>
-            <button onClick={() => downloadElement(poDocRef.current, viewingPO.poNumber)}
-              className="flex items-center gap-2 text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-4 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">
-              <Download size={14} /> Download
-            </button>
-            {viewingPO.status === "Pending" && (
-              <button onClick={() => { openEditPO(viewingPO); setViewingPO(null); }}
-                className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-4 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors">
-                <Pencil size={14} /> Edit
-              </button>
-            )}
-          </>
-        )}
-      >
-        {viewingPO && (
-          <div ref={poDocRef} className="border border-[color:var(--line)] rounded-[12px] overflow-hidden">
-            <DocumentLetterhead
-              hospital={hospital}
-              compact
-              right={
-                <>
-                  <div className="text-[18px] font-medium text-[color:var(--ink)]">{viewingPO.poNumber}</div>
-                  <div className="text-[12px] font-light text-[color:var(--ink-soft)] mt-1">Order date: {formatDate(viewingPO.orderDate)}</div>
-                  {viewingPO.expectedDate && <div className="text-[12px] font-light text-[color:var(--ink-soft)]">Expected: {formatDate(viewingPO.expectedDate)}</div>}
-                  <div className="mt-2"><StatusBadge status={viewingPO.status} /></div>
-                </>
-              }
-            />
-            <div className="px-8 py-6">
-              <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Supplier</p>
-              <p className="text-[14px] font-medium text-[color:var(--ink)] mb-4">{viewingPO.supplier}</p>
-              <table className="w-full">
-                <thead>
-                  <tr className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider" style={{ borderBottom: "1px solid var(--line)" }}>
-                    <th className="text-left pb-2">#</th>
-                    <th className="text-left pb-2">Medicine</th>
-                    <th className="text-right pb-2">Qty</th>
-                    <th className="text-right pb-2">Unit ₹</th>
-                    <th className="text-right pb-2">Amount ₹</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewingPO.items.map((it, i) => (
-                    <tr key={it.id} className="text-[13px]" style={{ borderBottom: "1px solid var(--subtle-2)" }}>
-                      <td className="py-2 text-[color:var(--ink-soft)]">{i + 1}</td>
-                      <td className="py-2 text-[color:var(--ink)]">{it.medicineName}</td>
-                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.quantity}</td>
-                      <td className="py-2 text-right text-[color:var(--ink-soft)]">{it.unitCost.toLocaleString("en-IN")}</td>
-                      <td className="py-2 text-right text-[color:var(--ink)] font-medium">{(it.quantity * it.unitCost).toLocaleString("en-IN")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex justify-end mt-4">
-                <div className="text-[15px] font-medium text-[color:var(--ink)]">Total: <span className="text-[color:var(--brand)]">₹{viewingPO.total.toLocaleString("en-IN")}</span></div>
-              </div>
-            </div>
-            <DocumentFooter hospital={hospital} />
-          </div>
-        )}
-      </Modal>
-
-      {/* Edit PO */}
-      <Modal open={!!editingPO} onClose={() => setEditingPO(null)} title={editingPO ? `Edit — ${editingPO.poNumber}` : ""}
-        footer={
-          <>
-            <button onClick={() => setEditingPO(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
-            <button onClick={saveEditPO} disabled={editLoading || !editSupplier}
-              className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
-              {editLoading ? "Saving…" : "Save Changes"}
-            </button>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <FormRow label="Supplier *">
-            <FormSelect placeholder="Select supplier" value={editSupplier} onChange={setEditSupplier}
-              options={suppliers.map(x => ({ value: x, label: x }))} />
-          </FormRow>
-          <FormRow label="Expected Date">
-            <FormInput type="date" value={editExpectedDate} onChange={setEditExpectedDate} />
-          </FormRow>
-        </div>
-        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Medicines</p>
-        <div className="flex flex-col gap-2">
-          {editLines.map((l, i) => (
-            <div key={i} className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 36px" }}>
-              <MedicinePicker items={items} value={l.medicineName}
-                onPick={(m, text) => setEditLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
-              <input value={l.quantity} type="number" placeholder="Qty"
-                onChange={(e) => setEditLine(i, { quantity: e.target.value })}
-                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
-              <input value={l.price} type="number" placeholder="Unit ₹"
-                onChange={(e) => setEditLine(i, { price: e.target.value })}
-                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
-              <button onClick={() => setEditLines(prev => prev.filter((_, n) => n !== i))}
-                disabled={editLines.length === 1}
-                className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
-            </div>
-          ))}
-        </div>
-        <button onClick={() => setEditLines(prev => [...prev, { medicineName: "", quantity: "", price: "" }])}
-          className="mt-2 text-[12px] text-[color:var(--brand)] hover:underline">+ Add medicine</button>
-        {editError && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{editError.message}</div>}
-        <div className="flex justify-end mt-4">
-          <span className="text-[14px] font-medium text-[color:var(--ink)]">Total: <span className="text-[color:var(--brand)]">₹{editTotal.toLocaleString("en-IN")}</span></span>
-        </div>
-      </Modal>
-
-      <div className="border border-[color:var(--line)] rounded-[10px] p-5">
-        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-4">New Purchase Order</h3>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <FormRow label="Supplier *">
-            <FormSelect placeholder="Select supplier" value={supplier} onChange={setSupplier}
-              options={suppliers.map(x => ({ value: x, label: x }))} />
-          </FormRow>
-          <FormRow label="Expected Date">
-            <FormInput type="date" value={expectedDate} onChange={setExpectedDate} />
-          </FormRow>
-        </div>
-
-        <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Medicines</p>
-        <div className="flex flex-col gap-2">
-          {lines.map((l, i) => (
-            <div key={i} className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 36px" }}>
-              <MedicinePicker items={items} value={l.medicineName}
-                onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
-              <input value={l.quantity} type="number" placeholder="Qty"
-                onChange={(e) => setLine(i, { quantity: e.target.value })}
-                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
-              <input value={l.price} type="number" placeholder="Unit ₹"
-                onChange={(e) => setLine(i, { price: e.target.value })}
-                className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
-              <button onClick={() => setLines(prev => prev.filter((_, n) => n !== i))}
-                disabled={lines.length === 1}
-                className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
-            </div>
-          ))}
-        </div>
-        <button onClick={() => setLines(prev => [...prev, { medicineName: "", quantity: "", price: "" }])}
-          className="mt-2 text-[12px] text-[color:var(--brand)] hover:underline">+ Add medicine</button>
-
-        {error && <div className="mt-3 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
-
-        <div className="flex justify-between items-center mt-4">
-          <span className="text-[14px] font-medium text-[color:var(--ink)]">
-            Total: <span className="text-[color:var(--brand)]">₹{total.toLocaleString("en-IN")}</span>
-          </span>
-          <button onClick={createPO} disabled={loading || !supplier}
-            className="bg-[color:var(--brand)] text-white text-[14px] font-normal px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
-            {loading ? "Creating…" : "Create PO"}
-          </button>
-        </div>
-      </div>
-
-      {notice && (
-        <div className="flex items-start justify-between gap-3 text-[13px] text-[color:var(--ink)] bg-[color:var(--brand-soft)] border border-[#b8e5e6] rounded-[10px] px-4 py-3">
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} className="text-[color:var(--ink-soft)] shrink-0">✕</button>
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-[14px] font-medium text-[color:var(--ink)] mb-3">Purchase Orders</h3>
-        <div className="border border-[color:var(--line)] rounded-[10px] overflow-hidden">
-          <div className="grid items-center px-4 h-10 bg-[color:var(--subtle-3)] text-[12px] font-medium text-[color:var(--ink)]"
-            style={{ gridTemplateColumns: "110px 1.4fr 110px 70px 110px 110px 150px" }}>
-            <span>PO Number</span><span>Supplier</span><span>Date</span><span>Items</span>
-            <span>Total</span><span>Status</span><span>Action</span>
-          </div>
-          {orders.length === 0 && (
-            <div className="py-10 text-center text-[13px] text-[color:var(--ink-soft)]">No purchase orders yet.</div>
-          )}
-          {orders.map(po => (
-            <div key={po.id} className="grid items-center px-4 h-[56px] border-b border-[color:var(--subtle-2)] last:border-0 bg-[color:var(--surface)] hover:bg-[color:var(--faint)] transition-colors"
-              style={{ gridTemplateColumns: "110px 1.4fr 110px 70px 110px 110px 150px" }}>
-              <span className="text-[13px] font-medium text-[color:var(--brand)]">{po.poNumber}</span>
-              <span className="text-[13px] text-[color:var(--ink)] truncate">{po.supplier}</span>
-              <span className="text-[13px] text-[color:var(--ink-soft)]">{formatDate(po.orderDate)}</span>
-              <span className="text-[13px] text-[color:var(--ink-soft)]">{po.itemCount}</span>
-              <span className="text-[13px] font-medium text-[color:var(--ink)]">₹{po.total.toLocaleString("en-IN")}</span>
-              <span className={`inline-flex w-fit items-center px-[10px] py-[4px] rounded-full text-[11px] ${PO_STATUS[po.status] ?? ""}`}>{po.status}</span>
-              <div className="flex items-center gap-2 justify-end">
-                {po.status === "Pending" && (
-                  <button onClick={() => void receive(po)}
-                    className="text-[12px] text-white bg-[color:var(--brand)] px-3 py-[5px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors whitespace-nowrap">
-                    Receive stock
-                  </button>
-                )}
-                <RowMenu actions={[
-                  { label: "View", onClick: () => setViewingPO(po) },
-                  { label: "Edit", disabled: po.status !== "Pending", onClick: () => openEditPO(po) },
-                  { label: "Download bill", onClick: () => downloadPO(po) },
-                ]} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Sales ────────────────────────────────────────────────────────────────────
 
 const MODE_CLR: Record<string, string> = {
@@ -502,6 +211,8 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
 
   const [patientId, setPatientId] = useState("");
   const [rxNumber, setRxNumber] = useState("");
+  const [givenBy, setGivenBy] = useState("");
+  const { user } = useAuth();
   const [paymentMode, setPaymentMode] = useState("Cash");
   const [discount, setDiscount] = useState("");
   const [discountType, setDiscountType] = useState<DiscountType>("flat");
@@ -538,6 +249,7 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           quantity: String(unitsFor(item.frequency, item.duration)),
           price: "",
           pharmacyItemId: stockMatch?.id,
+          isH1: stockMatch?.isH1 === true,
         };
       }));
     }).catch(() => {});
@@ -566,9 +278,12 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
           quantity: Number(l.quantity),
           unitPrice: Number(l.price) || 0,
           pharmacyItemId: l.pharmacyItemId,
+          isH1: l.isH1 === true || (l.pharmacyItemId ? items.find(x => x.id === l.pharmacyItemId)?.isH1 === true : false),
+          givenBy: givenBy.trim() || undefined,
+          batchNo: l.batchNo || undefined,
         })),
     }));
-    setPatientId(""); setRxNumber(""); setDiscount(""); setDiscountType("flat");
+    setPatientId(""); setRxNumber(""); setGivenBy(""); setDiscount(""); setDiscountType("flat");
     setLines([{ medicineName: "", quantity: "", price: "" }]);
     reload(); onChanged();
   }
@@ -726,6 +441,9 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
               ]}
             />
           </FormRow>
+          <FormRow label="H1 drugs given by" hint="Defaults to you. Your user ID is saved with it in the H1 register.">
+            <input value={givenBy} onChange={e => setGivenBy(e.target.value)} maxLength={80} placeholder={user?.name ?? "Name"} aria-label="H1 drugs given by" className="w-full text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
+          </FormRow>
           <FormRow label="Payment Mode">
             <FormSelect value={paymentMode} onChange={setPaymentMode}
               options={["Cash","UPI","Card","Cheque","Insurance"].map(m => ({ value: m, label: m }))} />
@@ -767,20 +485,24 @@ function SalesView({ items, onChanged }: { items: PharmacyItemDTO[]; onChanged: 
             const outOfStock = stockMatch && stockMatch.stock <= 0;
             return (
               <div key={i} className="flex flex-col gap-1">
-                <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 36px" }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "2fr 100px 120px 54px 36px" }}>
                   <MedicinePicker items={items} value={l.medicineName}
                     placeholder="Scan barcode or search medicine"
-                    onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id })} />
+                    onPick={(m, text) => setLine(i, { medicineName: text, pharmacyItemId: m?.id, isH1: m?.isH1 === true, batchNo: "" })} />
                   <input value={l.quantity} type="number" placeholder="Qty"
                     onChange={(e) => setLine(i, { quantity: e.target.value })}
                     className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
                   <input value={l.price} type="number" placeholder="Unit ₹"
                     onChange={(e) => setLine(i, { price: e.target.value })}
                     className="text-[14px] bg-[color:var(--subtle)] border border-transparent rounded-[10px] px-3 py-[10px] outline-none focus:border-[color:var(--brand)] focus:bg-[color:var(--surface)]" />
+                  <label className="flex items-center justify-center gap-1 text-[12px] text-[color:var(--ink)] cursor-pointer" title={stockMatch?.isH1 ? "This medicine is marked H1 in the inventory" : "Tick for a Schedule H1 drug: it goes in the H1 register"}>
+                    <input type="checkbox" aria-label="Schedule H1 drug" checked={l.isH1 === true || stockMatch?.isH1 === true} disabled={stockMatch?.isH1 === true} onChange={(e) => setLine(i, { isH1: e.target.checked })} /> H1
+                  </label>
                   <button onClick={() => setLines(prev => prev.filter((_, n) => n !== i))}
                     disabled={lines.length === 1}
                     className="text-[#c8c8cc] hover:text-[#ff0004] disabled:opacity-30 transition-colors">✕</button>
                 </div>
+                {stockMatch && !outOfStock && <BatchSelect itemId={stockMatch.id} value={l.batchNo ?? ""} onChange={(batchNo) => setLine(i, { batchNo })} />}
                 {(notFound || outOfStock) && (
                   <p className="text-[11px] font-normal text-[#ff0004] pl-1">
                     {notFound ? "Not found in pharmacy inventory — remove or pick the matching item." : "Out of stock — remove this line or wait for restock."}
@@ -1000,8 +722,29 @@ export default function PharmacyPage() {
   const { run, loading, error } = useMutation();
   const { dialog, remove } = useRowActions("pharmacy", reload);
 
-  const [form, setForm] = useState({ name: "", category: "", stock: "", minStock: "", expiryDate: "", supplier: "" });
-  const set = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const supplierMaster = useSetup("supplier");
+  const makerMaster = useSetup("manufacturer");
+  const supplierNames = supplierMaster.items.filter(x => x.active).map(x => x.name);
+  const makerNames = makerMaster.items.filter(x => x.active).map(x => x.name);
+  const blankForm = { name: "", category: "", stock: "", minStock: "", expiryDate: "", supplier: "", manufacturer: "", hsn: "", isH1: false };
+  const [form, setForm] = useState(blankForm);
+  const set = <K extends keyof typeof blankForm>(k: K, v: (typeof blankForm)[K]) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // Edit an item's details (category, manufacturer, supplier, HSN, H1) — stock changes go through Reorder.
+  const [editItem, setEditItem] = useState<PharmacyItemDTO | null>(null);
+  const [editForm, setEditForm] = useState({ category: "", supplier: "", manufacturer: "", hsn: "", isH1: false });
+  const { run: runEditItem, loading: editItemLoading, error: editItemError, reset: resetEditItem } = useMutation();
+  function openEditItem(item: PharmacyItemDTO) {
+    resetEditItem();
+    setEditItem(item);
+    setEditForm({ category: item.category, supplier: item.supplier, manufacturer: item.manufacturer ?? "", hsn: item.hsn ?? "", isH1: item.isH1 === true });
+  }
+  async function saveEditItem() {
+    if (!editItem) return;
+    try { await runEditItem(() => api.patch(`/pharmacy/${editItem.id}`, { category: editForm.category, supplier: editForm.supplier, manufacturer: editForm.manufacturer, hsn: editForm.hsn, isH1: editForm.isH1 })); } catch { return; }
+    setEditItem(null);
+    reload();
+  }
 
   // Reorder dialog — lets the user pick how many units to add, rather than a fixed +100.
   const [reorderTarget, setReorderTarget] = useState<ReorderTarget | null>(null);
@@ -1036,9 +779,12 @@ export default function PharmacyPage() {
         minStock: Number(form.minStock) || 0,
         expiryDate: form.expiryDate,
         supplier: form.supplier,
+        manufacturer: form.manufacturer,
+        hsn: form.hsn,
+        isH1: form.isH1,
       }),
     );
-    setForm({ name: "", category: "", stock: "", minStock: "", expiryDate: "", supplier: "" });
+    setForm(blankForm);
     setShowModal(false);
     reload();
   }
@@ -1046,6 +792,7 @@ export default function PharmacyPage() {
   const TABS = [
     { id: "inventory", label: "Inventory",   count: pharmacyItems.length },
     ...(canWrite ? [{ id: "purchase", label: "Purchase" }, { id: "sales", label: "Sales" }] : []),
+    { id: "h1",        label: "H1 Register" },
     { id: "expiring",  label: "About to Expire" },
     { id: "alerts",    label: "Alerts", count: pharmacyItems.filter(i => ["Low Stock","Out of Stock","Expired"].includes(i.status)).length },
   ];
@@ -1076,9 +823,12 @@ export default function PharmacyPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2"><FormRow label="Medicine Name *"><FormInput placeholder="e.g. Paracetamol 500mg" value={form.name} onChange={v => set("name", v)} /></FormRow></div>
           <FormRow label="Category"><FormInput placeholder="e.g. Analgesic" value={form.category} onChange={v => set("category", v)} /></FormRow>
-          <FormRow label="Supplier"><FormInput placeholder="Supplier name" value={form.supplier} onChange={v => set("supplier", v)} /></FormRow>
+          <FormRow label="Supplier"><FormSelect placeholder="Select supplier" value={form.supplier} onChange={v => set("supplier", v)} options={[{ value: "", label: "None" }, ...supplierNames.map(x => ({ value: x, label: x }))]} /></FormRow>
+          <FormRow label="Manufacturer"><FormSelect placeholder="Select manufacturer" value={form.manufacturer} onChange={v => set("manufacturer", v)} options={[{ value: "", label: "None" }, ...makerNames.map(x => ({ value: x, label: x }))]} /></FormRow>
           <FormRow label="Stock *"><FormInput type="number" placeholder="0" value={form.stock} onChange={v => set("stock", v)} /></FormRow>
           <FormRow label="Min Stock"><FormInput type="number" placeholder="0" value={form.minStock} onChange={v => set("minStock", v)} /></FormRow>
+          <FormRow label="HSN Code" hint="4 to 8 digits"><FormInput placeholder="e.g. 30049099" value={form.hsn} onChange={v => set("hsn", v.replace(/\D/g, "").slice(0, 8))} /></FormRow>
+          <label className="flex items-center gap-2 text-[13px] text-[color:var(--ink)] cursor-pointer"><input type="checkbox" checked={form.isH1} onChange={e => set("isH1", e.target.checked)} /> Schedule H1 drug</label>
           <div className="col-span-2"><FormRow label="Expiry Date"><FormInput placeholder="e.g. Mar 2027" value={form.expiryDate} onChange={v => set("expiryDate", v)} /></FormRow></div>
           {error && <div className="col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2">{error.message}</div>}
         </div>
@@ -1108,6 +858,24 @@ export default function PharmacyPage() {
         </div>
       </Modal>
 
+      <Modal open={!!editItem} onClose={() => setEditItem(null)} title={`Edit — ${editItem?.name ?? ""}`}
+        footer={
+          <>
+            <button onClick={() => setEditItem(null)} className="text-[13px] font-normal text-[color:var(--ink-soft)] border border-[color:var(--line)] px-5 py-[8px] rounded-full hover:bg-[color:var(--subtle)] transition-colors">Cancel</button>
+            <button onClick={saveEditItem} disabled={editItemLoading} className="text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">{editItemLoading ? "Saving…" : "Save Changes"}</button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormRow label="Category"><FormInput value={editForm.category} onChange={v => setEditForm(f => ({ ...f, category: v }))} /></FormRow>
+          <FormRow label="HSN Code" hint="4 to 8 digits"><FormInput value={editForm.hsn} onChange={v => setEditForm(f => ({ ...f, hsn: v.replace(/\D/g, "").slice(0, 8) }))} /></FormRow>
+          <FormRow label="Supplier"><FormSelect value={editForm.supplier} onChange={v => setEditForm(f => ({ ...f, supplier: v }))} options={[{ value: "", label: "None" }, ...supplierNames.map(x => ({ value: x, label: x })), ...(editForm.supplier && !supplierNames.includes(editForm.supplier) ? [{ value: editForm.supplier, label: editForm.supplier }] : [])]} /></FormRow>
+          <FormRow label="Manufacturer"><FormSelect value={editForm.manufacturer} onChange={v => setEditForm(f => ({ ...f, manufacturer: v }))} options={[{ value: "", label: "None" }, ...makerNames.map(x => ({ value: x, label: x })), ...(editForm.manufacturer && !makerNames.includes(editForm.manufacturer) ? [{ value: editForm.manufacturer, label: editForm.manufacturer }] : [])]} /></FormRow>
+          <label className="flex items-center gap-2 text-[13px] text-[color:var(--ink)] cursor-pointer"><input type="checkbox" checked={editForm.isH1} onChange={e => setEditForm(f => ({ ...f, isH1: e.target.checked }))} /> Schedule H1 drug</label>
+          {editItemError && <div className="sm:col-span-2 text-[13px] text-[#ff0004] bg-[#ffe9e9] rounded-[8px] px-3 py-2" role="alert">{editItemError.message}</div>}
+        </div>
+      </Modal>
+
       <PageHeader
         title="Pharmacy"
         subtitle="Manage drug inventory, purchase orders, billing, and stock alerts."
@@ -1127,6 +895,7 @@ export default function PharmacyPage() {
                   <div className="py-16 text-center text-[14px] text-[color:var(--ink-soft)]">No items found.</div>
                 ) : pagedVisible.map(r => (
                   <InventoryRow key={r.id} row={r} actions={canWrite ? [
+                    { label: "Edit details", onClick: () => openEditItem(r as PharmacyItemDTO) },
                     { label: "Reorder", onClick: () => openReorder(r) },
                     { label: "Delete", danger: true, onClick: () => remove(r.id, r.name) },
                   ] : []} />
@@ -1135,8 +904,9 @@ export default function PharmacyPage() {
 {barVisible}
             </>
           )}
-          {tab === "purchase" && canWrite && <PurchaseView items={pharmacyItems} onChanged={reload} />}
+          {tab === "purchase" && canWrite && <PurchasePanel onChanged={reload} />}
           {tab === "sales"    && canWrite && <SalesView items={pharmacyItems} onChanged={reload} />}
+          {tab === "h1"       && <H1RegisterPanel />}
           {tab === "expiring" && <ExpiringView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} canWrite={canWrite} />}
           {tab === "alerts"   && <AlertsView pharmacyItems={pharmacyItems} onReorder={openReorder} onRemove={remove} canWrite={canWrite} />}
         </div>

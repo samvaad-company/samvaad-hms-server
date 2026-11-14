@@ -16,23 +16,34 @@ import { SponsorsView } from "@/components/setup/SponsorViews";
 import { PaymentsView, PayoutRulesView, ReferralsView } from "@/components/setup/PaymentViews";
 import { IdFormatsView, ClinicalFormsView } from "@/components/setup/IdFormatViews";
 import { DepartmentsView, SIMPLE_SPECS, SimpleMasterView } from "@/components/setup/SimpleMasters";
+import { BillingRemarksView } from "@/components/setup/BillingRemarksView";
+import { TeleconsultConsentView } from "@/components/setup/TeleconsultConsentView";
+import { ManufacturerMedicines } from "@/components/setup/ManufacturerMedicines";
+import { Spinner, LoadingBlock } from "@/components/shared/Spinner";
+import { useFetching } from "@/lib/api/useFetching";
 import { MedicinesView } from "@/components/setup/MedicinesView";
 import { LoyaltyProgramView } from "@/components/setup/LoyaltyProgramView";
 
 const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Catalog & pricing", items: [["services", "Services"], ["medicines", "Medicines"], ["rate_plans", "Rate plans"], ["packages", "Packages"], ["tax", "Tax & GST"]] },
-  { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
+  { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["billing_remarks", "Billing remarks"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
   { group: "Clinical", items: [["clinical_forms", "Clinical forms"]] },
+  { group: "Video consultation", items: [["teleconsult_consent", "Consent form"]] },
   { group: "Loyalty", items: [["loyalty", "Loyalty programme"]] },
+  { group: "Pharmacy", items: [["manufacturers", "Manufacturers"], ["suppliers", "Suppliers"]] },
   { group: "Facility", items: [["ward_classes", "Ward classes"], ["consulting_rooms", "Consulting rooms"], ["facility_areas", "Facility areas"], ["service_collection_centers", "Collection centers"], ["collection_centers", "Lab collection centers"], ["drug_racks", "Drug racks"]] },
 ];
+/** Where the masters' data comes from — any request under these paths counts as "the masters are loading". */
+const MASTER_PATHS = ["/setup", "/departments", "/medicines", "/pharmacy", "/loyalty", "/admin/users", "/billing/catalog"] as const;
 const IDS = NAV.flatMap((g) => g.items.map((i) => i[0]));
 
 function Section({ id }: { id: string }) {
   switch (id) {
     case "services": return <ServicesView />;
+    case "billing_remarks": return <BillingRemarksView />;
+    case "teleconsult_consent": return <TeleconsultConsentView />;
     case "medicines": return <MedicinesView />;
     case "rate_plans": return <RatePlansView />;
     case "packages": return <PackagesView />;
@@ -45,6 +56,7 @@ function Section({ id }: { id: string }) {
     case "human_ids": return <IdFormatsView />;
     case "clinical_forms": return <ClinicalFormsView />;
     case "loyalty": return <LoyaltyProgramView />;
+    case "manufacturers": return <><SimpleMasterView key={id} section={id} /><ManufacturerMedicines /></>;
     default: return id in SIMPLE_SPECS ? <SimpleMasterView key={id} section={id} /> : null;
   }
 }
@@ -56,6 +68,7 @@ function MastersPage() {
   const [find, setFind] = useState("");
   const requested = params.get("section") ?? "";
   const section = IDS.includes(requested) ? requested : "services";
+  const busy = useFetching(MASTER_PATHS);
   const f = find.trim().toLowerCase();
   const nav = useMemo(() => NAV.map((g) => ({ ...g, items: g.items.filter(([, label]) => !f || label.toLowerCase().includes(f)) })).filter((g) => g.items.length > 0), [f]);
 
@@ -89,7 +102,13 @@ function MastersPage() {
             ))}
             {nav.length === 0 && <p className="px-2 text-[13px] text-[color:var(--ink-soft)]">No master matches.</p>}
           </aside>
-          <div className="min-w-0 max-lg:w-full flex-1 px-3 sm:px-5 py-4"><Section id={section} /></div>
+          <div className="relative min-w-0 max-lg:w-full flex-1 px-3 sm:px-5 py-4" aria-busy={busy.fetching}>
+            {/* Every master loads its lists from the server: show that it is working, and hold the screen until the first data is in. */}
+            {busy.fetching && <div className="absolute inset-x-0 top-0 z-20 h-[2px] overflow-hidden pointer-events-none" role="progressbar" aria-label="Loading"><div className="h-full w-1/3 bg-[color:var(--brand)] animate-[hms-bar_1.1s_ease-in-out_infinite]" /></div>}
+            {busy.fetching && !busy.firstLoad && <span className="absolute right-4 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-[color:var(--subtle)] px-2 py-[2px] text-[11px] text-[color:var(--ink-soft)]" role="status"><Spinner size={11} /> Updating…</span>}
+            {busy.firstLoad && <div className="absolute inset-0 z-10 flex items-start justify-center bg-[color:var(--surface)]/80 pt-24 backdrop-blur-[1px]"><LoadingBlock label={`Loading ${NAV.flatMap((g) => g.items).find(([id]) => id === section)?.[1]?.toLowerCase() ?? "masters"}…`} className="" /></div>}
+            <Section id={section} />
+          </div>
         </div>
       </div>
     </div>

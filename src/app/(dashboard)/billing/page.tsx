@@ -12,9 +12,10 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRowActions } from "@/lib/api/useRowActions";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
-import type { BillDTO, BillingCatalogDTO, PatientDTO, PharmacyItemDTO } from "@/types/api";
+import type { BillDTO, BillingCatalogDTO, IpdRecordDTO, PatientDTO, PharmacyBatchDTO, PharmacyItemDTO } from "@/types/api";
 import { priceLines, r2 } from "@/types/billing";
 import { splitCoverage } from "@/types/coverage";
+import { CombinedBillView } from "@/components/finance/CombinedBillView";
 import { PayoutsView } from "@/components/billing/PayoutsView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -65,7 +66,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
       <div>
         <span className={`inline-flex items-center px-[8px] py-[3px] rounded-full text-[11px] font-normal whitespace-nowrap ${TYPE_COLORS[row.type] ?? "bg-[color:var(--subtle-2)] text-[color:var(--ink-soft)]"}`}>{row.type}</span>
       </div>
-      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}</span>
+      <span className="text-[13px] font-normal text-[color:var(--ink)] whitespace-nowrap">{formatDate(row.date)}{row.billTime ? <span className="block text-[11px] text-[color:var(--ink-soft)]">{row.billTime}</span> : null}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink)] text-right">₹{row.amount.toLocaleString("en-IN")}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)] text-right">{row.discount > 0 ? `₹${row.discount}` : "—"}</span>
       <span className="text-[13px] font-normal text-[color:var(--ink-soft)] text-right">₹{row.gst.toFixed(0)}</span>
@@ -79,7 +80,7 @@ function BillRow({ row, actions }: { row: Bill; actions: RowAction[] }) {
 // ─── New Bill ─────────────────────────────────────────────────────────────────
 
 /** A line on the bill being built: a catalogue service (priced and taxed by the server's rate plan) or a custom charge. */
-interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number; /** Priced from the patient's loyalty card. */ card?: boolean }
+interface LineItem { id: number; serviceId: string; description: string; qty: number; rate: number; gstPct: number; /** Priced from the patient's loyalty card. */ card?: boolean; /** A Schedule H1 drug: goes in the H1 register. `h1Locked` = the inventory marks this medicine H1, so it is always ticked. */ isH1?: boolean; h1Locked?: boolean; /** The inventory item this line is, its batches, and the one chosen (earliest expiring by default). */ itemId?: number; batches?: PharmacyBatchDTO[]; batchNo?: string }
 const GST_RATES = [0, 5, 12, 18, 28];
 const CUSTOM = "custom";
 const blankLine = (): LineItem => ({ id: Date.now() + Math.random(), serviceId: "", description: "", qty: 1, rate: 0, gstPct: 0 });
@@ -114,7 +115,10 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   // The services offered depend on the type of bill: Setup → Masters groups each service under a billing category, and each bill type draws from its own.
   const forType = services.filter(s => (BILL_TYPE_CATEGORIES[billType] ?? []).includes(s.billingCategory as never));
   const offered = forType.length ? forType : services;
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  // Who hands over the H1 drugs on this bill: the biller by default, or whoever they type (the user id is saved by the server).
+  const [givenBy, setGivenBy] = useState("");
+  const h1Given = givenBy.trim() || user?.name || "";
   // OPD, IPD and pharmacy bills can also carry medicines: the pharmacy's stock list, at the price the counter charges.
   const withMedicines = ["OPD", "IPD", "Pharmacy"].includes(billType);
   const { items: stock } = useList<PharmacyItemDTO>(withMedicines ? "/pharmacy" : null, { limit: 500 });
@@ -125,6 +129,54 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
     try { await api.post("/billing/catalog/starter", { type: billType }); reloadCatalog(); } catch { /* the note stays; nothing was added */ } finally { setStarting(false); }
   }
   const settings = catalog?.settings ?? { gstOnBills: true, pricesInclusive: false, roundOff: true, invoicePrefix: "" };
+
+  const patient = patients.find(p => String(p.id) === patientId);
+  const selectPatient = (v: string) => { setPatientId(v); setChoice(undefined); setDiscountEdited(false); cardLineFor.current = ""; setItems(prev => { const kept = prev.filter(i => !i.card); return kept.length ? kept : [blankLine()]; }); };
+
+  // Cash, or cashless (an insurer / TPA pays): who, and the policy number - taken from the patient's record when it is there.
+  const [payType, setPayType] = useState<"Cash" | "Cashless">("Cash");
+  const [tpaName, setTpaName] = useState("");
+  const [policyNo, setPolicyNo] = useState("");
+  const [savePolicy, setSavePolicy] = useState(false);
+  const [refDoctor, setRefDoctor] = useState("");
+  useEffect(() => {
+    setTpaName(patient?.insurer ?? ""); setPolicyNo(patient?.policyNumber ?? ""); setSavePolicy(false); setRefDoctor(patient?.referralSource ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
+  const onFile = !!(patient?.insurer && patient.policyNumber);
+  const differs = !!patient && payType === "Cashless" && (tpaName !== (patient.insurer ?? "") || policyNo !== (patient.policyNumber ?? ""));
+
+  // Bill time, and for an IPD bill the admission it is for (its dates and deposit come from the admission).
+  const [billTime, setBillTime] = useState(() => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+  const [admissionId, setAdmissionId] = useState("");
+  const { items: allStays } = useList<IpdRecordDTO>(billType === "IPD" ? "/ipd" : null, { all: true });
+  const stays = allStays;
+  const myStays = billType === "IPD" && patientId ? stays.filter(a => String(a.patientRefId) === patientId).sort((a, b) => b.id - a.id) : [];
+  const stay = stays.find(a => String(a.id) === admissionId) ?? null;
+  // Every admission, those still in hospital first, to search by IPD number or patient name.
+  const stayOptions = [...stays].sort((a, b) => Number(a.status === "Discharged") - Number(b.status === "Discharged") || b.id - a.id)
+    .map(a => ({ value: String(a.id), label: `${a.admissionNo} · ${a.patientName}`, hint: `${a.patientId ?? ""} ${a.status === "Discharged" ? "discharged" : "admitted"} ${a.ward ?? ""}` }));
+  const pickStay = (v: string) => {
+    setAdmissionId(v);
+    const a = stays.find(x => String(x.id) === v);
+    if (a?.patientRefId && String(a.patientRefId) !== patientId) selectPatient(String(a.patientRefId));
+  };
+  useEffect(() => {
+    // The patient's current admission (else the latest) is chosen for them; the cashier can pick another.
+    if (billType !== "IPD") { setAdmissionId(""); return; }
+    if (patientId && myStays.length && !myStays.some(a => String(a.id) === admissionId)) setAdmissionId(String((myStays.find(a => a.status !== "Discharged") ?? myStays[0]).id));
+    if (patientId && !myStays.length && admissionId) setAdmissionId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billType, patientId, allStays.length]);
+
+  // Discount details (OPD and IPD): who gives how much, each as a percentage or a rupee amount.
+  const detailed = billType === "OPD" || billType === "IPD";
+  type Who = "hospital" | "doctor" | "company" | "tpa";
+  const WHO: { id: Who; label: string }[] = [{ id: "hospital", label: "Hospital discount" }, { id: "doctor", label: "Doctor discount" }, { id: "company", label: "Company discount" }, { id: "tpa", label: "TPA discount" }];
+  const [dd, setDd] = useState<Record<Who, { mode: "pct" | "amt"; value: number }>>({ hospital: { mode: "pct", value: 0 }, doctor: { mode: "pct", value: 0 }, company: { mode: "pct", value: 0 }, tpa: { mode: "pct", value: 0 } });
+  const [ddEdited, setDdEdited] = useState(false);
+  useEffect(() => { if (!ddEdited) setDd(d => ({ ...d, hospital: { mode: "pct", value: cardDiscount } })); }, [cardDiscount, ddEdited]);
+  const [remark, setRemark] = useState<string | null>(null);
 
   const updateRow = (id: number, patch: Partial<LineItem>) => setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
 
@@ -149,11 +201,34 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
     setItems(prev => (prev.length === 1 && !prev[0].serviceId ? [{ ...prev[0], serviceId: CUSTOM, description: `OPD consultation — ${card.rankName} card`, qty: 1, rate: card.opdFee, gstPct: 0, card: true }] : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.rankKey, billType, patientId]);
+  // Load the batches of a medicine line: the earliest-expiring one in date is chosen by default, and the cashier can pick another.
+  const loadBatches = (id: number, itemId: number) => {
+    api.get<PharmacyBatchDTO[]>(`/pharmacy/${itemId}/batches`)
+      .then(batches => setItems(prev => prev.map(i => {
+        if (i.id !== id) return i;
+        const keep = batches.find(b => b.batchNo === i.batchNo && !b.expired);
+        return { ...i, itemId, batches, batchNo: keep?.batchNo ?? batches.find(b => !b.expired)?.batchNo ?? "" };
+      })))
+      .catch(() => undefined);
+  };
+  // A medicine the inventory marks as H1 is ticked automatically (and can't be unticked); the server checks again when the bill is saved.
+  const checkH1 = (id: number, name: string) => {
+    const n = name.trim();
+    if (n.length < 2) return;
+    api.list<PharmacyItemDTO>("/pharmacy", { search: n, pageSize: 6 })
+      .then(r => {
+        const hit = r.data.find(x => x.name.toLowerCase() === n.toLowerCase());
+        if (!hit) return;
+        if (hit.isH1) setItems(prev => prev.map(i => (i.id === id ? { ...i, isH1: true, h1Locked: true } : i)));
+        loadBatches(id, hit.id);
+      })
+      .catch(() => undefined);
+  };
   const pick = (id: number, value: string) => {
     if (value === CUSTOM) return updateRow(id, { serviceId: CUSTOM, description: "", rate: 0, gstPct: 0 });
     if (value.startsWith("med:")) {
       const m = stock.find(x => `med:${x.id}` === value);
-      if (m) updateRow(id, { serviceId: CUSTOM, description: m.name, rate: m.unitPrice ?? 0, gstPct: 0 });
+      if (m) { updateRow(id, { serviceId: CUSTOM, description: m.name, rate: m.unitPrice ?? 0, gstPct: 0, isH1: m.isH1 === true, h1Locked: m.isH1 === true, itemId: m.id, batches: undefined, batchNo: "" }); loadBatches(id, m.id); }
       return;
     }
     const svc = services.find(s => String(s.id) === value);
@@ -170,7 +245,10 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   const filled = priced.filter(i => i.serviceId && (i.serviceId !== CUSTOM || (i.description.trim() && i.rate >= 0)));
 
   const subtotal = filled.reduce((s, i) => s + i.qty * i.rate, 0);
-  const discAmt = Math.min(subtotal, discountType === "percent" ? subtotal * (Math.min(100, Math.max(0, discount)) / 100) : Math.max(0, discount));
+  const ddAmount = (w: Who) => r2(dd[w].mode === "pct" ? (subtotal * Math.min(100, Math.max(0, dd[w].value))) / 100 : Math.max(0, dd[w].value));
+  const ddTotal = r2(WHO.reduce((n, w) => n + ddAmount(w.id), 0));
+  const ddTooMuch = detailed && ddTotal > r2(subtotal);
+  const discAmt = detailed ? Math.min(subtotal, ddTotal) : Math.min(subtotal, discountType === "percent" ? subtotal * (Math.min(100, Math.max(0, discount)) / 100) : Math.max(0, discount));
   const totals = priceLines(filled.map(i => ({ quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct })), r2(discAmt), settings);
 
   // Who pays what, by the contract's rules — the server works it out again when the bill is saved.
@@ -180,8 +258,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
   }), contract.past, { today: new Date().toLocaleDateString("en-CA"), contractFrom: contract.validFrom }) : null;
   const payerShare = split ? Math.min(split.payer, totals.total) : 0;
 
+  const rk = catalog?.ipdRemark;
+  const remarkApplies = billType === "IPD" && !!rk?.enabled && !!rk.text && totals.total > rk.limit;
+  const remarkText = remark ?? (remarkApplies ? rk!.text : "");
+  const deposit = billType === "IPD" && stay ? stay.depositAmount : 0;
+
   async function generate() {
-    const patient = patients.find(p => String(p.id) === patientId);
     await run(() =>
       api.post("/billing", {
         patientId: Number(patientId),
@@ -189,11 +271,20 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         type: billType,
         ...(contract ? { contractId: contract.id } : {}),
         ...(doctorId ? { doctorId: Number(doctorId) } : {}),
-        discount: r2(discAmt),
+        ...(detailed
+          ? { discountDetails: Object.fromEntries(WHO.map(w => [w.id, dd[w.id].mode === "pct" ? { percent: dd[w.id].value } : { amount: dd[w.id].value }])) }
+          : { discount: r2(discAmt) }),
+        billTime,
+        payType,
+        ...(payType === "Cashless" ? { tpaName, policyNumber: policyNo, savePolicyToPatient: savePolicy } : {}),
+        referringDoctor: refDoctor,
+        ...(doctorId ? { consultingDoctor: catalog?.doctors.find(d => String(d.id) === doctorId)?.name } : {}),
+        ...(billType === "IPD" && admissionId ? { admissionId: Number(admissionId) } : {}),
+        ...(billType === "IPD" ? { remarks: remarkText } : {}),
         status: payMode ? "Paid" : "Pending",
         paymentMode: payMode || undefined,
         items: filled.map(i => i.serviceId === CUSTOM
-          ? { description: i.description, quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct }
+          ? { description: i.description, quantity: i.qty, unitPrice: i.rate, gstRate: i.gstPct, ...(i.isH1 ? { isH1: true, givenBy: h1Given } : {}), ...(i.batchNo ? { batchNo: i.batchNo } : {}) }
           : { serviceId: Number(i.serviceId), quantity: i.qty }),
       }),
     );
@@ -209,7 +300,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           <SearchSelect
             placeholder="Search patient by name, ID or phone…"
             value={patientId}
-            onChange={v => { setPatientId(v); setChoice(undefined); setDiscountEdited(false); cardLineFor.current = ""; setItems(prev => { const kept = prev.filter(i => !i.card); return kept.length ? kept : [blankLine()]; }); }}
+            onChange={selectPatient}
             options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
           />
         </FormRow>
@@ -222,6 +313,70 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         <FormRow label="Doctor" hint="Doctor payout rules follow the doctor named here">
           <FormSelect value={doctorId} onChange={setDoctorId} options={[{ value: "", label: "None" }, ...(catalog?.doctors ?? []).map(d => ({ value: String(d.id), label: d.name }))]} />
         </FormRow>
+      </div>
+      {/* Patient details: filled in once the patient is chosen */}
+      {patient && (
+        <div className="rounded-[10px] border border-[color:var(--line)] p-4" data-testid="patient-details">
+          <h3 className="mb-3 text-[14px] font-medium text-[color:var(--ink)]">Patient Details</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-[13px]">
+            {([
+              ["UHID", patient.patientId ?? "—"],
+              ["Name", patient.name],
+              ["Age / Sex", `${patient.age}${patient.gender ? ` / ${patient.gender}` : ""}`],
+              ["Phone", patient.phone || "—"],
+              ...(billType === "IPD" && stay ? [["IPD Number", stay.admissionNo], ["DOA", formatDate(stay.admissionDate)]] : []),
+              ["Cons. Dr.", (billType === "IPD" && stay?.doctor) || catalog?.doctors.find(d => String(d.id) === doctorId)?.name || patient.doctor || "—"],
+              ["Patient Type", payType === "Cashless" ? "Credit" : "Cash"],
+              ["Address", [patient.address, patient.city, patient.state, patient.pincode].filter(Boolean).join(", ") || "—"],
+            ] as [string, string][]).map(([k, v]) => (
+              <div key={k} className="min-w-0"><p className="text-[11px] uppercase tracking-wider text-[color:var(--ink-soft)]">{k}</p><p className="break-words text-[color:var(--ink)]">{v}</p></div>
+            ))}
+            <label className="min-w-0"><span className="text-[11px] uppercase tracking-wider text-[color:var(--ink-soft)]">Ref. Dr.</span>
+              <input value={refDoctor} onChange={e => setRefDoctor(e.target.value)} placeholder="Referring doctor" aria-label="Referring doctor" className={`${input} mt-[2px] w-full`} /></label>
+          </div>
+        </div>
+      )}
+
+      {/* Cash or cashless */}
+      <div className="rounded-[10px] border border-[color:var(--line)] p-4" data-testid="pay-type">
+        <div className="flex flex-wrap items-center gap-4">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Bill Type</h3>
+          <div role="radiogroup" aria-label="Cash or cashless" className="inline-flex rounded-[8px] border border-[color:var(--line)] bg-[color:var(--subtle)] p-[2px]">
+            {(["Cash", "Cashless"] as const).map(t => (
+              <button key={t} type="button" role="radio" aria-checked={payType === t} onClick={() => setPayType(t)}
+                className={`h-[30px] rounded-[6px] px-4 text-[13px] cursor-pointer ${payType === t ? "bg-[color:var(--surface)] font-medium shadow-sm" : "text-[color:var(--ink-soft)]"}`}>{t}</button>
+            ))}
+          </div>
+          {payType === "Cashless" && patient && (
+            <span className="text-[12px] text-[color:var(--ink-soft)]">{onFile ? `On the patient's record: ${patient.insurer} · policy ${patient.policyNumber}` : patient.insurer ? `On the patient's record: ${patient.insurer} (no policy number)` : "No insurance on this patient's record yet — add it below."}</span>
+          )}
+        </div>
+        {payType === "Cashless" && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormRow label="Insurance Company / TPA *">
+              <SearchSelect placeholder="Select insurer / TPA…" value={tpaName} onChange={setTpaName}
+                options={[...(catalog?.payers ?? []).map(x => ({ value: x.name, label: x.name, hint: x.type })), ...(tpaName && !(catalog?.payers ?? []).some(x => x.name === tpaName) ? [{ value: tpaName, label: tpaName, hint: "from the patient's record" }] : [])]} />
+            </FormRow>
+            <FormRow label="Policy Number"><FormInput value={policyNo} onChange={setPolicyNo} placeholder="Policy / card number" /></FormRow>
+            {patient && differs && (
+              <label className="flex items-end gap-2 pb-2 text-[13px] text-[color:var(--ink)] cursor-pointer"><input type="checkbox" checked={savePolicy} onChange={e => setSavePolicy(e.target.checked)} />{onFile ? "Update" : "Add"} this on the patient&apos;s record</label>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <FormRow label="Bill Time *">
+          <FormInput type="time" value={billTime} onChange={setBillTime} />
+        </FormRow>
+        {billType === "IPD" && (
+          <>
+            <FormRow label="IPD Number" hint="Search by IPD number or patient name; choosing one fills the patient in">
+              <SearchSelect placeholder="Search IPD number or patient…" value={admissionId} onChange={pickStay} options={stayOptions} />
+            </FormRow>
+            <FormRow label="Admission Date"><FormInput value={stay ? formatDate(stay.admissionDate) : "—"} onChange={() => undefined} disabled /></FormRow>
+            <FormRow label="Discharge Date"><FormInput value={stay ? (stay.dischargeDate ? formatDate(stay.dischargeDate) : stay.status === "Discharged" ? "—" : "Still admitted") : "—"} onChange={() => undefined} disabled /></FormRow>
+          </>
+        )}
       </div>
       {pricing?.enrolled && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border px-4 py-3 text-[13px]" style={{ borderColor: card ? pricing.color : "var(--line)", background: card ? `color-mix(in srgb, ${pricing.color} 8%, var(--surface))` : "var(--subtle)" }} data-testid="loyalty-banner">
@@ -256,6 +411,13 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             <Plus size={13} /> Add Item
           </button>
         </div>
+        {withMedicines && items.some(i => i.isH1) && (
+          <label className="flex flex-wrap items-center gap-2 rounded-[8px] bg-[color:var(--subtle)] px-3 py-2 text-[12px] text-[color:var(--ink)]">
+            <span className="font-medium">H1 drugs given by</span>
+            <input value={givenBy} onChange={e => setGivenBy(e.target.value)} maxLength={80} placeholder={user?.name ?? "Name"} aria-label="H1 drugs given by" className="h-[30px] w-[220px] rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] px-2 text-[13px] focus:border-[color:var(--brand)] focus:outline-none" />
+            <span className="text-[color:var(--ink-soft)]">Defaults to you ({user?.name ?? "the signed-in user"}); your user ID is saved with it in the H1 register.</span>
+          </label>
+        )}
         {services.length > 0 && (
           <p className={`text-[12px] ${forType.length ? "text-[color:var(--ink-soft)]" : "text-[#8a5300]"}`}>
             {forType.length
@@ -269,11 +431,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
         {withMedicines && (
           <div className="max-w-[420px]">
             <MedicinePicker placeholder="Search the medicine directory to add a medicine…"
-              onPick={m => setItems(prev => [...(prev.length === 1 && !prev[0].serviceId ? [] : prev), { ...blankLine(), serviceId: CUSTOM, description: m.name, qty: 1, rate: m.price ?? 0, gstPct: 0 }])} />
+              onPick={m => { const line = { ...blankLine(), serviceId: CUSTOM, description: m.name, qty: 1, rate: m.price ?? 0, gstPct: 0 }; setItems(prev => [...(prev.length === 1 && !prev[0].serviceId ? [] : prev), line]); checkH1(line.id, m.name); }} />
           </div>
         )}
-        <div className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 px-3">
-          {["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""].map(h => (
+        <div className="overflow-x-auto pb-1"><div className={`flex flex-col gap-2 ${withMedicines ? "min-w-[790px]" : "min-w-[720px]"}`}>
+        <div className={`grid ${withMedicines ? "grid-cols-[2fr_80px_110px_100px_60px_120px_40px]" : "grid-cols-[2fr_80px_110px_100px_120px_40px]"} gap-2 px-3`}>
+          {(withMedicines ? ["Service", "Qty", "Rate (₹)", "GST %", "H1", "Amount (₹)", ""] : ["Service", "Qty", "Rate (₹)", "GST %", "Amount (₹)", ""]).map(h => (
             <span key={h} className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
           ))}
         </div>
@@ -282,7 +445,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             const custom = item.serviceId === CUSTOM;
             const raw = items[idx];
             return (
-              <div key={item.id} className="grid grid-cols-[2fr_80px_110px_100px_120px_40px] gap-2 items-center">
+              <div key={item.id} className={`grid ${withMedicines ? "grid-cols-[2fr_80px_110px_100px_60px_120px_40px]" : "grid-cols-[2fr_80px_110px_100px_120px_40px]"} gap-2 items-center`}>
                 <div className="flex flex-col gap-1 min-w-0">
                   <SearchSelect
                     placeholder="Select service…"
@@ -290,7 +453,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                     onChange={v => pick(item.id, v)}
                     options={[...offered.map(s => ({ value: String(s.id), label: `${s.name} — ${rupee(s.price)}${s.unit ? ` ${s.unit}` : ""}`, hint: `${s.code} · ${s.group}` })), ...medicines.map(m => ({ value: `med:${m.id}`, label: `${m.name} — ${m.unitPrice ? rupee(m.unitPrice) : "set price"}`, hint: `Medicine · ${m.category}${m.stock <= 0 ? " · out of stock" : ""}` })), { value: CUSTOM, label: "Custom charge…", hint: "not in the catalogue" }]}
                   />
-                  {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value })} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
+                  {custom && <input value={raw.description} onChange={e => updateRow(item.id, { description: e.target.value, ...(raw.h1Locked ? { isH1: false, h1Locked: false } : {}), ...(raw.itemId ? { itemId: undefined, batches: undefined, batchNo: "" } : {}) })} onBlur={e => { if (withMedicines) checkH1(item.id, e.target.value); }} placeholder="Describe the charge" aria-label="Charge description" className={input} />}
+                  {custom && withMedicines && raw.batches && raw.batches.length > 0 && (
+                    <select value={raw.batchNo ?? ""} onChange={e => updateRow(item.id, { batchNo: e.target.value })} aria-label="Batch" title="The batch this medicine comes from (the earliest expiring one in date by default)" className={input}>
+                      {raw.batches.map(b => <option key={b.id} value={b.batchNo} disabled={b.expired}>{`Batch ${b.batchNo}${b.expiryDate ? ` · exp ${formatDate(b.expiryDate)}` : ""} · ${b.quantity} in stock${b.expired ? " · expired" : ""}`}</option>)}
+                    </select>
+                  )}
                 </div>
                 <input type="number" min={1} value={item.qty} onChange={e => updateRow(item.id, { qty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} className={`${input} text-center`} aria-label="Quantity" />
                 {custom
@@ -299,6 +467,11 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
                 {custom
                   ? <select value={raw.gstPct} onChange={e => updateRow(item.id, { gstPct: Number(e.target.value) })} className={input} aria-label="GST rate">{GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}</select>
                   : <span className="text-[13px] text-[color:var(--ink-soft)] px-3">{item.serviceId ? (settings.gstOnBills ? `${item.gstPct}%` : "off") : "—"}</span>}
+                {withMedicines && (custom
+                  ? <label className="flex items-center justify-center gap-1 text-[12px] text-[color:var(--ink)] cursor-pointer" title={raw.h1Locked ? "This medicine is marked H1 in the inventory" : "Tick for a Schedule H1 drug: it goes in the H1 register"}>
+                      <input type="checkbox" aria-label="Schedule H1 drug" checked={raw.isH1 === true} disabled={raw.h1Locked === true} onChange={e => updateRow(item.id, { isH1: e.target.checked })} /> H1
+                    </label>
+                  : <span className="text-center text-[13px] text-[color:var(--ink-soft)]">—</span>)}
                 <span className="text-[13px] font-medium text-[color:var(--ink)] px-3">{rupee(item.qty * item.rate)}</span>
                 {items.length > 1 ? (
                   <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} aria-label="Remove line" className="flex items-center justify-center text-[#ff0004] hover:text-red-700 transition-colors">
@@ -309,14 +482,43 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             );
           })}
         </div>
+        </div></div>
       </div>
 
+      {/* Discount details (OPD and IPD) */}
+      {detailed && (
+        <div className="flex flex-col gap-3 rounded-[10px] border border-[color:var(--line)] p-4" data-testid="discount-details">
+          <h3 className="text-[14px] font-medium text-[color:var(--ink)]">Discount Details</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            {WHO.map(w => (
+              <div key={w.id} className="flex flex-wrap items-center gap-2">
+                <span className="w-full shrink-0 text-[13px] text-[color:var(--ink-soft)] sm:w-[130px]">{w.label}</span>
+                <div className="relative w-[90px]">
+                  <input type="number" min={0} max={100} aria-label={`${w.label} percent`} value={dd[w.id].mode === "pct" ? dd[w.id].value || "" : subtotal > 0 ? r2((ddAmount(w.id) / subtotal) * 100) || "" : ""}
+                    onChange={e => { setDdEdited(true); setDd(d => ({ ...d, [w.id]: { mode: "pct", value: Number(e.target.value) } })); }} placeholder="0" className={`${input} w-full pr-6`} />
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-[color:var(--ink-soft)]">%</span>
+                </div>
+                <div className="relative min-w-[110px] flex-1">
+                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-[color:var(--ink-soft)]">₹</span>
+                  <input type="number" min={0} aria-label={`${w.label} amount`} value={dd[w.id].mode === "amt" ? dd[w.id].value || "" : ddAmount(w.id) || ""}
+                    onChange={e => { setDdEdited(true); setDd(d => ({ ...d, [w.id]: { mode: "amt", value: Number(e.target.value) } })); }} placeholder="0.00" className={`${input} w-full pl-6`} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className={`text-[12px] ${ddTooMuch ? "text-[#ff0004]" : "text-[color:var(--ink-soft)]"}`}>
+            {ddTooMuch ? "The discounts together are more than the bill." : `Total discount ${rupee(ddTotal)}${cardDiscount > 0 && !ddEdited ? ` — the ${cardDiscount}% card discount is filled in as the hospital discount` : ""}.`}
+          </p>
+        </div>
+      )}
+
       {/* Payment & totals */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="flex flex-col gap-4">
           <FormRow label="Payment Mode" hint="Leave empty to raise the bill as Pending; choose a mode to record it as paid.">
             <FormSelect placeholder="Select payment mode" value={payMode} onChange={setPayMode} options={[{ value: "", label: "Not paid yet (Pending)" }, ...(catalog?.paymentModes ?? []).map(m => ({ value: m, label: m }))]} />
           </FormRow>
+          {!detailed && (
           <FormRow label="Discount">
             <div className="flex items-center gap-2">
               <div className="flex items-center bg-[color:var(--subtle)] rounded-[8px] p-[3px] shrink-0">
@@ -341,6 +543,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
               />
             </div>
           </FormRow>
+          )}
+          {billType === "IPD" && (remarkApplies || remark !== null) && (
+            <FormRow label="Bill Remark" hint={rk ? `Added because the bill is above ₹${rk.limit.toLocaleString("en-IN")} (Setup → Masters → Billing remarks). You can change it for this bill.` : undefined}>
+              <textarea rows={3} value={remarkText} onChange={e => setRemark(e.target.value)} className="w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-[14px] py-[10px] text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors resize-none" />
+            </FormRow>
+          )}
           <FormRow label="Notes">
             <textarea
               rows={2}
@@ -353,7 +561,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
           {[
             { label: "Subtotal", value: rupee(totals.amount) },
             { label: settings.pricesInclusive ? "GST (included in prices)" : "GST", value: settings.gstOnBills ? rupee(totals.gst) : "Off" },
-            { label: discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-${rupee(r2(discAmt))}` : "—" },
+            { label: !detailed && discountType === "percent" && discount > 0 ? `Discount (${discount}%)` : "Discount", value: discAmt > 0 ? `-${rupee(r2(discAmt))}` : "—" },
           ].map(r => (
             <div key={r.label} className="flex justify-between text-[13px]">
               <span className="font-normal text-[color:var(--ink-soft)]">{r.label}</span>
@@ -364,6 +572,12 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
             <span className="text-[16px] font-medium text-[color:var(--ink)]">Grand Total</span>
             <span className="text-[16px] font-medium text-[color:var(--brand)]">{rupee(totals.total)}</span>
           </div>
+          {billType === "IPD" && stay && (
+            <>
+              <div className="flex justify-between text-[13px]"><span className="text-[color:var(--ink-soft)]">Total deposit</span><span className="text-[color:var(--ink)]">{rupee(deposit)}</span></div>
+              <div className="flex justify-between text-[13px] font-medium"><span className="text-[color:var(--ink)]">{totals.total - deposit < 0 ? "Refundable to patient" : "Net receivable"}</span><span className="text-[color:var(--ink)]">{rupee(Math.abs(r2(totals.total - deposit)))}</span></div>
+            </>
+          )}
           {split && contract && (
             <div className="flex flex-col gap-1 rounded-[8px] border border-[color:var(--line)] bg-white px-3 py-2" data-testid="coverage-split">
               <div className="flex justify-between text-[13px]"><span className="text-[color:var(--ink-soft)]">{contract.sponsor || "Payer"} pays</span><span className="font-medium text-[color:var(--ink)]">{rupee(payerShare)}</span></div>
@@ -375,7 +589,7 @@ function NewBillView({ patients, onCreated }: { patients: PatientDTO[]; onCreate
               )}
             </div>
           )}
-          <button onClick={generate} disabled={loading || !patientId || filled.length === 0}
+          <button onClick={generate} disabled={loading || !patientId || filled.length === 0 || ddTooMuch || (payType === "Cashless" && !tpaName)}
             className="w-full mt-2 bg-[color:var(--brand)] text-white text-[14px] font-normal py-[10px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
             {loading ? "Generating…" : "Generate Bill"}
           </button>
@@ -471,6 +685,7 @@ export default function BillingPage() {
   const TABS = [
     { id: "all",     label: "All Bills", count: bills.length },
     ...(canWrite ? [{ id: "new", label: "New Bill" }] : []),
+    { id: "combined", label: "Combined Bill" },
     { id: "lookup",  label: "Bill Lookup" },
     { id: "payouts", label: "Payouts" },
   ];
@@ -524,6 +739,7 @@ export default function BillingPage() {
             </>
           )}
           {tab === "new" && <NewBillView patients={patients} onCreated={() => { reload(); setTab("all"); }} />}
+          {tab === "combined" && <CombinedBillView />}
           {tab === "lookup" && <LookupView bills={bills} />}
           {tab === "payouts" && <PayoutsView canWrite={canWrite} />}
         </div>

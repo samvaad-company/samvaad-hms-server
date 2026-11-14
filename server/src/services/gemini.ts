@@ -59,7 +59,7 @@ export async function* streamGenerateContent(input: {
   const { geminiApiKey: key, geminiModel } = getConfig();
   if (!key) {
     const delta =
-      "AI Chat is running in demo mode — no GEMINI_API_KEY is configured. " +
+      "KAYA AI is running in demo mode — no GEMINI_API_KEY is configured. " +
       "Ask your platform admin to set one in the environment to enable live answers grounded in this hospital's data.";
     yield { type: "text", delta };
     // No real count in demo mode: estimate (about 4 characters a token) so quotas and reports can still be tried out.

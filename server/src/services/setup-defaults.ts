@@ -210,6 +210,16 @@ export const ID_FORMAT_DEFAULTS: { code: string; name: string; mask: string; pre
   { code: "ambulance_trip", name: "Ambulance trip no.", mask: "AMB-{FY}-{SEQ:5}", prefix: "", reset: "Every FY" },
 ];
 
+export const DEFAULT_TELECONSULT_CONSENT = [
+  "I agree to receive medical advice through a video consultation and understand that:",
+  "1. A video consultation cannot replace an in-person examination; the doctor may ask me to visit the hospital if needed.",
+  "2. The consultation is held over the internet; it needs a working camera, microphone and connection, and may be interrupted.",
+  "3. The call will not be recorded without my permission, and my health information will be kept confidential as in any visit.",
+  "4. I will give true and complete information about my health, and I am in a private place that is safe for the consultation.",
+  "5. In an emergency I will go to the nearest hospital and not wait for a video consultation.",
+  "6. The fee is paid before the consultation, and refunds follow the hospital's policy.",
+].join("\n");
+
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 /** The built-in values for a config key; stored values are merged over these. */
@@ -232,6 +242,10 @@ export function defaultConfig(key: ConfigKey, hospital: HospitalRow | null): Rec
         manualPaymentModes: ["Cash", "Upi", "Card"],
         roleDiscountLimits: { Receptionist: null, "Billing staff": null, Doctor: null },
         userDiscountLimits: {},
+        // A note printed on IPD bills above a limit (Setup → Masters → Billing remarks).
+        ipdRemarkEnabled: true,
+        ipdRemarkLimit: 5000,
+        ipdRemarkText: "** SPECIAL SINGLE ROOM INCLUDING NURSING CHARGE (SPECIAL SINGLE ROOM RS.4500/- + NURSING CHARGE RS.600/-)",
       };
     case "notifications":
       return {
@@ -242,6 +256,9 @@ export function defaultConfig(key: ConfigKey, hospital: HospitalRow | null): Rec
       return { sessionTimeoutMinutes: 60, minPasswordLength: 8, requireMixedCase: true, lockoutAttempts: 5, twoFactorForAdmins: false, auditRetentionDays: 365 };
     case "plan":
       return { planName: "Samvaad HMS", billingCycle: "Annual", seats: 0, validUntil: "", licenceKey: "", supportContact: "" };
+    case "teleconsult":
+      // The consent a patient accepts when booking a video consultation (Setup → Masters → Video consultation consent).
+      return { consentRequired: true, consentTitle: "Video consultation consent", consentText: DEFAULT_TELECONSULT_CONSENT };
     case "referral":
       return { code: `${(hospital?.code ?? "HOSP").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)}-REF`, rewardNote: "", referred: [] };
   }

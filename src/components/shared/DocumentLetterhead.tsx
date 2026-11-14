@@ -60,10 +60,10 @@ export function DocumentLetterhead({
 
   return (
     <div
-      className={`flex items-start justify-between gap-6 ${compact ? "px-8 py-5" : "px-8 py-6"}`}
+      className={`flex flex-wrap items-start justify-between gap-x-6 gap-y-3 px-4 sm:px-8 ${compact ? "py-5" : "py-6"}`}
       style={{ borderBottom: "1px solid var(--line)" }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1 basis-[240px]">
         {/* Logo mark — an uploaded logo replaces this when configured. */}
         {hospital.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

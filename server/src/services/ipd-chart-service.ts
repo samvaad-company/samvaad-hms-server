@@ -17,6 +17,7 @@ import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scope";
 import { doseSlots } from "@/services/ipd-schedule";
 import { getIpd } from "@/services/ipd-service";
+import { hasFinalBill } from "@/services/ipd-clearance-service";
 import { getBoard } from "@/services/nurse-station-service";
 import { listPatientConsents } from "@/services/consents-service";
 import type {
@@ -310,7 +311,7 @@ export async function getOverview(admissionId: number, actor: Session): Promise<
     lastVitals,
     consents: { total: consents.length, signed: consents.filter((c) => c.status === "Signed").length, hasAdmission: hasAdmissionConsent },
     preauth: { total: forms.rows.length, ready: (forms.rows as { status: string }[]).filter((f) => f.status === "Ready").length },
-    readiness: { ivRunning: runningIv, dosesPending, unbilledDoses: missedAll, balanceDue, admissionConsent: hasAdmissionConsent },
+    readiness: { ivRunning: runningIv, dosesPending, unbilledDoses: missedAll, balanceDue, admissionConsent: hasAdmissionConsent, finalBill: await hasFinalBill(a, actor) },
   };
 }
 

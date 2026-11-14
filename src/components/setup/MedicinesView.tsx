@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { LoadingBlock, Spinner } from "@/components/shared/Spinner";
 import type { MedicineDTO } from "@/types/api";
 
 const PAGE = 50;
@@ -64,8 +65,9 @@ export function MedicinesView() {
             className="h-[34px] w-full rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] pl-8 pr-3 text-[13px] focus:border-[color:var(--brand)] focus:outline-none" />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)]">
-        <table className="w-full min-w-[860px] text-left text-[13px]">
+      {loading && rows.length === 0 ? <LoadingBlock label="Loading medicines…" /> : (
+      <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)]" aria-busy={loading}>
+        <table data-keep-table className="w-full min-w-[860px] text-left text-[13px]">
           <thead className="bg-[color:var(--subtle)] text-[11px] uppercase tracking-wide text-[color:var(--ink-soft)]">
             <tr><th className="px-3 py-2">Medicine</th><th className="px-3 py-2">Composition</th><th className="px-3 py-2">Pack</th><th className="px-3 py-2">MRP</th><th className="px-3 py-2">Price charged</th></tr>
           </thead>
@@ -73,7 +75,7 @@ export function MedicinesView() {
             {rows.map((m) => (
               <tr key={m.id} className="border-t border-[color:var(--line)] align-middle">
                 <td className="px-3 py-2"><span className="block text-[color:var(--ink)]">{m.name}</span><span className="block text-[11px] text-[color:var(--ink-soft)]">{m.manufacturer}</span></td>
-                <td className="max-w-[240px] px-3 py-2 text-[color:var(--ink-soft)]">{m.generic}</td>
+                <td className="min-w-[220px] max-w-[300px] px-3 py-2 text-[color:var(--ink-soft)]">{m.generic}</td>
                 <td className="px-3 py-2 text-[color:var(--ink-soft)]">{m.pack || m.unit}</td>
                 <td className="px-3 py-2">{rupee(m.mrp)}</td>
                 <td className="px-3 py-2"><PriceCell key={`${m.id}-${m.masterPrice}`} m={m} canEdit={canEdit} onSaved={(u) => setRows((r) => r.map((x) => (x.id === u.id ? u : x)))} /></td>
@@ -83,8 +85,9 @@ export function MedicinesView() {
           </tbody>
         </table>
       </div>
+      )}
       <div className="flex items-center justify-between text-[12px] text-[color:var(--ink-soft)]">
-        <span>Page {page} of {pages.toLocaleString("en-IN")}</span>
+        <span className="inline-flex items-center gap-2">Page {page} of {pages.toLocaleString("en-IN")}{loading && rows.length > 0 && <><Spinner size={12} /> Loading…</>}</span>
         <div className="flex gap-2">
           <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)} className="h-[30px] rounded-full border border-[color:var(--line)] px-4 disabled:opacity-40 cursor-pointer">Previous</button>
           <button type="button" disabled={page >= pages || loading} onClick={() => setPage((p) => p + 1)} className="h-[30px] rounded-full border border-[color:var(--line)] px-4 disabled:opacity-40 cursor-pointer">Next</button>

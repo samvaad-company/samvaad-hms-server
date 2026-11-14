@@ -15,11 +15,11 @@ import { ACCESS_HELP, ACCESS_LABEL, type AccessLevel, type RoleAccessDTO } from 
 
 const LABELS: Record<string, string> = {
   patients: "Patients", appointments: "Appointments", doctors: "Doctors", opd: "OPD", prescriptions: "Prescriptions", ipd: "IPD (inpatients)",
-  nursing: "Nurse station", ot: "Operation theatre", beds: "Beds & wards", followups: "Follow-ups", teleconsult: "Video consults", scribe: "AI scribe",
+  nursing: "Nurse station", ot: "Operation theatre", beds: "Beds & wards", followups: "Follow-ups", teleconsult: "Video consults", scribe: "KAYA AI scribe",
   records: "Records", consents: "Consents & signatures", lab: "Lab", radiology: "Radiology", bloodbank: "Blood bank", pharmacy: "Pharmacy",
   inventory: "Inventory", ambulance: "Ambulance", cssd: "CSSD", mrd: "MRD & file tracking", documents: "Documents", billing: "Billing",
   tpa: "TPA, insurance & pre-auth", finance: "Finance", reports: "Reports", staff: "Staff directory", hr: "HR", payroll: "Payroll",
-  attendance: "Attendance", admin: "Admin panel & setup", tasks: "Task board", chat: "AI assistant", enquiries: "Enquiries", awareness: "Awareness programmes", casefile: "IPD case files",
+  attendance: "Attendance", admin: "Admin panel & setup", tasks: "Task board", chat: "KAYA AI", enquiries: "Enquiries", awareness: "Awareness programmes", casefile: "IPD case files",
 };
 const GROUPS: { title: string; items: string[] }[] = [
   { title: "Patients & care", items: ["casefile", "patients", "appointments", "doctors", "opd", "prescriptions", "ipd", "nursing", "ot", "beds", "followups", "teleconsult", "scribe", "records", "consents"] },

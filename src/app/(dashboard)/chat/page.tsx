@@ -73,15 +73,15 @@ function ChatPageInner() {
       {dialog}
       <div className="shrink-0">
         <PageHeader
-          title="AI Chat"
+          title="KAYA AI"
           subtitle="Ask anything about this hospital's data: patients, bills, reports, prescriptions, appointments and their current state."
           stats={[]}
           action={{ label: "New Chat", icon: Plus, onClick: handleNewChat }}
         />
       </div>
 
-      <div className={`${tw.gutterX} pb-[20px] flex gap-4 flex-1 min-h-0`}>
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col`} style={{ width: 280 }}>
+      <div className={`${tw.gutterX} pb-[20px] flex flex-col lg:flex-row gap-4 flex-1 min-h-0`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col w-full lg:w-[280px] shrink-0 max-h-[240px] lg:max-h-none`}>
           <div className="px-4 py-3 border-b border-[color:var(--line)] shrink-0">
             <span className="text-[12px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">History</span>
           </div>
@@ -116,7 +116,7 @@ function ChatPageInner() {
           </div>
         </div>
 
-        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col flex-1`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} overflow-hidden flex flex-col flex-1 min-h-[520px] lg:min-h-0`}>
           {loadingThread && messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-[color:var(--ink-soft)]">
               <Sparkles size={20} className="animate-pulse text-[color:var(--brand)]" strokeWidth={1.5} />
@@ -127,7 +127,7 @@ function ChatPageInner() {
           )}
           <AiQuotaBar quota={quota} />
           <ChatComposer value={input} onChange={setInput} onSend={handleSend} disabled={streaming || loadingThread || Boolean(quota?.exceeded)}
-            placeholder={quota?.blocked ? "AI access paused" : quota?.exceeded ? "Monthly AI quota used up" : undefined} />
+            placeholder={quota?.blocked ? "KAYA AI access paused" : quota?.exceeded ? "Monthly KAYA AI quota used up" : undefined} />
         </div>
       </div>
     </div>

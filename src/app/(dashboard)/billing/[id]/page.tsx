@@ -18,6 +18,10 @@ import { DocumentLetterhead, DocumentFooter, useHospital } from "@/components/sh
 import Link from "next/link";
 import { PatientName } from "@/components/loyalty/PatientName";
 
+/** "14:05" → "2:05 PM". */
+const clock12 = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
+const WHO_LABEL: Record<string, string> = { hospital: "Hospital discount", doctor: "Doctor discount", company: "Company discount", tpa: "TPA discount" };
+
 export default function BillingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { can } = useAuth();
@@ -88,7 +92,7 @@ export default function BillingDetailPage() {
             right={
               <>
                 <div className="text-[22px] font-medium text-[color:var(--ink)]">{bill.billNumber}</div>
-                <div className="text-[13px] font-normal text-[color:var(--ink-soft)] mt-1">Date: {formatDate(bill.date)}</div>
+                <div className="text-[13px] font-normal text-[color:var(--ink-soft)] mt-1">Date: {formatDate(bill.date)}{bill.billTime ? ` · ${clock12(bill.billTime)}` : ""}</div>
                 <div className="mt-2"><StatusBadge status={bill.status} /></div>
               </>
             }
@@ -99,7 +103,17 @@ export default function BillingDetailPage() {
             <div>
               <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-2">Bill To</div>
               <div className="text-[15px] font-medium text-[color:var(--ink)]"><PatientName id={bill.patientId} name={bill.patientName} /></div>
-              {patient && (
+              {bill.patientDetails ? (
+                <div className="mt-1 flex flex-col gap-[2px] text-[13px] text-[color:var(--ink-soft)]">
+                  {bill.patientDetails.uhid && <div>UHID: {bill.patientDetails.uhid}</div>}
+                  {(bill.patientDetails.age || bill.patientDetails.sex) && <div>Age / Sex: {[bill.patientDetails.age, bill.patientDetails.sex].filter(Boolean).join(" / ")}</div>}
+                  {bill.patientDetails.phone && <div>{bill.patientDetails.phone}</div>}
+                  {bill.patientDetails.address && <div>{bill.patientDetails.address}</div>}
+                  {bill.patientDetails.consultingDoctor && <div>Cons. Dr.: {bill.patientDetails.consultingDoctor}</div>}
+                  {bill.patientDetails.referringDoctor && <div>Ref. Dr.: {bill.patientDetails.referringDoctor}</div>}
+                  {patient && <div className="mt-1"><AbhaBadge abhaId={patient.abhaId} /></div>}
+                </div>
+              ) : patient && (
                 <>
                   <div className="text-[13px] font-normal text-[color:var(--ink-soft)] mt-1">{patient.patientId ?? "—"}</div>
                   <div className="text-[13px] font-normal text-[color:var(--ink-soft)]">{patient.phone}</div>
@@ -113,10 +127,28 @@ export default function BillingDetailPage() {
                 <span className="text-[color:var(--ink-soft)]">Bill Type</span>
                 <span className="text-[color:var(--ink)] font-medium">{bill.type}</span>
               </div>
+              {bill.payType && (
+                <>
+                  <div className="flex justify-between text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">Cash / Cashless</span><span className="text-[color:var(--ink)] font-medium">{bill.payType}</span></div>
+                  {bill.payType === "Cashless" && (
+                    <>
+                      <div className="flex justify-between gap-3 text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">Insurer / TPA</span><span className="text-right text-[color:var(--ink)]">{bill.tpaName || "—"}</span></div>
+                      <div className="flex justify-between text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">Policy No.</span><span className="text-[color:var(--ink)]">{bill.policyNumber || "—"}</span></div>
+                    </>
+                  )}
+                </>
+              )}
               <div className="flex justify-between text-[13px] mb-1">
                 <span className="text-[color:var(--ink-soft)]">Payment Mode</span>
                 <span className="text-[color:var(--ink)]">{bill.paymentMode ?? "—"}</span>
               </div>
+              {bill.admissionId && (
+                <>
+                  <div className="flex justify-between text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">IPD No.</span><span className="text-[color:var(--ink)]">{bill.admissionNo}</span></div>
+                  <div className="flex justify-between text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">Admitted</span><span className="text-[color:var(--ink)]">{formatDate(bill.admissionDate)}</span></div>
+                  <div className="flex justify-between text-[13px] mb-1"><span className="text-[color:var(--ink-soft)]">Discharged</span><span className="text-[color:var(--ink)]">{bill.dischargeDate ? formatDate(bill.dischargeDate) : "Not yet"}</span></div>
+                </>
+              )}
               {bill.contractName && (
                 <div className="flex justify-between gap-3 text-[13px] mb-1">
                   <span className="text-[color:var(--ink-soft)]">Billed to</span>
@@ -173,6 +205,12 @@ export default function BillingDetailPage() {
                   <span className="text-[#00955c]">− ₹{bill.discount.toLocaleString("en-IN")}</span>
                 </div>
               )}
+              {bill.discountDetails && Object.entries(bill.discountDetails).filter(([, d]) => d.amount > 0).map(([who, d]) => (
+                <div key={who} className="flex justify-between text-[12px] pl-3">
+                  <span className="text-[color:var(--ink-soft)]">{WHO_LABEL[who] ?? who}{d.percent > 0 ? ` (${d.percent}%)` : ""}</span>
+                  <span className="text-[color:var(--ink-soft)]">− ₹{d.amount.toLocaleString("en-IN")}</span>
+                </div>
+              ))}
               {bill.gst > 0 && (
                 <div className="flex justify-between text-[13px]">
                   <span className="text-[color:var(--ink-soft)]">GST</span>
@@ -184,6 +222,12 @@ export default function BillingDetailPage() {
                 <span className="text-[color:var(--ink)]">Total</span>
                 <span className="text-[color:var(--brand)]">₹{net.toLocaleString("en-IN")}</span>
               </div>
+              {bill.admissionId && (bill.admissionDeposit ?? 0) > 0 && (
+                <>
+                  <div className="flex justify-between text-[13px]"><span className="text-[color:var(--ink-soft)]">Total deposit</span><span className="text-[color:var(--ink)]">₹{(bill.admissionDeposit ?? 0).toLocaleString("en-IN")}</span></div>
+                  <div className="flex justify-between text-[14px] font-medium"><span className="text-[color:var(--ink)]">{net - (bill.admissionDeposit ?? 0) < 0 ? "Refundable" : "Net receivable"}</span><span className="text-[color:var(--ink)]">₹{Math.abs(Math.round((net - (bill.admissionDeposit ?? 0)) * 100) / 100).toLocaleString("en-IN")}</span></div>
+                </>
+              )}
               {bill.contractId && (
                 <>
                   <div className="flex justify-between text-[13px]">
@@ -207,6 +251,13 @@ export default function BillingDetailPage() {
               )}
             </div>
           </div>
+
+          {bill.remarks && (
+            <div className="px-8 pb-6">
+              <div className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Remarks</div>
+              <p className="text-[13px] text-[color:var(--ink)] whitespace-pre-wrap" style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: "8px 0" }}>{bill.remarks}</p>
+            </div>
+          )}
 
           {/* Footer note */}
           <DocumentFooter hospital={hospital} />

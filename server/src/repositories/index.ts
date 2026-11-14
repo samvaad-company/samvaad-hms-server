@@ -64,6 +64,9 @@ import type {
   HrShiftRow,
   SetupRecordRow,
   PharmacyBatchRow,
+  SupplierCreditRow,
+  CombinedBillRow,
+  IpdDischargeClearanceRow,
   BillItemRow,
   BillPayoutRow,
   WhatsappAccountRow,
@@ -301,6 +304,9 @@ export const whatsappAccountsRepo = createRepository<WhatsappAccountRow, Whatsap
 export const whatsappMessagesRepo = createRepository<WhatsappMessageRow, WhatsappMessageRow>(TABLES.whatsappMessages, (r) => r);
 export const billPayoutsRepo = createRepository<BillPayoutRow, BillPayoutRow>(TABLES.billPayouts, (r) => r);
 export const pharmacyBatchesRepo = createRepository<PharmacyBatchRow, PharmacyBatchRow>(TABLES.pharmacyBatches, (r) => r);
+export const supplierCreditsRepo = createRepository<SupplierCreditRow, SupplierCreditRow>(TABLES.supplierCredits, (r) => r);
+export const ipdDischargeClearancesRepo = createRepository<IpdDischargeClearanceRow, IpdDischargeClearanceRow>(TABLES.ipdDischargeClearances, (r) => r);
+export const combinedBillsRepo = createRepository<CombinedBillRow, CombinedBillRow>(TABLES.combinedBills, (r) => r);
 export const pharmacyDispensesRepo = createRepository<PharmacyDispenseRow, PharmacyDispenseRow>(TABLES.pharmacyDispenses, (r) => r);
 export const pharmacyDispenseLinesRepo = createRepository<PharmacyDispenseLineRow, PharmacyDispenseLineRow>(TABLES.pharmacyDispenseLines, (r) => r);
 export const pharmacyReturnsRepo = createRepository<PharmacyReturnRow, PharmacyReturnRow>(TABLES.pharmacyReturns, (r) => r);

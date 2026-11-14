@@ -48,6 +48,8 @@
     "test:ipdchart": "tsx scripts/test-ipd-chart.ts",
     "test:smallfixes": "tsx scripts/test-small-fixes.ts",
     "test:packet": "tsx scripts/test-preauth-packet.ts",
+    "test:purchase": "tsx scripts/test-pharmacy-purchase.ts",
+    "test:h1": "tsx scripts/test-h1-register.ts",
     "test:awareness": "tsx scripts/test-awareness.ts",
     "test:role-access": "tsx scripts/test-role-access.ts",
     "test:casefile": "tsx scripts/test-casefile.ts",

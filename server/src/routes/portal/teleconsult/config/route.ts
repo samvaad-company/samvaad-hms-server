@@ -18,5 +18,6 @@ export const GET = withRoute(async (req: ApiRequest) => {
     price: cfg.price,
     currency: cfg.currency,
     paymentMode: cfg.gatewayMode,
+    consent: cfg.consent,
   });
 });

@@ -9,11 +9,12 @@ export interface LinkedRow extends Row { _src: string }
 
 const INJECTION = /\b(iv|im|sc|s\.c|i\.v|i\.m|inj|injection|infusion|intravenous|intramuscular|subcutaneous|drip)\b/i;
 const isInjection = (route: string, name: string) => INJECTION.test(route) || /^\s*(inj|inf|iv)\b/i.test(name);
-const initials = (name: string) => name.replace(/^(dr|mr|mrs|ms)\.?\s+/i, "").split(/\s+/).filter(Boolean).map((p) => p[0]!.toUpperCase()).join("").slice(0, 3);
 
 const dmy = (iso: string): string => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso);
 
-const slotCell = (state: "" | "due" | "given" | "held", by: string): string => (state === "given" ? `✓${by ? ` ${initials(by)}` : ""}` : state === "held" ? "Held" : state === "due" ? "○" : "");
+const clockOf = (iso: string): string => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true }); };
+/** A dose that has been given reads "✓ Nurse name · 2:15 pm": who gave it and when, as the nurse recorded it. */
+const slotCell = (state: "" | "due" | "given" | "held", by: string, at = ""): string => (state === "given" ? `✓${[by, at && clockOf(at)].filter(Boolean).length ? ` ${[by, at && clockOf(at)].filter(Boolean).join(" · ")}` : ""}` : state === "held" ? "Held" : state === "due" ? "○" : "");
 
 /** Rows for a table that takes its rows from elsewhere. `unit` is the day, for forms kept per day. */
 export function linkedRows(name: string | undefined, l: CaseFileLinkedDTO | null | undefined, unit?: string): LinkedRow[] {
@@ -38,8 +39,8 @@ export function linkedRows(name: string | undefined, l: CaseFileLinkedDTO | null
       for (const m of l.medicines) {
         if (isInjection(m.route, m.name) !== wantInjection) continue;
         if ((m.start && unit < m.start) || (m.end && unit > m.end)) continue;
-        const cells = m.days[unit] ?? ["", "", "", ""], by = m.givenBy[unit] ?? ["", "", "", ""];
-        out.push({ medication: m.name, dose: [m.dosage, m.frequency].filter(Boolean).join(" · "), route: m.route, s1: slotCell(cells[0], by[0]), s2: slotCell(cells[1], by[1]), s3: slotCell(cells[2], by[2]), s4: slotCell(cells[3], by[3]), _src: "Medicine order" });
+        const cells = m.days[unit] ?? ["", "", "", ""], by = m.givenBy[unit] ?? ["", "", "", ""], at = m.givenAt?.[unit] ?? ["", "", "", ""];
+        out.push({ medication: m.name, dose: [m.dosage, m.frequency].filter(Boolean).join(" · "), route: m.route, s1: slotCell(cells[0], by[0], at[0]), s2: slotCell(cells[1], by[1], at[1]), s3: slotCell(cells[2], by[2], at[2]), s4: slotCell(cells[3], by[3], at[3]), _src: "Medicine order" });
       }
       if (!wantInjection) {
         for (const rx of l.prescriptions.filter((p) => p.date === unit)) {

@@ -29,11 +29,11 @@ export const TOURS: Record<string, Step[]> = {
     { title: "Notifications", body: "Things that need you show up here — a result ready, a request waiting.", target: { css: "svg.lucide-bell" } },
     { title: "Settings and light or dark", body: "Settings holds the clinic profile, security and appearance. The moon switches between light and dark.", target: { css: 'a[aria-label="Settings"]' } },
     { title: "Your account", body: "Your profile, your password and sign out are under your name.", target: { css: '[data-tour="profile"]' } },
-    { title: "Ask the assistant", body: "The AI button in the top bar opens the assistant in a side panel on any screen. Ask about a patient, your day or the hospital.", target: { css: '[data-tour="ai-launcher"]' } },
+    { title: "Ask KAYA AI", body: "The KAYA AI button in the top bar opens the assistant in a side panel on any screen. Ask about a patient, your day or the hospital.", target: { css: '[data-tour="ai-launcher"]' } },
     { title: "That's the tour", body: "Open Training in the sidebar any time for lessons on each screen — they're picked for your role." },
   ],
   "ask-ai": [
-    open("/chat", "AI Chat", "C"),
+    open("/chat", "KAYA AI", "C"),
     { title: "Ask in plain words", body: "Type a question — \"who is waiting in OPD?\", \"what did we collect today?\" — and the answer comes from your hospital's own records.", target: { text: "Ask about", scope: "main", kind: "input" }, route: "/chat", hint: "try" },
     { title: "Start a fresh chat", body: "Each question thread is kept, so you can come back to it. New Chat starts a clean one.", target: btn("New Chat", "main"), route: "/chat" },
     { title: "Check what matters", body: "The assistant can be wrong. Open the patient's record from its answer to confirm anything important." },
@@ -174,7 +174,7 @@ export const TOURS: Record<string, Step[]> = {
   analytics: [
     open("/analytics", "Analytics", "S"),
     { title: "The trend", body: "Collections and footfall for the day, week or month, set against the period before.", target: { text: "Day", scope: "main", kind: "button" }, route: "/analytics" },
-    { title: "Reports in one place", body: "The Reports tab lists every report; AI monitor shows how the AI features are used.", target: btn("Reports", "main") },
+    { title: "Reports in one place", body: "The Reports tab lists every report; KAYA AI monitor shows how the AI features are used.", target: btn("Reports", "main") },
   ],
   reports: [
     open("/reports", "Reports"),

@@ -9,7 +9,7 @@ import { AnalyticsDashboard } from "@/components/reports/AnalyticsDashboard";
 import { ReportsCatalog } from "@/components/reports/ReportsCatalog";
 import { AiMonitorView } from "@/components/reports/AiMonitorView";
 
-const TABS = [{ id: "dashboard", label: "Dashboard" }, { id: "reports", label: "Reports" }, { id: "ai", label: "AI monitor" }] as const;
+const TABS = [{ id: "dashboard", label: "Dashboard" }, { id: "reports", label: "Reports" }, { id: "ai", label: "KAYA AI monitor" }] as const;
 type Tab = (typeof TABS)[number]["id"];
 
 export default function AnalyticsPage() {
