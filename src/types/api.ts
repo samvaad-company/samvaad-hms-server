@@ -1593,6 +1593,8 @@ export interface IpdMedicationDTO {
   status: string;
   lastGivenAt: string;
   notes: string;
+  /** "HH:mm" times of day it is given (morning, afternoon, evening and any extra); empty = the ward's usual rounds. */
+  doseTimes: string[];
 }
 
 export interface DocumentDTO {
@@ -1900,7 +1902,7 @@ export const CONSENT_DELIVERIES = ["qr", "email", "whatsapp", "device"] as const
 export type ConsentDelivery = (typeof CONSENT_DELIVERIES)[number];
 
 /** What staff read off a consent: "Not signed yet", "Sent to phone", "Opened on phone", "Signed on phone / paper"… */
-export type ConsentStage = "Not signed yet" | "Sent to phone" | "Opened on phone" | "Signed on phone" | "Signed on paper" | "Declined" | "Link cancelled" | "Link expired";
+export type ConsentStage = "Not signed yet" | "Sent to phone" | "Opened on phone" | "Signed on phone" | "Signed on paper" | "Signed with uploaded signature" | "Declined" | "Link cancelled" | "Link expired";
 
 export interface ConsentDTO {
   id: number;
@@ -1926,7 +1928,7 @@ export interface ConsentDTO {
   expiresAt: string | null;
   openedAt: string | null;
   signedAt: string | null;
-  signedVia: "phone" | "paper" | null;
+  signedVia: "phone" | "paper" | "upload" | null;
   witnessName: string | null;
   refusedReason: string | null;
   /** The scanned copy filed when it was signed on paper. */
@@ -1989,7 +1991,7 @@ export interface ConsentDocumentDTO {
   signerName: string | null;
   signerRelation: string | null;
   signedAt: string | null;
-  signedVia: "phone" | "paper" | null;
+  signedVia: "phone" | "paper" | "upload" | null;
   /** The language the signer had the page in when they signed (the copy opens in it by default). */
   signedLanguage: string | null;
   witnessName: string | null;

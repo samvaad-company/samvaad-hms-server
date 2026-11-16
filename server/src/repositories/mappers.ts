@@ -1191,6 +1191,7 @@ export function toIpdMedicationDTO(r: IpdMedicationRow): IpdMedicationDTO {
     status: r.status,
     lastGivenAt: r.last_given_at,
     notes: r.notes,
+    doseTimes: (r.dose_times ?? "").split(",").map((t) => t.trim()).filter(Boolean),
   };
 }
 
@@ -1429,7 +1430,7 @@ export function signatureStatusOf(r: Pick<SignatureRequestRow, "status" | "expir
 
 function stageOf(r: SignatureRequestRow, status: ConsentDTO["status"]): ConsentDTO["stage"] {
   switch (status) {
-    case "Signed": return r.signed_via === "paper" ? "Signed on paper" : "Signed on phone";
+    case "Signed": return r.signed_via === "paper" ? "Signed on paper" : r.signed_via === "upload" ? "Signed with uploaded signature" : "Signed on phone";
     case "Refused": return "Declined";
     case "Cancelled": return "Link cancelled";
     case "Expired": return "Link expired";

@@ -22,7 +22,13 @@ const ROUNDS: Record<number, number[]> = {
 };
 
 /** Minutes-after-midnight of each dose in a day for a free-text frequency; [] when there is no fixed schedule. */
-export function slotTimes(frequency: string): number[] {
+export function slotTimes(frequency: string, doseTimes?: string | null): number[] {
+  // Times the doctor set (morning / afternoon / evening / extra) win over the frequency.
+  const set = [...new Set((doseTimes ?? "").split(",").map((x) => /^([01]\d|2[0-3]):([0-5]\d)$/.exec(x.trim())).filter((m): m is RegExpExecArray => !!m).map((m) => Number(m[1]) * 60 + Number(m[2])))].sort((x, y) => x - y);
+  return set.length ? set : usualTimes(frequency);
+}
+
+function usualTimes(frequency: string): number[] {
   const f = (frequency ?? "").toLowerCase().trim();
   if (!f) return [];
   if (/\b(sos|prn|as needed|as required|if required|when required|when needed|stat|once only|single dose|immediately)\b/.test(f)) return [];
@@ -79,7 +85,19 @@ export function doseSlots(
   const out: DoseSlotDTO[] = [];
   for (const med of meds) {
     if (med.status !== "Active") continue;
-    const times = slotTimes(med.frequency);
+    const times = slotTimes(med.frequency, med.dose_times);
+    // A dose recorded outside the schedule ("give a dose now", an as-needed dose) is shown too, at the time it was given for.
+    const scheduled = new Set(days.flatMap((day) => times.map((m) => zonedInstant(day, m).getTime())));
+    for (const l of logs) {
+      if (l.medication_id !== med.id) continue;
+      const when = new Date(l.scheduled_at);
+      const day = localDate(when);
+      if (day < from || day > to || scheduled.has(when.getTime())) continue;
+      out.push({
+        key: `${med.id}|${when.toISOString()}`, admissionId: med.admission_id, medicationId: med.id, medicineName: med.medicine_name, dosage: med.dosage, route: med.route,
+        scheduledAt: when.toISOString(), state: stateOf(when, now, l), givenAt: l.given_at ?? null, givenBy: l.given_by ?? null, note: l.note ?? "",
+      });
+    }
     if (times.length === 0) continue;
     const ordered = new Date(med.created_at).getTime();
     const medLogs = logs.filter((l) => l.medication_id === med.id);

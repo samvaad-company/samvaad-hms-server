@@ -35,13 +35,14 @@ const STAGE_TONE: Record<ConsentStage, string> = {
   "Opened on phone": "bg-[#e3efff] text-[#0a5fc4] border-[#b9d3ff]",
   "Signed on phone": "bg-[#dffff3] text-[#0b7a47] border-[#9fe3c6]",
   "Signed on paper": "bg-[#dffff3] text-[#0b7a47] border-[#9fe3c6]",
+  "Signed with uploaded signature": "bg-[#dffff3] text-[#0b7a47] border-[#9fe3c6]",
   Declined: "bg-[#ffe3e5] text-[#b3001b] border-[#f4a3ac]",
   "Link cancelled": "bg-[color:var(--subtle)] text-[color:var(--ink-soft)] border-[color:var(--line)]",
   "Link expired": "bg-[color:var(--subtle)] text-[color:var(--ink-soft)] border-[color:var(--line)]",
 };
 
 export function StageChip({ stage }: { stage: ConsentStage }) {
-  return <span className={`inline-flex items-center rounded-full border px-[10px] py-[1px] text-[12px] leading-[18px] whitespace-nowrap ${STAGE_TONE[stage]}`}>{stage === "Signed on phone" || stage === "Signed on paper" ? `✓ ${stage}` : stage}</span>;
+  return <span className={`inline-flex items-center rounded-full border px-[10px] py-[1px] text-[12px] leading-[18px] whitespace-nowrap ${STAGE_TONE[stage]}`}>{stage === "Signed on phone" || stage === "Signed on paper" || stage === "Signed with uploaded signature" ? `✓ ${stage}` : stage}</span>;
 }
 
 const sendBtn = "inline-flex items-center gap-[6px] rounded-[8px] border border-[color:var(--brand)] bg-[color:var(--surface)] px-3 h-[30px] text-[13px] font-medium text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] cursor-pointer";
@@ -101,7 +102,7 @@ export function ConsentRow({ consent: c, canWrite, showPatient, onChanged }: { c
       )}
       <div className="mt-2"><ErrorNote message={error?.message} /></div>
       {printer.node}
-      {dialog === "send" && <SendDialog consent={c} onClose={() => setDialog(null)} onCreated={(made) => { setLive(made); setDialog(made.delivery === "device" ? null : "ready"); onChanged?.(); }} />}
+      {dialog === "send" && <SendDialog consent={c} onClose={() => setDialog(null)} onCreated={(made) => { setLive(made); setDialog(made.delivery === "device" ? null : "ready"); onChanged?.(); }} onSigned={(made) => { setLive(made); setDialog(null); onChanged?.(); }} />}
       {dialog === "ready" && (live ?? c).link && <ReadyDialog consent={live ?? c} onClose={() => { setDialog(null); setLive(null); }} />}
       {dialog === "copy" && <SignedCopyDialog consent={c} onClose={() => setDialog(null)} />}
       {dialog === "paper" && <PaperDialog consent={c} onClose={() => setDialog(null)} onDone={() => onChanged?.()} />}

@@ -292,6 +292,25 @@ test("signing on paper records who signed and the witness, and files the scanned
   assert.equal((await pub("POST", "/sign", tokenOf(link), { name: "Paper Patient", agree: true, signature: PNG })).status, 409, "the phone link can't also sign it");
 });
 
+// ── Signed with an uploaded signature ────────────────────────────────────────
+
+test("a consent can be signed with an uploaded picture of the signature, which prints in the signature box", async () => {
+  const p = await newPatient("Upload Patient");
+  const c = (await make(p.id)).data;
+  const sign = (id: number, body: Record<string, unknown>) => as(ADMIN, "POST", `/api/consents/${id}/signature`, body);
+  assert.equal((await sign(c.id, { name: "Upload Patient" })).status, 422, "a picture is needed");
+  assert.equal((await sign(c.id, { name: "Upload Patient", signature: "data:image/jpeg;base64,AAAA" })).status, 422, "a PNG only");
+  assert.equal((await sign(c.id, { name: "", signature: PNG })).status, 422, "a name is needed");
+  assert.equal((await sign(c.id, { name: "Upload Patient", relation: "Neighbour", signature: PNG })).status, 422);
+  const r = await sign(c.id, { name: "Upload Patient", relation: "Spouse", signature: PNG });
+  assert.equal(r.status, 200, JSON.stringify(r.error));
+  assert.deepEqual([r.data.status, r.data.stage, r.data.signedVia, r.data.signerName, r.data.signerRelation], ["Signed", "Signed with uploaded signature", "upload", "Upload Patient", "Spouse"]);
+  const doc = (await as(ADMIN, "GET", `/api/consents/${c.id}/document`)).data;
+  assert.equal(doc.signatureData, PNG, "the signature is in the printed form");
+  assert.equal((await sign(c.id, { name: "Upload Patient", signature: PNG })).status, 409, "already signed");
+  assert.equal((await sendLink(c.id)).status, 409);
+});
+
 // ── Lists, counts, deleting ──────────────────────────────────────────────────
 
 test("the list counts each state; a form that was only made can be deleted, one in progress can't", async () => {
