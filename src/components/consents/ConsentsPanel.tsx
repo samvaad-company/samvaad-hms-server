@@ -78,7 +78,7 @@ export function ConsentsPanel({ patient, canWrite }: { patient: ConsentPatient; 
             else { setFresh(c); setSending("send"); }
           }} />
       )}
-      {fresh && sending === "send" && <SendDialog consent={fresh} onClose={() => { setFresh(null); setSending(null); }} onCreated={(c) => { setFresh(c); setSending(c.delivery === "device" ? null : "ready"); reload(); }} />}
+      {fresh && sending === "send" && <SendDialog consent={fresh} onClose={() => { setFresh(null); setSending(null); }} onCreated={(c) => { setFresh(c); setSending(c.delivery === "device" ? null : "ready"); reload(); }} onSigned={() => { setFresh(null); setSending(null); reload(); }} />}
       {fresh && sending === "ready" && fresh.link && <ReadyDialog consent={fresh} onClose={() => { setFresh(null); setSending(null); }} />}
       {printer.node}
 

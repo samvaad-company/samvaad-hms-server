@@ -160,6 +160,36 @@ test("another hospital can't read the chart, and the pharmacy has no access", as
   assert.equal((await as(PHARMACIST, "GET", `/api/ipd/${adm}/sheet`)).status, 403);
 });
 
+test("a medicine order can carry the times of day it is given (morning, afternoon, evening, extra); a bad time is refused", async () => {
+  const mk = (extra: Record<string, unknown>) => as(DOCTOR, "POST", "/api/ipd/medications", { admissionId: adm, medicineName: "Inj Timed", dosage: "1 g", frequency: "BD", route: "IV", ...extra });
+  const ok = await mk({ doseTimes: "20:00,09:00,14:00,09:00,23:30" });
+  assert.equal(ok.status, 201, JSON.stringify(ok.error));
+  assert.deepEqual(ok.data.doseTimes, ["09:00", "14:00", "20:00", "23:30"], "sorted, no repeats");
+  const none = await mk({});
+  assert.deepEqual(none.data.doseTimes, [], "empty = the ward's usual rounds");
+  assert.ok((await mk({ doseTimes: "25:99" })).status >= 400, "not a time");
+  assert.ok((await mk({ doseTimes: "09:00,soon" })).status >= 400, "not a time");
+  const edited = await as(DOCTOR, "PATCH", `/api/ipd/medications/${none.data.id}`, { doseTimes: "07:00,19:00" });
+  assert.deepEqual(edited.data.doseTimes, ["07:00", "19:00"]);
+  const { slotTimes } = await import("@/services/ipd-schedule");
+  assert.deepEqual(slotTimes("BD", "07:00,19:00,13:00"), [420, 780, 1140], "the doctor's times win over the frequency");
+  assert.deepEqual(slotTimes("SOS", "10:00"), [600]);
+  assert.deepEqual(slotTimes("BD", ""), [540, 1260], "no times set: the usual rounds");
+});
+
+test("a dose given outside the schedule (give a dose now) shows on the chart as given, and a missed dose can still be given late", async () => {
+  const med = await as(DOCTOR, "POST", "/api/ipd/medications", { admissionId: adm, medicineName: "Tab Adhoc", dosage: "5 mg", frequency: "SOS", route: "Oral" });
+  assert.equal(med.status, 201, JSON.stringify(med.error));
+  const at = new Date().toISOString();
+  const rec = await as(NURSE, "POST", "/api/ipd/nurse/doses", { medicationId: med.data.id, scheduledAt: at, status: "Given" });
+  assert.equal(rec.status, 201, JSON.stringify(rec.error));
+  const list = (await as(NURSE, "GET", "/api/ipd/nurse/doses")).data as any[];
+  const mine = list.filter((d) => d.medicationId === med.data.id);
+  assert.equal(mine.length, 1, "the unscheduled dose is listed");
+  assert.equal(mine[0].state, "given");
+  assert.ok(mine[0].givenBy, "who gave it");
+});
+
 let failed = 0;
 for (const t of tests) {
   try { await t.fn(); console.log(`  PASS  ${t.name}`); }

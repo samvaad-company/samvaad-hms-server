@@ -70,7 +70,7 @@ export function SignaturesView({ canWrite }: { canWrite: boolean }) {
             else { setFresh(c); setStep("send"); }
           }} />
       )}
-      {fresh && step === "send" && <SendDialog consent={fresh} onClose={() => { setFresh(null); setStep(null); }} onCreated={(c) => { setFresh(c); setStep(c.delivery === "device" ? null : "ready"); reload(); }} />}
+      {fresh && step === "send" && <SendDialog consent={fresh} onClose={() => { setFresh(null); setStep(null); }} onCreated={(c) => { setFresh(c); setStep(c.delivery === "device" ? null : "ready"); reload(); }} onSigned={() => { setFresh(null); setStep(null); reload(); }} />}
       {fresh && step === "ready" && fresh.link && <ReadyDialog consent={fresh} onClose={() => { setFresh(null); setStep(null); }} />}
       {printer.node}
     </div>

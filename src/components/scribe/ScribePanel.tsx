@@ -22,6 +22,8 @@ interface ScribePanelProps {
   doctorName: string;
   doctorId?: number | null;
   patientId?: number | null;
+  /** Changes when a note was saved elsewhere on the page (the quick scribe card): the list reloads. */
+  refreshKey?: number;
 }
 
 function fmtDuration(sec: number): string {
@@ -31,10 +33,12 @@ function fmtDuration(sec: number): string {
 }
 
 export function ScribePanel({
-  appointmentId, patientName, doctorName, doctorId, patientId,
+  appointmentId, patientName, doctorName, doctorId, patientId, refreshKey,
 }: ScribePanelProps) {
   const { items: allNotes, reload } = useList<ScribeNoteDTO>("/scribe", { all: true });
   const notes = allNotes.filter((n) => n.appointmentId === appointmentId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (refreshKey) reload(); }, [refreshKey]);
   const { run, loading: saving } = useMutation();
   const { item: status } = useItem<{ live: boolean }>("/scribe/status");
   const geminiLive = status?.live ?? false;

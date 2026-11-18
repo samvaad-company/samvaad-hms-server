@@ -12,6 +12,7 @@ import { Card, ChartCtx, ErrorLine, LinkButton, Notice, Pill, btn, dateTime, day
 import { todayIso } from "@/lib/dates";
 
 const addDays = (d: string, n: number) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10) + n)).toISOString().slice(0, 10);
+const DAY_PARTS = [{ key: "morning", label: "Morning", time: "09:00" }, { key: "afternoon", label: "Afternoon", time: "14:00" }, { key: "evening", label: "Evening", time: "20:00" }];
 const ROUTES = ["Oral", "IV", "IM", "SC", "Topical", "Inhaled"];
 
 /** Reads "inj ceftriaxone 1 g iv bd" the way a doctor writes it into a name, dose, route and frequency. */
@@ -28,10 +29,14 @@ export function parseOrder(text: string): { medicineName: string; dosage: string
 export function OrderDialog({ ctx, open, initial, onClose, onSaved }: { ctx: ChartCtx; open: boolean; initial?: string; onClose: () => void; onSaved: () => void }) {
   const first = initial ? parseOrder(initial) : { medicineName: "", dosage: "", frequency: "", route: "Oral" };
   const [f, setF] = useState(first);
+  // When to give it: tick morning / afternoon / evening and set each time, and add more times if the doctor wants them.
+  const [parts, setParts] = useState(DAY_PARTS.map((p) => ({ ...p, on: false })));
+  const [extra, setExtra] = useState<string[]>([]);
   const { run, loading, error, reset } = useMutation();
   const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
+  const times = [...parts.filter((p) => p.on && p.time).map((p) => p.time), ...extra.filter(Boolean)];
   async function save() {
-    if (!(await done(run(() => api.post("/ipd/medications", { admissionId: ctx.id, ...f }))))) return;
+    if (!(await done(run(() => api.post("/ipd/medications", { admissionId: ctx.id, ...f, doseTimes: times.join(",") }))))) return;
     onSaved();
     onClose();
   }
@@ -46,6 +51,28 @@ export function OrderDialog({ ctx, open, initial, onClose, onSaved }: { ctx: Cha
         <FormRow label="Dose"><FormInput placeholder="1 g" value={f.dosage} onChange={set("dosage")} /></FormRow>
         <FormRow label="Frequency"><FormInput placeholder="BD, TDS, 1-0-1, SOS" value={f.frequency} onChange={set("frequency")} /></FormRow>
         <FormRow label="Route"><FormSelect value={f.route} onChange={set("route")} options={ROUTES.map((r) => ({ value: r, label: r }))} /></FormRow>
+        <div className="col-span-2 rounded-[10px] border border-[color:var(--line)] p-3" data-testid="dose-times">
+          <p className="text-[13px] font-medium text-[color:var(--ink)]">When to give it</p>
+          <p className="mb-2 text-[12px] text-[color:var(--ink-soft)]">Tick the times of day and set each time. They show on the drug chart. Leave all unticked for the ward&apos;s usual rounds.</p>
+          <div className="flex flex-col gap-2">
+            {parts.map((p, i) => (
+              <div key={p.key} className="flex items-center gap-3">
+                <label className="flex w-[110px] cursor-pointer items-center gap-2 text-[14px] text-[color:var(--ink)]">
+                  <input type="checkbox" checked={p.on} onChange={(e) => setParts((x) => x.map((y, n) => (n === i ? { ...y, on: e.target.checked } : y)))} /> {p.label}
+                </label>
+                <input type="time" value={p.time} disabled={!p.on} aria-label={`${p.label} dose time`} onChange={(e) => setParts((x) => x.map((y, n) => (n === i ? { ...y, time: e.target.value } : y)))} className={`${inputCls} max-w-[150px] disabled:opacity-50`} />
+              </div>
+            ))}
+            {extra.map((t, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-[110px] text-[14px] text-[color:var(--ink)]">Extra time {i + 1}</span>
+                <input type="time" value={t} aria-label={`Extra dose time ${i + 1}`} onChange={(e) => setExtra((x) => x.map((y, n) => (n === i ? e.target.value : y)))} className={`${inputCls} max-w-[150px]`} />
+                <button type="button" onClick={() => setExtra((x) => x.filter((_, n) => n !== i))} aria-label={`Remove extra time ${i + 1}`} className="text-[13px] text-[#c8001a] hover:underline cursor-pointer">Remove</button>
+              </div>
+            ))}
+          </div>
+          {extra.length + parts.length < 8 && <button type="button" onClick={() => setExtra((x) => [...x, "12:00"])} className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-[color:var(--brand)] hover:underline cursor-pointer"><Plus size={13} /> Add another time</button>}
+        </div>
         <div className="col-span-2"><ErrorLine error={error} /></div>
       </div>
     </Modal>
@@ -219,8 +246,8 @@ export function SheetTab({ ctx }: { ctx: ChartCtx }) {
                         <span className="font-mono">{timeOf(d.scheduledAt)}</span>
                         {d.state === "given" ? <span className="text-[#0b7a47]">given{d.givenBy ? ` · ${d.givenBy}` : ""}{d.givenAt ? ` · ${timeOf(d.givenAt)}` : ""}</span>
                           : d.state === "held" ? <span className="text-[#a35a00]">held</span>
+                          : editable && date === today ? <>{d.state === "missed" && <span className="text-[#b3001b]">missed</span>}<button className="cursor-pointer text-[color:var(--brand)] hover:underline" onClick={() => give(d, "Given")}>Give</button><button className="cursor-pointer text-[color:var(--ink-soft)] hover:underline" onClick={() => { setHold(d); setHoldWhy(""); }}>Hold</button></>
                           : d.state === "missed" ? <span className="text-[#b3001b]">missed</span>
-                          : editable && date === today ? <><button className="cursor-pointer text-[color:var(--brand)] hover:underline" onClick={() => give(d, "Given")}>Give</button><button className="cursor-pointer text-[color:var(--ink-soft)] hover:underline" onClick={() => { setHold(d); setHoldWhy(""); }}>Hold</button></>
                           : <span className="text-[color:var(--ink-soft)]">{d.state === "due" ? "due" : "later"}</span>}
                       </span>
                     ))}

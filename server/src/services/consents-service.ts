@@ -265,6 +265,40 @@ export async function signOnPaper(id: number, input: unknown, file: File | null,
   return toConsentDTO(updated as SignatureRequestRow);
 }
 
+// ── Signed with an uploaded signature ────────────────────────────────────────
+
+const uploadSchema = {
+  name: { type: "string", required: true, min: 2, max: 80 },
+  relation: { type: "enum", required: false, values: RELATIONS, default: "Self" },
+  witness: { type: "string", required: false, max: 80, default: "" },
+} as const;
+const MAX_UPLOADED_SIGNATURE_CHARS = 450_000; // the browser keeps a cleaned-up picture under ~400 000 characters
+
+/**
+ * The patient's signature as a picture (a photo of it on paper, with the paper removed in the browser, as for a pre-auth form):
+ * the consent is signed with that picture, and the form prints it in the signature box. The picture belongs to this one form only;
+ * it is not kept anywhere else.
+ */
+export async function signWithUploadedSignature(id: number, input: unknown, actor: Session): Promise<ConsentDTO> {
+  await ownedRow(id, actor);
+  const data = validate(uploadSchema, input);
+  const image = (input as Record<string, unknown>)?.signature;
+  if (typeof image !== "string" || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(image) || image.length > MAX_UPLOADED_SIGNATURE_CHARS) {
+    throw new ValidationError([{ field: "signature", message: "upload a picture of the signature (a PNG that is not too large)" }]);
+  }
+  const updated = await withKeyLocks([`consent:${id}`], async () => {
+    const row = await ownedRow(id, actor);
+    if (row.status === "Signed") throw new ConflictError("This form has already been signed");
+    if (row.status === "Refused") throw new ConflictError("The patient declined this form");
+    return signatureRequestsRepo.update(id, {
+      status: "Signed", signed_via: "upload", signed_at: new Date().toISOString(), signer_name: data.name, signer_relation: data.relation,
+      witness_name: data.witness.trim() || null, signed_language: row.language, signature_data: image, opened_at: row.opened_at ?? new Date().toISOString(),
+    });
+  });
+  await audit(actor, "signed-with-uploaded-signature", "consent", id, { signer: data.name, relation: data.relation });
+  return toConsentDTO(updated as SignatureRequestRow);
+}
+
 // ── The document itself (print / signed copy) ────────────────────────────────
 
 /** The form in every language it exists in; a form made before the catalog existed has only its own text. */

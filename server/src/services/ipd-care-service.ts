@@ -129,7 +129,11 @@ const medSchema = {
   endDate: { type: "string", required: false, max: 40, default: "" },
   status: { type: "enum", required: false, values: MEDICATION_STATUSES, default: "Active" },
   notes: { type: "string", required: false, max: 500, default: "" },
+  doseTimes: { type: "string", required: false, max: 60, pattern: /^$|^([01]\d|2[0-3]):[0-5]\d(,([01]\d|2[0-3]):[0-5]\d){0,7}$/, default: "" },
 } as const;
+
+/** "14:00,09:00,09:00" -> "09:00,14:00": sorted, no repeats. */
+const normaliseTimes = (csv: string | undefined): string => [...new Set((csv ?? "").split(",").map((t) => t.trim()).filter(Boolean))].sort().join(",");
 
 export async function listIpdMedications(options: QueryOptions, actor: Session) {
   await assertAdmissionOwned(requireAdmissionFilter(options), actor);
@@ -153,6 +157,7 @@ export async function createIpdMedication(input: unknown, actor: Session) {
     status: data.status,
     last_given_at: "",
     notes: data.notes,
+    dose_times: normaliseTimes(data.doseTimes),
   });
   await audit(actor, "create", "ipd-medication", row.id);
   return toIpdMedicationDTO(row as IpdMedicationRow);
@@ -174,6 +179,7 @@ export async function updateIpdMedication(id: number, input: unknown, actor: Ses
   if ("endDate" in data) patch.end_date = isoDate(data.endDate);
   if ("status" in data) patch.status = data.status;
   if ("notes" in data) patch.notes = data.notes;
+  if ("doseTimes" in data) patch.dose_times = normaliseTimes(data.doseTimes);
   // Explicit "given now" marker from the administer action.
   if ((input as { markGiven?: boolean })?.markGiven) {
     patch.last_given_at = `${isoDate(new Date())} ${displayTime()}`;

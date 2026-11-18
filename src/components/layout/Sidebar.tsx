@@ -177,6 +177,7 @@ const groups: NavGroup[] = [
       { href: "/documents",     label: "Documents",     icon: FolderOpen,     resource: "mrd", key: "8" },
       { href: "/signatures",    label: "Signatures",    icon: FileSignature,  resource: "consents", key: "9" },
       { href: "/mrd",           label: "MRD coding",    icon: ClipboardCheck, resource: "mrd", key: "0" },
+      { href: "/mrd-checklist", label: "MRD file",      icon: ClipboardList,  resource: "mrd" },
     ],
   },
   {
@@ -186,6 +187,7 @@ const groups: NavGroup[] = [
       { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance", key: "F" },
       { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa", key: "J" },
       { href: "/preauth",       label: "Pre-auth forms",   icon: FileCheck2,  resource: "tpa" },
+      { href: "/claim-forms",   label: "Claim forms",      icon: ClipboardList, resource: "tpa" },
     ],
   },
   {

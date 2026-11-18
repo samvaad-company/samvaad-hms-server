@@ -11,12 +11,13 @@ import {
   pharmacyRepo,
   medicinesRepo,
 } from "@/repositories";
+import { createFollowUp } from "@/services/followups-service";
 import { toPrescriptionDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { transactional } from "@/db/unit-of-work";
 import { TABLES } from "@/db/tables";
 import { type PrescriptionRow, type PrescriptionItemRow } from "@/db/tables";
-import { ConflictError } from "@/lib/errors";
+import { ConflictError, BadRequestError } from "@/lib/errors";
 import { validate, validatePartial } from "@/lib/validation";
 import { computePharmacyStatus, displayDate } from "@/services/helpers";
 import { audit } from "@/services/audit";
@@ -42,6 +43,16 @@ const headerSchema = {
   diagnosis: { type: "string", required: true, min: 2, max: 240 },
   status: { type: "enum", required: false, values: ["Dispensed", "Pending", "Draft"], default: "Draft" },
 } as const;
+
+/** The clinical record sent with a prescription: kept as written, but only a plain object of a sane size. */
+function cleanConsultation(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new BadRequestError("consultation must be an object");
+  let json: string;
+  try { json = JSON.stringify(raw); } catch { throw new BadRequestError("consultation is not valid"); }
+  if (json.length > 200_000) throw new BadRequestError("consultation is too large");
+  return JSON.parse(json) as Record<string, unknown>;
+}
 
 export const RX_LIST_CONFIG = {
   searchColumns: ["rx_number", "patient_name", "doctor", "diagnosis"],
@@ -132,6 +143,7 @@ export async function createPrescription(input: unknown, actor: Session) {
     medicine_count: rawItems.length,
     prescribed_date: displayDate(),
     status: data.status,
+    consultation: cleanConsultation((input as { consultation?: unknown }).consultation),
   });
 
   const items: PrescriptionItemRow[] = [];
@@ -149,6 +161,14 @@ export async function createPrescription(input: unknown, actor: Session) {
     items.push(created as PrescriptionItemRow);
   }
 
+  // A follow-up date on the prescription also goes on the hospital's Follow-ups list, so the patient gets called.
+  const followUpOn = (header.consultation as { followUp?: unknown } | null | undefined)?.followUp;
+  if (data.patientId && typeof followUpOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(followUpOn)) {
+    await createFollowUp(
+      { patientId: data.patientId, doctorId: data.doctorId, reason: `Follow-up: ${data.diagnosis}`.slice(0, 300), dueOn: followUpOn, note: `From prescription ${rxNumber}` },
+      actor,
+    ).catch(() => null);
+  }
   await audit(actor, "create", "prescription", header.id, { rxNumber, items: items.length });
   // For a patient who is in hospital, the medicines are also orders for the ward (the nurse station and drug chart).
   await mirrorPrescriptionToWard(header as PrescriptionRow, items).catch(() => 0);

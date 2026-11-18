@@ -16,6 +16,7 @@ import type { AppointmentDTO, DoctorDTO, PrescriptionDTO, PatientDTO } from "@/t
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { AbhaBadge } from "@/components/shared/AbhaBadge";
 import { ScribePanel } from "@/components/scribe/ScribePanel";
+import { QuickScribeCard } from "@/components/scribe/QuickScribeCard";
 import { AppointmentLoyaltyCard } from "@/components/appointments/LoyaltyLinksFields";
 import { Modal } from "@/components/shared/Modal";
 import { ConsultLinkActions } from "@/components/teleconsult/ConsultLinkActions";
@@ -55,6 +56,8 @@ export default function AppointmentDetailPage() {
   const canWrite = can("appointments", "write");
   const canOrderRadiology = can("radiology", "write");
   const { item: appt, loading, reload } = useItem<AppointmentDTO>(`/appointments/${id}`);
+  // Bumped when the quick scribe card saves a note, so the Consultation Scribe section lists it.
+  const [scribeTick, setScribeTick] = useState(0);
   useBreadcrumb("/appointments", "Appointments", appt ? `${appt.patientName} — ${formatDate(appt.date)}` : "Appointment");
   const { items: doctors } = useList<DoctorDTO>("/doctors", { all: true });
   const { items: prescriptions } = useList<PrescriptionDTO>("/prescriptions", { all: true });
@@ -310,6 +313,7 @@ export default function AppointmentDetailPage() {
 
           {/* AI consultation scribe */}
           <ScribePanel
+            refreshKey={scribeTick}
             appointmentId={appt.id}
             patientName={appt.patientName}
             doctorName={appt.doctor}
@@ -318,9 +322,11 @@ export default function AppointmentDetailPage() {
           />
         </div>
 
-        {/* Right — doctor info */}
+        {/* Right — one-tap scribing for the doctor, then the doctor's details */}
+        <div className="flex flex-col gap-6 self-start">
+        <QuickScribeCard appointmentId={appt.id} patientName={appt.patientName} doctorName={appt.doctor} doctorId={doctor?.id ?? null} patientId={patientRec?.id ?? null} onSaved={() => setScribeTick(t => t + 1)} />
         {doctor && (
-          <div className={`${tw.surface.card} ${tw.radius.card} p-6 flex flex-col gap-4 self-start`}>
+          <div className={`${tw.surface.card} ${tw.radius.card} p-6 flex flex-col gap-4`}>
             <div className="text-[14px] font-medium text-[color:var(--ink)]">Attending Doctor</div>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-[color:var(--brand)] flex items-center justify-center shrink-0">
@@ -358,6 +364,7 @@ export default function AppointmentDetailPage() {
             </Link>
           </div>
         )}
+        </div>
       </div>
 
       {/* Reschedule / Follow-up modal */}

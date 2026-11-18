@@ -7,12 +7,14 @@
  * WhatsApp number (Setup → WhatsApp); when none is connected it falls back to the device's own share menu.
  */
 import { useEffect, useState } from "react";
-import { Copy, Check, Mail, MessageCircle, Share2, Smartphone, QrCode } from "lucide-react";
+import { Copy, Check, ImageUp, Mail, MessageCircle, Share2, Smartphone, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import { api } from "@/lib/api/client";
 import { useItem, useMutation } from "@/lib/api/hooks";
 import { Modal } from "@/components/shared/Modal";
-import { FormInput } from "@/components/shared/FormRow";
+import { FormInput, FormSelect } from "@/components/shared/FormRow";
+import { SignatureUploadModal } from "@/components/preauth/SignatureUploadModal";
+import { RELATIONS, SIGN_STRINGS, CONSENT_LANGUAGES, type ConsentLanguage } from "@/types/consent-catalog";
 import type { ConsentDelivery, ConsentDTO, WhatsappLiteDTO, WhatsappSendResult } from "@/types/api";
 import { attempt, ErrorNote, fieldLabel, outlineBtn, primaryBtn, cancelBtn } from "@/components/mrd/shared";
 
@@ -25,11 +27,15 @@ export function shareMessage(c: Pick<ConsentDTO, "formTitle" | "language" | "pat
   return `Please read and sign "${c.formTitle}" (${c.patientName}): ${url}`;
 }
 
-const METHODS: { id: ConsentDelivery; label: string; hint: string; icon: typeof QrCode }[] = [
+/** How it gets signed: a link the patient opens (QR, email, WhatsApp, this device), or a picture of their signature uploaded here. */
+type Method = ConsentDelivery | "upload";
+
+const METHODS: { id: Method; label: string; hint: string; icon: typeof QrCode }[] = [
   { id: "qr", label: "QR code", hint: "The patient scans it with their phone camera", icon: QrCode },
   { id: "email", label: "Email", hint: "A link to their email address", icon: Mail },
   { id: "whatsapp", label: "WhatsApp / SMS", hint: "Send from this device's share menu", icon: Share2 },
   { id: "device", label: "Sign on this device", hint: "Hand this tablet or phone to them", icon: Smartphone },
+  { id: "upload", label: "Upload signature", hint: "A picture of their signature; the paper is removed for you", icon: ImageUp },
 ];
 
 /** Whether the hospital's WhatsApp is connected — decides if "WhatsApp" sends by itself or opens the share menu. */
@@ -43,18 +49,33 @@ export function WhatsappOutcome({ result }: { result: WhatsappSendResult }) {
   return <p role="alert" className="rounded-[8px] border border-[#f6bcc4] bg-[#fff1f3] px-3 py-2 text-[13px] text-[#c8001a]">Couldn&apos;t send it on WhatsApp{result.to ? ` to ${result.to}` : ""}: {result.detail ?? "unknown error"} The link below still works — copy it or show the QR code.</p>;
 }
 
-export function SendDialog({ consent, onClose, onCreated }: { consent: ConsentDTO; onClose: () => void; onCreated: (c: ConsentDTO) => void }) {
+export function SendDialog({ consent, onClose, onCreated, onSigned }: { consent: ConsentDTO; onClose: () => void; onCreated: (c: ConsentDTO) => void; /** The form was signed here with an uploaded signature. */ onSigned?: (c: ConsentDTO) => void }) {
   const { run, loading, error, reset } = useMutation();
   const [signer, setSigner] = useState(consent.patientName);
-  const [delivery, setDelivery] = useState<ConsentDelivery>("qr");
+  const [method, setDelivery] = useState<Method>("qr");
+  const [relation, setRelation] = useState<string>("Self");
+  const [picking, setPicking] = useState(false);
+  const lang = (CONSENT_LANGUAGES as readonly string[]).includes(consent.language) ? (consent.language as ConsentLanguage) : "English";
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [days, setDays] = useState(3);
   const wa = useWhatsapp();
+  const upload = method === "upload";
+  const delivery: ConsentDelivery = upload ? "qr" : method;
   const viaApi = delivery === "whatsapp" && !!wa?.connected;
   const close = () => { reset(); onClose(); };
 
+  /** The cleaned-up signature picture comes back from the upload dialog: sign the form with it. */
+  async function signWithPicture(image: string) {
+    let made: ConsentDTO | null = null;
+    const ok = await attempt(run(async () => { made = await api.post<ConsentDTO>(`/consents/${consent.id}/signature`, { name: signer.trim(), relation, signature: image }); }));
+    if (!ok || !made) throw new Error("Couldn't sign the form with that signature.");
+    onSigned?.(made);
+    onClose();
+  }
+
   async function create() {
+    if (upload) { setPicking(true); return; }
     // The tablet opens the form in a new tab: that tab has to be opened inside the click, before the request finishes.
     const tab = delivery === "device" ? window.open("", "_blank") : null;
     let made: ConsentDTO | null = null;
@@ -73,8 +94,8 @@ export function SendDialog({ consent, onClose, onCreated }: { consent: ConsentDT
       footer={
         <>
           <button onClick={close} className={cancelBtn}>Cancel</button>
-          <button onClick={create} disabled={loading || signer.trim().length < 2 || (delivery === "email" && !/^\S+@\S+\.\S+$/.test(email.trim()))} className={primaryBtn}>
-            {loading ? (viaApi ? "Sending…" : "Preparing…") : delivery === "email" ? "Email the link" : delivery === "device" ? "Open to sign" : viaApi ? "Send on WhatsApp" : "Create link"}
+          <button onClick={create} disabled={loading || signer.trim().length < 2 || (!upload && delivery === "email" && !/^\S+@\S+\.\S+$/.test(email.trim()))} className={primaryBtn}>
+            {loading ? (viaApi ? "Sending…" : "Preparing…") : upload ? "Choose the signature picture" : delivery === "email" ? "Email the link" : delivery === "device" ? "Open to sign" : viaApi ? "Send on WhatsApp" : "Create link"}
           </button>
         </>
       }>
@@ -89,8 +110,8 @@ export function SendDialog({ consent, onClose, onCreated }: { consent: ConsentDT
             const m = m0.id === "whatsapp" && wa?.connected ? { ...m0, label: "WhatsApp", hint: `Sent from the hospital's number ${wa.displayPhone}`, icon: MessageCircle } : m0;
             const Icon = m.icon;
             return (
-              <button key={m.id} onClick={() => setDelivery(m.id)} aria-pressed={delivery === m.id}
-                className={`flex items-start gap-3 rounded-[10px] border px-4 py-3 text-left cursor-pointer transition-colors ${delivery === m.id ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]" : "border-[color:var(--line)] bg-[color:var(--faint)] hover:bg-[color:var(--subtle)]"}`}>
+              <button key={m.id} onClick={() => setDelivery(m.id)} aria-pressed={method === m.id}
+                className={`flex items-start gap-3 rounded-[10px] border px-4 py-3 text-left cursor-pointer transition-colors ${method === m.id ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]" : "border-[color:var(--line)] bg-[color:var(--faint)] hover:bg-[color:var(--subtle)]"}`}>
                 <Icon size={18} className="mt-[2px] shrink-0 text-[color:var(--ink-soft)]" />
                 <span><span className="block text-[14px] font-medium text-[color:var(--ink)]">{m.label}</span><span className="block text-[12px] leading-[16px] text-[color:var(--ink-soft)]">{m.hint}</span></span>
               </button>
@@ -107,7 +128,14 @@ export function SendDialog({ consent, onClose, onCreated }: { consent: ConsentDT
         {delivery === "email" && (
           <div className="flex flex-col gap-2"><span className={fieldLabel}>Email address</span><FormInput type="email" value={email} onChange={setEmail} placeholder="name@example.com" /></div>
         )}
-        <div className="flex flex-col gap-2">
+        {upload && (
+          <div className="flex flex-col gap-2">
+            <span className={fieldLabel}>Relation to the patient</span>
+            <FormSelect value={relation} onChange={setRelation} options={RELATIONS.map((r) => ({ value: r, label: SIGN_STRINGS[lang].relation[r] === r ? r : `${r} · ${SIGN_STRINGS[lang].relation[r]}` }))} />
+            <p className="text-[12px] text-[color:var(--ink-soft)]">Pick a photo or scan of the signature on plain white paper. The paper is removed on this device, you check the result, and the signature is placed in the form&apos;s signature box. The form is then marked signed. The picture is used on this form only and is not saved anywhere else.</p>
+          </div>
+        )}
+        {!upload && <div className="flex flex-col gap-2">
           <span className={fieldLabel}>The link works for</span>
           <div className="flex gap-2">
             {[1, 3, 7].map((d) => (
@@ -115,9 +143,10 @@ export function SendDialog({ consent, onClose, onCreated }: { consent: ConsentDT
                 className={`h-[30px] rounded-full border px-4 text-[13px] cursor-pointer transition-colors ${days === d ? "border-[color:var(--ink)] bg-[color:var(--ink)] text-white" : "border-[color:var(--line)] text-[color:var(--ink)] hover:bg-[color:var(--subtle)]"}`}>{d} {d === 1 ? "day" : "days"}</button>
             ))}
           </div>
-        </div>
+        </div>}
         <ErrorNote message={error?.message} />
       </div>
+      <SignatureUploadModal open={picking} onClose={() => setPicking(false)} title="Patient's signature" onSave={signWithPicture} />
     </Modal>
   );
 }

@@ -404,6 +404,8 @@ export interface PrescriptionRow extends Row {
   medicine_count: number;
   prescribed_date: string;
   status: string;
+  /** The clinical record written with the prescription (complaint, history, examination, advice); absent on older ones. */
+  consultation?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -1787,6 +1789,8 @@ export interface IpdMedicationRow extends Row {
   status: string;
   last_given_at: string;
   notes: string;
+  /** "HH:mm,HH:mm": the times of day the doctor wants it given (morning, afternoon, evening and any extra). Empty = the ward's usual drug rounds. */
+  dose_times?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -139,6 +139,12 @@ export function InsuranceTab({ ctx }: { ctx: ChartCtx }) {
         ))}
       </Card>
 
+      {!selfPay && !ctx.discharged && (
+        <Card title="Claim form" hint="The insurer's own claim form (Part A for the insured, Part B for the hospital), filled in from this admission" action={<Link href={`/claim-forms/${ctx.id}`} className={`${btn.base} ${btn.solid}`}>Fill claim form</Link>}>
+          <p className="py-2 text-[13px] text-[color:var(--ink-soft)]">Patient and policy details, the admission date and the hospital&apos;s details are filled in for {o?.payer}. Download it as a PDF.</p>
+        </Card>
+      )}
+
       <Card title="Claims" hint="TPA / insurance claims raised for this patient" action={<Link href="/tpa" className={`${btn.base} ${btn.ghost}`}>Open TPA / Insurance</Link>}>
         {mineClaims.length === 0 ? <p className="py-4 text-center text-[13px] text-[color:var(--ink-soft)]">No claims yet.</p> : mineClaims.map((c) => (
           <div key={c.id} className="flex items-center gap-3 border-t border-[color:var(--subtle-2)] py-[9px] first:border-t-0">
