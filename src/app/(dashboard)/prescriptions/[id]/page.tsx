@@ -12,6 +12,7 @@ import { printElement, downloadElement, shareDocument } from "@/lib/print";
 import { DocumentLetterhead, useHospital } from "@/components/shared/DocumentLetterhead";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
+import { ConsultationView, hasConsultation } from "@/components/consultation/ConsultationView";
 import { AiReviewCard } from "@/components/prescriptions/AiReviewCard";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import type { PrescriptionDTO, RxAiReviewDTO, RxFindingSeverity } from "@/types/api";
@@ -171,6 +172,13 @@ export default function PrescriptionDetailPage() {
             <p className="mt-1 text-[15px] leading-[21px] text-[color:var(--ink)]">{rx.diagnosis}</p>
           </section>
 
+          {hasConsultation(rx.consultation) && (
+            <section aria-label="Consultation" className="rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-4">
+              <p className="mb-3 text-[12px] font-semibold text-[color:var(--ink)]">Consultation</p>
+              <ConsultationView c={rx.consultation} />
+            </section>
+          )}
+
           {showPrintCopy && (
             <button onClick={() => setShowPrintCopy(false)} className="self-start inline-flex items-center gap-1 text-[12px] text-[color:var(--ink-soft)] hover:text-[color:var(--ink)] cursor-pointer">
               <ChevronDown size={14} /> Hide print copy
@@ -232,10 +240,16 @@ export default function PrescriptionDetailPage() {
             </div>
           </div>
 
-          <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
-            <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Diagnosis</p>
-            <p className="text-[14px] font-normal text-[color:var(--ink)]">{rx.diagnosis}</p>
-          </div>
+          {hasConsultation(rx.consultation) ? (
+            <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
+              <ConsultationView c={rx.consultation} diagnosis={rx.diagnosis} />
+            </div>
+          ) : (
+            <div className="px-8 py-4 border-b border-[color:var(--subtle-2)]">
+              <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-1">Diagnosis</p>
+              <p className="text-[14px] font-normal text-[color:var(--ink)]">{rx.diagnosis}</p>
+            </div>
+          )}
 
           <div className="px-8 py-5 border-b border-[color:var(--subtle-2)]">
             <p className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider mb-3">Medicines</p>

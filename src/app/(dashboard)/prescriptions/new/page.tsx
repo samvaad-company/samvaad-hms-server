@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
 import { icd10Codes } from "@/data/icd10";
@@ -9,11 +9,15 @@ import { useMedicineMatches } from "@/lib/api/useMedicineSearch";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { useAuth } from "@/lib/auth-context";
-import type { PatientDTO, DoctorDTO, PrescriptionTemplateDTO } from "@/types/api";
+import type { PatientDTO, DoctorDTO, PrescriptionTemplateDTO, OpdVitalDTO } from "@/types/api";
+import { formatDate } from "@/lib/dates";
 import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { Modal } from "@/components/shared/Modal";
-import { Plus, Trash2, Pencil, Search, Zap, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Search, Zap, Loader2, Pill } from "lucide-react";
+import { ConsultationForm, Section } from "@/components/consultation/ConsultationForm";
+import { emptyConsultation } from "@/lib/consultation/templates";
+import type { Consultation } from "@/types/consultation";
 
 type RxRow = { id: number; medicine: string; dosage: string; frequency: string; duration: string; instructions: string };
 
@@ -45,8 +49,34 @@ export default function NewPrescriptionPage() {
   const [doctorId, setDoctorId] = useState("");
   const [diagnoses, setDiagnoses] = useState<string[]>([]);
   const [icdSearch, setIcdSearch] = useState("");
-  const [notes, setNotes] = useState("");
-  const [foodInstr, setFoodInstr] = useState("");
+  const [notes] = useState("");
+  const [consult, setConsult] = useState<Consultation>(emptyConsultation);
+
+  // Bring in the patient's latest vitals (and what the record already says about conditions and allergies) once per patient.
+  const { items: readings } = useList<OpdVitalDTO>(patientId ? `/patients/${patientId}/vitals` : null, { all: true });
+  const prefilled = useRef("");
+  useEffect(() => {
+    if (!patientId) return;
+    const latest = readings[0];
+    const key = `${patientId}:${latest?.id ?? "none"}`;
+    if (prefilled.current === key) return;
+    const patient = patients.find(p => String(p.id) === patientId);
+    setConsult(prev => {
+      const medical = prev.history.medical.trim()
+        ? prev.history.medical
+        : [patient?.chronicConditions?.length ? `Conditions: ${patient.chronicConditions.join(", ")}` : "", patient?.allergies?.length ? `Allergies: ${patient.allergies.join(", ")}` : ""].filter(Boolean).join(". ");
+      const vit = latest ? {
+        ...prev.vitals,
+        bp: latest.bpSystolic != null ? `${latest.bpSystolic}/${latest.bpDiastolic ?? ""}` : prev.vitals.bp,
+        pulse: latest.pulse != null ? String(latest.pulse) : prev.vitals.pulse,
+        temp: latest.temperature != null ? String(latest.temperature) : prev.vitals.temp,
+        spo2: latest.spo2 != null ? String(latest.spo2) : prev.vitals.spo2,
+        source: `From OPD vitals, ${formatDate(latest.recordedAt.slice(0, 10))} ${latest.recordedAt.slice(11, 16)}`,
+      } : { ...prev.vitals, source: "No vitals on record — enter them here" };
+      return { ...prev, vitals: vit, history: { ...prev.history, medical } };
+    });
+    prefilled.current = key;
+  }, [patientId, readings, patients]);
 
   const addDiagnosis = (d: string) => {
     const clean = d.trim();
@@ -155,6 +185,7 @@ export default function NewPrescriptionPage() {
         doctorId: Number(doctorId),
         diagnosis: diagnoses.join("; "),
         status: "Pending",
+        consultation: consult,
         items: filledRows.map(r => ({
           medicineId: medLookup.byName(r.medicine)?.id,
           medicineName: r.medicine,
@@ -181,7 +212,7 @@ export default function NewPrescriptionPage() {
         <div className="flex flex-col gap-[2px]">
           <h1 className="text-[24px] font-medium text-[color:var(--ink)] leading-[28px]">New Prescription</h1>
           <p className="text-[13px] font-light text-[color:var(--ink-soft)] leading-[17px]">
-            Select patient and doctor, add diagnoses and medicines, then save.
+            Record the consultation: vitals, complaint, examination, diagnosis, treatment and advice.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -203,41 +234,35 @@ export default function NewPrescriptionPage() {
         </div>
       )}
 
-      <div className={`${tw.gutterX} mb-[30px]`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {/* ── Left: Patient + ICD + Notes ── */}
-          <div className="col-span-1 flex flex-col gap-4">
-            {/* Patient */}
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Patient & Doctor</h3>
-              <div className="flex flex-col gap-3">
-                <FormRow label="Patient *">
-                  <SearchSelect
-                    placeholder="Search patient…"
-                    value={patientId}
-                    onChange={setPatientId}
-                    options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
-                  />
-                </FormRow>
-                <FormRow label="Doctor *">
-                  <SearchSelect
-                    placeholder="Search doctor…"
-                    value={doctorId}
-                    onChange={setDoctorId}
-                    options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
-                  />
-                </FormRow>
-              </div>
-            </div>
+      <div className={`${tw.gutterX} mb-[30px] flex flex-col gap-4`}>
+        <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
+          <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Patient & Doctor</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormRow label="Patient *">
+              <SearchSelect
+                placeholder="Search patient…"
+                value={patientId}
+                onChange={setPatientId}
+                options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
+              />
+            </FormRow>
+            <FormRow label="Doctor *">
+              <SearchSelect
+                placeholder="Search doctor…"
+                value={doctorId}
+                onChange={setDoctorId}
+                options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
+              />
+            </FormRow>
+          </div>
+        </div>
 
-            {/* ICD-10 Diagnoses (multiple) */}
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Diagnoses (ICD-10)</h3>
-                {diagnoses.length > 0 && (
-                  <span className="text-[11px] font-normal text-[color:var(--ink-soft)]">{diagnoses.length} added</span>
-                )}
-              </div>
+        <ConsultationForm
+          value={consult}
+          onChange={setConsult}
+          diagnosis={
+            <div>
+              <p className="text-[13px] font-medium text-[color:var(--ink)] mb-2">Primary Diagnosis (ICD-10) *</p>
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
                 <input
@@ -279,22 +304,11 @@ export default function NewPrescriptionPage() {
                 </div>
               )}
             </div>
-
-            {/* Notes */}
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
-              <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Clinical Notes</h3>
-              <FormTextarea placeholder="Notes for patient or pharmacist..." value={notes} onChange={v => setNotes(v)} rows={3} />
-              <div className="mt-3">
-                <label className="text-[11px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider block mb-1">Food Instructions</label>
-                <FormTextarea placeholder="e.g. Low-sodium diet, avoid spicy food..." value={foodInstr} onChange={v => setFoodInstr(v)} rows={2} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Right: Medicine builder ── */}
-          <div className="col-span-2 flex flex-col gap-4">
-            {/* Quick templates */}
-            <div className={`${tw.surface.card} ${tw.radius.card} p-4`}>
+          }
+          treatment={
+            <Section icon={<Pill size={18} />} title="Treatment & Follow-up">
+              <div className="flex flex-col gap-4">
+            <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-1 text-[12px] font-medium text-[color:var(--ink-soft)]">
                   <Zap size={13} /> Quick Templates:
@@ -329,9 +343,7 @@ export default function NewPrescriptionPage() {
                 )}
               </div>
             </div>
-
-            {/* Medicines table */}
-            <div className={`${tw.surface.card} ${tw.radius.card} p-5 flex flex-col gap-3`}>
+            <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Medicines ({rows.length})</h3>
                 <button onClick={addRow} className="flex items-center gap-1 text-[12px] font-normal text-[color:var(--brand)] hover:underline">
@@ -403,8 +415,17 @@ export default function NewPrescriptionPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] font-medium text-[color:var(--ink)]">Follow-up</span>
+                  
+                  <input type="date" min={new Date().toISOString().slice(0, 10)} value={consult.followUp} onChange={e => setConsult({ ...consult, followUp: e.target.value })}
+                    className="h-[34px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)]" />
+                  <span className="text-[12px] text-[color:var(--ink-soft)]">Added to Follow-ups so the hospital can contact the patient.</span>
+                </div>
+              </div>
+            </Section>
+          }
+        />
       </div>
 
       <Modal

@@ -404,6 +404,8 @@ export interface PrescriptionRow extends Row {
   medicine_count: number;
   prescribed_date: string;
   status: string;
+  /** The clinical record written with the prescription (complaint, history, examination, advice); absent on older ones. */
+  consultation?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

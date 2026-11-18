@@ -5,6 +5,7 @@
  * returned by detail endpoints. Keeping them here ensures the request/response
  * contract is type-checked on both ends.
  */
+import type { Consultation } from "./consultation";
 import type {
   Patient,
   Appointment,
@@ -129,6 +130,8 @@ export interface PrescriptionPatientDTO {
 export interface PrescriptionDTO extends Prescription {
   patientId: number | null;
   doctorId: number | null;
+  /** The clinical record written with the prescription; null on prescriptions made before it existed. */
+  consultation?: Consultation | null;
   items: PrescriptionItemDTO[];
   /** Present on the single-prescription fetch; the list omits it. */
   patient?: PrescriptionPatientDTO | null;

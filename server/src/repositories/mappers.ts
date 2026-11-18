@@ -360,6 +360,7 @@ export function toPrescriptionDTO(
     status: r.status as PrescriptionStatus,
     patientId: r.patient_id,
     doctorId: r.doctor_id,
+    consultation: (r.consultation as PrescriptionDTO["consultation"]) ?? null,
     items: items.map(toPrescriptionItemDTO),
   };
 }
