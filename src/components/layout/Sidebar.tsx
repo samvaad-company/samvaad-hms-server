@@ -177,6 +177,7 @@ const groups: NavGroup[] = [
       { href: "/documents",     label: "Documents",     icon: FolderOpen,     resource: "mrd", key: "8" },
       { href: "/signatures",    label: "Signatures",    icon: FileSignature,  resource: "consents", key: "9" },
       { href: "/mrd",           label: "MRD coding",    icon: ClipboardCheck, resource: "mrd", key: "0" },
+      { href: "/mrd-checklist", label: "MRD file",      icon: ClipboardList,  resource: "mrd" },
     ],
   },
   {
