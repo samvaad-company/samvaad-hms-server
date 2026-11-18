@@ -23,6 +23,7 @@
     "test:bloodbank": "tsx scripts/test-bloodbank.ts",
     "test:mrd": "tsx scripts/test-mrd.ts",
     "test:consents": "tsx scripts/test-consents.ts",
+    "test:claim-forms": "tsx scripts/test-claim-forms.ts",
     "test:cssd": "tsx scripts/test-cssd.ts",
     "test:hr": "tsx scripts/test-hr.ts",
     "test:setup": "tsx scripts/test-setup.ts",

@@ -186,6 +186,7 @@ const groups: NavGroup[] = [
       { href: "/finance",       label: "Income & Expense", icon: Wallet,      resource: "finance", key: "F" },
       { href: "/tpa",           label: "TPA / Insurance",  icon: ShieldCheck, resource: "tpa", key: "J" },
       { href: "/preauth",       label: "Pre-auth forms",   icon: FileCheck2,  resource: "tpa" },
+      { href: "/claim-forms",   label: "Claim forms",      icon: ClipboardList, resource: "tpa" },
     ],
   },
   {
