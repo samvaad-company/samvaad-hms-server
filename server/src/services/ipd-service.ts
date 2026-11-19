@@ -303,7 +303,7 @@ export async function dischargePatient(id: number, actor: Session, input: unknow
         patient_code: null,
       });
     }
-    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged", discharge_date: localDate() });
+    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged", discharge_date: localDate(), discharged_at: new Date().toISOString() });
   });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id, ...(waiver ? { billingWaived: waiver.due, reason: waiver.reason } : {}) });
   if (admission.hospital_id) await endOrdersForAdmission(id, admission.hospital_id);

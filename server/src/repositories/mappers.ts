@@ -12,6 +12,8 @@ import type {
   PrescriptionDTO,
   PrescriptionItemDTO,
   PrescriptionTemplateDTO,
+  DoctorDiagnosisDTO,
+  PatientDiagnosisDTO,
   PrescriptionTemplateItemDTO,
   PharmacyItemDTO,
   LabTestDTO,
@@ -150,6 +152,8 @@ import type {
   PharmacySaleItemRow,
   ScribeNoteRow,
   PrescriptionTemplateRow,
+  DoctorDiagnosisRow,
+  PatientDiagnosisRow,
 } from "@/db/tables";
 import type {
   Gender,
@@ -341,6 +345,7 @@ export function toPrescriptionItemDTO(
     frequency: r.frequency,
     duration: r.duration,
     instructions: r.instructions,
+    timing: r.timing ?? "",
   };
 }
 
@@ -360,8 +365,20 @@ export function toPrescriptionDTO(
     status: r.status as PrescriptionStatus,
     patientId: r.patient_id,
     doctorId: r.doctor_id,
+    createdAt: r.created_at,
     consultation: (r.consultation as PrescriptionDTO["consultation"]) ?? null,
     items: items.map(toPrescriptionItemDTO),
+  };
+}
+
+export function toDoctorDiagnosisDTO(r: DoctorDiagnosisRow): DoctorDiagnosisDTO {
+  return { id: r.id, doctorId: r.doctor_id, name: r.name, code: r.code ?? "", useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at ?? null, createdAt: r.created_at };
+}
+
+export function toPatientDiagnosisDTO(r: PatientDiagnosisRow): PatientDiagnosisDTO {
+  return {
+    id: r.id, patientId: r.patient_id, doctorId: r.doctor_id, doctor: r.doctor ?? "", diagnosisId: r.diagnosis_id, name: r.name,
+    kind: r.kind === "Secondary" ? "Secondary" : "Primary", prescriptionId: r.prescription_id, rxNumber: r.rx_number ?? "", recordedOn: r.recorded_on,
   };
 }
 

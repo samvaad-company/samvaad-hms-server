@@ -6,7 +6,7 @@ import { tw } from "@/lib/design-system";
 import { ArrowLeft, Pencil, Phone, Mail, Calendar, Clock, Star, Users, TrendingUp, Award } from "lucide-react";
 import { useItem, useList } from "@/lib/api/hooks";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
-import type { DoctorDTO, AppointmentDTO, OpdRecordDTO } from "@/types/api";
+import type { DoctorDTO, AppointmentDTO, OpdRecordDTO, DoctorDiagnosisDTO } from "@/types/api";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -25,6 +25,25 @@ function StatCard({ icon: Icon, value, label, color }: { icon: typeof Users; val
         <div className="text-[22px] font-medium text-[color:var(--ink)] leading-none">{value}</div>
         <div className="text-[12px] font-normal text-[color:var(--ink-soft)] mt-1">{label}</div>
       </div>
+    </div>
+  );
+}
+
+/** The diagnoses this doctor has saved or used on prescriptions, most used first. */
+function DiagnosesTab({ doctorId }: { doctorId: number }) {
+  const { items, loading } = useList<DoctorDiagnosisDTO>(`/doctors/${doctorId}/diagnoses`, { all: true });
+  if (!loading && items.length === 0) {
+    return <p className="px-6 py-10 text-center text-[14px] text-[color:var(--ink-soft)]">No diagnoses yet. They are added when the doctor types a diagnosis on a prescription.</p>;
+  }
+  return (
+    <div className="divide-y divide-[color:var(--subtle-2)]">
+      {items.map((d) => (
+        <div key={d.id} className="flex items-center gap-4 px-6 py-3">
+          <span className="min-w-0 flex-1 text-[14px] text-[color:var(--ink)]">{d.name}</span>
+          {d.code && <span className="text-[12px] font-medium text-[color:var(--brand)]">{d.code}</span>}
+          <span className="text-[12px] text-[color:var(--ink-soft)]">used {d.useCount} {d.useCount === 1 ? "time" : "times"}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -95,7 +114,7 @@ function PerformanceTab({ doc, appointments }: { doc: DoctorDTO; appointments: A
   );
 }
 
-const TABS = ["Schedule", "Today's Patients", "Performance"] as const;
+const TABS = ["Schedule", "Today's Patients", "Performance", "Diagnoses"] as const;
 
 export default function DoctorDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -198,6 +217,7 @@ export default function DoctorDetailPage() {
             {tab === "Schedule"         && <ScheduleTab doctorId={doc.id} />}
             {tab === "Today's Patients" && <TodayPatientsTab doctorName={doc.name} queue={queue} />}
             {tab === "Performance"      && <PerformanceTab doc={doc} appointments={appointments} />}
+            {tab === "Diagnoses"        && <DiagnosesTab doctorId={doc.id} />}
           </div>
         </div>
       </div>

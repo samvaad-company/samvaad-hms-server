@@ -102,7 +102,8 @@ function ClaimEditor({ draft }: { draft: ClaimDraftDTO }) {
           </div>
 
           {CLAIM_GROUPS.map((g) => {
-            const keys = Object.keys(CLAIM_FIELDS).filter((k) => CLAIM_FIELDS[k].group === g.key);
+            // The time of discharge is asked for only on forms that have a place for it.
+            const keys = Object.keys(CLAIM_FIELDS).filter((k) => CLAIM_FIELDS[k].group === g.key && (k !== "dischargeTime" || !!tpl?.fields?.dischargeTime?.length || !!tpl?.hasDischargeTime));
             return (
               <div key={g.key} className={`${tw.surface.card} ${tw.radius.card} p-4`}>
                 <p className="text-[14px] font-medium text-[color:var(--ink)]">{g.title}</p>

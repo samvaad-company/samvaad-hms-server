@@ -36,7 +36,9 @@ function usualTimes(frequency: string): number[] {
   const dashed = /^(\d)\s*-\s*(\d)\s*-\s*(\d)(?:\s*-\s*(\d))?$/.exec(f);
   if (dashed) {
     const [, a, b, c, d] = dashed;
-    const at = [a, b, c, d].map((x, i) => (Number(x ?? 0) > 0 ? [h(9), h(14), h(21), h(23)][i] : -1)).filter((m) => m >= 0);
+    // Three numbers are morning, afternoon, night; four are morning, afternoon, evening (snacks), night.
+    const when = d !== undefined ? [h(9), h(14), h(18), h(21)] : [h(9), h(14), h(21)];
+    const at = [a, b, c, d].filter((x) => x !== undefined).map((x, i) => (Number(x) > 0 ? when[i] : -1)).filter((m) => m >= 0);
     return at;
   }
   if (/\b(nocte|hs|bedtime|at night|night)\b/.test(f) && !/\b(twice|bd|bid|thrice|tds|tid)\b/.test(f)) return [h(21)];

@@ -115,6 +115,8 @@ export interface PrescriptionItemDTO {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** Before / after / with a meal, or on an empty stomach; "" when it does not matter. */
+  timing?: string;
   /** Generic (salt) name from the medicine master, when the item is linked to one. Detail view only. */
   generic?: string | null;
 }
@@ -125,11 +127,14 @@ export interface PrescriptionPatientDTO {
   gender: string | null;
   allergies: string | null;
   chronicConditions: string | null;
+  phone: string | null;
 }
 
 export interface PrescriptionDTO extends Prescription {
   patientId: number | null;
   doctorId: number | null;
+  /** When it was written (ISO). */
+  createdAt?: string;
   /** The clinical record written with the prescription; null on prescriptions made before it existed. */
   consultation?: Consultation | null;
   items: PrescriptionItemDTO[];
@@ -167,6 +172,31 @@ export interface RxAiReviewDTO {
   reason: "live" | "no-key" | "api-error";
   detail?: string;
   reviewedAt: string;
+}
+
+/** A diagnosis in one doctor's own list, kept for reuse. */
+export interface DoctorDiagnosisDTO {
+  id: number;
+  doctorId: number;
+  name: string;
+  code: string;
+  useCount: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+/** A diagnosis a doctor recorded for a patient. */
+export interface PatientDiagnosisDTO {
+  id: number;
+  patientId: number;
+  doctorId: number | null;
+  doctor: string;
+  diagnosisId: number | null;
+  name: string;
+  kind: "Primary" | "Secondary";
+  prescriptionId: number | null;
+  rxNumber: string;
+  recordedOn: string;
 }
 
 export interface PrescriptionTemplateItemDTO {

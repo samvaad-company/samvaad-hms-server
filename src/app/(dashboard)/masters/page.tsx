@@ -16,6 +16,7 @@ import { SponsorsView } from "@/components/setup/SponsorViews";
 import { PaymentsView, PayoutRulesView, ReferralsView } from "@/components/setup/PaymentViews";
 import { IdFormatsView, ClinicalFormsView } from "@/components/setup/IdFormatViews";
 import { DepartmentsView, SIMPLE_SPECS, SimpleMasterView } from "@/components/setup/SimpleMasters";
+import { ChiefComplaintsView } from "@/components/setup/ChiefComplaintViews";
 import { BillingRemarksView } from "@/components/setup/BillingRemarksView";
 import { TeleconsultConsentView } from "@/components/setup/TeleconsultConsentView";
 import { ManufacturerMedicines } from "@/components/setup/ManufacturerMedicines";
@@ -29,7 +30,7 @@ const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["billing_remarks", "Billing remarks"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
-  { group: "Clinical", items: [["clinical_forms", "Clinical forms"]] },
+  { group: "Clinical", items: [["chief_complaints", "Chief complaints"], ["clinical_forms", "Clinical forms"]] },
   { group: "Video consultation", items: [["teleconsult_consent", "Consent form"]] },
   { group: "Loyalty", items: [["loyalty", "Loyalty programme"]] },
   { group: "Pharmacy", items: [["manufacturers", "Manufacturers"], ["suppliers", "Suppliers"]] },
@@ -55,6 +56,7 @@ function Section({ id }: { id: string }) {
     case "departments": return <DepartmentsView />;
     case "human_ids": return <IdFormatsView />;
     case "clinical_forms": return <ClinicalFormsView />;
+    case "chief_complaints": return <ChiefComplaintsView />;
     case "loyalty": return <LoyaltyProgramView />;
     case "manufacturers": return <><SimpleMasterView key={id} section={id} /><ManufacturerMedicines /></>;
     default: return id in SIMPLE_SPECS ? <SimpleMasterView key={id} section={id} /> : null;

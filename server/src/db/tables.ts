@@ -111,6 +111,8 @@ export const TABLES = {
   pharmacySaleItems: "pharmacy_sale_items",
   bedTransfers: "bed_transfers",
   prescriptionTemplates: "prescription_templates",
+  doctorDiagnoses: "doctor_diagnoses",
+  patientDiagnoses: "patient_diagnoses",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
@@ -419,6 +421,8 @@ export interface PrescriptionItemRow extends Row {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** When to take it with meals: "Before Meal", "After Meal", "With Meal", "Empty Stomach" or "". */
+  timing?: string | null;
   created_at: string;
 }
 
@@ -784,6 +788,8 @@ export interface IpdAdmissionRow extends Row {
   planned_discharge_date?: string | null;
   /** The day the patient was discharged, YYYY-MM-DD. */
   discharge_date?: string | null;
+  /** The moment the discharge was recorded (ISO), so forms can ask for the time of discharge. */
+  discharged_at?: string | null;
   /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
   discharge_stage?: string;
   /** The signed admission consent this admission was made on (one consent covers one admission). */
@@ -1993,6 +1999,37 @@ export interface ScribeNoteRow extends Row {
  * A doctor's personal "quick fill" prescription template — private to the
  * doctor who created it, not shared across the practice.
  */
+export interface DoctorDiagnosisRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number;
+  name: string;
+  /** ICD-10 code when the doctor picked one, else "". */
+  code: string;
+  /** How many prescriptions have used it, so the ones used most come first. */
+  use_count: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A diagnosis a doctor recorded for a patient (on a prescription), so the patient's and the doctor's records both show it. */
+export interface PatientDiagnosisRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  doctor_id: number | null;
+  doctor: string;
+  diagnosis_id: number | null;
+  name: string;
+  kind: string;
+  prescription_id: number | null;
+  rx_number: string;
+  recorded_on: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PrescriptionTemplateRow extends Row {
   id: number;
   hospital_id: number;

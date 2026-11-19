@@ -16,6 +16,39 @@ function fyStart(month = 4): string {
   return `${y}-${String(month).padStart(2, "0")}-01`;
 }
 
+const opt = (label: string, text?: string) => ({ label, text: text ?? label.toLowerCase() });
+
+/** The standard few chief complaints a hospital starts with; each is edited in Setup - Masters - Chief complaints. */
+export async function seedChiefComplaints(hospitalId: number, create: Create): Promise<void> {
+  const dur = { id: "duration", title: "Duration", kind: "duration", optional: false, options: [] };
+  const list: { name: string; common: boolean; questions: Data[] }[] = [
+    { name: "Fever", common: true, questions: [
+      dur,
+      { id: "chills", title: "Chills / rigors", kind: "single", optional: false, options: [opt("With chills"), opt("Without chills"), opt("Not specified", "")] },
+      { id: "pattern", title: "Fever pattern", kind: "single", optional: false, options: [opt("Intermittent"), opt("Continuous"), opt("Remittent"), opt("Not sure", "")] },
+      { id: "rise", title: "Time of rise", kind: "single", optional: true, options: [opt("Evening rise", "with evening rise"), opt("Night rise", "with night rise"), opt("Morning rise", "with morning rise"), opt("No particular time", "")] },
+    ] },
+    { name: "Cough", common: true, questions: [
+      dur,
+      { id: "type", title: "Type", kind: "single", optional: false, options: [opt("Dry"), opt("With phlegm", "with phlegm"), opt("Blood-stained", "blood-stained")] },
+      { id: "when", title: "When it is worse", kind: "multi", optional: true, options: [opt("At night", "worse at night"), opt("On waking", "worse on waking"), opt("On exertion", "worse on exertion")] },
+    ] },
+    { name: "Headache", common: true, questions: [
+      dur,
+      { id: "site", title: "Site", kind: "single", optional: false, options: [opt("Frontal"), opt("One side", "one-sided"), opt("Back of head", "at the back of the head"), opt("All over", "all over the head")] },
+      { id: "with", title: "Along with", kind: "multi", optional: true, options: [opt("Nausea", "with nausea"), opt("Vomiting", "with vomiting"), opt("Light sensitivity", "with sensitivity to light")] },
+    ] },
+    { name: "Abdominal pain", common: true, questions: [
+      dur,
+      { id: "site", title: "Site", kind: "single", optional: false, options: [opt("Upper abdomen", "in the upper abdomen"), opt("Lower abdomen", "in the lower abdomen"), opt("Around the navel", "around the navel"), opt("All over", "all over the abdomen")] },
+      { id: "nature", title: "Nature", kind: "single", optional: true, options: [opt("Colicky"), opt("Burning"), opt("Dull aching", "dull aching")] },
+      { id: "with", title: "Along with", kind: "multi", optional: true, options: [opt("Vomiting", "with vomiting"), opt("Loose motions", "with loose motions"), opt("Fever", "with fever")] },
+    ] },
+  ];
+  let order = 0;
+  for (const c of list) await create({ hospital_id: hospitalId, kind: "chief_complaint", code: "", name: c.name, active: true, sort_order: ++order, data: { common: c.common, questions: c.questions } });
+}
+
 export async function seedSetupDefaults(hospitalId: number, hospital: HospitalRow | null, create: Create): Promise<void> {
   const order: Record<string, number> = {};
   const add = async (kind: SetupKind, code: string, name: string, data: Data = {}, active = true): Promise<number> => {

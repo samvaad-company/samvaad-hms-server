@@ -12,6 +12,7 @@ import {
   medicinesRepo,
 } from "@/repositories";
 import { createFollowUp } from "@/services/followups-service";
+import { recordPrescriptionDiagnoses } from "@/services/diagnoses-service";
 import { toPrescriptionDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { transactional } from "@/db/unit-of-work";
@@ -32,6 +33,7 @@ interface ItemInput {
   frequency?: string;
   duration?: string;
   instructions?: string;
+  timing?: string;
 }
 
 const headerSchema = {
@@ -93,6 +95,7 @@ export async function getPrescription(id: number, actor: Session) {
           gender: patient.gender ?? null,
           allergies: patient.allergies ?? null,
           chronicConditions: patient.chronic_conditions ?? null,
+          phone: patient.phone ?? null,
         }
       : null,
   };
@@ -157,10 +160,19 @@ export async function createPrescription(input: unknown, actor: Session) {
       frequency: it.frequency ?? "",
       duration: it.duration ?? "",
       instructions: it.instructions ?? null,
+      timing: ["Before Meal", "After Meal", "With Meal", "Empty Stomach"].includes(String(it.timing)) ? String(it.timing) : "",
     });
     items.push(created as PrescriptionItemRow);
   }
 
+  // The diagnoses go in the doctor's own list and in the patient's record.
+  const names = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x ?? "")).filter((x) => x.trim()) : []);
+  const inputBody = input as { primaryDiagnoses?: unknown; secondaryDiagnoses?: unknown };
+  await recordPrescriptionDiagnoses({
+    actor, patientId: data.patientId ?? null, doctorId: data.doctorId ?? null, doctorName, prescriptionId: header.id, rxNumber,
+    primary: names(inputBody.primaryDiagnoses).length ? names(inputBody.primaryDiagnoses) : data.diagnosis.split(";"),
+    secondary: names(inputBody.secondaryDiagnoses),
+  }).catch(() => null);
   // A follow-up date on the prescription also goes on the hospital's Follow-ups list, so the patient gets called.
   const followUpOn = (header.consultation as { followUp?: unknown } | null | undefined)?.followUp;
   if (data.patientId && typeof followUpOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(followUpOn)) {

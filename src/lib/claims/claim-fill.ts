@@ -47,6 +47,8 @@ export interface ClaimTemplate {
   summary?: boolean;
   /** No insurer PDF behind it: the details sheet is the whole form. */
   blank?: boolean;
+  /** The form asks for the time of discharge but has no box to map it to (its details sheet carries it). */
+  hasDischargeTime?: boolean;
   fields: Record<string, ClaimSpot[]>;
   /** A choice printed more than once (Part A and Part B) lists one set of options per place. */
   choices?: Record<string, Record<string, ClaimChoice> | Record<string, ClaimChoice>[]>;
