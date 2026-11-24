@@ -106,6 +106,7 @@ export const INVESTIGATION_OPTIONS = INVESTIGATION_GROUPS.flatMap((g) => g.tests
 export const emptyConsultation = (): Consultation => ({
   chiefComplaint: "",
   history: { past: "", family: "", personal: "", medical: "" },
+  patientHistory: [],
   vitals: { bp: "", pulse: "", temp: "", spo2: "", weight: "", height: "", source: "" },
   general: defaultGeneral(),
   systemic: [],
@@ -113,6 +114,7 @@ export const emptyConsultation = (): Consultation => ({
   secondaryDiagnosis: "",
   followUp: "",
   advice: { diet: "", exercise: "", other: "" },
+  remarks: "",
 });
 
 export const bmiOf = (weightKg: string, heightCm: string): string => {

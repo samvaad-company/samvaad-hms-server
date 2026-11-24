@@ -13,6 +13,8 @@ import { api, ApiClientError } from "@/lib/api/client";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared/FormRow";
+import { HistoryEntries } from "@/components/consultation/HistoryEntries";
+import type { HistoryEntry } from "@/types/consultation";
 import {
   IDENTITY_TYPES, validateAbha, validateDob, validateIdentityNumber, validateMobile, sanitizeAbha, sanitizeMobile, todayIso, type IdentityType,
 } from "@/lib/validators";
@@ -51,6 +53,7 @@ const INITIAL = {
   covidVaccination: "", covidLastDose: "", covidLastDoseUnknown: false, covidInfected: false,
 };
 type Form = typeof INITIAL;
+const NO_HISTORY: HistoryEntry[] = [];
 
 // ── Small building blocks ─────────────────────────────────────────────────────
 
@@ -134,6 +137,7 @@ function NewPatientForm() {
   const allowed = can("patients", "write");
   const { run, loading } = useMutation();
   // Opened from an enquiry ("Convert"): start with what we already know about the lead.
+  const [history, setHistory] = useState<HistoryEntry[]>(NO_HISTORY);
   const [form, setForm] = useState<Form>(() => ({
     ...INITIAL,
     name: params.get("name") ?? "",
@@ -228,6 +232,7 @@ function NewPatientForm() {
     if (cleanPayers.length) payload.payers = cleanPayers.map(p => ({ ...p, validUntil: p.validUntil || "", contractId: p.contractId ? Number(p.contractId) : null }));
     const cleanDocs = docs.filter(d => d.number.trim());
     if (cleanDocs.length) payload.identityDocuments = cleanDocs;
+    if (history.some(h => h.text.trim())) payload.history = history.filter(h => h.text.trim());
     if (showCovid && (form.covidVaccination || form.covidLastDose || form.covidLastDoseUnknown || form.covidInfected)) {
       payload.covid = { vaccination: form.covidVaccination, lastDose: form.covidLastDoseUnknown ? "" : form.covidLastDose, lastDoseUnknown: form.covidLastDoseUnknown, infectedBefore: form.covidInfected };
     }
@@ -455,6 +460,10 @@ function NewPatientForm() {
             <Field label="Known allergies" span={2}><FormInput placeholder="e.g. Penicillin, Peanuts" value={form.allergies} onChange={v => set("allergies", v)} /></Field>
             <Field label="Chronic conditions" span={2}><FormInput placeholder="e.g. Diabetes, Hypertension" value={form.chronic} onChange={v => set("chronic", v)} /></Field>
           </Grid>
+        </Card>
+
+        <Card title="Patient history (optional)" hint="Allergies, addictions, remarks, how long something has been going on. The doctor sees these on the prescription.">
+          <HistoryEntries value={history} onChange={setHistory} />
         </Card>
 
         <Card title="Emergency contact" hint="Who to call if needed">

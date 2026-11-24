@@ -2,9 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { tw } from "@/lib/design-system";
-import { INVESTIGATION_GROUPS, INVESTIGATION_OPTIONS, SYSTEM_TEMPLATES, bmiOf, customSystem, makeSystem, newFieldId } from "@/lib/consultation/templates";
+import { INVESTIGATION_GROUPS, SYSTEM_TEMPLATES, bmiOf, customSystem, makeSystem, newFieldId } from "@/lib/consultation/templates";
 import type { Consultation, ConsultationField, ConsultationSystem } from "@/types/consultation";
 import { ChiefComplaintBuilder } from "@/components/consultation/ChiefComplaintBuilder";
+import { useList } from "@/lib/api/hooks";
+import type { SetupRecordDTO } from "@/types/setup";
+import { HistoryEntries } from "@/components/consultation/HistoryEntries";
+import { SavedAdvice, SavedRemarks } from "@/components/consultation/SavedNotes";
 import { Plus, X, Pencil, Check, ChevronDown, ChevronUp, Stethoscope, HeartPulse, ClipboardList, History, FlaskConical, Lightbulb, Activity } from "lucide-react";
 
 const input = "h-[34px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors";
@@ -155,10 +159,10 @@ const HISTORY_TABS: { key: keyof Consultation["history"]; label: string; placeho
   { key: "past", label: "Past History", placeholder: "Past illnesses, surgeries, hospital stays… (blank = nothing significant)" },
   { key: "family", label: "Family History", placeholder: "Diabetes, hypertension, heart disease, cancer in the family…" },
   { key: "personal", label: "Personal History", placeholder: "Diet, sleep, smoking, alcohol, occupation…" },
-  { key: "medical", label: "Medical History", placeholder: "Ongoing conditions, regular medicines, allergies…" },
+  { key: "medical", label: "Medication History", placeholder: "Medicines the patient takes regularly or took recently…" },
 ];
 
-export function ConsultationForm({ value, onChange, diagnosis, treatment }: { value: Consultation; onChange: (c: Consultation) => void; diagnosis: ReactNode; treatment: ReactNode }) {
+export function ConsultationForm({ value, onChange, diagnosis, treatment, doctorId = "", patientId = "" }: { value: Consultation; onChange: (c: Consultation) => void; diagnosis: ReactNode; treatment: ReactNode; doctorId?: string; patientId?: string }) {
   const set = (patch: Partial<Consultation>) => onChange({ ...value, ...patch });
   const [tab, setTab] = useState<keyof Consultation["history"]>("past");
   const [sysOpen, setSysOpen] = useState(true);
@@ -176,7 +180,19 @@ export function ConsultationForm({ value, onChange, diagnosis, treatment }: { va
   const addSystem = (s: ConsultationSystem | null) => { if (s) set({ systemic: [...value.systemic, s] }); setAddingSystem(false); setCustomName(""); };
 
   const toggleInv = (name: string) => set({ investigations: value.investigations.includes(name) ? value.investigations.filter((i) => i !== name) : [...value.investigations, name] });
-  const extraInv = value.investigations.filter((i) => !INVESTIGATION_OPTIONS.includes(i));
+  // The tests come from Masters - Investigations (A to Z within each category); the built-in list is used until the hospital has its own.
+  const { items: invMaster } = useList<SetupRecordDTO>("/setup/investigation", { active: 1 });
+  const invGroups = (() => {
+    const order = ["Blood tests", "Urine & stool", "Imaging", "Heart"];
+    const by = new Map<string, string[]>();
+    for (const r of invMaster) { const c = String(r.data.category ?? "Other") || "Other"; by.set(c, [...(by.get(c) ?? []), r.name]); }
+    if (by.size === 0) for (const g of INVESTIGATION_GROUPS) by.set(g.title, [...g.tests]);
+    return [...by.entries()]
+      .sort(([a], [b]) => (order.indexOf(a) < 0 ? 99 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 99 : order.indexOf(b)) || a.localeCompare(b))
+      .map(([title, tests]) => ({ title, tests: [...new Set(tests)].sort((x, y) => x.localeCompare(y, undefined, { sensitivity: "base" })) }));
+  })();
+  const known = new Set(invGroups.flatMap((g) => g.tests));
+  const extraInv = value.investigations.filter((i) => !known.has(i));
 
   const vitalBox = (label: string, k: "bp" | "pulse" | "temp" | "spo2" | "weight" | "height", unit: string, ph: string) => (
     <label className="flex items-center gap-2">
@@ -228,6 +244,10 @@ export function ConsultationForm({ value, onChange, diagnosis, treatment }: { va
           ))}
         </div>
         <textarea className={area} rows={4} placeholder={HISTORY_TABS.find((t) => t.key === tab)!.placeholder} value={value.history[tab]} onChange={(e) => set({ history: { ...value.history, [tab]: e.target.value } })} />
+        <div className="mt-4 border-t border-dashed border-[color:var(--line)] pt-3">
+          <p className="mb-2 text-[12px] font-semibold text-[color:var(--ink)]">Patient history <span className="font-normal text-[color:var(--ink-soft)]">· allergies, addictions, remarks, how long. Kept on the patient&apos;s record.</span></p>
+          <HistoryEntries value={value.patientHistory ?? []} onChange={(patientHistory) => set({ patientHistory })} />
+        </div>
       </Section>
 
       {/* Systemic examination */}
@@ -277,7 +297,7 @@ export function ConsultationForm({ value, onChange, diagnosis, treatment }: { va
         <Section icon={<FlaskConical size={18} />} title="Investigation Advised">
           <div className="flex flex-col gap-3">
             <div className="overflow-hidden rounded-[10px] border border-[color:var(--line)]">
-              {INVESTIGATION_GROUPS.map((g, gi) => (
+              {invGroups.map((g, gi) => (
                 <div key={g.title} className={gi > 0 ? "border-t border-[color:var(--line)]" : ""}>
                   <p className="bg-[color:var(--subtle)] px-3 py-[6px] text-[11px] font-semibold uppercase tracking-wider text-[color:var(--ink-soft)]">{g.title}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3">
@@ -317,6 +337,7 @@ export function ConsultationForm({ value, onChange, diagnosis, treatment }: { va
 
       <div>
         <Section icon={<Lightbulb size={18} />} title="Advice">
+          <div className="mb-3"><SavedAdvice doctorId={doctorId} patientId={patientId} advice={value.advice} onChange={(advice) => set({ advice })} /></div>
           <div className="flex flex-col gap-[10px]">
             {([["diet", "Diet", "e.g. Low salt diet…"], ["exercise", "Exercise", "e.g. 30 min walk daily…"], ["other", "Other Advice", "Enter additional advice…"]] as const).map(([k, label, ph]) => (
               <label key={k} className="grid items-center gap-3" style={{ gridTemplateColumns: "110px minmax(0,1fr)" }}>
@@ -325,6 +346,12 @@ export function ConsultationForm({ value, onChange, diagnosis, treatment }: { va
               </label>
             ))}
           </div>
+        </Section>
+      </div>
+
+      <div>
+        <Section icon={<ClipboardList size={18} />} title="Remarks">
+          <SavedRemarks doctorId={doctorId} value={value.remarks ?? ""} onChange={(remarks) => set({ remarks })} />
         </Section>
       </div>
     </div>

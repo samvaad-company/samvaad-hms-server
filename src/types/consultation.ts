@@ -42,9 +42,19 @@ export interface ConsultationHistory {
   medical: string;
 }
 
+/** One line of the patient's history: an allergy, an addiction, a remark, or how long something has been going on. */
+export interface HistoryEntry {
+  type: string;
+  text: string;
+  /** Since when ("3 years", "2019"); may be empty. */
+  since: string;
+}
+
 export interface Consultation {
   chiefComplaint: string;
   history: ConsultationHistory;
+  /** Allergies, addictions, remarks and the like noted for the patient; also kept on the patient's record. */
+  patientHistory?: HistoryEntry[];
   vitals: ConsultationVitals;
   general: ConsultationField[];
   systemic: ConsultationSystem[];
@@ -52,4 +62,6 @@ export interface Consultation {
   secondaryDiagnosis: string;
   followUp: string;
   advice: { diet: string; exercise: string; other: string };
+  /** The doctor's own remarks for this prescription (kept in their list to pick again). */
+  remarks?: string;
 }

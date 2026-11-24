@@ -1,7 +1,13 @@
 /**
  * How a medicine is taken, written the way patients read it. The pattern "1-0-1" is the morning, afternoon and night dose
  * (1 = take it, 0 = skip it), so 1-0-1 means morning and night. A fourth number is the evening (snacks) dose: 1-1-1-1.
+ *
+ * The directions (when to take it, with or without meals, for how long) can be written in English, Hindi or Gujarati. Only the
+ * directions are translated; medicine names and anything the doctor typed stay as they are.
  */
+
+export type Lang = "English" | "Hindi" | "Gujarati";
+export const LANGS: Lang[] = ["English", "Hindi", "Gujarati"];
 
 export type Timing = "" | "Before Meal" | "After Meal" | "With Meal" | "Empty Stomach";
 export const TIMINGS: Timing[] = ["", "Before Meal", "After Meal", "With Meal", "Empty Stomach"];
@@ -35,46 +41,113 @@ export function toPattern(freq: string | null | undefined): string {
 
 export const isPattern = (p: string) => /^\d(\.\d)?(-\d(\.\d)?){2,3}$/.test(p.trim());
 
-const SLOT3 = ["breakfast", "lunch", "dinner"];
-const SLOT4 = ["breakfast", "lunch", "snacks", "dinner"];
-const TIME3 = ["in the morning", "in the afternoon", "at night"];
-const TIME4 = ["in the morning", "in the afternoon", "in the evening", "at night"];
+// ── The words, per language ──────────────────────────────────────────────────
 
-const TIMES: Record<number, string> = { 1: "Once a day", 2: "Twice a day", 3: "3 times a day", 4: "4 times a day" };
+interface Words {
+  slots3: string[]; slots4: string[]; when3: string[]; when4: string[];
+  times: Record<number, string>; more: (n: number) => string;
+  rel: { before: (slot: string) => string; after: (slot: string) => string; with: (slot: string) => string };
+  empty: string; sos: string; ongoing: string; and: string; end: string;
+  take: (dose: string) => string;
+  forDuration: (d: string) => string;
+  units: Record<string, string>;
+  timing: Record<string, string>;
+  doseUnits: Record<string, string>;
+}
 
-const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+const WORDS: Record<Lang, Words> = {
+  English: {
+    slots3: ["breakfast", "lunch", "dinner"], slots4: ["breakfast", "lunch", "snacks", "dinner"],
+    when3: ["in the morning", "in the afternoon", "at night"], when4: ["in the morning", "in the afternoon", "in the evening", "at night"],
+    times: { 1: "Once a day", 2: "Twice a day", 3: "3 times a day", 4: "4 times a day" }, more: (n) => `${n} times a day`,
+    rel: { before: (s) => `before ${s}`, after: (s) => `after ${s}`, with: (s) => `with ${s}` },
+    empty: "on an empty stomach", sos: "only when needed", ongoing: "continue until advised", and: "and", end: ".",
+    take: (d) => `Take ${d}`, forDuration: (d) => `for ${d}`,
+    units: { hour: "hours", day: "days", week: "weeks", month: "months", year: "years" },
+    timing: { "Before Meal": "Before Meal", "After Meal": "After Meal", "With Meal": "With Meal", "Empty Stomach": "Empty Stomach" },
+    doseUnits: {},
+  },
+  Hindi: {
+    slots3: ["नाश्ते", "दोपहर के खाने", "रात के खाने"], slots4: ["नाश्ते", "दोपहर के खाने", "शाम के नाश्ते", "रात के खाने"],
+    when3: ["सुबह", "दोपहर में", "रात को"], when4: ["सुबह", "दोपहर में", "शाम को", "रात को"],
+    times: { 1: "दिन में एक बार", 2: "दिन में दो बार", 3: "दिन में 3 बार", 4: "दिन में 4 बार" }, more: (n) => `दिन में ${n} बार`,
+    rel: { before: (s) => `${s} से पहले`, after: (s) => `${s} के बाद`, with: (s) => `${s} के साथ` },
+    empty: "खाली पेट", sos: "केवल जरूरत पड़ने पर", ongoing: "डॉक्टर के कहने तक जारी रखें", and: "और", end: "।",
+    take: (d) => `${d} लें`, forDuration: (d) => `${d} तक`,
+    units: { hour: "घंटे", day: "दिन", week: "सप्ताह", month: "महीने", year: "साल" },
+    timing: { "Before Meal": "खाने से पहले", "After Meal": "खाने के बाद", "With Meal": "खाने के साथ", "Empty Stomach": "खाली पेट" },
+    doseUnits: { tablet: "गोली", tablets: "गोली", capsule: "कैप्सूल", capsules: "कैप्सूल", tablespoonful: "बड़ा चम्मच", teaspoonful: "चम्मच", spoon: "चम्मच", drops: "बूँद", drop: "बूँद", puff: "पफ", puffs: "पफ", ml: "मि.ली." },
+  },
+  Gujarati: {
+    slots3: ["નાસ્તા", "બપોરના ભોજન", "રાત્રિના ભોજન"], slots4: ["નાસ્તા", "બપોરના ભોજન", "સાંજના નાસ્તા", "રાત્રિના ભોજન"],
+    when3: ["સવારે", "બપોરે", "રાત્રે"], when4: ["સવારે", "બપોરે", "સાંજે", "રાત્રે"],
+    times: { 1: "દિવસમાં એક વાર", 2: "દિવસમાં બે વાર", 3: "દિવસમાં 3 વાર", 4: "દિવસમાં 4 વાર" }, more: (n) => `દિવસમાં ${n} વાર`,
+    rel: { before: (s) => `${s} પહેલાં`, after: (s) => `${s} પછી`, with: (s) => `${s} સાથે` },
+    empty: "ખાલી પેટે", sos: "જરૂર પડે ત્યારે જ", ongoing: "ડૉક્ટર કહે ત્યાં સુધી ચાલુ રાખો", and: "અને", end: ".",
+    take: (d) => `${d} લો`, forDuration: (d) => `${d} માટે`,
+    units: { hour: "કલાક", day: "દિવસ", week: "અઠવાડિયા", month: "મહિના", year: "વર્ષ" },
+    timing: { "Before Meal": "જમ્યા પહેલાં", "After Meal": "જમ્યા પછી", "With Meal": "જમતી વખતે", "Empty Stomach": "ખાલી પેટે" },
+    doseUnits: { tablet: "ગોળી", tablets: "ગોળી", capsule: "કેપ્સ્યુલ", capsules: "કેપ્સ્યુલ", tablespoonful: "મોટો ચમચો", teaspoonful: "ચમચી", spoon: "ચમચી", drops: "ટીપાં", drop: "ટીપું", puff: "પફ", puffs: "પફ", ml: "મિ.લી." },
+  },
+};
 
-/** "5 days" / "1 month" → "5 Days" for the table; "Ongoing" stays. */
-export const durationLabel = (d: string | null | undefined) => (d ?? "").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+const list = (xs: string[], and: string) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} ${and} ${xs[xs.length - 1]}`);
+
+/** "Before Meal" / "After Meal" … in the patient's language. */
+export const timingLabel = (t: string | null | undefined, lang: Lang = "English") => (t ? WORDS[lang].timing[t] ?? t : "");
+
+/** "5 days" / "1 month" → "5 Days" (English) or "5 दिन" / "5 દિવસ"; anything else stays as written. */
+export function durationLabel(d: string | null | undefined, lang: Lang = "English"): string {
+  const raw = (d ?? "").trim();
+  if (lang === "English") return raw.replace(/\b\w/g, (c) => c.toUpperCase());
+  return translateDuration(raw, lang) || raw;
+}
+
+function translateDuration(raw: string, lang: Lang): string {
+  const m = /^(\d+(?:\.\d+)?)\s*(hour|day|week|month|year)s?$/i.exec(raw);
+  return m ? `${m[1]} ${WORDS[lang].units[m[2].toLowerCase()]}` : "";
+}
+
+/** The dose as typed ("1 tablet"), with the unit word translated when it is one we know; the number is kept. */
+function doseIn(dose: string, lang: Lang): string {
+  if (lang === "English") return dose;
+  const m = /^(\d+(?:\.\d+)?(?:\s*[-/]\s*\d+)?)\s+([A-Za-z.]+)\s*$/.exec(dose);
+  const unit = m ? WORDS[lang].doseUnits[m[2].toLowerCase()] : undefined;
+  return m && unit ? `${m[1]} ${unit}` : dose;
+}
 
 export interface RemarkInput { dosage?: string | null; frequency?: string | null; timing?: string | null; duration?: string | null; instructions?: string | null }
 
 /**
- * "Take 1 tablet - Twice a day, after breakfast and after dinner, for 5 days." — made from the pattern, the meal timing and the duration.
- * Anything the doctor wrote as a special instruction is a separate line under it.
+ * "Take 1 tablet - Twice a day, after breakfast and after dinner, for 5 days." — made from the pattern, the meal timing and the duration,
+ * in the chosen language. Anything the doctor wrote as a special instruction is a separate line under it, as typed.
  */
-export function remarksOf(it: RemarkInput): { line: string; special: string } {
+export function remarksOf(it: RemarkInput, lang: Lang = "English"): { line: string; special: string } {
+  const W = WORDS[lang];
   const special = (it.instructions ?? "").trim();
   const pattern = toPattern(it.frequency);
-  const dose = (it.dosage ?? "").trim() || "1";
+  const dose = doseIn((it.dosage ?? "").trim() || "1", lang);
   const days = (it.duration ?? "").trim();
-  const forDays = days ? (/ongoing|continue/i.test(days) ? ", continue until advised" : `, for ${days.toLowerCase()}`) : "";
-  if (pattern === "SOS") return { line: `Take ${dose} - only when needed${forDays}.`, special };
-  if (!isPattern(pattern)) return { line: pattern ? `Take ${dose} - ${pattern}${forDays}.` : "", special };
+  const dur = !days ? "" : /ongoing|continue/i.test(days) ? W.ongoing : W.forDuration(lang === "English" ? days.toLowerCase() : translateDuration(days, lang) || days);
+  const join = (...parts: string[]) => parts.filter(Boolean).join(", ");
+  const end = (s: string) => `${s}${W.end}`;
+  if (pattern === "SOS") return { line: end(`${W.take(dose)} - ${join(W.sos, dur)}`), special };
+  if (!isPattern(pattern)) return { line: pattern ? end(`${W.take(dose)} - ${join(pattern, dur)}`) : "", special };
 
   const counts = pattern.split("-").map(Number);
-  const slots = counts.length === 4 ? SLOT4 : SLOT3;
-  const when = counts.length === 4 ? TIME4 : TIME3;
+  const slots = counts.length === 4 ? W.slots4 : W.slots3;
+  const when = counts.length === 4 ? W.when4 : W.when3;
   const on = counts.map((n, i) => ({ n, i })).filter((x) => x.n > 0);
   if (on.length === 0) return { line: "", special };
   const meal = (it.timing ?? "").trim();
-  const word = meal === "Before Meal" ? "before" : meal === "After Meal" ? "after" : meal === "With Meal" ? "with" : "";
-  const whenText = meal === "Empty Stomach" ? "on an empty stomach" : word ? list(on.map((x) => `${word} ${slots[x.i]}`)) : list(on.map((x) => when[x.i]));
+  const rel = meal === "Before Meal" ? W.rel.before : meal === "After Meal" ? W.rel.after : meal === "With Meal" ? W.rel.with : null;
+  const whenText = meal === "Empty Stomach" ? W.empty : rel ? list(on.map((x) => rel(slots[x.i])), W.and) : list(on.map((x) => when[x.i]), W.and);
   const same = on.every((x) => x.n === on[0].n);
-  // The same amount each time reads "Take 1 tablet - Twice a day, …"; different amounts are spelled out.
-  const amount = same ? (on[0].n === 1 ? dose : `${on[0].n} × ${dose}`) : "";
-  const times = on.length === 1 ? "" : `${TIMES[on.length] ?? `${on.length} times a day`}, `;
-  if (same) return { line: `Take ${amount} - ${times}${whenText}${forDays}.`, special };
-  const parts = on.map((x) => `${x.n} × ${dose} ${word ? `${word} ${slots[x.i]}` : when[x.i]}`);
-  return { line: `Take ${list(parts)}${forDays}.`, special };
+  const times = on.length === 1 ? "" : W.times[on.length] ?? W.more(on.length);
+  if (same) {
+    const amount = on[0].n === 1 ? dose : `${on[0].n} × ${dose}`;
+    return { line: end(`${W.take(amount)} - ${join(times, whenText, dur)}`), special };
+  }
+  const parts = on.map((x) => `${x.n} × ${dose} ${rel ? rel(slots[x.i]) : when[x.i]}`);
+  return { line: end(`${W.take(list(parts, W.and))}${dur ? `, ${dur}` : ""}`), special };
 }

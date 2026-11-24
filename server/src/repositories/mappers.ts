@@ -13,6 +13,7 @@ import type {
   PrescriptionItemDTO,
   PrescriptionTemplateDTO,
   DoctorDiagnosisDTO,
+  SavedNoteDTO,
   PatientDiagnosisDTO,
   PrescriptionTemplateItemDTO,
   PharmacyItemDTO,
@@ -153,6 +154,7 @@ import type {
   ScribeNoteRow,
   PrescriptionTemplateRow,
   DoctorDiagnosisRow,
+  SavedNoteRow,
   PatientDiagnosisRow,
 } from "@/db/tables";
 import type {
@@ -251,6 +253,7 @@ export function toPatientDTO(r: PatientRow): PatientDTO {
     // Never the fingerprint — just enough to recognise the document.
     identityDocuments: (r.identity_documents ?? []).map((d) => ({ type: d.type, last4: d.last4 })),
     covid: r.covid_details ?? null,
+    history: r.history_items ?? [],
   };
 }
 
@@ -345,6 +348,7 @@ export function toPrescriptionItemDTO(
     frequency: r.frequency,
     duration: r.duration,
     instructions: r.instructions,
+    quantity: r.quantity ?? "",
     timing: r.timing ?? "",
   };
 }
@@ -366,6 +370,7 @@ export function toPrescriptionDTO(
     patientId: r.patient_id,
     doctorId: r.doctor_id,
     createdAt: r.created_at,
+    language: r.language ?? "English",
     consultation: (r.consultation as PrescriptionDTO["consultation"]) ?? null,
     items: items.map(toPrescriptionItemDTO),
   };
@@ -373,6 +378,10 @@ export function toPrescriptionDTO(
 
 export function toDoctorDiagnosisDTO(r: DoctorDiagnosisRow): DoctorDiagnosisDTO {
   return { id: r.id, doctorId: r.doctor_id, name: r.name, code: r.code ?? "", useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at ?? null, createdAt: r.created_at };
+}
+
+export function toSavedNoteDTO(r: SavedNoteRow): SavedNoteDTO {
+  return { id: r.id, kind: r.kind, doctorId: r.doctor_id, patientId: r.patient_id, text: r.text, useCount: r.use_count ?? 0, createdAt: r.created_at };
 }
 
 export function toPatientDiagnosisDTO(r: PatientDiagnosisRow): PatientDiagnosisDTO {

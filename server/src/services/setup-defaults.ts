@@ -16,6 +16,18 @@ function fyStart(month = 4): string {
   return `${y}-${String(month).padStart(2, "0")}-01`;
 }
 
+/** The tests a hospital starts with under "Investigation advised"; it adds its own in Setup - Masters - Investigations. */
+export async function seedInvestigations(hospitalId: number, create: Create): Promise<void> {
+  const groups: Record<string, string[]> = {
+    "Blood tests": ["CBC", "LFT", "KFT", "HbA1c", "Fasting Blood Sugar", "PP Blood Sugar", "Lipid Profile", "Thyroid Profile (TSH)", "Vitamin D", "Vitamin B12", "CRP", "ESR", "Electrolytes", "Creatinine", "Dengue NS1", "Malaria Test", "Widal"],
+    "Urine & stool": ["Urine Routine", "Urine Culture", "Stool Routine"],
+    Imaging: ["Chest X-Ray", "X-Ray (other)", "USG Abdomen", "USG Pelvis", "CT Scan", "MRI", "Mammography"],
+    Heart: ["ECG", "2D Echo", "TMT"],
+  };
+  let order = 0;
+  for (const [category, names] of Object.entries(groups)) for (const name of names) await create({ hospital_id: hospitalId, kind: "investigation", code: "", name, active: true, sort_order: ++order, data: { category } });
+}
+
 const opt = (label: string, text?: string) => ({ label, text: text ?? label.toLowerCase() });
 
 /** The standard few chief complaints a hospital starts with; each is edited in Setup - Masters - Chief complaints. */

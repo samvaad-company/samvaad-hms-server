@@ -30,7 +30,7 @@ const NAV: { group: string; items: [id: string, label: string][] }[] = [
   { group: "Billing & payers", items: [["sponsors", "Sponsors & contracts"], ["billing_remarks", "Billing remarks"], ["rate_plan_types", "Payer classes"], ["payments", "Payments & banks"], ["payout_rules", "Payout rules"]] },
   { group: "Registration", items: [["patient_categories", "Patient categories"], ["visit_purposes", "Visit purposes"], ["arrival_statuses", "Arrival statuses"], ["income_groups", "Income groups"], ["referrals", "Referral sources"]] },
   { group: "Organization", items: [["departments", "Departments"], ["specialties", "Specialties"], ["org_units", "Org units"], ["human_ids", "ID formats"]] },
-  { group: "Clinical", items: [["chief_complaints", "Chief complaints"], ["clinical_forms", "Clinical forms"]] },
+  { group: "Clinical", items: [["chief_complaints", "Chief complaints"], ["investigations", "Investigations"], ["clinical_forms", "Clinical forms"]] },
   { group: "Video consultation", items: [["teleconsult_consent", "Consent form"]] },
   { group: "Loyalty", items: [["loyalty", "Loyalty programme"]] },
   { group: "Pharmacy", items: [["manufacturers", "Manufacturers"], ["suppliers", "Suppliers"]] },

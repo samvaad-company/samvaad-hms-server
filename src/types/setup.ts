@@ -10,7 +10,7 @@ export const SETUP_KINDS = [
   "service_group", "service", "rate_plan", "package", "sponsor", "contract", "dual_sponsor_rule",
   "payer_class", "payment_mode", "bank_account", "edc_terminal", "edc_settlement", "payout_rule",
   "patient_category", "visit_purpose", "arrival_status", "income_group", "referral_source",
-  "specialty", "org_unit", "id_format", "clinical_form", "protocol", "chief_complaint",
+  "specialty", "org_unit", "id_format", "clinical_form", "protocol", "chief_complaint", "investigation",
   "ward_class", "consulting_room", "facility_area", "collection_center", "lab_collection_center", "drug_rack",
   "manufacturer", "supplier",
   "branch",

@@ -132,6 +132,8 @@ export const REGISTRY: Record<SetupKind, KindDef> = {
   clinical_form: { label: "Clinical form", uniqueName: true, sort: "order", fields: { specialty: S(80), version: N({ max: 999, def: 0 }), status: E(["Draft", "Published"]), fields: J(), assignedDepartments: J() } },
   // A symptom the doctor can pick on a prescription, with the questions that describe it (Setup - Masters - Chief complaints).
   chief_complaint: { label: "Chief complaint", uniqueName: true, sort: "order", fields: { common: B(false), questions: J() } },
+  // A test a doctor can tick under "Investigation advised" on a prescription (Setup - Masters - Investigations).
+  investigation: { label: "Investigation", uniqueName: true, sort: "name", fields: { category: S(60, { def: "Other" }) } },
   protocol: { label: "Protocol", uniqueName: true, sort: "order", fields: { category: S(60), description: S(2000), steps: J() } },
   ward_class: simple("Ward class", { fields: { description: S(200) }, usedBy: [{ kind: "rate_plan", field: "wardClassId", what: "rate plans" }, { kind: "service", field: "wardClassId", what: "bed-charge services" }] }),
   consulting_room: { label: "Consulting room", code: "optional", uniqueName: true, sort: "order", fields: { facilityAreaId: ID("facility_area", { nullable: true }) } },

@@ -13,6 +13,7 @@ import { Modal } from "@/components/shared/Modal";
 import { FormInput, FormRow } from "@/components/shared/FormRow";
 import { THEME_COLORS, applyTheme } from "@/lib/theme";
 import Link from "next/link";
+import { LetterheadCard } from "@/components/setup/LetterheadCard";
 import { ImportDialog } from "@/components/setup/CatalogViews";
 import { AppearanceTab, BillingTab, NotificationsTab, ProtocolsTab, SecurityTab } from "@/components/setup/SettingsTabs";
 
@@ -21,6 +22,7 @@ interface HospitalSettings {
   address: string; city: string; state: string; pincode: string;
   phone: string; mobile: string; email: string; website: string;
   themeColor: string;
+  letterheadUrl?: string | null; letterheadTopMm?: number; letterheadBottomMm?: number;
 }
 
 const TABS = ["Profile & branding", "Billing", "Notifications", "Security", "Appearance", "Protocols"] as const;
@@ -90,7 +92,7 @@ function ThemePicker({ current, canEdit, onChanged }: { current: string; canEdit
   );
 }
 
-const PROFILE_FIELDS: { key: keyof HospitalSettings; label: string; span?: boolean }[] = [
+const PROFILE_FIELDS: { key: Exclude<keyof HospitalSettings, "letterheadUrl" | "letterheadTopMm" | "letterheadBottomMm">; label: string; span?: boolean }[] = [
   { key: "name", label: "Clinic name", span: true },
   { key: "regNumber", label: "Registration no." },
   { key: "gstNumber", label: "GST no." },
@@ -181,6 +183,10 @@ export default function SettingsPage() {
           <>
             <Card eyebrow="Branding">
               <ThemePicker current={settings.themeColor} canEdit={canEdit} onChanged={reload} />
+            </Card>
+
+            <Card eyebrow="Documents">
+              <LetterheadCard key={`${settings.letterheadTopMm}-${settings.letterheadBottomMm}`} url={settings.letterheadUrl ?? null} topMm={settings.letterheadTopMm ?? 45} bottomMm={settings.letterheadBottomMm ?? 25} canEdit={canEdit} onChanged={reload} />
             </Card>
 
             <div className="flex items-center justify-between mt-2">

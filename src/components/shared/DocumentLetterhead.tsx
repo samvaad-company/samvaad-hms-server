@@ -24,6 +24,10 @@ export interface HospitalSettings {
   gstNumber: string;
   regNumber: string;
   logoUrl?: string | null;
+  /** A page-sized picture of the hospital's own letterhead and the margins (mm) kept clear of its header and footer. */
+  letterheadUrl?: string | null;
+  letterheadTopMm?: number;
+  letterheadBottomMm?: number;
 }
 
 /** Hospital details for use in document headers and footers. */

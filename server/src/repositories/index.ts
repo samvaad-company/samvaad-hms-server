@@ -134,6 +134,7 @@ import type {
   PrescriptionTemplateRow,
   DoctorDiagnosisRow,
   PatientDiagnosisRow,
+  SavedNoteRow,
   TeleconsultBookingRow,
   GoogleConnectionRow,
   TeleconsultPaymentRow,
@@ -206,6 +207,7 @@ import {
   toPrescriptionTemplateDTO,
   toDoctorDiagnosisDTO,
   toPatientDiagnosisDTO,
+  toSavedNoteDTO,
 } from "@/repositories/mappers";
 
 export const patientsRepo = createRepository<PatientRow, ReturnType<typeof toPatientDTO>>(
@@ -452,6 +454,10 @@ export const doctorDiagnosesRepo = createRepository<
   DoctorDiagnosisRow,
   ReturnType<typeof toDoctorDiagnosisDTO>
 >(TABLES.doctorDiagnoses, toDoctorDiagnosisDTO);
+export const savedNotesRepo = createRepository<
+  SavedNoteRow,
+  ReturnType<typeof toSavedNoteDTO>
+>(TABLES.savedNotes, toSavedNoteDTO);
 export const patientDiagnosesRepo = createRepository<
   PatientDiagnosisRow,
   ReturnType<typeof toPatientDiagnosisDTO>

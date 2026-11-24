@@ -34,6 +34,7 @@ interface ItemInput {
   duration?: string;
   instructions?: string;
   timing?: string;
+  quantity?: string;
 }
 
 const headerSchema = {
@@ -147,6 +148,7 @@ export async function createPrescription(input: unknown, actor: Session) {
     prescribed_date: displayDate(),
     status: data.status,
     consultation: cleanConsultation((input as { consultation?: unknown }).consultation),
+    language: ["English", "Hindi", "Gujarati"].includes(String((input as { language?: unknown }).language)) ? String((input as { language?: unknown }).language) : "English",
   });
 
   const items: PrescriptionItemRow[] = [];
@@ -161,6 +163,7 @@ export async function createPrescription(input: unknown, actor: Session) {
       duration: it.duration ?? "",
       instructions: it.instructions ?? null,
       timing: ["Before Meal", "After Meal", "With Meal", "Empty Stomach"].includes(String(it.timing)) ? String(it.timing) : "",
+      quantity: String(it.quantity ?? "").trim().slice(0, 40),
     });
     items.push(created as PrescriptionItemRow);
   }

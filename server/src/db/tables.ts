@@ -113,6 +113,7 @@ export const TABLES = {
   prescriptionTemplates: "prescription_templates",
   doctorDiagnoses: "doctor_diagnoses",
   patientDiagnoses: "patient_diagnoses",
+  savedNotes: "saved_notes",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
@@ -288,6 +289,8 @@ export interface PatientRow extends Row {
   privilege_card_no?: string | null;
   payers?: { type: string; name: string; policyNumber: string; validUntil: string | null }[] | null;
   identity_documents?: { type: string; last4: string; fingerprint: string }[] | null;
+  /** What the doctor or the registration desk noted about the patient: allergies, addictions, remarks, how long. */
+  history_items?: { type: string; text: string; since: string }[] | null;
   covid_details?: { vaccination: string | null; lastDose: string | null; /** Vaccinated, but the exact date of the last dose is not known. */ lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
   created_at: string;
   updated_at: string;
@@ -406,6 +409,8 @@ export interface PrescriptionRow extends Row {
   medicine_count: number;
   prescribed_date: string;
   status: string;
+  /** The language the patient's copy is written in: English, Hindi or Gujarati. */
+  language?: string | null;
   /** The clinical record written with the prescription (complaint, history, examination, advice); absent on older ones. */
   consultation?: Record<string, unknown> | null;
   created_at: string;
@@ -421,6 +426,8 @@ export interface PrescriptionItemRow extends Row {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** How many to dispense, e.g. "10 tablets". */
+  quantity?: string | null;
   /** When to take it with meals: "Before Meal", "After Meal", "With Meal", "Empty Stomach" or "". */
   timing?: string | null;
   created_at: string;
@@ -934,6 +941,10 @@ export interface HospitalRow extends Row {
   teleconsult_meet_access?: string | null;
   /** The brand colour chosen in Settings (a key from src/lib/theme.ts); teal when unset. */
   theme_color?: string | null;
+  /** The hospital's own letterhead (a page-sized image as a data URL) that half-size prescriptions are written on, and the page margins (mm) kept clear of its printed header and footer. */
+  letterhead_url?: string | null;
+  letterhead_top_mm?: number | null;
+  letterhead_bottom_mm?: number | null;
   updated_at: string;
 }
 
@@ -2009,6 +2020,20 @@ export interface DoctorDiagnosisRow extends Row {
   /** How many prescriptions have used it, so the ones used most come first. */
   use_count: number;
   last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A remark a doctor keeps to use again (their own list), or advice kept for one patient. */
+export interface SavedNoteRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number | null;
+  /** Set for advice kept for a patient; null for a doctor's own remark. */
+  patient_id: number | null;
+  kind: "remark" | "advice";
+  text: string;
+  use_count: number;
   created_at: string;
   updated_at: string;
 }

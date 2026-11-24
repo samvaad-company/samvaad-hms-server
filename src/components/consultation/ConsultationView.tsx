@@ -35,7 +35,7 @@ export function ConsultationView({ c, diagnosis }: { c: Consultation; diagnosis?
     v.bp && `BP ${v.bp} mmHg`, v.pulse && `Pulse ${v.pulse}/min`, v.temp && `Temp ${v.temp} °F`, v.spo2 && `SpO₂ ${v.spo2}%`,
     v.weight && `Weight ${v.weight} kg`, v.height && `Height ${v.height} cm`, bmi && `BMI ${bmi}`,
   ].filter(Boolean) as string[];
-  const history = ([["Past", c.history.past], ["Family", c.history.family], ["Personal", c.history.personal], ["Medical", c.history.medical]] as const).filter(([, t]) => t.trim());
+  const history = ([["Past", c.history.past], ["Family", c.history.family], ["Personal", c.history.personal], ["Medication", c.history.medical]] as const).filter(([, t]) => t.trim());
   const general = filledFields(c.general);
   const systems = c.systemic.map((s) => ({ ...s, fields: filledFields(s.fields) })).filter((s) => s.fields.length > 0);
   const advice = ([["Diet", c.advice.diet], ["Exercise", c.advice.exercise], ["Other", c.advice.other]] as const).filter(([, t]) => t.trim());
@@ -74,6 +74,7 @@ export function ConsultationView({ c, diagnosis }: { c: Consultation; diagnosis?
           {advice.map(([k, t]) => <p key={k} className="text-[13px] text-[color:var(--ink)]"><span className="text-[color:var(--ink-soft)]">{k}: </span>{t}</p>)}
         </Block>
       )}
+      {c.remarks?.trim() && <Block title="Remarks"><p className="whitespace-pre-wrap text-[13px] text-[color:var(--ink)]">{c.remarks}</p></Block>}
       {c.followUp && <Block title="Follow-up"><p className="text-[13px] text-[color:var(--ink)]">{formatDate(c.followUp)}</p></Block>}
     </div>
   );

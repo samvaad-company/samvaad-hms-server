@@ -104,6 +104,8 @@ export interface PatientDTO extends Patient {
   /** Identity documents on file — only the type and last four characters are ever returned. */
   identityDocuments: { type: string; last4: string }[];
   covid: { vaccination: string | null; lastDose: string | null; lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
+  /** Allergies, addictions, remarks and how long, noted for the patient (all optional). */
+  history: { type: string; text: string; since: string }[];
 }
 
 export interface PrescriptionItemDTO {
@@ -115,6 +117,8 @@ export interface PrescriptionItemDTO {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** How many to dispense, e.g. "10 tablets". */
+  quantity?: string;
   /** Before / after / with a meal, or on an empty stomach; "" when it does not matter. */
   timing?: string;
   /** Generic (salt) name from the medicine master, when the item is linked to one. Detail view only. */
@@ -135,6 +139,8 @@ export interface PrescriptionDTO extends Prescription {
   doctorId: number | null;
   /** When it was written (ISO). */
   createdAt?: string;
+  /** The language of the patient's copy: English, Hindi or Gujarati. */
+  language?: string;
   /** The clinical record written with the prescription; null on prescriptions made before it existed. */
   consultation?: Consultation | null;
   items: PrescriptionItemDTO[];
@@ -175,6 +181,16 @@ export interface RxAiReviewDTO {
 }
 
 /** A diagnosis in one doctor's own list, kept for reuse. */
+export interface SavedNoteDTO {
+  id: number;
+  kind: "remark" | "advice";
+  doctorId: number | null;
+  patientId: number | null;
+  text: string;
+  useCount: number;
+  createdAt: string;
+}
+
 export interface DoctorDiagnosisDTO {
   id: number;
   doctorId: number;

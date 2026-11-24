@@ -33,7 +33,14 @@ interface Spec {
 
 const shared = "are shared across registration, admission and billing.";
 
+export const INVESTIGATION_CATEGORIES = ["Blood tests", "Urine & stool", "Imaging", "Heart", "Other"] as const;
+
 export const SIMPLE_SPECS: Record<string, Spec> = {
+  investigations: {
+    kind: "investigation", title: "Investigations", singular: "investigation", blurb: "The tests a doctor can tick under Investigation advised on a prescription, listed A to Z within each category.", hasCode: false,
+    rows: () => [[name], [{ key: "category", label: "Category", type: "select", options: opt(INVESTIGATION_CATEGORIES) }], [active]],
+    meta: (r) => <Muted>{str(r.data.category)}</Muted>,
+  },
   rate_plan_types: { kind: "payer_class", title: "Payer classes", singular: "payer class", blurb: `Payer classes ${shared}`, rows: () => [[code(), name], [active]] },
   patient_categories: {
     kind: "patient_category", title: "Patient categories", singular: "patient category", blurb: `Patient categories ${shared}`, dot: true,

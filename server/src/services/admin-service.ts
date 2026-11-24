@@ -53,6 +53,9 @@ export async function getSettings(actor: Session) {
     teleconsultPrice: row.teleconsult_price ?? null,
     teleconsultMeetAccess: row.teleconsult_meet_access ?? "OPEN",
     themeColor: (row.theme_color ?? DEFAULT_THEME) as string,
+    letterheadUrl: row.letterhead_url ?? null,
+    letterheadTopMm: row.letterhead_top_mm ?? 45,
+    letterheadBottomMm: row.letterhead_bottom_mm ?? 25,
   };
 }
 
@@ -76,6 +79,9 @@ const settingsSchema = {
   teleconsultPrice: { type: "number", required: false, min: 0, max: 100000 },
   teleconsultMeetAccess: { type: "enum", required: false, values: ["OPEN", "TRUSTED", "RESTRICTED"] },
   themeColor: { type: "enum", required: false, values: THEME_KEYS },
+  letterheadUrl: { type: "string", required: false, max: 3_500_000, pattern: /^data:image\/(png|jpeg|webp);base64,/ },
+  letterheadTopMm: { type: "number", required: false, min: 0, max: 120 },
+  letterheadBottomMm: { type: "number", required: false, min: 0, max: 120 },
 } as const;
 
 export async function updateSettings(input: unknown, actor: Session) {
@@ -100,11 +106,16 @@ export async function updateSettings(input: unknown, actor: Session) {
     teleconsultPrice: "teleconsult_price",
     teleconsultMeetAccess: "teleconsult_meet_access",
     themeColor: "theme_color",
+    letterheadUrl: "letterhead_url",
+    letterheadTopMm: "letterhead_top_mm",
+    letterheadBottomMm: "letterhead_bottom_mm",
   };
   const patch: Record<string, unknown> = {};
   for (const [key, col] of Object.entries(map)) {
     if (key in data) patch[col] = (data as Record<string, unknown>)[key];
   }
+  // An empty letterhead removes it (the validator treats empty text as "not sent").
+  if ((input as { letterheadUrl?: unknown }).letterheadUrl === "") patch.letterhead_url = null;
   if ((input as { workingHours?: unknown }).workingHours) {
     patch.working_hours = (input as { workingHours: unknown }).workingHours;
   }
@@ -404,6 +415,20 @@ export async function setMedicinePrice(id: number, input: unknown, actor: Sessio
 
 export async function listMedicines(options: QueryOptions, actor: Session) {
   const scoped = actor.hospitalId == null ? options : { ...options, filters: [...(options.filters ?? []), { column: "hospital_id", op: "in" as const, value: [actor.hospitalId, SHARED] }] };
+  const term = String(options.search ?? "").trim().toLowerCase();
+  const size = options.pageSize ?? 0;
+  // A typed search matches the brand name and the formula (generic). The directory is large, so fetch a wider set and put the best
+  // matches first: a single-ingredient formula equal to it, name starts with it, name contains it, formula starts with it, then the rest.
+  if (term && (options.page ?? 1) === 1 && size > 0 && size <= 50) {
+    const [{ rows, total }, overrides] = await Promise.all([medicinesRepo.listRows({ ...scoped, page: 1, pageSize: 300 }), priceOverrides(actor)]);
+    const rank = (r: MedicineRow) => {
+      const n = String(r.name ?? "").toLowerCase(), g = String(r.generic ?? "").toLowerCase();
+      const alone = g.replace(/\s*\([^)]*\)/g, "").trim() === term; // the formula is just this one ingredient
+      return alone ? 0 : n.startsWith(term) ? 1 : n.includes(term) ? 2 : g.startsWith(term) ? 3 : 4;
+    };
+    const best = [...(rows as MedicineRow[])].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)).slice(0, size);
+    return { rows: best.map((r) => withPrice(r, overrides)), total };
+  }
   const [{ rows, total }, overrides] = await Promise.all([medicinesRepo.listRows(scoped), priceOverrides(actor)]);
   return { rows: rows.map((r) => withPrice(r as MedicineRow, overrides)), total };
 }
