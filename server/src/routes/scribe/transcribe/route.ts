@@ -12,14 +12,21 @@ import { ok } from "@/http/response";
 import { BadRequestError } from "@/lib/errors";
 import { requirePermission } from "@/auth/server";
 import { transcribe, type FallbackReason } from "@/services/gemini-scribe";
+import { budgetMessage, budgetState, recordFeatureUsage } from "@/services/ai-budget-service";
 
 export const POST = withRoute(async (req: ApiRequest) => {
-  await requirePermission("scribe", "write");
+  const session = await requirePermission("scribe", "write");
   const form = await req.formData();
   const clips = form.getAll("audio").filter((v): v is File => v instanceof Blob);
   const language = (form.get("language") as string) || "unknown";
   if (clips.length === 0) {
     throw new BadRequestError("Missing audio clip");
+  }
+
+  // The monthly budget is used up: say so instead of spending more.
+  const state = await budgetState(session.hospitalId, "scribe");
+  if (state.exceeded) {
+    return ok({ transcript: "", language, mock: true, reason: "api-error" as FallbackReason, detail: budgetMessage("scribe", state), chunks: clips.length });
   }
 
   const parts: string[] = [];
@@ -30,6 +37,7 @@ export const POST = withRoute(async (req: ApiRequest) => {
 
   for (const clip of clips) {
     const result = await transcribe(clip, language);
+    if (result.usage) await recordFeatureUsage({ hospitalId: session.hospitalId, feature: "scribe", usage: result.usage, userId: session.userId, userName: session.name });
     if (result.transcript) parts.push(result.transcript);
     if (result.language && result.language !== "unknown") {
       detectedLanguage = result.language;

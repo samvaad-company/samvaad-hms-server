@@ -11,8 +11,8 @@ import Link from "next/link";
 import { Check, ChevronDown, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { dischargeAdmission } from "@/lib/ipd-discharge";
-import { useList, useMutation } from "@/lib/api/hooks";
-import type { ConsentDTO, IpdClearanceDTO, IpdMedicationDTO } from "@/types/api";
+import { useItem, useList, useMutation } from "@/lib/api/hooks";
+import type { ConsentDTO, IpdClearanceDTO, IpdMedicationDTO, StayBillsDTO } from "@/types/api";
 import { FormInput, FormRow, FormSelect, FormTextarea } from "@/components/shared/FormRow";
 import { NewConsentDialog } from "@/components/ipd/patient/PaperworkTabs";
 import { Card, ChartCtx, ErrorLine, Notice, Pill, btn, dayShort, done, inr, inputCls } from "@/components/ipd/patient/ui";
@@ -42,6 +42,7 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
   const { items: consents, reload: reloadConsents } = useList<ConsentDTO>(pid ? `/patients/${pid}/consents` : null);
   const { items: meds } = useList<IpdMedicationDTO>("/ipd/medications", { all: true, admission_id: ctx.id });
   const { items: clearances, reload: reloadClearances } = useList<IpdClearanceDTO>(`/ipd/${ctx.id}/clearances`);
+  const { item: stayBills } = useItem<StayBillsDTO>(`/ipd/${ctx.id}/bills`);
   const { run, loading, error, reset } = useMutation();
   const [type, setType] = useState(TYPES[0]);
   const [planned, setPlanned] = useState(o?.plannedDischargeDate ?? "");
@@ -107,6 +108,24 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
         </div>
       </Card>
 
+      {stayBills && stayBills.bills.length > 0 && (
+        <Card title="Everything to pay for this stay" hint={stayBills.toPay > 0 ? `${inr(stayBills.toPay)} is still to pay of ${inr(stayBills.billed)} billed` : `All ${inr(stayBills.billed)} billed is paid`}>
+          {stayBills.bills.map((b) => (
+            <div key={b.id} className="flex flex-wrap items-center gap-3 border-t border-[color:var(--subtle-2)] py-[8px] text-[13px] first:border-t-0">
+              <span className="w-[120px] shrink-0 font-medium text-[color:var(--ink)]">{b.billNumber}</span>
+              <span className="w-[110px] shrink-0 text-[12px] text-[color:var(--ink-soft)]">{b.type}{b.bedside ? " · at bed" : ""}</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] text-[color:var(--ink-soft)]">{b.bedside ? "Medicines taken to the bed - payment not taken there" : ""}</span>
+              <span className="font-medium">{inr(b.total)}</span>
+              <Pill tone={b.status === "Paid" ? "ok" : b.status === "Refunded" ? "neutral" : "warn"}>{b.status === "Pending" ? "To pay" : b.status}</Pill>
+            </div>
+          ))}
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--line)] pt-3 text-[13px]">
+            <span className="text-[color:var(--ink)]">Total to pay: <b className={stayBills.toPay > 0 ? "text-[#b3001b]" : "text-[#0b7a47]"}>{inr(stayBills.toPay)}</b></span>
+            <Link href="/billing" className="text-[12px] text-[color:var(--brand)] hover:underline">Open Billing → Combined bill to print the full bill</Link>
+          </div>
+        </Card>
+      )}
+
       {(clearances.length > 0 || (stage > 0 && !ctx.discharged)) && (
         <Card title="Department clearance" hint="Each department the patient used is told the patient is about to be discharged and says whether a bill is still pending. The patient can leave only when all of them have cleared."
           action={editable && stage > 0 ? <button className={`${btn.base} ${btn.ghost}`} disabled={loading} onClick={() => askAgain()}>Ask any new departments</button> : undefined}>
@@ -133,7 +152,7 @@ export function DischargeTab({ ctx }: { ctx: ChartCtx }) {
       </div>
       <ErrorLine error={error} />
 
-      {ctx.discharged ? <Notice tone="ok">This patient has been discharged. The chart now waits in the MRD coding queue.</Notice> : stage === 0 ? (
+      {ctx.discharged ? <Notice tone="ok">This patient has been discharged. The chart now waits in the MRD coding queue.{ctx.record.combinedBillNo ? ` The full bill ${ctx.record.combinedBillNo} was issued with every bill of the stay — open it in Billing → Combined bill.` : ""}</Notice> : stage === 0 ? (
         <Card title="Send the patient home" hint="Starting the discharge asks the doctor for the discharge summary and the billing desk for the final bill. The bed stays with the patient until they actually leave.">
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-[260px]"><FormRow label="Discharge type"><FormSelect value={type} onChange={setType} options={TYPES.map((t) => ({ value: t, label: t }))} /></FormRow></div>

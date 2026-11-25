@@ -18,6 +18,8 @@
     "test:followups": "tsx scripts/test-followups.ts",
     "test:rxreview": "tsx scripts/test-prescription-review.ts",
     "test:ipd": "tsx scripts/test-ipd.ts",
+    "test:bedside": "tsx scripts/test-bedside.ts",
+    "test:ai-budget": "tsx scripts/test-ai-budget.ts",
     "test:ot": "tsx scripts/test-ot.ts",
     "test:labpriority": "tsx scripts/test-lab-priority.ts",
     "test:bloodbank": "tsx scripts/test-bloodbank.ts",

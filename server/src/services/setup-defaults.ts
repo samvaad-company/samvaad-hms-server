@@ -304,6 +304,15 @@ export function defaultConfig(key: ConfigKey, hospital: HospitalRow | null): Rec
     case "teleconsult":
       // The consent a patient accepts when booking a video consultation (Setup → Masters → Video consultation consent).
       return { consentRequired: true, consentTitle: "Video consultation consent", consentText: DEFAULT_TELECONSULT_CONSENT };
+    case "ai_budget":
+      // Monthly rupee caps on the Gemini features outside KAYA chat (0 = no cap), the per-number daily limit for the WhatsApp bot, the
+      // rates the costs are worked out at, and the bills an admin types in so the cost view covers the whole month.
+      return {
+        scribeBudgetInr: 8000, rxReviewBudgetInr: 3000, botBudgetInr: 2000, botRepliesPerNumberPerDay: 20,
+        geminiInputUsdPerMillion: 0.25, geminiOutputUsdPerMillion: 1.5, geminiAudioUsdPerMillion: 0.5, usdToInr: 88,
+        whatsappUtilityInr: 0.115, razorpayFeePercent: 2, gstPercent: 18,
+        hostingMonthlyInr: 0, databaseMonthlyInr: 0, otherMonthlyInr: 0,
+      };
     case "referral":
       return { code: `${(hospital?.code ?? "HOSP").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)}-REF`, rewardNote: "", referred: [] };
   }

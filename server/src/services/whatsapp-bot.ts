@@ -17,6 +17,7 @@ import { isAppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { localDate, parseClock, to12h } from "@/lib/clock";
 import { streamGenerateContent, isGeminiLive } from "@/services/gemini";
+import { botAiAllowed, recordFeatureUsage } from "@/services/ai-budget-service";
 import { bookInPerson } from "@/services/appointment-scheduling-service";
 import { loadDoctor, slotsFor } from "@/services/scheduling-service";
 import { accountByPhoneNumberId, applyStatus, logMessage, outboundOf, reply, type Outbound } from "@/services/whatsapp-service";
@@ -290,10 +291,12 @@ async function prescriptionsReply(hospitalId: number, phone: string): Promise<Re
 
 // ── AI fallback ──────────────────────────────────────────────────────────────
 
-async function aiReply(hospitalId: number, ctx: Ctx, text: string): Promise<Reply> {
+async function aiReply(hospitalId: number, phone: string, ctx: Ctx, text: string): Promise<Reply> {
   const h = await hospitalLine(hospitalId);
   const canned = `Thank you for your message. For this, please contact *${h.name}*${h.phone ? ` on ${h.phone}` : ""} and our team will help. You can also say *hi* to book an appointment.`;
   if (!isGeminiLive()) return { text: canned, buttons: MENU };
+  // The AI budget for the month, or this number's AI replies for the day, are used up: the menu answer costs nothing.
+  if (!(await botAiAllowed(hospitalId, last10(phone))).ok) return { text: canned, buttons: MENU };
   const system = [
     `You are KAYA AI, the WhatsApp assistant of ${h.name}, a hospital. If you introduce yourself or are asked your name, say you are KAYA AI. Answer in at most 4 short sentences, in the language the patient writes in.`,
     "Be warm and plain. Never diagnose, prescribe or give medicine doses. Never invent facts about the hospital, doctors, prices or timings you were not given.",
@@ -305,6 +308,7 @@ async function aiReply(hospitalId: number, ctx: Ctx, text: string): Promise<Repl
   try {
     for await (const chunk of streamGenerateContent({ systemInstruction: system, contents, tools: [] })) {
       if (chunk.type === "text") out += chunk.delta;
+      if (chunk.type === "usage") await recordFeatureUsage({ hospitalId, feature: "whatsapp_bot", usage: { prompt: chunk.promptTokens, output: chunk.outputTokens, audio: 0 }, ref: last10(phone) });
       if (chunk.type === "error") { logger.warn("whatsapp.ai_error", { detail: chunk.detail }); return { text: canned, buttons: MENU }; }
     }
   } catch (e) { logger.warn("whatsapp.ai_failed", { error: String(e) }); return { text: canned, buttons: MENU }; }
@@ -325,7 +329,7 @@ async function route(hospitalId: number, m: InboundMessage, ctx: Ctx): Promise<R
   if (UPCOMING.test(text)) return upcomingReply(hospitalId, m.from);
   if (PRESCRIPTION.test(text)) return prescriptionsReply(hospitalId, m.from);
   if (BOOK.test(text)) return startBooking(hospitalId, m.from, ctx, m.name);
-  return aiReply(hospitalId, ctx, text);
+  return aiReply(hospitalId, m.from, ctx, text);
 }
 
 async function handleInbound(m: InboundMessage): Promise<void> {

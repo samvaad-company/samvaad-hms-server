@@ -6,6 +6,7 @@ import { TABLES } from "@/db/tables";
 import type {
   PatientRow,
   AiTokenUsageRow,
+  AiFeatureUsageRow,
   LoyaltyAdjustmentRow,
   PreauthFormRow,
   AwarenessEventRow,
@@ -439,6 +440,7 @@ export const caseFileEntriesRepo = createRepository<CaseFileEntryRow, CaseFileEn
 export const awarenessReadsRepo = createRepository<AwarenessReadRow, AwarenessReadRow>(TABLES.awarenessReads, (row) => row);
 export const signatureAssetsRepo = createRepository<SignatureAssetRow, SignatureAssetRow>(TABLES.signatureAssets, (row) => row);
 export const notificationsRepo = createRepository<NotificationRow, NotificationRow>(TABLES.notifications, (row) => row);
+export const aiFeatureUsageRepo = createRepository<AiFeatureUsageRow, AiFeatureUsageRow>(TABLES.aiFeatureUsage, (row) => row);
 export const aiTokenUsageRepo = createRepository<AiTokenUsageRow, AiTokenUsageRow>(TABLES.aiTokenUsage, (row) => row);
 export const aiTokenLimitsRepo = createRepository<AiTokenLimitRow, AiTokenLimitRow>(TABLES.aiTokenLimits, (row) => row);
 export const aiTokenGrantsRepo = createRepository<AiTokenGrantRow, AiTokenGrantRow>(TABLES.aiTokenGrants, (row) => row);

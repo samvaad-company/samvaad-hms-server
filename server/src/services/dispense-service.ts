@@ -9,7 +9,7 @@
  */
 import {
   pharmacyRepo, pharmacyBatchesRepo, pharmacyDispensesRepo, pharmacyDispenseLinesRepo, pharmacyReturnsRepo,
-  patientsRepo, prescriptionsRepo, prescriptionItemsRepo, ipdRepo, billsRepo,
+  patientsRepo, prescriptionsRepo, prescriptionItemsRepo, ipdRepo, billsRepo, billItemsRepo,
 } from "@/repositories";
 import { TABLES, type BillRow, type PharmacyBatchRow, type PharmacyDispenseLineRow, type PharmacyDispenseRow, type PharmacyItemRow, type PharmacyReturnRow } from "@/db/tables";
 import { transactional } from "@/db/unit-of-work";
@@ -170,7 +170,8 @@ async function returnsOf(dispenseId: number, actor: Session): Promise<PharmacyRe
   return (rows as PharmacyReturnRow[]).sort((a, b) => a.id - b.id);
 }
 
-const billLabel = (d: PharmacyDispenseRow): string => {
+const billLabel = (d: PharmacyDispenseRow, billStatus?: string): string => {
+  if (d.bedside) return `Bedside${d.bed ? ` · ${d.ward ? `${d.ward} ` : ""}${d.bed}` : ""} · ${billStatus === "Paid" ? "paid" : billStatus === "Refunded" ? "refunded" : "payment pending"}${d.bill_number ? ` (${d.bill_number})` : ""}`;
   if (d.billing === "none") return "Not billed";
   if (d.billing === "patient") return d.admission_no ? `On stay ${d.admission_no}` : d.bill_number ? `Added to bill ${d.bill_number}` : "Billing pending";
   return d.bill_number ? `Billed ${d.bill_number}` : "Billing pending";
@@ -182,6 +183,7 @@ function toDto(d: PharmacyDispenseRow, lines: PharmacyDispenseLineRow[], returns
     id: d.id, dispenseNo: d.dispense_no, patientId: d.patient_id, patientName: d.patient_name, walkInNote: d.walk_in_note ?? "", rxNumber: d.rx_number ?? "",
     billing: d.billing as DispenseBilling, billLabel: billLabel(d), billNumber: d.bill_number ?? null, admissionNo: d.admission_no ?? null, subtotal: Number(d.subtotal),
     status: d.status as DispenseDTO["status"], dispensedBy: d.dispensed_by, at: d.created_at,
+    ...(d.bedside ? { bedside: true, ward: d.ward ?? "", bed: d.bed ?? "", deliveredByRole: d.delivered_by_role ?? "" } : {}),
     summary: names.length > 1 ? `${names[0]} +${names.length - 1} more` : names[0] ?? "",
     lines: lines.map((l): DispenseLineDTO => ({ id: l.id, itemId: l.item_id, medicineName: l.medicine_name, batchNo: l.batch_no, expiryDate: l.expiry_date ?? "", quantity: l.quantity, returnedQty: l.returned_qty, returnable: l.quantity - l.returned_qty, unitPrice: Number(l.unit_price), lineTotal: Number(l.line_total), isH1: l.is_h1 === true })),
     returns: returns.map((r): DispenseReturnDTO => ({ id: r.id, lineId: r.line_id, medicineName: r.medicine_name, batchNo: r.batch_no, quantity: r.quantity, condition: r.condition as ReturnCondition, creditNoteNo: r.credit_note_no ?? "", creditValue: Number(r.credit_value), reason: r.reason ?? "", returnedBy: r.returned_by, at: r.created_at })),
@@ -191,7 +193,10 @@ function toDto(d: PharmacyDispenseRow, lines: PharmacyDispenseLineRow[], returns
 /** The latest dispenses, newest first. */
 export async function listDispenses(limit: number, actor: Session): Promise<DispenseDTO[]> {
   const { rows } = await pharmacyDispensesRepo.listRows(scopeToHospital({ pageSize: Math.min(Math.max(limit, 1), 100), page: 1, sort: [{ column: "id", direction: "desc" }] }, actor));
-  return Promise.all((rows as PharmacyDispenseRow[]).map(async (d) => toDto(d, await linesOf(d.id, actor), await returnsOf(d.id, actor))));
+  return Promise.all((rows as PharmacyDispenseRow[]).map(async (d) => {
+    const dto = toDto(d, await linesOf(d.id, actor), await returnsOf(d.id, actor));
+    return d.bedside ? withBill(dto) : dto;
+  }));
 }
 
 export async function getDispense(id: number, actor: Session): Promise<DispenseDTO> {
@@ -325,6 +330,73 @@ export async function createDispense(input: unknown, actor: Session): Promise<Di
   }
   await audit(actor, "dispense", "pharmacy-dispense", result, { dispenseNo: dispense.dispense_no, billing: req.billing, total: Number(dispense.subtotal) });
   return { ...(await getDispense(result, actor)), ...(warning ? { billingWarning: warning } : {}) };
+}
+
+// ── Bedside delivery ─────────────────────────────────────────────────────────
+
+/**
+ * A nurse or doctor takes medicines from the pharmacy to an admitted patient's bed. Stock comes out of the pharmacy as for any dispense
+ * and the pharmacy raises its own bill, left Pending and tied to the admission: no payment is taken at the bed, the amount is added to
+ * what the patient owes and is collected with the rest of the bill at discharge.
+ */
+export async function deliverToBed(admissionId: number, input: unknown, actor: Session): Promise<DispenseDTO> {
+  const admission = await ipdRepo.getRow(admissionId);
+  assertOwnedByHospital(admission, actor, "Admission");
+  const a = admission as import("@/db/tables").IpdAdmissionRow;
+  if (a.status === "Discharged") throw new ConflictError("This patient has already been discharged");
+  if (a.patient_id == null) throw new ConflictError("This admission has no registered patient to bill");
+  if (actor.role === "Doctor" && actor.doctorId != null && a.doctor_id !== actor.doctorId) throw new ConflictError("This is not your patient");
+  const body = isRecord(input) ? input : {};
+  // By default nothing is collected at the bed (the bill stays Pending for discharge); the nurse can choose to take payment now.
+  const payNow = body.payNow === true;
+  const paymentMode = typeof body.paymentMode === "string" ? body.paymentMode.trim() : "";
+  if (payNow && !paymentMode) throw new ValidationError([{ field: "paymentMode", message: "choose how the patient is paying" }]);
+  // A medicine with no price would be handed over with nothing to bill: refuse until the pharmacy has priced it.
+  for (const raw of Array.isArray(body.lines) ? body.lines : []) {
+    const l = isRecord(raw) ? raw : {};
+    const item = await pharmacyRepo.getRow(Number(l.itemId));
+    const given = l.unitPrice === undefined || l.unitPrice === null || l.unitPrice === "" ? 0 : Number(l.unitPrice);
+    if (item && item.hospital_id === requireHospitalId(actor) && !(Number(item.unit_price ?? 0) > 0) && !(given > 0)) {
+      throw new ValidationError([{ field: "lines", message: `${item.name} has no price yet, so it can't be billed. Ask the pharmacy to set its price first` }]);
+    }
+  }
+  const made = await createDispense({ ...body, patientId: a.patient_id, billing: "separate", prescriptionId: null, walkInNote: "" }, actor);
+  const where = `${a.ward ? `${a.ward} · ` : ""}${a.bed || "no bed"}`;
+  await pharmacyDispensesRepo.update(made.id, { bedside: true, ward: a.ward ?? "", bed: a.bed ?? "", delivered_by_role: actor.role, admission_id: a.id, admission_no: a.admission_no ?? null } as never);
+  const row = (await pharmacyDispensesRepo.getRow(made.id)) as PharmacyDispenseRow;
+  if (row.bill_id != null) {
+    // The bill belongs to the stay (so the final bill and discharge see it) and says plainly that nothing was collected.
+    await billsRepo.update(row.bill_id, {
+      admission_id: a.id, admission_no: a.admission_no ?? null, admission_date: a.admission_date,
+      remarks: payNow
+        ? `Medicines taken to bed ${where} by ${actor.name} (${actor.role}). Paid at the bed (${paymentMode}).`
+        : `Medicines taken to bed ${where} by ${actor.name} (${actor.role}). Payment not taken at the bed - collected at discharge.`,
+    } as never);
+    if (payNow) await updateBill(row.bill_id, { status: "Paid", paymentMode }, actor);
+    for (const l of made.lines) {
+      await billItemsRepo.create({
+        hospital_id: requireHospitalId(actor), bill_id: row.bill_id, service_id: null, code: "", name: `${l.medicineName}${l.batchNo ? ` (batch ${l.batchNo})` : ""}`,
+        quantity: l.quantity, unit_price: l.unitPrice, gst_rate: 0, hsn_sac: "", amount: l.lineTotal, payer_amount: 0,
+      } as never);
+    }
+  }
+  await audit(actor, "bedside-delivery", "ipd", a.id, { dispenseNo: made.dispenseNo, total: made.subtotal, bed: where });
+  return withBill(await getDispense(made.id, actor), made.billingWarning);
+}
+
+async function withBill(d: DispenseDTO, warning?: string): Promise<DispenseDTO> {
+  const row = (await pharmacyDispensesRepo.getRow(d.id)) as PharmacyDispenseRow;
+  const bill = row.bill_id != null ? ((await billsRepo.getRow(row.bill_id)) as BillRow | null) : null;
+  return { ...d, ...(bill ? { billStatus: bill.status, billTotal: Number(bill.total), billLabel: billLabel(row, bill.status) } : {}), ...(warning ? { billingWarning: warning } : {}) };
+}
+
+/** What has been taken to this patient's bed so far, newest first, with each bill's state. */
+export async function listBedsideDeliveries(admissionId: number, actor: Session): Promise<DispenseDTO[]> {
+  const admission = await ipdRepo.getRow(admissionId);
+  assertOwnedByHospital(admission, actor, "Admission");
+  const { rows } = await pharmacyDispensesRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "admission_id", op: "eq", value: admissionId }], sort: [{ column: "id", direction: "desc" }] }, actor));
+  const mine = (rows as PharmacyDispenseRow[]).filter((d) => d.bedside);
+  return Promise.all(mine.map(async (d) => withBill(toDto(d, await linesOf(d.id, actor), await returnsOf(d.id, actor)))));
 }
 
 // ── Returns ──────────────────────────────────────────────────────────────────

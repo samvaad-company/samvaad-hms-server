@@ -535,6 +535,8 @@ export interface IpdRecordDTO extends IpdRecord {
   doctorId: number | null;
   bedId: number | null;
   wardId: number | null;
+  /** The full bill issued when the patient was discharged ("" until then). */
+  combinedBillNo?: string;
   /** ADM/2026/00003 */
   admissionNo: string;
   admissionType: IpdAdmissionType;
@@ -2478,6 +2480,53 @@ export interface DispenseDTO {
   returns: DispenseReturnDTO[];
   /** Set when the dispense went through but the bill could not be raised. */
   billingWarning?: string;
+  /** Taken to the patient's bed by a nurse or doctor (payment is not taken there; the bill stays Pending until discharge). */
+  bedside?: boolean;
+  ward?: string;
+  bed?: string;
+  deliveredByRole?: string;
+  /** The pharmacy bill's status and total, for bedside deliveries. */
+  billStatus?: string;
+  billTotal?: number;
+}
+
+/** Every bill of one inpatient stay: what has been billed, what is paid and what is still to pay at discharge. */
+export interface StayBillDTO {
+  id: number;
+  billNumber: string;
+  type: string;
+  date: string;
+  total: number;
+  status: string;
+  /** Raised when a nurse or doctor took medicines to the bed. */
+  bedside: boolean;
+  remarks: string;
+}
+export interface StayBillsDTO {
+  bills: StayBillDTO[];
+  billed: number;
+  paid: number;
+  toPay: number;
+}
+
+/** One line of the monthly cost view. */
+export interface AiCostLineDTO {
+  key: string;
+  label: string;
+  /** measured: from usage recorded here; estimated: counted here and priced at the rates in Spending caps; entered: typed in by an admin. */
+  kind: "measured" | "estimated" | "entered";
+  amountInr: number;
+  detail: string;
+  /** The monthly cap, when there is one. */
+  budgetInr: number | null;
+  /** The cap has been reached, so the feature is paused for the rest of the month. */
+  capped: boolean;
+}
+export interface AiCostDTO {
+  month: string;
+  totalInr: number;
+  usdToInr: number;
+  lines: AiCostLineDTO[];
 }
 
 export interface DispenseRxLineDTO {

@@ -124,6 +124,7 @@ export const TABLES = {
   signatureAssets: "signature_assets",
   notifications: "notifications",
   aiTokenUsage: "ai_token_usage",
+  aiFeatureUsage: "ai_feature_usage",
   aiTokenLimits: "ai_token_limits",
   aiTokenGrants: "ai_token_grants",
   teleconsultBookings: "teleconsult_bookings",
@@ -490,6 +491,11 @@ export interface PharmacyDispenseRow extends Row {
   status: string;
   dispensed_by: string;
   dispensed_by_id?: number | null;
+  /** Taken to the patient's bed by a nurse or doctor: the bill is raised as Pending and no payment is taken at the bed. */
+  bedside?: boolean | null;
+  ward?: string | null;
+  bed?: string | null;
+  delivered_by_role?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -797,6 +803,8 @@ export interface IpdAdmissionRow extends Row {
   discharge_date?: string | null;
   /** The moment the discharge was recorded (ISO), so forms can ask for the time of discharge. */
   discharged_at?: string | null;
+  /** The combined (full) bill issued automatically when the patient was discharged: CB-00000001. */
+  combined_bill_no?: string | null;
   /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
   discharge_stage?: string;
   /** The signed admission consent this admission was made on (one consent covers one admission). */
@@ -1619,6 +1627,25 @@ export interface AiTokenUsageRow extends Row {
   output_tokens: number;
   total_tokens: number;
   /** "YYYY-MM": the quota month this usage counts against. */
+  month: string;
+  created_at: string;
+}
+
+/** One Gemini call made by the scribe, prescription review or WhatsApp bot, with its tokens and what it cost in rupees. */
+export interface AiFeatureUsageRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** scribe | rx_review | whatsapp_bot */
+  feature: string;
+  user_id: number | null;
+  user_name: string;
+  /** The patient's number for the WhatsApp bot (last 10 digits), so replies can be limited per number. */
+  ref: string;
+  prompt_tokens: number;
+  output_tokens: number;
+  audio_tokens: number;
+  total_tokens: number;
+  cost_inr: number;
   month: string;
   created_at: string;
 }

@@ -265,7 +265,7 @@ export async function getOverview(admissionId: number, actor: Session): Promise<
   const consents = a.patient_id ? await listPatientConsents(a.patient_id, actor) : [];
   const live = a.status === "Discharged" ? null : (await getBoard(actor)).live.find((l) => l.admissionId === a.id) ?? null;
 
-  const ipdBills = (bills.rows as { type: string; status: string; total: number }[]).filter((b) => b.type === "IPD");
+  const ipdBills = (bills.rows as { type: string; status: string; total: number; admission_id?: number | null }[]).filter((b) => b.type === "IPD" || (b.type === "Pharmacy" && b.admission_id === a.id));
   const unpaid = ipdBills.filter((b) => b.status === "Pending" || b.status === "Partial");
   const balanceDue = unpaid.reduce((n, b) => n + Number(b.total), 0);
   const billed = ipdBills.reduce((n, b) => n + Number(b.total), 0);

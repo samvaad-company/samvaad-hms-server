@@ -138,6 +138,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.signatureAssets]: ["hospital_id", "owner_id", "kind"],
   [TABLES.notifications]: ["hospital_id", "user_id", "read_at"],
   [TABLES.aiTokenUsage]: ["hospital_id", "user_id", "month", "created_at"],
+  [TABLES.aiFeatureUsage]: ["hospital_id", "feature", "month", "ref"],
   [TABLES.aiTokenLimits]: ["hospital_id", "user_id"],
   [TABLES.aiTokenGrants]: ["hospital_id", "user_id", "month"],
   [TABLES.scribeNotes]: ["hospital_id", "appointment_id", "patient_id", "doctor_id", "status"],

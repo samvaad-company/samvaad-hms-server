@@ -514,6 +514,7 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     expectedStayDays: r.expected_stay_days ?? null,
     diet: r.diet ?? "",
     dischargeDate: r.discharge_date ?? "",
+    combinedBillNo: r.combined_bill_no ?? "",
   };
 }
 

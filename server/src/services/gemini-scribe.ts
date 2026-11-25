@@ -22,6 +22,7 @@
  * live call failed".
  */
 import { getConfig } from "@/config/env";
+import { readUsage, type TokenUsage } from "@/services/ai-budget-service";
 import { logger } from "@/lib/logger";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -36,6 +37,8 @@ export interface TranscriptionResult {
   reason: FallbackReason;
   /** Human-readable detail when reason === "api-error". */
   detail?: string;
+  /** Tokens the call used, for the cost ledger. */
+  usage?: TokenUsage;
 }
 
 export interface BriefResult {
@@ -43,6 +46,7 @@ export interface BriefResult {
   mock: boolean;
   reason: FallbackReason;
   detail?: string;
+  usage?: TokenUsage;
 }
 
 export function isGeminiScribeLive(): boolean {
@@ -117,9 +121,12 @@ export async function transcribe(
         detail: humanizeError(res.status, detail),
       };
     }
-    const text = extractText(await res.json());
+    const json = await res.json();
+    const usage = readUsage(json);
+    const text = extractText(json);
     if (!text) {
       return {
+        usage,
         transcript: "",
         language: languageCode,
         mock: true,
@@ -134,6 +141,7 @@ export async function transcribe(
       language: parsed?.language ?? languageCode,
       mock: false,
       reason: "live",
+      usage,
     };
   } catch (err) {
     logger.warn("gemini.scribe.stt.fallback", { error: String(err) });
@@ -165,7 +173,7 @@ function humanizeError(status: number, detail: string): string {
  * Summarize a transcript into a structured SOAP brief. The transcript may be in
  * any supported language; the brief is always returned in English.
  */
-export async function summarizeBrief(transcript: string): Promise<BriefResult> {
+export async function summarizeBrief(transcript: string, opts: { offline?: string } = {}): Promise<BriefResult> {
   const clean = transcript.trim();
   if (!clean) {
     return { brief: "", mock: !isGeminiScribeLive(), reason: isGeminiScribeLive() ? "live" : "no-key" };
@@ -173,6 +181,8 @@ export async function summarizeBrief(transcript: string): Promise<BriefResult> {
 
   const { geminiApiKey: key, geminiModel } = getConfig();
   if (!key) return { brief: heuristicBrief(clean), mock: true, reason: "no-key" };
+  // The monthly budget is used up: write the brief locally instead of calling Gemini.
+  if (opts.offline) return { brief: heuristicBrief(clean), mock: true, reason: "api-error", detail: opts.offline };
 
   const url = `${API_BASE}/${geminiModel}:generateContent?key=${key}`;
   const body = {
@@ -215,12 +225,14 @@ export async function summarizeBrief(transcript: string): Promise<BriefResult> {
         detail: `Gemini error ${res.status}: ${detail}`,
       };
     }
-    const brief = extractText(await res.json()).trim();
+    const briefJson = await res.json();
+    const usage = readUsage(briefJson);
+    const brief = extractText(briefJson).trim();
     if (!brief) {
       return { brief: heuristicBrief(clean), mock: true, reason: "api-error", detail: "Empty response" };
     }
     logger.info("gemini.scribe.brief.ok", {});
-    return { brief, mock: false, reason: "live" };
+    return { brief, mock: false, reason: "live", usage };
   } catch (err) {
     logger.warn("gemini.scribe.brief.fallback", { error: String(err) });
     return {

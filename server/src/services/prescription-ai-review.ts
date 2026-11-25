@@ -17,6 +17,7 @@
  * twice and editing it (or the patient's allergies) invalidates the stored
  * result. The store is per server process; a restart simply re-runs the check.
  */
+import { budgetMessage, budgetState, readUsage, recordFeatureUsage, type TokenUsage } from "@/services/ai-budget-service";
 import { createHash } from "node:crypto";
 import { getConfig } from "@/config/env";
 import { logger } from "@/lib/logger";
@@ -232,7 +233,7 @@ function humanizeError(status: number, detail: string): string {
   return `AI service error ${status}${detail ? `: ${detail.slice(0, 160)}` : ""}`;
 }
 
-async function askModel(rx: PrescriptionDTO): Promise<{ ok: true; data: NonNullable<ReturnType<typeof sanitize>> } | { ok: false; detail: string }> {
+async function askModel(rx: PrescriptionDTO): Promise<{ ok: true; data: NonNullable<ReturnType<typeof sanitize>>; usage: TokenUsage } | { ok: false; detail: string; usage?: TokenUsage }> {
   const { geminiApiKey: key, geminiModel } = getConfig();
   const url = `${API_BASE}/${geminiModel}:generateContent`;
   try {
@@ -252,10 +253,11 @@ async function askModel(rx: PrescriptionDTO): Promise<{ ok: true; data: NonNulla
       return { ok: false, detail: humanizeError(res.status, body) };
     }
     const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const usage = readUsage(json);
     const text = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
     const data = sanitize(parseJsonLoose(text));
-    if (!data) return { ok: false, detail: "The AI service returned an answer that could not be read." };
-    return { ok: true, data };
+    if (!data) return { ok: false, detail: "The AI service returned an answer that could not be read.", usage };
+    return { ok: true, data, usage };
   } catch (err) {
     logger.warn("gemini.rxreview.fetch", { error: String(err) });
     return { ok: false, detail: "Could not reach the AI service." };
@@ -310,8 +312,12 @@ export async function reviewPrescription(id: number, actor: Session, opts: { ref
   } else if (!geminiApiKey) {
     reason = "no-key";
     detail = "AI review is not configured (no GEMINI_API_KEY), so only the built-in allergy and duplicate checks ran.";
+  } else if ((await budgetState(actor.hospitalId, "rx_review")).exceeded) {
+    reason = "api-error";
+    detail = `${budgetMessage("rx_review", await budgetState(actor.hospitalId, "rx_review"))} Only the built-in allergy and duplicate checks ran.`;
   } else {
     const answer = await askModel(rx);
+    if (answer.usage) await recordFeatureUsage({ hospitalId: actor.hospitalId, feature: "rx_review", usage: answer.usage, userId: actor.userId, userName: actor.name });
     if (answer.ok) {
       summary = answer.data.summary;
       modelFindings = answer.data.findings;

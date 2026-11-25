@@ -17,6 +17,7 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Modal } from "@/components/shared/Modal";
 import { FormRow, FormInput } from "@/components/shared/FormRow";
 import type { AiUsageDTO, AiUsageUserDTO, AiUsageStatus } from "@/types/api";
+import { AiCostView } from "@/components/admin/AiCostView";
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 const compact = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));
@@ -36,6 +37,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "analytics", label: "Analytics" },
   { id: "access", label: "Access & limits" },
+  { id: "cost", label: "Cost & caps" },
 ];
 
 const USAGE_COLUMNS: Column[] = [
@@ -143,7 +145,7 @@ export function AiUsageView() {
         tabs={TABS}
         activeTab={tab}
         onTabChange={setTab}
-        trailing={
+        trailing={tab === "cost" ? undefined : (
           <div className="flex items-center gap-2">
             <select
               value={data.month}
@@ -157,15 +159,16 @@ export function AiUsageView() {
               <RefreshCw size={14} />
             </button>
           </div>
-        }
+        )}
       />
       <div className="p-4 sm:p-6 flex flex-col gap-5">
-        <p className="text-[12px] text-[color:var(--ink-soft)]">
+        {tab !== "cost" && <p className="text-[12px] text-[color:var(--ink-soft)]">
           Every question costs tokens. Each person has a monthly allowance that renews on {new Date(`${data.renewsOn}T12:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}.
-        </p>
+        </p>}
         {tab === "overview" && <Overview data={data} />}
         {tab === "analytics" && <Analytics data={data} />}
         {tab === "access" && <Access data={data} isCurrent={isCurrent} reload={reload} />}
+        {tab === "cost" && <AiCostView />}
       </div>
     </div>
   );
