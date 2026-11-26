@@ -181,6 +181,29 @@ export interface RxAiReviewDTO {
 }
 
 /** A diagnosis in one doctor's own list, kept for reuse. */
+/** A medicine a doctor has prescribed for a disease before, with the dose, pattern, timing and duration they used last. */
+export interface UsualMedicineDTO {
+  id: number;
+  diagnosis: string;
+  medicineId: number | null;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  instructions: string;
+  /** How many of the doctor's prescriptions have used it for this disease. */
+  useCount: number;
+  lastUsedAt: string;
+}
+
+/** The doctor's usual medicines for one disease that was asked about. */
+export interface UsualMedicinesGroupDTO {
+  /** The disease as asked (the name typed or on the patient's record). */
+  diagnosis: string;
+  items: UsualMedicineDTO[];
+}
+
 export interface SavedNoteDTO {
   id: number;
   kind: "remark" | "advice" | "timing";

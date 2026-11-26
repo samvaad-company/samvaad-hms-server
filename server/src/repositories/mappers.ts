@@ -14,6 +14,7 @@ import type {
   PrescriptionTemplateDTO,
   DoctorDiagnosisDTO,
   SavedNoteDTO,
+  UsualMedicineDTO,
   PatientDiagnosisDTO,
   PrescriptionTemplateItemDTO,
   PharmacyItemDTO,
@@ -155,6 +156,7 @@ import type {
   PrescriptionTemplateRow,
   DoctorDiagnosisRow,
   SavedNoteRow,
+  DoctorDiseaseMedicineRow,
   PatientDiagnosisRow,
 } from "@/db/tables";
 import type {
@@ -378,6 +380,13 @@ export function toPrescriptionDTO(
 
 export function toDoctorDiagnosisDTO(r: DoctorDiagnosisRow): DoctorDiagnosisDTO {
   return { id: r.id, doctorId: r.doctor_id, name: r.name, code: r.code ?? "", useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at ?? null, createdAt: r.created_at };
+}
+
+export function toUsualMedicineDTO(r: DoctorDiseaseMedicineRow): UsualMedicineDTO {
+  return {
+    id: r.id, diagnosis: r.diagnosis, medicineId: r.medicine_id, medicineName: r.medicine_name, dosage: r.dosage, frequency: r.frequency,
+    timing: r.timing, duration: r.duration, instructions: r.instructions, useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at,
+  };
 }
 
 export function toSavedNoteDTO(r: SavedNoteRow): SavedNoteDTO {

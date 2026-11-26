@@ -13,6 +13,7 @@ import {
 } from "@/repositories";
 import { createFollowUp } from "@/services/followups-service";
 import { recordPrescriptionDiagnoses } from "@/services/diagnoses-service";
+import { recordDiseaseMedicines } from "@/services/usual-medicines-service";
 import { toPrescriptionDTO } from "@/repositories/mappers";
 import { type QueryOptions } from "@/db/adapter";
 import { transactional } from "@/db/unit-of-work";
@@ -175,6 +176,12 @@ export async function createPrescription(input: unknown, actor: Session) {
     actor, patientId: data.patientId ?? null, doctorId: data.doctorId ?? null, doctorName, prescriptionId: header.id, rxNumber,
     primary: names(inputBody.primaryDiagnoses).length ? names(inputBody.primaryDiagnoses) : data.diagnosis.split(";"),
     secondary: names(inputBody.secondaryDiagnoses),
+  }).catch(() => null);
+  // What this doctor prescribed for each disease is remembered, so the next patient with it is offered the same medicines.
+  await recordDiseaseMedicines({
+    actor, doctorId: data.doctorId ?? null,
+    diagnoses: names(inputBody.primaryDiagnoses).length ? names(inputBody.primaryDiagnoses) : data.diagnosis.split(";"),
+    items: items.map((i) => ({ medicineId: i.medicine_id, medicineName: i.medicine_name, dosage: i.dosage, frequency: i.frequency, timing: i.timing ?? "", duration: i.duration, instructions: i.instructions ?? "" })),
   }).catch(() => null);
   // A follow-up date on the prescription also goes on the hospital's Follow-ups list, so the patient gets called.
   const followUpOn = (header.consultation as { followUp?: unknown } | null | undefined)?.followUp;

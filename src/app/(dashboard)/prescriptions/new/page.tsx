@@ -8,7 +8,7 @@ import { useMedicineMatches } from "@/lib/api/useMedicineSearch";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { useAuth } from "@/lib/auth-context";
-import type { PatientDTO, DoctorDTO, PrescriptionDTO, PrescriptionTemplateDTO, OpdVitalDTO } from "@/types/api";
+import type { PatientDTO, DoctorDTO, PrescriptionDTO, PrescriptionTemplateDTO, OpdVitalDTO, UsualMedicineDTO } from "@/types/api";
 import { formatDate } from "@/lib/dates";
 import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
@@ -20,6 +20,8 @@ import { DiagnosisPicker } from "@/components/consultation/DiagnosisPicker";
 import { emptyConsultation } from "@/lib/consultation/templates";
 import { PATTERN_PRESETS, remarksOf, toPattern } from "@/lib/prescriptions/remarks";
 import { TimingPicker } from "@/components/prescriptions/TimingPicker";
+import { PatientHistoryTags } from "@/components/prescriptions/PatientHistoryTags";
+import { UsualMedicines } from "@/components/prescriptions/UsualMedicines";
 import { PatternInput } from "@/components/prescriptions/PatternInput";
 import { TodayPatientPicker } from "@/components/prescriptions/TodayPatientPicker";
 import { LANGS, type Lang } from "@/lib/prescriptions/remarks";
@@ -159,6 +161,21 @@ export default function NewPrescriptionPage() {
   const removeRow = (id: number) => setRows(prev => prev.filter(r => r.id !== id));
   const updateRow = (id: number, field: keyof RxRow, value: string) =>
     setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+
+  /** The illnesses on this patient's record (from the history tags), so the doctor's usual medicines for them are offered too. */
+  const [knownDiseases, setKnownDiseases] = useState<string[]>([]);
+  useEffect(() => { if (!patientId) setKnownDiseases([]); }, [patientId]);
+  const askedDiseases = [...new Set([...diagnoses, ...secondary, ...knownDiseases].map(d => d.trim()).filter(Boolean))];
+  /** Fills the first empty medicine row (or a new one) with a medicine the doctor used before for the same illness. */
+  const useUsual = (m: UsualMedicineDTO) => {
+    const empty = rows.find(r => !r.medicine.trim());
+    const fields = { medicine: m.medicineName, dosage: m.dosage, frequency: toPattern(m.frequency) || "1-0-1", timing: m.timing, duration: m.duration || "5 days", instructions: m.instructions };
+    const id = empty ? empty.id : mkRow().id;
+    if (empty) setRows(prev => prev.map(r => r.id === empty.id ? { ...r, ...fields } : r));
+    else setRows(prev => [...prev, mkRow({ ...fields, id })]);
+    setMedSearch(prev => ({ ...prev, [id]: m.medicineName }));
+    setMedPicked(prev => ({ ...prev, [id]: true }));
+  };
 
   const applyTemplate = (t: PrescriptionTemplateDTO) => {
     setRows(t.items.map(it => mkRow({
@@ -338,6 +355,7 @@ export default function NewPrescriptionPage() {
             )}
           </div>
           {fillMsg && <p className="mt-3 rounded-[8px] bg-[color:var(--brand-soft)] px-3 py-2 text-[12px] text-[color:var(--ink)]">{fillMsg}</p>}
+          {patientId && <div className="mt-4"><PatientHistoryTags patient={patients.find(p => String(p.id) === patientId)} diagnosesToday={[...diagnoses, ...secondary]} medicinesToday={rows.filter(r => r.medicine.trim()).map(r => [r.medicine, r.dosage, toPattern(r.frequency), r.timing, r.duration].filter(Boolean).join(" "))} onDiseases={setKnownDiseases} /></div>}
         </div>
 
         <ConsultationForm
@@ -395,6 +413,7 @@ export default function NewPrescriptionPage() {
                 )}
               </div>
             </div>
+            <UsualMedicines doctorId={doctorId} diseases={askedDiseases} taken={rows.map(r => r.medicine)} onPick={useUsual} />
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Medicines ({rows.length})</h3>

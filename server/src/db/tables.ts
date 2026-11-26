@@ -114,6 +114,7 @@ export const TABLES = {
   doctorDiagnoses: "doctor_diagnoses",
   patientDiagnoses: "patient_diagnoses",
   savedNotes: "saved_notes",
+  doctorDiseaseMedicines: "doctor_disease_medicines",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
@@ -2049,6 +2050,32 @@ export interface DoctorDiagnosisRow extends Row {
   /** How many prescriptions have used it, so the ones used most come first. */
   use_count: number;
   last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * What a doctor prescribed for a disease: one row per doctor, disease and medicine, written every time they issue a prescription. The
+ * dose, pattern, timing and duration are the ones used last, and use_count is how many prescriptions have used it, so the next patient
+ * with the same disease can be offered the doctor's usual medicines.
+ */
+export interface DoctorDiseaseMedicineRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number;
+  /** The disease as written, and its lower-case key without the ICD code (what rows are matched on). */
+  diagnosis: string;
+  diagnosis_key: string;
+  medicine_id: number | null;
+  medicine_name: string;
+  medicine_key: string;
+  dosage: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  instructions: string;
+  use_count: number;
+  last_used_at: string;
   created_at: string;
   updated_at: string;
 }
