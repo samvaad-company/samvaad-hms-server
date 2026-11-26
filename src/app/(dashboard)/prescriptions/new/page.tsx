@@ -14,11 +14,12 @@ import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { Modal } from "@/components/shared/Modal";
 import Link from "next/link";
-import { Plus, Trash2, Pencil, Search, Zap, Loader2, Pill, Printer, Download, FileText } from "lucide-react";
+import { ChevronDown, Plus, Trash2, Pencil, Search, Zap, Loader2, Pill, Printer, Download, FileText } from "lucide-react";
 import { ConsultationForm, Section } from "@/components/consultation/ConsultationForm";
 import { DiagnosisPicker } from "@/components/consultation/DiagnosisPicker";
 import { emptyConsultation } from "@/lib/consultation/templates";
-import { PATTERN_PRESETS, TIMINGS, remarksOf, toPattern } from "@/lib/prescriptions/remarks";
+import { PATTERN_PRESETS, remarksOf, toPattern } from "@/lib/prescriptions/remarks";
+import { TimingPicker } from "@/components/prescriptions/TimingPicker";
 import { PatternInput } from "@/components/prescriptions/PatternInput";
 import { TodayPatientPicker } from "@/components/prescriptions/TodayPatientPicker";
 import { LANGS, type Lang } from "@/lib/prescriptions/remarks";
@@ -444,12 +445,13 @@ export default function NewPrescriptionPage() {
                           </div>
                           <input aria-label="Dose each time" value={row.dosage} onChange={e => updateRow(row.id, "dosage", e.target.value)} placeholder="1 tablet" className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                           <PatternInput value={row.frequency} onChange={(v) => updateRow(row.id, "frequency", v)} />
-                          <select aria-label="When" value={row.timing} onChange={e => updateRow(row.id, "timing", e.target.value)} className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
-                            {TIMINGS.map(t => <option key={t} value={t}>{t || "Any time"}</option>)}
-                          </select>
-                          <select aria-label="Duration" value={row.duration} onChange={e => updateRow(row.id, "duration", e.target.value)} className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
-                            {(DUR_OPTS.some(o => o.value === row.duration) ? DUR_OPTS : [{ value: row.duration, label: row.duration }, ...DUR_OPTS]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
+                          <TimingPicker value={row.timing} doctorId={doctorId} onChange={(v) => updateRow(row.id, "timing", v)} />
+                          <div className="relative">
+                            <select aria-label="Duration" value={row.duration} onChange={e => updateRow(row.id, "duration", e.target.value)} className="h-[36px] w-full appearance-none pr-7 bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
+                              {(DUR_OPTS.some(o => o.value === row.duration) ? DUR_OPTS : [{ value: row.duration, label: row.duration }, ...DUR_OPTS]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                            <ChevronDown size={14} className="pointer-events-none absolute right-2 top-[11px] text-[color:var(--ink-soft)]" />
+                          </div>
                           <input aria-label="Quantity" value={row.quantity} onChange={e => updateRow(row.id, "quantity", e.target.value)} placeholder={auto ? String(auto) : "Qty"}
                             onFocus={() => { if (!row.quantity && auto > 0) updateRow(row.id, "quantity", String(auto)); }} className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
                           <input aria-label="Special instruction" value={row.instructions} onChange={e => updateRow(row.id, "instructions", e.target.value)} placeholder="e.g. in a glass of water" className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />

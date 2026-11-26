@@ -9,8 +9,9 @@
 export type Lang = "English" | "Hindi" | "Gujarati";
 export const LANGS: Lang[] = ["English", "Hindi", "Gujarati"];
 
-export type Timing = "" | "Before Meal" | "After Meal" | "With Meal" | "Empty Stomach";
-export const TIMINGS: Timing[] = ["", "Before Meal", "After Meal", "With Meal", "Empty Stomach"];
+/** One of the usual four, or a doctor's own wording ("30 minutes before food"). */
+export type Timing = string;
+export const TIMINGS: string[] = ["", "Before Meal", "After Meal", "With Meal", "Empty Stomach"];
 
 /** Quick choices for the pattern box. */
 export const PATTERN_PRESETS: { value: string; label: string }[] = [
@@ -141,7 +142,8 @@ export function remarksOf(it: RemarkInput, lang: Lang = "English"): { line: stri
   if (on.length === 0) return { line: "", special };
   const meal = (it.timing ?? "").trim();
   const rel = meal === "Before Meal" ? W.rel.before : meal === "After Meal" ? W.rel.after : meal === "With Meal" ? W.rel.with : null;
-  const whenText = meal === "Empty Stomach" ? W.empty : rel ? list(on.map((x) => rel(slots[x.i])), W.and) : list(on.map((x) => when[x.i]), W.and);
+  const own = meal && !TIMINGS.includes(meal) ? meal : "";
+  const whenText = own ? own : meal === "Empty Stomach" ? W.empty : rel ? list(on.map((x) => rel(slots[x.i])), W.and) : list(on.map((x) => when[x.i]), W.and);
   const same = on.every((x) => x.n === on[0].n);
   const times = on.length === 1 ? "" : W.times[on.length] ?? W.more(on.length);
   if (same) {

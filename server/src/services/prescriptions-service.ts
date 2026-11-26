@@ -162,7 +162,7 @@ export async function createPrescription(input: unknown, actor: Session) {
       frequency: it.frequency ?? "",
       duration: it.duration ?? "",
       instructions: it.instructions ?? null,
-      timing: ["Before Meal", "After Meal", "With Meal", "Empty Stomach"].includes(String(it.timing)) ? String(it.timing) : "",
+      timing: String(it.timing ?? "").trim().replace(/\s+/g, " ").slice(0, 40), // the usual four, or the doctor's own wording
       quantity: String(it.quantity ?? "").trim().slice(0, 40),
     });
     items.push(created as PrescriptionItemRow);

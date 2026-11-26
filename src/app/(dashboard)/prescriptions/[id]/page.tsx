@@ -10,6 +10,7 @@ import { useItem, useMutation } from "@/lib/api/hooks";
 import { useAuth } from "@/lib/auth-context";
 import { printElement, downloadElement, shareDocument } from "@/lib/print";
 import { hospitalAddress, useHospital } from "@/components/shared/DocumentLetterhead";
+import { LetterheadFooter, LetterheadHeader, LetterheadWatermark, parseDesign } from "@/components/shared/LetterheadDesign";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { RowMenu, type RowAction } from "@/components/shared/RowMenu";
 import { ConsultationView, hasConsultation } from "@/components/consultation/ConsultationView";
@@ -63,7 +64,10 @@ const PrescriptionSheet = forwardRef<HTMLDivElement, { rx: PrescriptionDTO; hosp
   const head = headOf(k.brand);
   const full = mode === "full";
   // The hospital's own letterhead is used for the half-size prescription only; the full one keeps the standard layout.
-  const lh = !full && hospital.letterheadUrl ? hospital.letterheadUrl : null;
+  // One built from a logo and text wins over the picture when it is switched on.
+  const design = parseDesign(hospital.letterheadDesign);
+  const dz = !full && design.enabled ? design : null;
+  const lh = !full && !dz && hospital.letterheadUrl ? hospital.letterheadUrl : null;
   const c = rx.consultation && rx.consultation.vitals ? rx.consultation : null;
   const v = c?.vitals;
   const vitals = v ? [
@@ -92,8 +96,10 @@ const PrescriptionSheet = forwardRef<HTMLDivElement, { rx: PrescriptionDTO; hosp
     <div ref={ref} style={{ background: "#fff", color: k.ink, width: "100%", maxWidth: 980, aspectRatio: "210 / 297", margin: "0 auto", display: "flex", flexDirection: "column", position: "relative", boxShadow: `0 0 0 1px ${k.line}`, fontFamily: "Arial, Helvetica, sans-serif" }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {lh && <img src={lh} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill" }} />}
+      {dz && <LetterheadWatermark design={dz} />}
+      {dz && <LetterheadHeader design={dz} doctorName={doctorName} doctorLine={doctor?.specialty} />}
       {/* Letterhead: the hospital on the left, the doctor on the right */}
-      {!lh && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, padding: "18px 28px 12px", borderBottom: `2px solid ${k.brand}` }}>
+      {!lh && !dz && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, padding: "18px 28px 12px", borderBottom: `2px solid ${k.brand}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           {hospital.logoUrl && /* eslint-disable-next-line @next/next/no-img-element */ <img src={hospital.logoUrl} alt="" style={{ width: 54, height: 54, objectFit: "contain" }} />}
           <div>
@@ -107,7 +113,7 @@ const PrescriptionSheet = forwardRef<HTMLDivElement, { rx: PrescriptionDTO; hosp
           {doctor?.phone && <p style={{ fontSize: 10.5, margin: 0 }}>{doctor.phone}</p>}
         </div>
       </div>}
-      {!lh && <div style={{ background: k.soft, height: 30, lineHeight: "30px", padding: "0 28px", fontSize: 11, textAlign: "center", color: k.ink, borderBottom: `1px solid ${k.line}` }}>
+      {!lh && !dz && <div style={{ background: k.soft, height: 30, lineHeight: "30px", padding: "0 28px", fontSize: 11, textAlign: "center", color: k.ink, borderBottom: `1px solid ${k.line}` }}>
         {[hospital.phone && `Contact: ${hospital.phone}`, hospital.email].filter(Boolean).join("   |   ")}
       </div>}
 
@@ -166,10 +172,11 @@ const PrescriptionSheet = forwardRef<HTMLDivElement, { rx: PrescriptionDTO; hosp
         </div>
         <p style={{ margin: "4px 0 0", fontSize: 9, color: "#444" }}>PRESCRIPTION AUTHORIZED BY {doctorName.toUpperCase()} ON {dateText}   (THIS IS A COMPUTER GENERATED REPORT. SIGNATURE IS NOT REQUIRED.)</p>
       </div>
-      {!lh && <div style={{ borderTop: `1px solid ${k.line}`, padding: "8px 28px", fontSize: 9.5, color: k.inkSoft }}>
+      {!lh && !dz && <div style={{ borderTop: `1px solid ${k.line}`, padding: "8px 28px", fontSize: 9.5, color: k.inkSoft }}>
         • Inform about any allergies.  • Take prescribed medicines only for prescribed duration.  • Bring this paper in every visit.  • Inform about all past and family history &amp; habits.
       </div>}
-      {!lh && <div style={{ background: k.brand, color: "#fff", textAlign: "center", height: 30, lineHeight: "30px", padding: "0 28px", fontSize: 10.5 }}>
+      {dz && <LetterheadFooter design={dz} />}
+      {!lh && !dz && <div style={{ background: k.brand, color: "#fff", textAlign: "center", height: 30, lineHeight: "30px", padding: "0 28px", fontSize: 10.5 }}>
         <b>{hospital.name}</b>{address ? ` · ${address}` : ""}{hospital.phone ? ` · Call for appointment: ${hospital.phone}` : ""}
       </div>}
       </div>

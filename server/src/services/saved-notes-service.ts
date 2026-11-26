@@ -1,7 +1,7 @@
 /**
  * Notes a doctor keeps to use again.
  *
- * A "remark" belongs to the doctor (their own list, found again by typing a few letters). "Advice" is kept for one patient, so it is
+ * A "remark" and a "timing" (their own wording for when to take a medicine) belong to the doctor (their own list, found again by typing a few letters). "Advice" is kept for one patient, so it is
  * there to pick the next time that patient is seen.
  */
 import { savedNotesRepo, doctorsRepo, patientsRepo } from "@/repositories";
@@ -39,16 +39,16 @@ export async function listSavedNotes(actor: Session, opts: { kind: string; docto
   if (actor.doctorId == null && opts.doctorId == null) return [];
   const doctorId = await doctorOf(actor, opts.doctorId);
   const rows = await rowsOf([{ column: "doctor_id", op: "eq", value: doctorId }], actor);
-  return rows.filter((r) => r.kind === "remark" && (!q || key(r.text).includes(q)))
+  return rows.filter((r) => r.kind === (opts.kind === "timing" ? "timing" : "remark") && (!q || key(r.text).includes(q)))
     .sort((a, b) => (b.use_count ?? 0) - (a.use_count ?? 0) || b.id - a.id).slice(0, opts.limit ?? 50).map(toSavedNoteDTO);
 }
 
 /** Keeps a remark (doctor's list) or advice (for a patient); the same words again are not repeated, they count as used. */
 export async function addSavedNote(input: unknown, actor: Session) {
   const body = (input ?? {}) as { kind?: unknown; text?: unknown; doctorId?: unknown; patientId?: unknown; used?: unknown };
-  const kind = body.kind === "advice" ? "advice" : "remark";
-  const text = clean(body.text);
-  if (text.length < 2) throw new BadRequestError(kind === "advice" ? "Type the advice first" : "Type the remark first");
+  const kind = body.kind === "advice" ? "advice" : body.kind === "timing" ? "timing" : "remark";
+  const text = kind === "timing" ? clean(body.text).slice(0, 40) : clean(body.text);
+  if (text.length < 2) throw new BadRequestError(kind === "advice" ? "Type the advice first" : kind === "timing" ? "Type when to take it first" : "Type the remark first");
   const hospitalId = requireHospitalId(actor);
   let doctorId: number | null = null;
   let patientId: number | null = null;
@@ -73,6 +73,6 @@ export async function addSavedNote(input: unknown, actor: Session) {
 export async function deleteSavedNote(id: number, actor: Session) {
   const row = await savedNotesRepo.getRow(id);
   assertOwnedByHospital(row, actor, "Note");
-  if (row.kind === "remark" && actor.doctorId != null && row.doctor_id !== actor.doctorId) throw new ForbiddenError("You can only remove your own remarks");
+  if ((row.kind === "remark" || row.kind === "timing") && actor.doctorId != null && row.doctor_id !== actor.doctorId) throw new ForbiddenError("You can only remove your own remarks");
   await savedNotesRepo.remove(id);
 }

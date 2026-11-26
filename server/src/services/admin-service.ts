@@ -56,6 +56,7 @@ export async function getSettings(actor: Session) {
     letterheadUrl: row.letterhead_url ?? null,
     letterheadTopMm: row.letterhead_top_mm ?? 45,
     letterheadBottomMm: row.letterhead_bottom_mm ?? 25,
+    letterheadDesign: row.letterhead_design ?? null,
   };
 }
 
@@ -80,6 +81,7 @@ const settingsSchema = {
   teleconsultMeetAccess: { type: "enum", required: false, values: ["OPEN", "TRUSTED", "RESTRICTED"] },
   themeColor: { type: "enum", required: false, values: THEME_KEYS },
   letterheadUrl: { type: "string", required: false, max: 3_500_000, pattern: /^data:image\/(png|jpeg|webp);base64,/ },
+  letterheadDesign: { type: "string", required: false, max: 1_000_000 },
   letterheadTopMm: { type: "number", required: false, min: 0, max: 120 },
   letterheadBottomMm: { type: "number", required: false, min: 0, max: 120 },
 } as const;
@@ -107,6 +109,7 @@ export async function updateSettings(input: unknown, actor: Session) {
     teleconsultMeetAccess: "teleconsult_meet_access",
     themeColor: "theme_color",
     letterheadUrl: "letterhead_url",
+    letterheadDesign: "letterhead_design",
     letterheadTopMm: "letterhead_top_mm",
     letterheadBottomMm: "letterhead_bottom_mm",
   };
@@ -116,6 +119,7 @@ export async function updateSettings(input: unknown, actor: Session) {
   }
   // An empty letterhead removes it (the validator treats empty text as "not sent").
   if ((input as { letterheadUrl?: unknown }).letterheadUrl === "") patch.letterhead_url = null;
+  if ((input as { letterheadDesign?: unknown }).letterheadDesign === "") patch.letterhead_design = null;
   if ((input as { workingHours?: unknown }).workingHours) {
     patch.working_hours = (input as { workingHours: unknown }).workingHours;
   }

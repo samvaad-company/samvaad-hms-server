@@ -22,7 +22,7 @@ interface HospitalSettings {
   address: string; city: string; state: string; pincode: string;
   phone: string; mobile: string; email: string; website: string;
   themeColor: string;
-  letterheadUrl?: string | null; letterheadTopMm?: number; letterheadBottomMm?: number;
+  letterheadUrl?: string | null; letterheadTopMm?: number; letterheadBottomMm?: number; letterheadDesign?: string | null;
 }
 
 const TABS = ["Profile & branding", "Billing", "Notifications", "Security", "Appearance", "Protocols"] as const;
@@ -92,7 +92,7 @@ function ThemePicker({ current, canEdit, onChanged }: { current: string; canEdit
   );
 }
 
-const PROFILE_FIELDS: { key: Exclude<keyof HospitalSettings, "letterheadUrl" | "letterheadTopMm" | "letterheadBottomMm">; label: string; span?: boolean }[] = [
+const PROFILE_FIELDS: { key: Exclude<keyof HospitalSettings, "letterheadUrl" | "letterheadTopMm" | "letterheadBottomMm" | "letterheadDesign">; label: string; span?: boolean }[] = [
   { key: "name", label: "Clinic name", span: true },
   { key: "regNumber", label: "Registration no." },
   { key: "gstNumber", label: "GST no." },
@@ -186,7 +186,7 @@ export default function SettingsPage() {
             </Card>
 
             <Card eyebrow="Documents">
-              <LetterheadCard key={`${settings.letterheadTopMm}-${settings.letterheadBottomMm}`} url={settings.letterheadUrl ?? null} topMm={settings.letterheadTopMm ?? 45} bottomMm={settings.letterheadBottomMm ?? 25} canEdit={canEdit} onChanged={reload} />
+              <LetterheadCard key={`${settings.letterheadTopMm}-${settings.letterheadBottomMm}`} url={settings.letterheadUrl ?? null} topMm={settings.letterheadTopMm ?? 45} bottomMm={settings.letterheadBottomMm ?? 25} design={settings.letterheadDesign ?? null} hospitalName={settings.name} canEdit={canEdit} onChanged={reload} />
             </Card>
 
             <div className="flex items-center justify-between mt-2">

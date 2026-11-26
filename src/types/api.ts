@@ -183,7 +183,7 @@ export interface RxAiReviewDTO {
 /** A diagnosis in one doctor's own list, kept for reuse. */
 export interface SavedNoteDTO {
   id: number;
-  kind: "remark" | "advice";
+  kind: "remark" | "advice" | "timing";
   doctorId: number | null;
   patientId: number | null;
   text: string;

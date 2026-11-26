@@ -953,6 +953,8 @@ export interface HospitalRow extends Row {
   letterhead_url?: string | null;
   letterhead_top_mm?: number | null;
   letterhead_bottom_mm?: number | null;
+  /** A letterhead built from a logo and text (JSON: logo, name, doctor lines, footer lines, colour); used instead of the picture when enabled. */
+  letterhead_design?: string | null;
   updated_at: string;
 }
 
@@ -2058,7 +2060,8 @@ export interface SavedNoteRow extends Row {
   doctor_id: number | null;
   /** Set for advice kept for a patient; null for a doctor's own remark. */
   patient_id: number | null;
-  kind: "remark" | "advice";
+  /** "timing" is a doctor's own wording for when to take a medicine ("30 minutes before food"). */
+  kind: "remark" | "advice" | "timing";
   text: string;
   use_count: number;
   created_at: string;
