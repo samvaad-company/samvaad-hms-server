@@ -91,7 +91,7 @@ export async function botAiAllowed(hospitalId: number, phone: string): Promise<{
   const cap = Math.max(0, num(cfg.botRepliesPerNumberPerDay, 20));
   if (cap > 0) {
     const today = localDate();
-    const used = (await rowsOf(hospitalId, "whatsapp_bot", month())).filter((r) => r.ref === phone && String(r.created_at).slice(0, 10) === today).length;
+    const used = (await rowsOf(hospitalId, "whatsapp_bot", month())).filter((r) => r.ref === phone && localDate(new Date(r.created_at)) === today).length;
     if (used >= cap) return { ok: false, why: "daily" };
   }
   return { ok: true };

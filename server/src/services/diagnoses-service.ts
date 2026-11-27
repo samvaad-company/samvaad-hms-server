@@ -10,6 +10,7 @@ import { toDoctorDiagnosisDTO, toPatientDiagnosisDTO } from "@/repositories/mapp
 import { type DoctorDiagnosisRow, type PatientDiagnosisRow } from "@/db/tables";
 import { BadRequestError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { audit } from "@/services/audit";
+import { localDate } from "@/lib/clock";
 import { type Session } from "@/auth/session";
 import { assertOwnedByHospital, requireHospitalId, scopeToHospital } from "@/services/hospital-scope";
 
@@ -118,7 +119,7 @@ export async function recordPrescriptionDiagnoses(args: {
         }
         await patientDiagnosesRepo.create({
           hospital_id: hospitalId, patient_id: patientId!, doctor_id: doctorId, doctor: doctorName, diagnosis_id: entry?.id ?? null, name, kind,
-          prescription_id: prescriptionId, rx_number: rxNumber, recorded_on: new Date().toISOString().slice(0, 10),
+          prescription_id: prescriptionId, rx_number: rxNumber, recorded_on: localDate(),
         });
       }
     }
@@ -146,7 +147,7 @@ export async function savePatientDiagnoses(patientId: number, input: unknown, ac
   const hospitalId = requireHospitalId(actor);
   const library = await mine(doctorId, actor);
   const rows = await patientRowsOf(patientId, actor);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   const seen = new Set<string>();
   for (const raw of names) {
     const { name } = splitCode(raw);
