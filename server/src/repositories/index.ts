@@ -137,6 +137,7 @@ import type {
   PatientDiagnosisRow,
   SavedNoteRow,
   DoctorDiseaseMedicineRow,
+  PatientUpdateRequestRow,
   TeleconsultBookingRow,
   GoogleConnectionRow,
   TeleconsultPaymentRow,
@@ -462,6 +463,7 @@ export const doctorDiseaseMedicinesRepo = createRepository<
   DoctorDiseaseMedicineRow,
   ReturnType<typeof toUsualMedicineDTO>
 >(TABLES.doctorDiseaseMedicines, toUsualMedicineDTO);
+export const patientUpdateRequestsRepo = createRepository<PatientUpdateRequestRow, PatientUpdateRequestRow>(TABLES.patientUpdateRequests, (r) => r);
 export const savedNotesRepo = createRepository<
   SavedNoteRow,
   ReturnType<typeof toSavedNoteDTO>

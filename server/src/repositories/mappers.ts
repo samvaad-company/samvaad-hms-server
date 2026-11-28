@@ -1246,6 +1246,10 @@ export function toDocumentDTO(r: DocumentRow): DocumentDTO {
     mimeType: r.mime_type,
     sizeBytes: r.size_bytes,
     uploadedBy: r.uploaded_by,
+    visibleToPatient: r.visible_to_patient === true,
+    source: r.source === "patient" ? "patient" : "hospital",
+    reviewStatus: r.review_status ?? "approved",
+    rejectionReason: r.rejection_reason ?? "",
     createdAt: r.created_at,
     url: `/api/documents/${r.id}/download`,
   };

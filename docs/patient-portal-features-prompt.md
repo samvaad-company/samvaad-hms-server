@@ -11,6 +11,66 @@
 
 ---
 
+## Connecting the portal to the production HMS
+
+The portal does not have a separate "portal id" or user name on the HMS. It proves itself with **one shared secret**, and says which patient it is acting for on every call.
+
+| Setting (portal **server** env) | Value |
+|---|---|
+| `HMS_API_BASE_URL` | `https://hmsapi.samvaadai.com` (the hosted HMS API server; local development is `http://localhost:4000`). Do **not** point the portal at the website's own `/api` proxy, use the API server directly. |
+| `PORTAL_API_KEY` | The portal key. It must be the **exact same value** as `PORTAL_API_KEY` in the HMS API server's environment on production. **It is not written in this file or in git on purpose.** |
+| Header on every call | `x-portal-key: <PORTAL_API_KEY>` |
+| Patient | `patientId=<the HMS patient id>` in the query string (GET) or JSON body (POST), taken from the portal's own login, never from the browser |
+
+**Getting the production key.** Whoever runs the HMS production server creates it once and sets it on both sides:
+
+```bash
+openssl rand -hex 32        # or: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+1. Put the value in the **HMS API server** environment on the production host as `PORTAL_API_KEY` and restart it. Until it is set, every `/api/portal/*` call answers `503`.
+2. Put the same value in the **portal server** environment as `PORTAL_API_KEY`. Hand it over through the host's secret store or a password manager, **never** in chat, git, a ticket, the browser, or the mobile app bundle.
+3. Rotate it by changing both sides together (a wrong key is `401`).
+
+**Check the connection** (replace the values; run from the portal's server, not a laptop on public Wi-Fi):
+
+```bash
+curl -s https://hmsapi.samvaadai.com/api/health                       # no key needed: {"data":{…}}
+curl -s -o /dev/null -w "%{http_code}\n" https://hmsapi.samvaadai.com/api/portal/notifications?patientId=1   # expect 401 without the key
+curl -s -H "x-portal-key: $PORTAL_API_KEY" "https://hmsapi.samvaadai.com/api/portal/notifications?patientId=<a real patient id>"   # expect 200
+```
+
+`401` = wrong or missing key, `503` = the production HMS has no `PORTAL_API_KEY` set, `404` on a real route = the patient id is not found. The portal must map each of its users to the HMS patient id of **that hospital's** patient record (a person at two hospitals has two ids). Only use a production patient id for a real, verified patient: never test against real patients' records with made-up ids or bulk calls.
+
+## API index (everything the portal uses)
+
+`{HMS}` = `HMS_API_BASE_URL`. All calls need `x-portal-key` and return `{ "data": … }` or `{ "error": { "code", "message" } }`. **Exists** = already live on the HMS; **Build (Part A)** = to be added by Part A below.
+
+| Area | Call | Status |
+|---|---|---|
+| Doctors | `GET {HMS}/api/portal/teleconsult/doctors?patientId=` (video doctors) | Exists |
+| Doctors | `GET {HMS}/api/portal/doctors?patientId=&mode=in_person\|video` | Build (A1.1) |
+| Availability | `GET {HMS}/api/portal/appointments/slots?doctorId=&date=&mode=[&excludeAppointmentId=]` (times for one day) | Exists |
+| Availability | `GET {HMS}/api/portal/doctors/{id}/availability?patientId=&mode=&from=&days=` (date strip) | Build (A1.2) |
+| Appointments | `POST {HMS}/api/portal/appointments` (book in person) | Exists |
+| Appointments | `GET {HMS}/api/portal/appointments?patientId=&scope=` (list) | Build (A1.3) |
+| Appointments | `GET {HMS}/api/portal/appointments/{id}?patientId=` (one) | Exists |
+| Appointments | `POST {HMS}/api/portal/appointments/{id}/reschedule` | Exists |
+| Appointments | `POST {HMS}/api/portal/appointments/{id}/cancel` | Build (A1.4) |
+| Video | `GET {HMS}/api/portal/teleconsult/config`, `POST …/teleconsult/bookings`, `POST …/bookings/{id}/verify`, `GET …/bookings/{id}`, `GET …/teleconsult/consultations?patientId=`, `GET …/consultations/{id}` | Exists |
+| Prescriptions | `GET {HMS}/api/portal/prescriptions?patientId=`, `GET …/prescriptions/{id}?patientId=[&lang=]` (half prescription data) | Build (A2) |
+| Reports | `GET {HMS}/api/portal/records?patientId=&kind=`, `GET …/records/{id}/download?patientId=[&inline=1]` | Build (A3) |
+| Uploads | `POST {HMS}/api/portal/documents` (multipart), `DELETE …/documents/{id}?patientId=` | Build (A4.1–A4.2) |
+| My details | `GET {HMS}/api/portal/profile?patientId=`, `POST …/profile/update-request`, `GET …/profile/update-requests?patientId=` | Build (A4.3) |
+| Bills | `GET {HMS}/api/portal/bills?patientId=&status=`, `GET …/bills/{id}?patientId=` | Build (A5.1–A5.2) |
+| Pay a bill online | `POST …/bills/{id}/pay-order`, `POST …/bills/{id}/verify` | Phase 2 only (A5.3) |
+| Updates | `GET {HMS}/api/portal/updates?patientId=&since=`, `GET …/notifications?patientId=`, `POST …/notifications/read` | Build (A6) + Exists |
+| Awareness | `GET {HMS}/api/portal/awareness`, `GET …/awareness/{id}` | Exists |
+
+**Update:** every "Build" row except A5.3 (online bill payment, deliberately not built) is now implemented in the HMS code with tests (`npm run test:portal`). On production they return `404` until the HMS server is deployed, so deploy before the portal release that uses them. Not built on purpose: A2.3 (server PDF; the portal draws the PDF from the prescription data) and A5.3.
+
+---
+
 ## 0. What we want, in one page
 
 A patient who logs in to the portal can:

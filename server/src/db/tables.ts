@@ -115,6 +115,7 @@ export const TABLES = {
   patientDiagnoses: "patient_diagnoses",
   savedNotes: "saved_notes",
   doctorDiseaseMedicines: "doctor_disease_medicines",
+  patientUpdateRequests: "patient_update_requests",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
@@ -1567,6 +1568,8 @@ export interface AwarenessReadRow extends Row {
   hospital_id: number;
   patient_id: number;
   event_id: number;
+  /** Patient portal updates feed: the text id of an item that is not an awareness programme ("rx-7", "bill-311"); event_id is 0 for these. */
+  key?: string | null;
   read_at: string;
 }
 
@@ -2015,6 +2018,14 @@ export interface DocumentRow extends Row {
   retention_note?: string | null;
   reviewed_by?: string | null;
   reviewed_at?: string | null;
+  /** Patient portal: whether the patient may see this file (staff files are hidden until someone shares them), where it came from, and
+   *  for a patient's own upload whether staff have accepted it. */
+  visible_to_patient?: boolean | null;
+  source?: "hospital" | "patient" | null;
+  review_status?: "pending" | "approved" | "rejected" | null;
+  rejection_reason?: string | null;
+  /** The patient's own note sent with an upload. */
+  upload_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2050,6 +2061,26 @@ export interface DoctorDiagnosisRow extends Row {
   /** How many prescriptions have used it, so the ones used most come first. */
   use_count: number;
   last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A change to their own details that a patient asked for in the patient portal. Nothing is written to the patient's record until front-desk
+ * staff apply it: `previous` and `changes` keep both sides so the staff see exactly what would change.
+ */
+export interface PatientUpdateRequestRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  /** The new values, keyed as the portal sent them (phone, email, address, city, state, pincode, emergencyName, …). */
+  changes: Record<string, unknown>;
+  previous: Record<string, unknown>;
+  status: "pending" | "applied" | "rejected";
+  via: string;
+  decision_note: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
   created_at: string;
   updated_at: string;
 }

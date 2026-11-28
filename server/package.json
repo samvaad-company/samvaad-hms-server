@@ -21,6 +21,7 @@
     "test:bedside": "tsx scripts/test-bedside.ts",
     "test:ai-budget": "tsx scripts/test-ai-budget.ts",
     "test:usual-medicines": "tsx scripts/test-usual-medicines.ts",
+    "test:portal": "tsx scripts/test-portal.ts",
     "test:ot": "tsx scripts/test-ot.ts",
     "test:labpriority": "tsx scripts/test-lab-priority.ts",
     "test:bloodbank": "tsx scripts/test-bloodbank.ts",

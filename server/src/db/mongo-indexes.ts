@@ -147,6 +147,7 @@ const SECONDARY: Record<string, string[]> = {
   [TABLES.patientDiagnoses]: ["hospital_id", "patient_id", "doctor_id"],
   [TABLES.savedNotes]: ["hospital_id", "doctor_id", "patient_id", "kind"],
   [TABLES.doctorDiseaseMedicines]: ["hospital_id", "doctor_id", "diagnosis_key"],
+  [TABLES.patientUpdateRequests]: ["hospital_id", "patient_id", "status"],
   [TABLES.teleconsultBookings]: ["hospital_id", "patient_id", "doctor_id", "status", "gateway_order_id", "appointment_date"],
   [TABLES.googleConnections]: ["hospital_id"],
   [TABLES.teleconsultPayments]: ["hospital_id", "booking_id", "appointment_id", "patient_id", "order_id", "status"],

@@ -1687,6 +1687,11 @@ export interface DocumentDTO {
   mimeType: string;
   sizeBytes: number;
   uploadedBy: string;
+  /** Patient portal: shown to the patient, where it came from, and (for a patient's own upload) whether staff accepted it. */
+  visibleToPatient?: boolean;
+  source?: "hospital" | "patient";
+  reviewStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   createdAt: string;
   /** Ready-to-use download URL. */
   url: string;
