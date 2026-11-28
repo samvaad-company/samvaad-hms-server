@@ -828,9 +828,15 @@ export async function listPayments(actor: Session) {
  */
 export async function cancelConsult(id: number, input: unknown, actor: Session) {
   const appt = await loadOwnConsult(id, actor);
+  const wantRefund = (input as { refund?: unknown } | null)?.refund !== false;
+  return cancelConsultAppointment(appt, wantRefund, actor);
+}
+
+/** The cancel itself, shared by staff (actor) and the patient portal (actor null): the refund rules are the same for both. */
+export async function cancelConsultAppointment(appt: AppointmentRow, wantRefund: boolean, actor: Session | null) {
   if (appt.status === "Cancelled") throw new ConflictError("This consultation is already cancelled");
   if (appt.status === "Completed") throw new ConflictError("A completed consultation can't be cancelled");
-  const wantRefund = (input as { refund?: unknown } | null)?.refund !== false;
+  const id = appt.id;
 
   const booking = appt.booking_id ? await teleconsultBookingsRepo.getRow(appt.booking_id) : null;
   let refund: { done: boolean; reference: string; manual: boolean } = { done: false, reference: "", manual: false };
@@ -853,7 +859,7 @@ export async function cancelConsult(id: number, input: unknown, actor: Session) 
 
   if (booking) await teleconsultBookingsRepo.update(booking.id, { status: "cancelled" });
   const row = await appointmentsRepo.update(appt.id, { status: "Cancelled", payment_status: refund.done ? "Refunded" : appt.payment_status });
-  await audit(actor, "cancel", "teleconsult", id, { refunded: refund.done, reference: refund.reference });
+  await audit(actor, "cancel", "teleconsult", id, { refunded: refund.done, reference: refund.reference, ...(actor ? {} : { via: "patient-portal" }) });
   return { appointment: toAppointmentDTO(row as AppointmentRow), refund };
 }
 

@@ -149,6 +149,9 @@ const editSchema = {
   referenceNo: { type: "string", required: false, max: 60 },
   category: { type: "string", required: false, max: 60 },
   folderId: { type: "number", required: false, min: 1 },
+  visibleToPatient: { type: "boolean", required: false },
+  reviewStatus: { type: "enum", required: false, values: ["approved", "rejected"] },
+  rejectionReason: { type: "string", required: false, max: 200 },
 } as const;
 
 /** Rename a document, change its folder or category, or set its reference number. `folderId: null` takes it out of a folder. */
@@ -160,6 +163,16 @@ export async function updateDocument(id: number, input: unknown, actor: Session)
   if ("title" in data) patch.title = String(data.title ?? "").trim() || null;
   if ("referenceNo" in data) patch.reference_no = String(data.referenceNo ?? "").trim() || null;
   if ("category" in data && String(data.category ?? "").trim()) patch.category = String(data.category).trim();
+  // Patient portal: staff share a file with the patient, and accept or reject a file the patient sent.
+  if ("visibleToPatient" in data) patch.visible_to_patient = data.visibleToPatient === true;
+  if ("reviewStatus" in data) {
+    if (row.source !== "patient") throw new BadRequestError("Only a file sent by the patient can be accepted or rejected");
+    if (data.reviewStatus === "rejected" && !String(data.rejectionReason ?? "").trim()) throw new BadRequestError("Say why it is not accepted — the patient will see this");
+    patch.review_status = data.reviewStatus;
+    patch.rejection_reason = data.reviewStatus === "rejected" ? String(data.rejectionReason).trim() : null;
+    patch.reviewed_by = actor.name;
+    patch.reviewed_at = new Date().toISOString();
+  }
   if ("folderId" in body) {
     if (body.folderId == null || body.folderId === "") patch.folder_id = null;
     else {

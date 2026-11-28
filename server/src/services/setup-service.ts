@@ -13,7 +13,7 @@ import { type Session } from "@/auth/session";
 import { scopeToHospital, assertOwnedByHospital, requireHospitalId } from "@/services/hospital-scope";
 import { REGISTRY, hasCode, type Field, type KindDef } from "@/services/setup-registry";
 import { isPartyKind, partyInUse, renameParty } from "@/services/pharmacy-parties-service";
-import { seedSetupDefaults, defaultConfig, ID_FORMAT_DEFAULTS, BED_CHARGE_CLASS } from "@/services/setup-defaults";
+import { seedSetupDefaults, seedChiefComplaints, seedInvestigations, defaultConfig, ID_FORMAT_DEFAULTS, BED_CHARGE_CLASS } from "@/services/setup-defaults";
 import { CONFIG_KEYS, RATE_SCOPES, SETUP_KINDS, maskProblem, type ConfigKey, type RateScope, type SetupKind, type SetupRecordDTO } from "@shared/types/setup";
 
 export const isKind = (k: string): k is SetupKind => (SETUP_KINDS as readonly string[]).includes(k);
@@ -22,7 +22,7 @@ export const isConfigKey = (k: string): k is ConfigKey => (CONFIG_KEYS as readon
 /** Masters other screens pick from (patient registration, billing…): any signed-in user may read them. */
 export const PUBLIC_READ = new Set<SetupKind>([
   "service_group", "service", "patient_category", "visit_purpose", "arrival_status", "income_group", "specialty", "ward_class",
-  "consulting_room", "facility_area", "collection_center", "payer_class", "payment_mode", "referral_source", "org_unit", "manufacturer", "supplier",
+  "consulting_room", "facility_area", "collection_center", "payer_class", "payment_mode", "referral_source", "org_unit", "manufacturer", "supplier", "chief_complaint", "investigation",
 ]);
 
 const toDto = (r: SetupRecordRow): SetupRecordDTO => ({
@@ -43,6 +43,8 @@ function ensureDefaults(actor: Session): Promise<void> {
     if (existing.total > 0) return syncSeededDefaults(hospitalId, actor);
     const hospital = await hospitalsRepo.getRow(hospitalId);
     await seedSetupDefaults(hospitalId, hospital, async (row) => (await setupRecordsRepo.create(row as never)) as SetupRecordRow);
+    await seedChiefComplaints(hospitalId, async (row) => (await setupRecordsRepo.create(row as never)) as SetupRecordRow);
+    await seedInvestigations(hospitalId, async (row) => (await setupRecordsRepo.create(row as never)) as SetupRecordRow);
   });
 }
 
@@ -67,6 +69,9 @@ async function syncSeededDefaults(hospitalId: number, actor: Session): Promise<v
     const cls = BED_CHARGE_CLASS[row.code ?? ""] && classes.find((c) => c.code === BED_CHARGE_CLASS[row.code ?? ""]);
     if (cls && !("wardClassId" in data)) await setupRecordsRepo.update(row.id, { data: { ...data, wardClassId: cls.id } } as never);
   }
+  // Hospitals set up before chief complaints existed get the standard few once, then change them freely.
+  if ((await allOfKind("chief_complaint", actor)).length === 0) await seedChiefComplaints(hospitalId, async (row) => (await setupRecordsRepo.create(row as never)) as SetupRecordRow);
+  if ((await allOfKind("investigation", actor)).length === 0) await seedInvestigations(hospitalId, async (row) => (await setupRecordsRepo.create(row as never)) as SetupRecordRow);
   defaultsSynced.add(hospitalId);
 }
 
@@ -230,6 +235,25 @@ function parseLists(kind: SetupKind, body: Record<string, unknown>, data: Record
     }
     const assigned = list("assignedDepartments", 100);
     if (assigned) data.assignedDepartments = assigned.map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  }
+  if (kind === "chief_complaint") {
+    const questions = list("questions", 15);
+    if (questions) {
+      const kinds = ["single", "multi", "duration", "text"];
+      data.questions = questions.map((raw, i) => {
+        const q = isRecord(raw) ? raw : {};
+        const title = typeof q.title === "string" ? q.title.trim().slice(0, 80) : "";
+        if (!title) errors.push({ field: `questions[${i}]`, message: "every question needs a title" });
+        const kind = kinds.includes(String(q.kind)) ? String(q.kind) : "single";
+        const options = (Array.isArray(q.options) ? q.options : []).map((o) => {
+          const r: Record<string, unknown> = isRecord(o) ? o : { label: o };
+          const label = typeof r.label === "string" ? r.label.trim().slice(0, 60) : "";
+          return { label, text: typeof r.text === "string" ? r.text.trim().slice(0, 120) : label.toLowerCase() };
+        }).filter((o) => o.label).slice(0, 20);
+        if ((kind === "single" || kind === "multi") && options.length < 2) errors.push({ field: `questions[${i}]`, message: `"${title || "A question"}" needs at least two choices` });
+        return { id: typeof q.id === "string" && q.id ? q.id.slice(0, 20) : `q${i + 1}`, title, kind, optional: q.optional === true, options: kind === "single" || kind === "multi" ? options : [] };
+      });
+    }
   }
   if (kind === "protocol") {
     const steps = list("steps", 50);

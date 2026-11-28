@@ -33,7 +33,7 @@ import { scopeToHospital, assertOwnedByHospital } from "@/services/hospital-scop
 import { enrichLab } from "@/services/lab-service";
 import { enrichRadiology } from "@/services/radiology-service";
 import { assertMasterId, canonicalMaster } from "@/services/setup-service";
-import { PROFILE_COLUMNS, profileSchema, parsePayers, parseCovid, type Payer } from "@/services/patient-profile";
+import { PROFILE_COLUMNS, profileSchema, parsePayers, parseCovid, parseHistory, type Payer } from "@/services/patient-profile";
 import { toStoredDocuments } from "@/lib/identity-documents";
 import { ConflictError } from "@/lib/errors";
 import { nextNumber } from "@/services/id-service";
@@ -270,6 +270,7 @@ export async function createPatient(input: unknown, actor: Session) {
     payers,
     identity_documents: identityDocuments,
     covid_details: covid,
+    history_items: parseHistory(body.history),
   });
 
   await audit(actor, "create", "patient", row.id, { code });
@@ -318,6 +319,7 @@ export async function updatePatient(id: number, input: unknown, actor: Session) 
     patch.payers = payers;
   }
   if ("covid" in body) patch.covid_details = parseCovid(body.covid);
+  if ("history" in body) patch.history_items = parseHistory(body.history);
   if ("identityDocuments" in body) {
     // Adding documents never drops the ones already on file.
     const added = toStoredDocuments(body.identityDocuments);

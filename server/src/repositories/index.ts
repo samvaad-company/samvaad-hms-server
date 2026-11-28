@@ -6,6 +6,7 @@ import { TABLES } from "@/db/tables";
 import type {
   PatientRow,
   AiTokenUsageRow,
+  AiFeatureUsageRow,
   LoyaltyAdjustmentRow,
   PreauthFormRow,
   AwarenessEventRow,
@@ -132,6 +133,11 @@ import type {
   PharmacySaleItemRow,
   ScribeNoteRow,
   PrescriptionTemplateRow,
+  DoctorDiagnosisRow,
+  PatientDiagnosisRow,
+  SavedNoteRow,
+  DoctorDiseaseMedicineRow,
+  PatientUpdateRequestRow,
   TeleconsultBookingRow,
   GoogleConnectionRow,
   TeleconsultPaymentRow,
@@ -202,6 +208,10 @@ import {
   toPharmacySaleItemDTO,
   toScribeNoteDTO,
   toPrescriptionTemplateDTO,
+  toDoctorDiagnosisDTO,
+  toPatientDiagnosisDTO,
+  toSavedNoteDTO,
+  toUsualMedicineDTO,
 } from "@/repositories/mappers";
 
 export const patientsRepo = createRepository<PatientRow, ReturnType<typeof toPatientDTO>>(
@@ -433,6 +443,7 @@ export const caseFileEntriesRepo = createRepository<CaseFileEntryRow, CaseFileEn
 export const awarenessReadsRepo = createRepository<AwarenessReadRow, AwarenessReadRow>(TABLES.awarenessReads, (row) => row);
 export const signatureAssetsRepo = createRepository<SignatureAssetRow, SignatureAssetRow>(TABLES.signatureAssets, (row) => row);
 export const notificationsRepo = createRepository<NotificationRow, NotificationRow>(TABLES.notifications, (row) => row);
+export const aiFeatureUsageRepo = createRepository<AiFeatureUsageRow, AiFeatureUsageRow>(TABLES.aiFeatureUsage, (row) => row);
 export const aiTokenUsageRepo = createRepository<AiTokenUsageRow, AiTokenUsageRow>(TABLES.aiTokenUsage, (row) => row);
 export const aiTokenLimitsRepo = createRepository<AiTokenLimitRow, AiTokenLimitRow>(TABLES.aiTokenLimits, (row) => row);
 export const aiTokenGrantsRepo = createRepository<AiTokenGrantRow, AiTokenGrantRow>(TABLES.aiTokenGrants, (row) => row);
@@ -444,6 +455,23 @@ export const prescriptionTemplatesRepo = createRepository<
   PrescriptionTemplateRow,
   ReturnType<typeof toPrescriptionTemplateDTO>
 >(TABLES.prescriptionTemplates, toPrescriptionTemplateDTO);
+export const doctorDiagnosesRepo = createRepository<
+  DoctorDiagnosisRow,
+  ReturnType<typeof toDoctorDiagnosisDTO>
+>(TABLES.doctorDiagnoses, toDoctorDiagnosisDTO);
+export const doctorDiseaseMedicinesRepo = createRepository<
+  DoctorDiseaseMedicineRow,
+  ReturnType<typeof toUsualMedicineDTO>
+>(TABLES.doctorDiseaseMedicines, toUsualMedicineDTO);
+export const patientUpdateRequestsRepo = createRepository<PatientUpdateRequestRow, PatientUpdateRequestRow>(TABLES.patientUpdateRequests, (r) => r);
+export const savedNotesRepo = createRepository<
+  SavedNoteRow,
+  ReturnType<typeof toSavedNoteDTO>
+>(TABLES.savedNotes, toSavedNoteDTO);
+export const patientDiagnosesRepo = createRepository<
+  PatientDiagnosisRow,
+  ReturnType<typeof toPatientDiagnosisDTO>
+>(TABLES.patientDiagnoses, toPatientDiagnosisDTO);
 
 // Raw-only repositories (no public DTO mapping needed).
 export const usersRepo = createRepository<UserRow, UserRow>(

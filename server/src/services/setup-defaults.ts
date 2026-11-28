@@ -16,6 +16,51 @@ function fyStart(month = 4): string {
   return `${y}-${String(month).padStart(2, "0")}-01`;
 }
 
+/** The tests a hospital starts with under "Investigation advised"; it adds its own in Setup - Masters - Investigations. */
+export async function seedInvestigations(hospitalId: number, create: Create): Promise<void> {
+  const groups: Record<string, string[]> = {
+    "Blood tests": ["CBC", "LFT", "KFT", "HbA1c", "Fasting Blood Sugar", "PP Blood Sugar", "Lipid Profile", "Thyroid Profile (TSH)", "Vitamin D", "Vitamin B12", "CRP", "ESR", "Electrolytes", "Creatinine", "Dengue NS1", "Malaria Test", "Widal"],
+    "Urine & stool": ["Urine Routine", "Urine Culture", "Stool Routine"],
+    Imaging: ["Chest X-Ray", "X-Ray (other)", "USG Abdomen", "USG Pelvis", "CT Scan", "MRI", "Mammography"],
+    Heart: ["ECG", "2D Echo", "TMT"],
+  };
+  let order = 0;
+  for (const [category, names] of Object.entries(groups)) for (const name of names) await create({ hospital_id: hospitalId, kind: "investigation", code: "", name, active: true, sort_order: ++order, data: { category } });
+}
+
+const opt = (label: string, text?: string) => ({ label, text: text ?? label.toLowerCase() });
+
+/** The standard few chief complaints a hospital starts with; each is edited in Setup - Masters - Chief complaints. */
+export async function seedChiefComplaints(hospitalId: number, create: Create): Promise<void> {
+  const dur = { id: "duration", title: "Duration", kind: "duration", optional: false, options: [] };
+  const list: { name: string; common: boolean; questions: Data[] }[] = [
+    { name: "Fever", common: true, questions: [
+      dur,
+      { id: "chills", title: "Chills / rigors", kind: "single", optional: false, options: [opt("With chills"), opt("Without chills"), opt("Not specified", "")] },
+      { id: "pattern", title: "Fever pattern", kind: "single", optional: false, options: [opt("Intermittent"), opt("Continuous"), opt("Remittent"), opt("Not sure", "")] },
+      { id: "rise", title: "Time of rise", kind: "single", optional: true, options: [opt("Evening rise", "with evening rise"), opt("Night rise", "with night rise"), opt("Morning rise", "with morning rise"), opt("No particular time", "")] },
+    ] },
+    { name: "Cough", common: true, questions: [
+      dur,
+      { id: "type", title: "Type", kind: "single", optional: false, options: [opt("Dry"), opt("With phlegm", "with phlegm"), opt("Blood-stained", "blood-stained")] },
+      { id: "when", title: "When it is worse", kind: "multi", optional: true, options: [opt("At night", "worse at night"), opt("On waking", "worse on waking"), opt("On exertion", "worse on exertion")] },
+    ] },
+    { name: "Headache", common: true, questions: [
+      dur,
+      { id: "site", title: "Site", kind: "single", optional: false, options: [opt("Frontal"), opt("One side", "one-sided"), opt("Back of head", "at the back of the head"), opt("All over", "all over the head")] },
+      { id: "with", title: "Along with", kind: "multi", optional: true, options: [opt("Nausea", "with nausea"), opt("Vomiting", "with vomiting"), opt("Light sensitivity", "with sensitivity to light")] },
+    ] },
+    { name: "Abdominal pain", common: true, questions: [
+      dur,
+      { id: "site", title: "Site", kind: "single", optional: false, options: [opt("Upper abdomen", "in the upper abdomen"), opt("Lower abdomen", "in the lower abdomen"), opt("Around the navel", "around the navel"), opt("All over", "all over the abdomen")] },
+      { id: "nature", title: "Nature", kind: "single", optional: true, options: [opt("Colicky"), opt("Burning"), opt("Dull aching", "dull aching")] },
+      { id: "with", title: "Along with", kind: "multi", optional: true, options: [opt("Vomiting", "with vomiting"), opt("Loose motions", "with loose motions"), opt("Fever", "with fever")] },
+    ] },
+  ];
+  let order = 0;
+  for (const c of list) await create({ hospital_id: hospitalId, kind: "chief_complaint", code: "", name: c.name, active: true, sort_order: ++order, data: { common: c.common, questions: c.questions } });
+}
+
 export async function seedSetupDefaults(hospitalId: number, hospital: HospitalRow | null, create: Create): Promise<void> {
   const order: Record<string, number> = {};
   const add = async (kind: SetupKind, code: string, name: string, data: Data = {}, active = true): Promise<number> => {
@@ -259,6 +304,15 @@ export function defaultConfig(key: ConfigKey, hospital: HospitalRow | null): Rec
     case "teleconsult":
       // The consent a patient accepts when booking a video consultation (Setup → Masters → Video consultation consent).
       return { consentRequired: true, consentTitle: "Video consultation consent", consentText: DEFAULT_TELECONSULT_CONSENT };
+    case "ai_budget":
+      // Monthly rupee caps on the Gemini features outside KAYA chat (0 = no cap), the per-number daily limit for the WhatsApp bot, the
+      // rates the costs are worked out at, and the bills an admin types in so the cost view covers the whole month.
+      return {
+        scribeBudgetInr: 8000, rxReviewBudgetInr: 3000, botBudgetInr: 2000, botRepliesPerNumberPerDay: 20,
+        geminiInputUsdPerMillion: 0.25, geminiOutputUsdPerMillion: 1.5, geminiAudioUsdPerMillion: 0.5, usdToInr: 88,
+        whatsappUtilityInr: 0.115, razorpayFeePercent: 2, gstPercent: 18,
+        hostingMonthlyInr: 0, databaseMonthlyInr: 0, otherMonthlyInr: 0,
+      };
     case "referral":
       return { code: `${(hospital?.code ?? "HOSP").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)}-REF`, rewardNote: "", referred: [] };
   }

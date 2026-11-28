@@ -4,7 +4,7 @@
  *  - gender (and the admission type) is ticked in its own tick box, or marked in its radio circle.
  */
 const DATE = new Set(["dob", "admissionDate", "dischargeDate"]);
-const TIME = new Set(["admissionTime"]);
+const TIME = new Set(["admissionTime", "dischargeTime"]);
 const NAMES = new Set(["insuredName", "patientName", "doctorName"]);
 
 function boxesOf(page) {
@@ -161,22 +161,22 @@ export function refine(pages, fields, drop = []) {
     });
   }
   // 1d. the admission time written on an underline cut once (hh | mm), after "Time" on the admission date's line
-  if (!drop.includes("admissionTime")) pages.forEach((pg, p) => {
+  for (const [TK, DRE] of [["admissionTime", /date of admission|admission date/i], ["dischargeTime", /date of discharge|discharge date/i]]) if (!drop.includes(TK)) pages.forEach((pg, p) => {
     for (const l of pg.lines ?? []) {
-      const adm = l.items.find((q) => /date of admission|admission date/i.test(q.s));
+      const adm = l.items.find((q) => DRE.test(q.s));
       const tm = adm && l.items.find((q) => q.x > adm.x + adm.w && /(^|[^a-z])time([^a-z]|$)/i.test(q.s));
       if (!tm) continue;
       const h = (pg.hlines ?? []).filter((q) => Math.abs(q.y - l.y) <= 8 && q.x0 >= tm.x + tm.w - 3 && q.x0 <= tm.x + tm.w + 120 && q.x1 - q.x0 >= 20 && q.x1 - q.x0 <= 120).sort((a, b) => a.x0 - b.x0)[0];
       if (!h) continue;
       const divs = [...new Set((pg.vlines ?? []).filter((v) => v.x > h.x0 + 3 && v.x < h.x1 - 3 && v.y0 <= h.y + 2 && v.y1 >= h.y - 4 && v.y1 - v.y0 <= 16).map((v) => Math.round(v.x * 2) / 2))];
       if (divs.length !== 1) continue;
-      if ((fields.admissionTime ?? []).some((q) => q.p === p && q.segs && Math.abs(q.x - h.x0) < 3)) continue;
+      if ((fields[TK] ?? []).some((q) => q.p === p && q.segs && Math.abs(q.x - h.x0) < 3)) continue;
       const wipe = [];
       for (const l2 of pg.lines ?? []) for (const it of l2.items) if (it.s.trim() && it.y >= h.y - 14 && it.y <= h.y + 2 && it.x >= h.x0 - 2 && it.x + it.w <= h.x1 + 2 && /^[HMhm\s:]+$/.test(it.s.trim())) wipe.push({ x: +(it.x - 1).toFixed(1), y: +(it.y - (it.h || 7) - 0.5).toFixed(1), w: +(it.w + 2).toFixed(1), h: +((it.h || 7) + 2).toFixed(1) });
       const edges = [h.x0, divs[0], h.x1];
       const segs = [0, 1].map((k) => ({ x: +edges[k].toFixed(1), w: +(edges[k + 1] - edges[k]).toFixed(1) }));
-      const keep = (fields.admissionTime ?? []).filter((q) => !(q.p === p && !q.cells && !q.comb && !q.segs && Math.abs(q.y - l.y) < 6));
-      fields.admissionTime = [...keep, { p, x: segs[0].x, y: +(h.y - 1.8).toFixed(1), w: +(h.x1 - h.x0).toFixed(1), segs, ...(wipe.length ? { wipe } : {}), ctx: "date" }];
+      const keep = (fields[TK] ?? []).filter((q) => !(q.p === p && !q.cells && !q.comb && !q.segs && Math.abs(q.y - l.y) < 6));
+      fields[TK] = [...keep, { p, x: segs[0].x, y: +(h.y - 1.8).toFixed(1), w: +(h.x1 - h.x0).toFixed(1), segs, ...(wipe.length ? { wipe } : {}), ctx: "date" }];
     }
   });
   // 1a. a date written on a "___ / ___ / ______" line: the day, month and year each go on their own stroke
@@ -222,12 +222,14 @@ export function refine(pages, fields, drop = []) {
         place(sp.key, g, pickBoxes(pg, g.boxes, [6, 8, 10], g.boxes.slice(0, g.boxes.length >= 10 ? 10 : g.boxes.length >= 8 ? 8 : 6)));
       }
       // the time after the admission date, on the same line
-      const adm = items.find((q) => /date of admission|admission date/i.test(q.s));
-      const tm = adm && items.find((q) => q.x > adm.x + adm.w && /(^|[^a-z])time([^a-z]|$)/i.test(q.s));
-      if (tm && !drop.includes("admissionTime")) {
-        const x1 = tm.x + tm.w;
-        const g = pr.merged.filter((q) => l.y >= q.y0 - 0.8 && l.y <= q.y1 + 1.8 && q.x0 >= x1 - 3 && q.x0 <= x1 + 90).sort((a, b) => a.x0 - b.x0)[0];
-        if (g && g.boxes.length >= 4) place("admissionTime", g, pickBoxes(pg, g.boxes, [4], g.boxes.slice(0, g.boxes.length >= 6 ? 4 : g.boxes.length)));
+      for (const [TK, DRE] of [["admissionTime", /date of admission|admission date/i], ["dischargeTime", /date of discharge|discharge date/i]]) {
+        const adm = items.find((q) => DRE.test(q.s));
+        const tm = adm && items.find((q) => q.x > adm.x + adm.w && /(^|[^a-z])time([^a-z]|$)/i.test(q.s));
+        if (tm && !drop.includes(TK)) {
+          const x1 = tm.x + tm.w;
+          const g = pr.merged.filter((q) => l.y >= q.y0 - 0.8 && l.y <= q.y1 + 1.8 && q.x0 >= x1 - 3 && q.x0 <= x1 + 90).sort((a, b) => a.x0 - b.x0)[0];
+          if (g && g.boxes.length >= 4) place(TK, g, pickBoxes(pg, g.boxes, [4], g.boxes.slice(0, g.boxes.length >= 6 ? 4 : g.boxes.length)));
+        }
       }
     }
   });

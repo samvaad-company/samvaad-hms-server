@@ -3,30 +3,47 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { tw } from "@/lib/design-system";
-import { icd10Codes } from "@/data/icd10";
 import { useList, useMutation } from "@/lib/api/hooks";
 import { useMedicineMatches } from "@/lib/api/useMedicineSearch";
 import { api } from "@/lib/api/client";
 import { useBreadcrumb } from "@/lib/breadcrumb-context";
 import { useAuth } from "@/lib/auth-context";
-import type { PatientDTO, DoctorDTO, PrescriptionTemplateDTO, OpdVitalDTO } from "@/types/api";
+import type { PatientDTO, DoctorDTO, PrescriptionDTO, PrescriptionTemplateDTO, OpdVitalDTO, UsualMedicineDTO } from "@/types/api";
 import { formatDate } from "@/lib/dates";
 import { FormRow, FormInput, FormTextarea } from "@/components/shared/FormRow";
 import { SearchSelect } from "@/components/shared/SearchSelect";
 import { Modal } from "@/components/shared/Modal";
-import { Plus, Trash2, Pencil, Search, Zap, Loader2, Pill } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Plus, Trash2, Pencil, Search, Zap, Loader2, Pill, Printer, Download, FileText } from "lucide-react";
 import { ConsultationForm, Section } from "@/components/consultation/ConsultationForm";
+import { DiagnosisPicker } from "@/components/consultation/DiagnosisPicker";
 import { emptyConsultation } from "@/lib/consultation/templates";
+import { PATTERN_PRESETS, remarksOf, toPattern } from "@/lib/prescriptions/remarks";
+import { TimingPicker } from "@/components/prescriptions/TimingPicker";
+import { PatientHistoryTags } from "@/components/prescriptions/PatientHistoryTags";
+import { UsualMedicines } from "@/components/prescriptions/UsualMedicines";
+import { PatternInput } from "@/components/prescriptions/PatternInput";
+import { TodayPatientPicker } from "@/components/prescriptions/TodayPatientPicker";
+import { LANGS, type Lang } from "@/lib/prescriptions/remarks";
 import type { Consultation } from "@/types/consultation";
 
-type RxRow = { id: number; medicine: string; dosage: string; frequency: string; duration: string; instructions: string };
+const MED_COLS = "minmax(200px,2.2fr) 92px 190px 112px 104px 64px minmax(150px,1.6fr) 28px";
+type RxRow = { id: number; medicine: string; dosage: string; frequency: string; timing: string; duration: string; instructions: string; quantity: string };
+
+/** How many to give: the doses a day times the days (from "5 days", "2 weeks", "1 month"); 0 when it cannot be worked out. */
+function autoQuantity(frequency: string, duration: string): number {
+  const perDay = toPattern(frequency).split("-").reduce((a, n) => a + (Number(n) || 0), 0);
+  const m = /^(\d+(?:\.\d+)?)\s*(day|week|month)s?$/i.exec(duration.trim());
+  if (!perDay || !m) return 0;
+  return Math.round(perDay * Number(m[1]) * ({ day: 1, week: 7, month: 30 } as Record<string, number>)[m[2].toLowerCase()]);
+}
 
 const FREQ_OPTS = ["OD", "BD", "TDS", "QID", "PRN", "Weekly", "At Night"].map(f => ({ value: f, label: f }));
-const DUR_OPTS  = ["3 days","5 days","7 days","10 days","14 days","1 month","2 months","3 months","Ongoing"].map(d => ({ value: d, label: d }));
+const DUR_OPTS  = ["1 day","2 days","3 days","5 days","7 days","10 days","14 days","1 month","2 months","3 months","Ongoing"].map(d => ({ value: d, label: d }));
 
 let nextId = 100;
 const mkRow = (override: Partial<RxRow> = {}): RxRow => ({
-  id: nextId++, medicine: "", dosage: "", frequency: "OD", duration: "7 days", instructions: "", ...override,
+  id: nextId++, medicine: "", dosage: "", frequency: "1-0-1", timing: "After Meal", duration: "5 days", instructions: "", quantity: "", ...override,
 });
 
 export default function NewPrescriptionPage() {
@@ -45,57 +62,125 @@ export default function NewPrescriptionPage() {
 
   const [rows, setRows] = useState<RxRow[]>([mkRow()]);
   const [medSearch, setMedSearch] = useState<Record<number, string>>({});
+  /** A medicine was chosen from the list for this row, so the list stays closed until the name is typed over. */
+  const [medPicked, setMedPicked] = useState<Record<number, boolean>>({});
   const [patientId, setPatientId] = useState("");
   const [doctorId, setDoctorId] = useState("");
-  const [diagnoses, setDiagnoses] = useState<string[]>([]);
-  const [icdSearch, setIcdSearch] = useState("");
+  // A doctor writing their own prescription starts with themselves as the doctor.
+  useEffect(() => { if (user?.doctorId != null) setDoctorId((cur) => cur || String(user.doctorId)); }, [user?.doctorId]);
+  // What the doctor writes for this patient (each line or ";" is one diagnosis); picking a saved one fills the box for editing.
+  const [diagnosisText, setDiagnosisText] = useState("");
+  const [secondaryText, setSecondaryText] = useState("");
+  const parts = (t: string) => t.split(/[\n;]+/).map((x) => x.trim()).filter(Boolean);
+  const diagnoses = parts(diagnosisText);
+  const secondary = parts(secondaryText);
   const [notes] = useState("");
+  const [language, setLanguage] = useState<Lang>("English");
+  const [fillMsg, setFillMsg] = useState("");
+  const [prevId, setPrevId] = useState("");
   const [consult, setConsult] = useState<Consultation>(emptyConsultation);
 
-  // Bring in the patient's latest vitals (and what the record already says about conditions and allergies) once per patient.
+  // Choosing a patient fills in what the record already knows: latest vitals, history, allergies and the medicines last prescribed.
   const { items: readings } = useList<OpdVitalDTO>(patientId ? `/patients/${patientId}/vitals` : null, { all: true });
+  const { items: previous } = useList<PrescriptionDTO>(patientId ? "/prescriptions" : null, { all: true, patient_id: patientId });
+  const prevSorted = [...previous].sort((x, y) => y.id - x.id);
   const prefilled = useRef("");
+  // What was filled in automatically, so a later, fuller answer can replace it but never something the doctor typed.
+  const autoVals = useRef<Record<string, string>>({});
+  const autoFor = useRef("");
   useEffect(() => {
-    if (!patientId) return;
+    if (!patientId) { prefilled.current = ""; return; }
     const latest = readings[0];
-    const key = `${patientId}:${latest?.id ?? "none"}`;
+    const key = `${patientId}:${latest?.id ?? "none"}:${prevSorted[0]?.id ?? "none"}`;
     if (prefilled.current === key) return;
-    const patient = patients.find(p => String(p.id) === patientId);
-    setConsult(prev => {
-      const medical = prev.history.medical.trim()
-        ? prev.history.medical
-        : [patient?.chronicConditions?.length ? `Conditions: ${patient.chronicConditions.join(", ")}` : "", patient?.allergies?.length ? `Allergies: ${patient.allergies.join(", ")}` : ""].filter(Boolean).join(". ");
-      const vit = latest ? {
-        ...prev.vitals,
-        bp: latest.bpSystolic != null ? `${latest.bpSystolic}/${latest.bpDiastolic ?? ""}` : prev.vitals.bp,
-        pulse: latest.pulse != null ? String(latest.pulse) : prev.vitals.pulse,
-        temp: latest.temperature != null ? String(latest.temperature) : prev.vitals.temp,
-        spo2: latest.spo2 != null ? String(latest.spo2) : prev.vitals.spo2,
-        source: `From OPD vitals, ${formatDate(latest.recordedAt.slice(0, 10))} ${latest.recordedAt.slice(11, 16)}`,
-      } : { ...prev.vitals, source: "No vitals on record — enter them here" };
-      return { ...prev, vitals: vit, history: { ...prev.history, medical } };
-    });
     prefilled.current = key;
-  }, [patientId, readings, patients]);
+    const patient = patients.find(p => String(p.id) === patientId);
+    if (autoFor.current !== patientId) { autoVals.current = {}; autoFor.current = patientId; }
+    let dead = false;
+    (async () => {
+      let lastMeds = "";
+      if (prevSorted[0]) {
+        try {
+          const d = await api.get<PrescriptionDTO>(`/prescriptions/${prevSorted[0].id}`);
+          lastMeds = d.items.map(i => [i.medicineName, toPattern(i.frequency), i.timing].filter(Boolean).join(" ")).join("; ");
+        } catch { /* the history just stays empty */ }
+      }
+      if (dead) return;
+      setConsult(prev => {
+        const entries = patient?.history ?? [];
+        const ofType = (...t: string[]) => entries.filter(e => t.includes(e.type)).map(e => `${e.text}${e.since ? ` (${e.since})` : ""}`).join("; ");
+        const allergyLine = patient?.allergies?.length ? `Allergies: ${patient.allergies.join(", ")}` : "";
+        const patientHistory = prev.patientHistory?.length ? prev.patientHistory : [
+          ...entries,
+          ...((patient?.allergies ?? []).filter(a => !entries.some(e => e.type === "Allergy" && e.text.toLowerCase() === a.toLowerCase())).map(a => ({ type: "Allergy", text: a, since: "" }))),
+        ];
+        const pick = (name: string, cur: string, next: string) => { const auto = autoVals.current[name]; if (!cur.trim() || cur === auto) { autoVals.current[name] = next; return next; } return cur; };
+        const vit = latest ? {
+          ...prev.vitals,
+          bp: latest.bpSystolic != null ? `${latest.bpSystolic}/${latest.bpDiastolic ?? ""}` : prev.vitals.bp,
+          pulse: latest.pulse != null ? String(latest.pulse) : prev.vitals.pulse,
+          temp: latest.temperature != null ? String(latest.temperature) : prev.vitals.temp,
+          spo2: latest.spo2 != null ? String(latest.spo2) : prev.vitals.spo2,
+          source: `From OPD vitals, ${formatDate(latest.recordedAt.slice(0, 10))} ${latest.recordedAt.slice(11, 16)}`,
+        } : { ...prev.vitals, source: "No vitals on record — enter them here" };
+        return {
+          ...prev, vitals: vit, patientHistory,
+          history: {
+            past: pick("past", prev.history.past, [patient?.chronicConditions?.length ? patient.chronicConditions.join(", ") : "", ofType("Surgery")].filter(Boolean).join("; ")),
+            family: pick("family", prev.history.family, ofType("Family")),
+            personal: pick("personal", prev.history.personal, [ofType("Addiction"), ofType("Time"), ofType("Remarks")].filter(Boolean).join("; ")),
+            medical: pick("medical", prev.history.medical, [lastMeds, allergyLine].filter(Boolean).join(". ")),
+          },
+        };
+      });
+    })();
+    return () => { dead = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId, readings, previous, patients]);
 
-  const addDiagnosis = (d: string) => {
-    const clean = d.trim();
-    if (!clean) return;
-    setDiagnoses(prev => (prev.includes(clean) ? prev : [...prev, clean]));
-    setIcdSearch("");
-  };
-  const removeDiagnosis = (d: string) =>
-    setDiagnoses(prev => prev.filter(x => x !== d));
+  /** Copies an earlier prescription of this patient into the form, to be changed where this visit differs. */
+  async function fillFromPrevious() {
+    if (!prevId) return;
+    setFillMsg("");
+    try {
+      const d = await api.get<PrescriptionDTO>(`/prescriptions/${prevId}`);
+      const c = d.consultation;
+      if (c) setConsult(cur => ({ ...cur, ...c, vitals: cur.vitals, followUp: "", patientHistory: c.patientHistory?.length ? c.patientHistory : cur.patientHistory }));
+      setDiagnosisText(d.diagnosis.split(";").map(x => x.trim()).filter(Boolean).join("\n"));
+      setSecondaryText((c?.secondaryDiagnosis ?? "").split(";").map(x => x.trim()).filter(Boolean).join("\n"));
+      if (d.items.length) setRows(d.items.map(i => mkRow({
+        medicine: i.medicineName, dosage: i.dosage, frequency: toPattern(i.frequency) || "1-0-1", timing: i.timing ?? "", duration: i.duration || "5 days",
+        instructions: i.instructions ?? "", quantity: i.quantity ?? "",
+      })));
+      if (d.language && (LANGS as string[]).includes(d.language)) setLanguage(d.language as Lang);
+      setFillMsg(`Filled from ${d.rxNumber} (${formatDate(d.date)}). Check each part and change what is different today.`);
+    } catch (e) { setFillMsg((e as Error).message || "That prescription could not be opened."); }
+  }
 
   const addRow = () => setRows(prev => [...prev, mkRow()]);
   const removeRow = (id: number) => setRows(prev => prev.filter(r => r.id !== id));
   const updateRow = (id: number, field: keyof RxRow, value: string) =>
     setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
 
+  /** The illnesses on this patient's record (from the history tags), so the doctor's usual medicines for them are offered too. */
+  const [knownDiseases, setKnownDiseases] = useState<string[]>([]);
+  useEffect(() => { if (!patientId) setKnownDiseases([]); }, [patientId]);
+  const askedDiseases = [...new Set([...diagnoses, ...secondary, ...knownDiseases].map(d => d.trim()).filter(Boolean))];
+  /** Fills the first empty medicine row (or a new one) with a medicine the doctor used before for the same illness. */
+  const useUsual = (m: UsualMedicineDTO) => {
+    const empty = rows.find(r => !r.medicine.trim());
+    const fields = { medicine: m.medicineName, dosage: m.dosage, frequency: toPattern(m.frequency) || "1-0-1", timing: m.timing, duration: m.duration || "5 days", instructions: m.instructions };
+    const id = empty ? empty.id : mkRow().id;
+    if (empty) setRows(prev => prev.map(r => r.id === empty.id ? { ...r, ...fields } : r));
+    else setRows(prev => [...prev, mkRow({ ...fields, id })]);
+    setMedSearch(prev => ({ ...prev, [id]: m.medicineName }));
+    setMedPicked(prev => ({ ...prev, [id]: true }));
+  };
+
   const applyTemplate = (t: PrescriptionTemplateDTO) => {
     setRows(t.items.map(it => mkRow({
       medicine: it.medicineName, dosage: it.dosage,
-      frequency: it.frequency || "OD", duration: it.duration || "7 days",
+      frequency: toPattern(it.frequency) || "1-0-1", duration: it.duration || "5 days",
       instructions: it.instructions,
     })));
   };
@@ -171,38 +256,44 @@ export default function NewPrescriptionPage() {
   const missing: string[] = [];
   if (!patientId) missing.push("patient");
   if (!doctorId) missing.push("doctor");
-  if (diagnoses.length === 0) missing.push("at least one diagnosis");
+  if (diagnoses.join("; ").length < 2) missing.push("a diagnosis of at least 2 letters");
   if (filledRows.length === 0) missing.push("at least one medicine");
   const valid = missing.length === 0;
 
-  async function save() {
+  async function save(after?: "print" | "download") {
     const patient = patients.find(p => String(p.id) === patientId);
-    await run(() =>
-      api.post("/prescriptions", {
+    let created: PrescriptionDTO | undefined;
+    try {
+    created = await run(() =>
+      api.post<PrescriptionDTO>("/prescriptions", {
         patientId: Number(patientId),
         patientName: patient?.name ?? "",
         patientAge: patient?.age ?? 0,
         doctorId: Number(doctorId),
         diagnosis: diagnoses.join("; "),
         status: "Pending",
-        consultation: consult,
+        consultation: { ...consult, secondaryDiagnosis: secondary.join("; ") },
+        primaryDiagnoses: diagnoses,
+        secondaryDiagnoses: secondary,
         items: filledRows.map(r => ({
           medicineId: medLookup.byName(r.medicine)?.id,
           medicineName: r.medicine,
           dosage: r.dosage,
           frequency: r.frequency,
+          timing: r.timing,
           duration: r.duration,
+          quantity: r.quantity,
           instructions: r.instructions || notes || undefined,
         })),
+        language,
       }),
     );
-    router.push("/prescriptions");
+    } catch { return; } // the message is shown at the top of the form
+    // Allergies, addictions and remarks written here are kept on the patient's record for next time.
+    if (consult.patientHistory) await api.patch(`/patients/${patientId}`, { history: consult.patientHistory.filter(h => h.text.trim()) }).catch(() => null);
+    // Print and download are chosen on the saved prescription (half or full, and the language).
+    router.push(after && created?.id ? `/prescriptions/${created.id}?action=${after}` : "/prescriptions");
   }
-
-  const filteredIcd = icd10Codes.filter(c =>
-    c.description.toLowerCase().includes(icdSearch.toLowerCase()) ||
-    c.code.toLowerCase().includes(icdSearch.toLowerCase())
-  ).slice(0, 6);
 
   const filteredMed = (query: string) => medLookup.matches(query).slice(0, 8);
 
@@ -215,17 +306,12 @@ export default function NewPrescriptionPage() {
             Record the consultation: vitals, complaint, examination, diagnosis, treatment and advice.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {!valid && (
-            <span className="text-[12px] font-normal text-[#ff9000] whitespace-nowrap">
-              Add {missing.join(", ")} to save.
-            </span>
-          )}
-          <button onClick={save} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-normal text-white bg-[color:var(--brand)] px-5 py-[8px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-            {loading ? "Saving…" : "Save Prescription"}
-          </button>
-        </div>
+        {/* A doctor's menu opens this form, so the prescriptions already written for their patients are one click away. */}
+        {isDoctorUser && (
+          <Link href="/prescriptions" className="inline-flex h-[36px] shrink-0 items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-4 text-[13px] text-[color:var(--ink)] transition-colors hover:bg-[color:var(--subtle)]">
+            <FileText size={14} /> View patients&apos; prescriptions
+          </Link>
+        )}
       </div>
 
       {error && (
@@ -237,73 +323,57 @@ export default function NewPrescriptionPage() {
       <div className={`${tw.gutterX} mb-[30px] flex flex-col gap-4`}>
         <div className={`${tw.surface.card} ${tw.radius.card} p-5`}>
           <h3 className="text-[13px] font-medium text-[color:var(--ink)] mb-3">Patient & Doctor</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormRow label="Patient *">
-              <SearchSelect
-                placeholder="Search patient…"
-                value={patientId}
-                onChange={setPatientId}
-                options={patients.map(p => ({ value: String(p.id), patientId: p.id, label: p.name, hint: `${p.patientId ?? ""} · ${p.phone}` }))}
-              />
-            </FormRow>
+          <TodayPatientPicker patientId={patientId} patients={patients} canPickAny={user?.role === "Super Admin"} isDoctor={isDoctorUser}
+            onSelect={(id, docId) => { setPatientId(id); setPrevId(""); setFillMsg(""); if (docId && !isDoctorUser) setDoctorId(String(docId)); }} />
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormRow label="Doctor *">
               <SearchSelect
                 placeholder="Search doctor…"
                 value={doctorId}
-                onChange={setDoctorId}
+                onChange={(v) => { if (!isDoctorUser) setDoctorId(v); }}
                 options={doctors.map(d => ({ value: String(d.id), label: d.name, hint: d.specialty }))}
               />
             </FormRow>
+            <FormRow label="Patient copy language" hint="Only the directions (when to take each medicine) are translated.">
+              <select value={language} onChange={e => setLanguage(e.target.value as Lang)}
+                className="h-[38px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)]">
+                {LANGS.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </FormRow>
+            {patientId && (
+              <FormRow label="Fill from a previous prescription" hint={prevSorted.length ? "Copies its history, examination, diagnosis and medicines. Vitals stay as they are today." : "This patient has no earlier prescription."}>
+                <div className="flex gap-2">
+                  <select value={prevId} onChange={e => setPrevId(e.target.value)} disabled={prevSorted.length === 0}
+                    className="h-[38px] min-w-0 flex-1 bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] disabled:opacity-60">
+                    <option value="">{prevSorted.length ? "Choose by date…" : "None"}</option>
+                    {prevSorted.map(r => <option key={r.id} value={r.id}>{formatDate(r.date)} · {r.doctor} · {r.diagnosis.slice(0, 40)}</option>)}
+                  </select>
+                  <button type="button" onClick={() => void fillFromPrevious()} disabled={!prevId}
+                    className="h-[38px] shrink-0 cursor-pointer rounded-[8px] bg-[color:var(--brand)] px-4 text-[13px] text-white hover:bg-[color:var(--brand-hover)] disabled:opacity-50">Fill</button>
+                </div>
+              </FormRow>
+            )}
           </div>
+          {fillMsg && <p className="mt-3 rounded-[8px] bg-[color:var(--brand-soft)] px-3 py-2 text-[12px] text-[color:var(--ink)]">{fillMsg}</p>}
+          {patientId && <div className="mt-4"><PatientHistoryTags patient={patients.find(p => String(p.id) === patientId)} diagnosesToday={[...diagnoses, ...secondary]} medicinesToday={rows.filter(r => r.medicine.trim()).map(r => [r.medicine, r.dosage, toPattern(r.frequency), r.timing, r.duration].filter(Boolean).join(" "))} onDiseases={setKnownDiseases} /></div>}
         </div>
 
         <ConsultationForm
+          doctorId={doctorId}
+          patientId={patientId}
           value={consult}
           onChange={setConsult}
           diagnosis={
-            <div>
-              <p className="text-[13px] font-medium text-[color:var(--ink)] mb-2">Primary Diagnosis (ICD-10) *</p>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-soft)]" />
-                <input
-                  placeholder="Search ICD-10 or type & press Enter…"
-                  value={icdSearch}
-                  onChange={e => setIcdSearch(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addDiagnosis(icdSearch);
-                    }
-                  }}
-                  className="h-[38px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] pl-[34px] pr-3 text-[13px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
-                />
+            <>
+              <div>
+                <p className="text-[13px] font-medium text-[color:var(--ink)] mb-2">Primary Diagnosis *</p>
+                <DiagnosisPicker doctorId={doctorId} patientId={patientId} kind="Primary" value={diagnosisText} onChange={setDiagnosisText} rows={3} textPlaceholder="Type the diagnosis for this patient, or search below and edit it here…" placeholder="Search your earlier diagnoses or ICD-10…" />
               </div>
-              {icdSearch && (
-                <div className="mt-2 border border-[color:var(--line)] rounded-[8px] overflow-hidden">
-                  {filteredIcd.map(c => (
-                    <button key={c.code} onClick={() => addDiagnosis(`${c.description} (${c.code})`)}
-                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[color:var(--subtle)] border-b border-[color:var(--subtle-2)] last:border-0 transition-colors">
-                      <span className="font-medium text-[color:var(--brand)]">{c.code}</span>
-                      <span className="text-[color:var(--ink-soft)] ml-2">{c.description}</span>
-                    </button>
-                  ))}
-                  <button onClick={() => addDiagnosis(icdSearch)}
-                    className="w-full text-left px-3 py-2 text-[12px] text-[color:var(--brand)] hover:bg-[color:var(--brand-soft)] transition-colors">
-                    + Add “{icdSearch.trim()}” as free-text diagnosis
-                  </button>
-                </div>
-              )}
-              {diagnoses.length > 0 && (
-                <div className="mt-3 flex flex-col gap-[6px]">
-                  {diagnoses.map(d => (
-                    <div key={d} className="p-2 bg-[color:var(--brand-soft)] rounded-[6px] flex items-center justify-between gap-2">
-                      <span className="text-[12px] font-normal text-[color:var(--brand)] min-w-0 truncate">{d}</span>
-                      <button onClick={() => removeDiagnosis(d)} className="text-[color:var(--ink-soft)] hover:text-[#ff0004] shrink-0"><Trash2 size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              <div>
+                <p className="text-[13px] font-medium text-[color:var(--ink)] mb-2">Secondary Diagnosis</p>
+                <DiagnosisPicker doctorId={doctorId} patientId={patientId} kind="Secondary" value={secondaryText} onChange={setSecondaryText} rows={2} textPlaceholder="Type a secondary diagnosis, or search below and edit it here…" placeholder="Search your earlier diagnoses or ICD-10…" />
+              </div>
+            </>
           }
           treatment={
             <Section icon={<Pill size={18} />} title="Treatment & Follow-up">
@@ -343,6 +413,7 @@ export default function NewPrescriptionPage() {
                 )}
               </div>
             </div>
+            <UsualMedicines doctorId={doctorId} diseases={askedDiseases} taken={rows.map(r => r.medicine)} onPick={useUsual} />
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-[13px] font-medium text-[color:var(--ink)]">Medicines ({rows.length})</h3>
@@ -351,69 +422,70 @@ export default function NewPrescriptionPage() {
                 </button>
               </div>
 
-              {/* Column headers */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_30px] gap-2 px-1">
-                {["Medicine", "Dosage", "Frequency", "Duration", "Instructions", ""].map(h => (
-                  <span key={h} className="text-[10px] font-medium text-[color:var(--ink-soft)] uppercase tracking-wider">{h}</span>
-                ))}
-              </div>
+              <p className="text-[12px] text-[color:var(--ink-soft)]">
+                Frequency is written <b>Morning-Afternoon-Night</b>: <b>1-0-1</b> means one in the morning and one at night, <b>0-0-1</b> night only,
+                <b> 1-1-1</b> three times. A fourth number is the evening dose. The remarks for the patient are written from it.
+              </p>
 
-              {rows.map(row => (
-                <div key={row.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_30px] gap-2 items-start">
-                  {/* Medicine search */}
-                  <div className="relative">
-                    <input
-                      placeholder="Search medicine..."
-                      value={medSearch[row.id] ?? row.medicine}
-                      onChange={e => {
-                        setMedSearch(prev => ({ ...prev, [row.id]: e.target.value }));
-                        updateRow(row.id, "medicine", e.target.value);
-                      }}
-                      className="h-[38px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors"
-                    />
-                    {(medSearch[row.id]?.length ?? 0) > 1 && !row.medicine.includes("mg") && (
-                      <div className="absolute top-[40px] left-0 right-0 bg-[color:var(--surface)] border border-[color:var(--line)] rounded-[8px] shadow-md z-10 overflow-hidden">
-                        {filteredMed(medSearch[row.id]).map(m => (
-                          <button key={m.id} onClick={() => {
-                            updateRow(row.id, "medicine", m.name);
-                            updateRow(row.id, "dosage", m.defaultDosage);
-                            updateRow(row.id, "frequency", m.defaultFrequency);
-                            updateRow(row.id, "duration", m.defaultDuration);
-                            setMedSearch(prev => ({ ...prev, [row.id]: m.name }));
-                          }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[color:var(--subtle)] border-b border-[color:var(--subtle-2)] last:border-0">
-                            <span className="font-medium text-[color:var(--ink)]">{m.name}</span>
-                            <span className="text-[color:var(--ink-soft)] ml-2 text-[11px]">{m.generic}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+              {/* One medicine per line: the headings are written once, the fields follow in a row. */}
+              {/* The bottom padding gives the open medicine list room inside the scrolling box; the negative margin gives the space back. */}
+<div className="pointer-events-none -mb-[260px] overflow-x-auto pb-[260px]">
+                <div className="pointer-events-auto min-w-[1020px]">
+                  <div className="grid gap-2 px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-[color:var(--ink-soft)]" style={{ gridTemplateColumns: MED_COLS }}>
+                    <span>Medicine</span><span>Dose</span><span>Morning – Afternoon – Night</span><span>When</span><span>Duration</span><span>Qty</span><span>Special instruction</span><span />
                   </div>
-                  {/* Dosage */}
-                  <input value={row.dosage} onChange={e => updateRow(row.id, "dosage", e.target.value)}
-                    placeholder="e.g. 500mg"
-                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
-                  {/* Frequency */}
-                  <select value={row.frequency} onChange={e => updateRow(row.id, "frequency", e.target.value)}
-                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
-                    {FREQ_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {/* Duration */}
-                  <select value={row.duration} onChange={e => updateRow(row.id, "duration", e.target.value)}
-                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
-                    {DUR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {/* Instructions */}
-                  <input value={row.instructions} onChange={e => updateRow(row.id, "instructions", e.target.value)}
-                    placeholder="With meals, etc."
-                    className="h-[38px] bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-3 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
-                  {/* Delete */}
-                  {rows.length > 1 ? (
-                    <button onClick={() => removeRow(row.id)} className="flex items-center justify-center h-[38px] text-[#ff0004] hover:text-red-700 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  ) : <div />}
+                  {rows.map((row, idx) => {
+                    const remark = remarksOf(row, language);
+                    const auto = autoQuantity(row.frequency, row.duration);
+                    return (
+                      <div key={row.id} className="border-b border-[color:var(--subtle-2)] py-2 last:border-0">
+                        <div className="grid items-center gap-2" style={{ gridTemplateColumns: MED_COLS }}>
+                          <div className="relative">
+                            <input aria-label={`Medicine ${idx + 1}`} placeholder={`${idx + 1}. Search by name or formula…`} value={medSearch[row.id] ?? row.medicine}
+                              onChange={e => { setMedPicked(prev => ({ ...prev, [row.id]: false })); setMedSearch(prev => ({ ...prev, [row.id]: e.target.value })); updateRow(row.id, "medicine", e.target.value); }}
+                              className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
+                            {(medSearch[row.id]?.length ?? 0) > 1 && row.medicine === medSearch[row.id] && !medPicked[row.id] && (
+                              <div className="absolute left-0 right-0 top-[40px] z-10 overflow-hidden rounded-[8px] border border-[color:var(--line)] bg-[color:var(--surface)] shadow-md">
+                                {filteredMed(medSearch[row.id]).map(m => (
+                                  <button key={m.id} onClick={() => {
+                                    updateRow(row.id, "medicine", m.name);
+                                    updateRow(row.id, "dosage", m.defaultDosage);
+                                    updateRow(row.id, "frequency", toPattern(m.defaultFrequency) || "1-0-1");
+                                    updateRow(row.id, "duration", m.defaultDuration);
+                                    setMedSearch(prev => ({ ...prev, [row.id]: m.name }));
+                                    setMedPicked(prev => ({ ...prev, [row.id]: true }));
+                                  }} className="block w-full border-b border-[color:var(--subtle-2)] px-3 py-2 text-left text-[12px] last:border-0 hover:bg-[color:var(--subtle)]">
+                                    <span className="block font-medium text-[color:var(--ink)]">{m.name}</span>
+                                    {m.generic && <span className="block text-[11px] text-[color:var(--brand)]">{m.generic}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <input aria-label="Dose each time" value={row.dosage} onChange={e => updateRow(row.id, "dosage", e.target.value)} placeholder="1 tablet" className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
+                          <PatternInput value={row.frequency} onChange={(v) => updateRow(row.id, "frequency", v)} />
+                          <TimingPicker value={row.timing} doctorId={doctorId} onChange={(v) => updateRow(row.id, "timing", v)} />
+                          <div className="relative">
+                            <select aria-label="Duration" value={row.duration} onChange={e => updateRow(row.id, "duration", e.target.value)} className="h-[36px] w-full appearance-none pr-7 bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors">
+                              {(DUR_OPTS.some(o => o.value === row.duration) ? DUR_OPTS : [{ value: row.duration, label: row.duration }, ...DUR_OPTS]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                            <ChevronDown size={14} className="pointer-events-none absolute right-2 top-[11px] text-[color:var(--ink-soft)]" />
+                          </div>
+                          <input aria-label="Quantity" value={row.quantity} onChange={e => updateRow(row.id, "quantity", e.target.value)} placeholder={auto ? String(auto) : "Qty"}
+                            onFocus={() => { if (!row.quantity && auto > 0) updateRow(row.id, "quantity", String(auto)); }} className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
+                          <input aria-label="Special instruction" value={row.instructions} onChange={e => updateRow(row.id, "instructions", e.target.value)} placeholder="e.g. in a glass of water" className="h-[36px] w-full bg-[color:var(--subtle)] border border-[color:var(--line)] rounded-[8px] px-2 text-[12px] text-[color:var(--ink)] focus:outline-none focus:border-[color:var(--brand)] transition-colors" />
+                          {rows.length > 1 ? (
+                            <button onClick={() => removeRow(row.id)} aria-label="Remove medicine" className="flex h-[36px] items-center justify-center text-[#ff0004] transition-colors hover:text-red-700"><Trash2 size={14} /></button>
+                          ) : <span />}
+                        </div>
+                        <p className="mt-1 truncate px-1 text-[11px] text-[color:var(--ink-soft)]" title={remark.line}>
+                          {remark.line ? <>Patient will read: <span className="text-[color:var(--ink)]">{remark.line}{remark.special ? ` ${remark.special}` : ""}</span></> : "Fill the dose, pattern and duration to see the directions."}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
             </div>
                 <div className="flex items-center gap-3">
                   <span className="text-[13px] font-medium text-[color:var(--ink)]">Follow-up</span>
@@ -426,6 +498,25 @@ export default function NewPrescriptionPage() {
             </Section>
           }
         />
+      </div>
+
+      {/* Save sits at the bottom, where the form ends. */}
+      <div className="sticky bottom-0 z-30 border-t border-[color:var(--line)] bg-[color:var(--surface)]/95 backdrop-blur-sm">
+        <div className={`${tw.gutterX} flex flex-wrap items-center justify-end gap-3 py-3`}>
+          {!valid && (
+            <span className="text-[12px] font-normal text-[#ff9000]">Add {missing.join(", ")} to save.</span>
+          )}
+          <button onClick={() => void save("print")} disabled={!valid || loading} className="flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-5 py-[9px] text-[13px] text-[color:var(--ink)] transition-colors hover:bg-[color:var(--subtle)] disabled:cursor-default disabled:opacity-50 cursor-pointer">
+            <Printer size={14} /> Save &amp; Print
+          </button>
+          <button onClick={() => void save("download")} disabled={!valid || loading} className="flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-5 py-[9px] text-[13px] text-[color:var(--ink)] transition-colors hover:bg-[color:var(--subtle)] disabled:cursor-default disabled:opacity-50 cursor-pointer">
+            <Download size={14} /> Save &amp; Download
+          </button>
+          <button onClick={() => void save()} disabled={!valid || loading} className="flex items-center gap-2 text-[13px] font-medium text-white bg-[color:var(--brand)] px-6 py-[9px] rounded-full hover:bg-[color:var(--brand-hover)] transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-default">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+            {loading ? "Saving…" : "Save Prescription"}
+          </button>
+        </div>
       </div>
 
       <Modal

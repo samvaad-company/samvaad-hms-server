@@ -2,6 +2,7 @@
  * IPD service — inpatient admissions wired to bed occupancy. Admitting a
  * patient occupies a bed; discharging frees it.
  */
+import { issueCombinedBill } from "@/services/combined-bill-service";
 import { queueForCoding } from "@/services/mrd-coding-service";
 import { raiseBedTurnaround } from "@/services/housekeeping-service";
 import { endOrdersForAdmission, moveOrdersForAdmission } from "@/services/dietary-service";
@@ -271,7 +272,8 @@ export async function updateIpd(id: number, input: unknown, actor: Session) {
 async function billingClearance(admission: IpdAdmissionRow, input: unknown, actor: Session): Promise<{ due: number; reason: string } | null> {
   if (!admission.patient_id) return null;
   const { rows } = await billsRepo.listRows(scopeToHospital({ unpaged: true, filters: [{ column: "patient_id", op: "eq", value: admission.patient_id }] }, actor));
-  const unpaid = rows.filter((b) => b.type === "IPD" && (b.status === "Pending" || b.status === "Partial"));
+  // IPD bills, and the pharmacy bills raised when medicines were taken to the bed (tied to this admission).
+  const unpaid = rows.filter((b) => (b.type === "IPD" || (b.type === "Pharmacy" && b.admission_id === admission.id)) && (b.status === "Pending" || b.status === "Partial"));
   if (!unpaid.length) return null;
   const due = unpaid.reduce((n, b) => n + Number(b.total), 0);
   const body = (input ?? {}) as { waiveBilling?: unknown; reason?: unknown };
@@ -303,7 +305,7 @@ export async function dischargePatient(id: number, actor: Session, input: unknow
         patient_code: null,
       });
     }
-    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged", discharge_date: localDate() });
+    return uow.update<IpdAdmissionRow>(TABLES.ipdAdmissions, id, { status: "Discharged", discharge_date: localDate(), discharged_at: new Date().toISOString() });
   });
   await audit(actor, "discharge", "ipd", id, { bedId: admission.bed_id, ...(waiver ? { billingWaived: waiver.due, reason: waiver.reason } : {}) });
   if (admission.hospital_id) await endOrdersForAdmission(id, admission.hospital_id);
@@ -313,7 +315,16 @@ export async function dischargePatient(id: number, actor: Session, input: unknow
   }
   // The chart now waits in the MRD coding queue.
   await queueForCoding(row as IpdAdmissionRow);
-  return toIpdDTO(row as IpdAdmissionRow);
+  // The full bill: every bill of the stay (IPD, pharmacy incl. medicines taken to the bed, lab, ...) on one statement with what is paid and what is due.
+  let final = row as IpdAdmissionRow;
+  if (admission.patient_id) {
+    try {
+      const full = await issueCombinedBill({ patientId: admission.patient_id, from: String(admission.admission_date).slice(0, 10) }, actor);
+      final = (await ipdRepo.update(id, { combined_bill_no: full.invoiceNo ?? "" } as never)) as IpdAdmissionRow;
+      await audit(actor, "full-bill", "ipd", id, { invoiceNo: full.invoiceNo, due: full.totals.due });
+    } catch { /* a statement that cannot be built never undoes a discharge; it can be issued from Billing -> Combined bill */ }
+  }
+  return toIpdDTO(final);
 }
 
 /** Move a patient to a different bed, updating both beds' occupancy. */

@@ -71,6 +71,23 @@ export const profileSchema = {
   privilegeCardNo: { type: "string", required: false, max: 40 },
 } as const;
 
+export const HISTORY_TYPES = ["Allergy", "Addiction", "Remarks", "Time", "Surgery", "Family", "Other"] as const;
+export interface HistoryItem { type: string; text: string; since: string }
+
+/** The history entries sent with a patient: a few short lines, each a type, some text and (optionally) since when. */
+export function parseHistory(raw: unknown): HistoryItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HistoryItem[] = [];
+  for (const r of raw.slice(0, 40)) {
+    const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+    const text = String(o.text ?? "").trim().slice(0, 300);
+    if (!text) continue;
+    const type = String(o.type ?? "Remarks").trim().slice(0, 30) || "Remarks";
+    out.push({ type, text, since: String(o.since ?? "").trim().slice(0, 40) });
+  }
+  return out;
+}
+
 export interface Payer {
   type: string;
   name: string;

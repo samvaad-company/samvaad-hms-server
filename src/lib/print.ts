@@ -9,7 +9,7 @@
  * Using a dedicated window guarantees that only the invoice / prescription /
  * report is printed or exported, regardless of what else is on the page.
  */
-export function printElement(el: HTMLElement | null, title = "Document"): void {
+export function printElement(el: HTMLElement | null, title = "Document", opts: { margin?: number } = {}): void {
   if (!el || typeof window === "undefined") return;
 
   const win = window.open("", "_blank", "width=980,height=1200");
@@ -27,9 +27,9 @@ export function printElement(el: HTMLElement | null, title = "Document"): void {
     `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>` +
       styleTags +
       `<style>` +
-      `@page{margin:14mm}` +
+      (opts.margin === 0 ? `@page{margin:0}` : `@page{margin:14mm}`) +
       `html,body{background:#fff!important;margin:0;padding:0}` +
-      `body{padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
+      `body{padding:${opts.margin === 0 ? 0 : 24}px;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
       `.no-print{display:none!important}` +
       `</style></head><body>${el.outerHTML}</body></html>`,
   );
@@ -74,11 +74,11 @@ function standaloneHtml(el: HTMLElement, title: string): string {
  * directly. The element is captured as it looks on screen and cut into A4 pages.
  * (If that picture can't be taken, the document is saved as a web page rather than lost.)
  */
-export async function downloadElement(el: HTMLElement | null, title = "Document"): Promise<void> {
+export async function downloadElement(el: HTMLElement | null, title = "Document", opts: { margin?: number } = {}): Promise<void> {
   if (!el || typeof window === "undefined") return;
   const name = title.replace(/[^\w.\- ]+/g, "_");
   try {
-    const blob = await elementToPdfBlob(el);
+    const blob = await elementToPdfBlob(el, opts);
     saveBlob(blob, `${name}.pdf`);
   } catch {
     // If the picture of the page can't be taken, keep the document rather than lose it: save it as a web page instead.
@@ -98,15 +98,16 @@ function saveBlob(blob: Blob, fileName: string): void {
 }
 
 /** The element as it looks on screen, cut into A4 pages with a margin, as a PDF. Nothing leaves the browser. */
-export async function elementToPdfBlob(el: HTMLElement): Promise<Blob> {
+export async function elementToPdfBlob(el: HTMLElement, opts: { margin?: number } = {}): Promise<Blob> {
   const [{ default: html2canvas }, { PDFDocument }] = await Promise.all([import("html2canvas"), import("pdf-lib")]);
   const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
   const A4: [number, number] = [595.28, 841.89];
-  const margin = 28;
+  const margin = opts.margin ?? 28;
   const contentW = A4[0] - margin * 2, contentH = A4[1] - margin * 2;
   const sliceH = Math.floor((canvas.width * contentH) / contentW);
   const doc = await PDFDocument.create();
-  for (let y = 0; y < canvas.height; y += sliceH) {
+  // A sliver left over by rounding (a pixel or two) is not a page of its own.
+  for (let y = 0; y < canvas.height - 4; y += sliceH) {
     const part = document.createElement("canvas");
     part.width = canvas.width;
     part.height = Math.min(sliceH, canvas.height - y);

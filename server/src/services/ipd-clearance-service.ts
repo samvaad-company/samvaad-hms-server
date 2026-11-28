@@ -194,6 +194,21 @@ export async function clearanceInbox(actor: Session): Promise<IpdClearanceInboxD
   };
 }
 
+/** Every bill of this stay (the admission's own, and any raised for the patient since admission), with the total still to pay. Refunded bills are listed but not counted. */
+export async function stayBills(admissionId: number, actor: Session): Promise<{ bills: { id: number; billNumber: string; type: string; date: string; total: number; status: string; bedside: boolean; remarks: string }[]; billed: number; paid: number; toPay: number }> {
+  const a = await admissionOf(admissionId, actor);
+  if (!a.patient_id) return { bills: [], billed: 0, paid: 0, toPay: 0 };
+  const since = a.admission_date.slice(0, 10);
+  const { rows } = await billsRepo.listRows(byPatient(a.patient_id, actor));
+  const mine = (rows as BillRow[]).filter((b) => b.admission_id === a.id || (b.admission_id == null && onOrAfter(b.bill_date, since))).sort((x, y) => x.id - y.id);
+  const live = mine.filter((b) => b.status !== "Refunded");
+  const sum = (list: BillRow[]) => Math.round(list.reduce((n, b) => n + Number(b.total), 0) * 100) / 100;
+  return {
+    bills: mine.map((b) => ({ id: b.id, billNumber: b.bill_number, type: b.type, date: b.bill_date, total: Number(b.total), status: b.status, bedside: b.type === "Pharmacy" && b.admission_id === a.id, remarks: b.remarks ?? "" })),
+    billed: sum(live), paid: sum(live.filter((b) => b.status === "Paid")), toPay: sum(live.filter((b) => b.status === "Pending" || b.status === "Partial")),
+  };
+}
+
 /** Is there a final bill for this stay? An IPD bill for the admission (or, on older records without the link, one raised for the patient since admission). */
 export async function hasFinalBill(a: IpdAdmissionRow, actor: Session): Promise<boolean> {
   if (!a.patient_id) return false;

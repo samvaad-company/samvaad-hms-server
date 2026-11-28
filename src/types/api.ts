@@ -104,6 +104,8 @@ export interface PatientDTO extends Patient {
   /** Identity documents on file — only the type and last four characters are ever returned. */
   identityDocuments: { type: string; last4: string }[];
   covid: { vaccination: string | null; lastDose: string | null; lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
+  /** Allergies, addictions, remarks and how long, noted for the patient (all optional). */
+  history: { type: string; text: string; since: string }[];
 }
 
 export interface PrescriptionItemDTO {
@@ -115,6 +117,10 @@ export interface PrescriptionItemDTO {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** How many to dispense, e.g. "10 tablets". */
+  quantity?: string;
+  /** Before / after / with a meal, or on an empty stomach; "" when it does not matter. */
+  timing?: string;
   /** Generic (salt) name from the medicine master, when the item is linked to one. Detail view only. */
   generic?: string | null;
 }
@@ -125,11 +131,16 @@ export interface PrescriptionPatientDTO {
   gender: string | null;
   allergies: string | null;
   chronicConditions: string | null;
+  phone: string | null;
 }
 
 export interface PrescriptionDTO extends Prescription {
   patientId: number | null;
   doctorId: number | null;
+  /** When it was written (ISO). */
+  createdAt?: string;
+  /** The language of the patient's copy: English, Hindi or Gujarati. */
+  language?: string;
   /** The clinical record written with the prescription; null on prescriptions made before it existed. */
   consultation?: Consultation | null;
   items: PrescriptionItemDTO[];
@@ -167,6 +178,64 @@ export interface RxAiReviewDTO {
   reason: "live" | "no-key" | "api-error";
   detail?: string;
   reviewedAt: string;
+}
+
+/** A diagnosis in one doctor's own list, kept for reuse. */
+/** A medicine a doctor has prescribed for a disease before, with the dose, pattern, timing and duration they used last. */
+export interface UsualMedicineDTO {
+  id: number;
+  diagnosis: string;
+  medicineId: number | null;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  instructions: string;
+  /** How many of the doctor's prescriptions have used it for this disease. */
+  useCount: number;
+  lastUsedAt: string;
+}
+
+/** The doctor's usual medicines for one disease that was asked about. */
+export interface UsualMedicinesGroupDTO {
+  /** The disease as asked (the name typed or on the patient's record). */
+  diagnosis: string;
+  items: UsualMedicineDTO[];
+}
+
+export interface SavedNoteDTO {
+  id: number;
+  kind: "remark" | "advice" | "timing";
+  doctorId: number | null;
+  patientId: number | null;
+  text: string;
+  useCount: number;
+  createdAt: string;
+}
+
+export interface DoctorDiagnosisDTO {
+  id: number;
+  doctorId: number;
+  name: string;
+  code: string;
+  useCount: number;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+/** A diagnosis a doctor recorded for a patient. */
+export interface PatientDiagnosisDTO {
+  id: number;
+  patientId: number;
+  doctorId: number | null;
+  doctor: string;
+  diagnosisId: number | null;
+  name: string;
+  kind: "Primary" | "Secondary";
+  prescriptionId: number | null;
+  rxNumber: string;
+  recordedOn: string;
 }
 
 export interface PrescriptionTemplateItemDTO {
@@ -489,6 +558,8 @@ export interface IpdRecordDTO extends IpdRecord {
   doctorId: number | null;
   bedId: number | null;
   wardId: number | null;
+  /** The full bill issued when the patient was discharged ("" until then). */
+  combinedBillNo?: string;
   /** ADM/2026/00003 */
   admissionNo: string;
   admissionType: IpdAdmissionType;
@@ -1616,6 +1687,11 @@ export interface DocumentDTO {
   mimeType: string;
   sizeBytes: number;
   uploadedBy: string;
+  /** Patient portal: shown to the patient, where it came from, and (for a patient's own upload) whether staff accepted it. */
+  visibleToPatient?: boolean;
+  source?: "hospital" | "patient";
+  reviewStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   createdAt: string;
   /** Ready-to-use download URL. */
   url: string;
@@ -2432,6 +2508,53 @@ export interface DispenseDTO {
   returns: DispenseReturnDTO[];
   /** Set when the dispense went through but the bill could not be raised. */
   billingWarning?: string;
+  /** Taken to the patient's bed by a nurse or doctor (payment is not taken there; the bill stays Pending until discharge). */
+  bedside?: boolean;
+  ward?: string;
+  bed?: string;
+  deliveredByRole?: string;
+  /** The pharmacy bill's status and total, for bedside deliveries. */
+  billStatus?: string;
+  billTotal?: number;
+}
+
+/** Every bill of one inpatient stay: what has been billed, what is paid and what is still to pay at discharge. */
+export interface StayBillDTO {
+  id: number;
+  billNumber: string;
+  type: string;
+  date: string;
+  total: number;
+  status: string;
+  /** Raised when a nurse or doctor took medicines to the bed. */
+  bedside: boolean;
+  remarks: string;
+}
+export interface StayBillsDTO {
+  bills: StayBillDTO[];
+  billed: number;
+  paid: number;
+  toPay: number;
+}
+
+/** One line of the monthly cost view. */
+export interface AiCostLineDTO {
+  key: string;
+  label: string;
+  /** measured: from usage recorded here; estimated: counted here and priced at the rates in Spending caps; entered: typed in by an admin. */
+  kind: "measured" | "estimated" | "entered";
+  amountInr: number;
+  detail: string;
+  /** The monthly cap, when there is one. */
+  budgetInr: number | null;
+  /** The cap has been reached, so the feature is paused for the rest of the month. */
+  capped: boolean;
+}
+export interface AiCostDTO {
+  month: string;
+  totalInr: number;
+  usdToInr: number;
+  lines: AiCostLineDTO[];
 }
 
 export interface DispenseRxLineDTO {

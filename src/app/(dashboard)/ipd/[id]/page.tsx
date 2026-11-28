@@ -26,6 +26,7 @@ import { DrugChartTab } from "@/components/ipd/patient/DrugChartTab";
 import { IvIoTab } from "@/components/ipd/patient/IvIoTab";
 import { NursingTab } from "@/components/ipd/patient/NursingTab";
 import { ConsentsTab, InsuranceTab } from "@/components/ipd/patient/PaperworkTabs";
+import { BedsideTab } from "@/components/ipd/patient/BedsideTab";
 import { DischargeTab } from "@/components/ipd/patient/DischargeTab";
 import { TimelineTab } from "@/components/ipd/patient/TimelineTab";
 import { ErrorLine, Pill, btn, done, inr, type ChartCtx } from "@/components/ipd/patient/ui";
@@ -35,6 +36,7 @@ const TABS = [
   { id: "sheet", label: "Treatment sheet" },
   { id: "rounds", label: "Rounds & notes" },
   { id: "medicines", label: "Drug chart (MAR)" },
+  { id: "pharmacy", label: "Bedside pharmacy" },
   { id: "io", label: "IV & I/O" },
   { id: "nursing", label: "Nursing care" },
   { id: "consents", label: "Consents & forms" },
@@ -181,6 +183,7 @@ export default function IpdPatientPage() {
           {tab === "sheet" && <SheetTab ctx={ctx} />}
           {tab === "rounds" && <RoundsTab ctx={ctx} />}
           {tab === "medicines" && <DrugChartTab ctx={ctx} />}
+          {tab === "pharmacy" && <BedsideTab ctx={ctx} />}
           {tab === "io" && <IvIoTab ctx={ctx} />}
           {tab === "nursing" && <NursingTab ctx={ctx} />}
           {tab === "consents" && <ConsentsTab ctx={ctx} />}

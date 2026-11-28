@@ -10,7 +10,7 @@ export const SETUP_KINDS = [
   "service_group", "service", "rate_plan", "package", "sponsor", "contract", "dual_sponsor_rule",
   "payer_class", "payment_mode", "bank_account", "edc_terminal", "edc_settlement", "payout_rule",
   "patient_category", "visit_purpose", "arrival_status", "income_group", "referral_source",
-  "specialty", "org_unit", "id_format", "clinical_form", "protocol",
+  "specialty", "org_unit", "id_format", "clinical_form", "protocol", "chief_complaint", "investigation",
   "ward_class", "consulting_room", "facility_area", "collection_center", "lab_collection_center", "drug_rack",
   "manufacturer", "supplier",
   "branch",
@@ -30,7 +30,7 @@ export interface SetupRecordDTO {
 }
 
 /** Singleton configuration blobs (one per hospital): the hospital's identity and the Settings sections. */
-export const CONFIG_KEYS = ["hospital", "billing", "notifications", "security", "plan", "referral", "teleconsult"] as const;
+export const CONFIG_KEYS = ["hospital", "billing", "notifications", "security", "plan", "referral", "teleconsult", "ai_budget"] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 // ── Service catalogue ────────────────────────────────────────────────────────

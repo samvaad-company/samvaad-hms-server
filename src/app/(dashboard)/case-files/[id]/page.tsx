@@ -126,10 +126,13 @@ export default function CaseFilePage() {
 
   // Fit the A4 sheet to the space on a narrow screen.
   const holder = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [fitZoom, setZoom] = useState(1);
+  // On a phone the whole sheet fits the width by default (too small to type in), so the reader can zoom in and scroll across.
+  const [pick, setPick] = useState<number | null>(null);
+  const zoom = pick ?? fitZoom;
   useEffect(() => {
     const el = holder.current; if (!el) return;
-    const fit = () => setZoom(Math.min(1, (el.clientWidth - 2) / PAPER));
+    const fit = () => { const cs = getComputedStyle(el); setZoom(Math.min(1, (el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2) / PAPER)); };
     fit();
     const ro = new ResizeObserver(fit); ro.observe(el);
     return () => ro.disconnect();
@@ -162,7 +165,7 @@ export default function CaseFilePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[250px_minmax(0,1fr)]">
         <nav aria-label="Forms in this file" className={`${tw.surface.card} ${tw.radius.card} flex flex-col gap-1 p-2`}>
           {isAdmin && (
             <div className="flex flex-wrap items-center gap-1 px-1 pb-1">
@@ -235,6 +238,16 @@ export default function CaseFilePage() {
             </div>
           )}
 
+          {fitZoom < 0.95 && (
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-[color:var(--ink-soft)]">
+              <span>Zoom</span>
+              {[{ l: "Fit", v: null }, { l: "75%", v: 0.75 }, { l: "100%", v: 1 }].map((z) => (
+                <button key={z.l} onClick={() => setPick(z.v)} aria-pressed={pick === z.v}
+                  className={`h-[28px] cursor-pointer rounded-full border px-3 ${pick === z.v ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)] text-[color:var(--brand)]" : "border-[color:var(--line)] hover:bg-[color:var(--subtle)]"}`}>{z.l}</button>
+              ))}
+              <span className="ml-1">Scroll sideways when zoomed in.</span>
+            </div>
+          )}
           <div ref={holder} className="overflow-x-auto rounded-[10px] bg-[#e3e7ee] p-2 sm:p-4">
             <fieldset disabled={!canEdit || busy === "save"} className="m-0 min-w-0 border-0 p-0" style={{ zoom }}>
               <FormEditor key={`${key}-${unit}`} def={def} unit={unit} U={U} file={current} onChange={change} />

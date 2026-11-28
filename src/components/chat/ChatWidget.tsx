@@ -33,6 +33,19 @@ export function ChatWidget({ open, onOpenChange }: ChatWidgetProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Other screens can open the drawer with a question already typed in (the prescription form's Ask KAYA): it is not sent until the person presses send.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const d = (e as CustomEvent<{ text?: string; handled?: boolean }>).detail;
+      if (!d || typeof d.text !== "string") return;
+      d.handled = true;
+      setInput(d.text);
+      onOpenChange(true);
+    };
+    window.addEventListener("kaya:ask", onAsk);
+    return () => window.removeEventListener("kaya:ask", onAsk);
+  }, [onOpenChange]);
+
   // Esc closes it.
   useEffect(() => {
     if (!open) return;

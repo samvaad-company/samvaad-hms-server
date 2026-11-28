@@ -91,6 +91,8 @@ interface NavItem {
   onlyForRoles?: string[];
   /** Active only on this exact path (not on pages below it): an overview page that sits above its siblings. */
   exact?: boolean;
+  /** Where a Doctor account lands when it opens this item (the item still shows as active on its own pages). */
+  doctorHref?: string;
   /** Single-key shortcut that opens this page (shown as a badge). Must be unique. */
   key?: string;
 }
@@ -119,7 +121,7 @@ const groups: NavGroup[] = [
       { href: "/enquiries",          label: "Enquiries",         icon: Inbox,           resource: "enquiries", key: "3" },
       { href: "/followups",          label: "Follow-ups",        icon: ClipboardCheck,  resource: "followups", key: "4" },
       { href: "/doctors",            label: "Doctors",           icon: Stethoscope,     resource: "doctors", key: "D" },
-      { href: "/prescriptions",      label: "Prescriptions",     icon: FileText,        resource: "prescriptions", key: "R" },
+      { href: "/prescriptions",      label: "Prescriptions",     icon: FileText,        resource: "prescriptions", key: "R", doctorHref: "/prescriptions/new" },
       { href: "/my-schedule",        label: "My Schedule",       icon: CalendarClock,   onlyForRoles: ["Doctor"], key: "Y" },
     ],
   },
@@ -275,7 +277,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, drawerOpen, 
   useEffect(() => {
     if (FULL_SCREEN_ROUTES.includes(pathname)) return;
     const targets = new Map<string, string>();
-    for (const g of visibleGroups) for (const item of g.items) if (item.key) targets.set(item.key.toLowerCase(), item.href);
+    for (const g of visibleGroups) for (const item of g.items) if (item.key) targets.set(item.key.toLowerCase(), user?.role === "Doctor" && item.doctorHref ? item.doctorHref : item.href);
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const el = document.activeElement as HTMLElement | null;
@@ -363,7 +365,7 @@ export const Sidebar = memo(function Sidebar({ collapsed, onToggle, drawerOpen, 
               return (
                 <div key={item.href} className="relative group/nav">
                   <Link
-                    href={item.href}
+                    href={user?.role === "Doctor" && item.doctorHref ? item.doctorHref : item.href}
                     className={`flex items-center rounded-[8px] transition-colors ${
                       collapsed
                         ? "justify-center p-[9px]"

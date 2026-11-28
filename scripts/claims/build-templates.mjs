@@ -153,6 +153,7 @@ const OVERRIDES = {
   // Tata AIG: gender and occupation are tick boxes, not lines.
   "tata-aig": {
     drop: ["gender", "occupation"],
+    add: { dischargeTime: [{ p: 1, x: 282.4, y: 739.2, w: 60.8 }, { p: 3, x: 277, y: 401.4, w: 58 }] },
     manualChoices: { gender: [{ Male: box(1, 103.8, 537.5, 11.4), Female: box(1, 153.8, 537.5, 11.4), Other: box(1, 228.6, 537.5, 11.4) }, { Male: box(3, 291.4, 375.5, 11.4), Female: box(3, 325.4, 375.5, 11.4) }] },
   },
   // IFFCO Tokio: the age and the admission time go in the cell right of their label, where the hint (years / HH MM) is printed.
@@ -169,6 +170,7 @@ const OVERRIDES = {
       admissionDate: [boxes(1, 494.5, HDFC_D), boxes(4, 249.4, HDFC_D)],
       admissionTime: [boxes(1, 494.5, HDFC_T), boxes(4, 249.4, HDFC_T)],
       dischargeDate: [boxes(1, 494.5, HDFC_O), boxes(4, 249.4, HDFC_O)],
+      dischargeTime: [boxes(1, 494.5, "524-529 534-539 550-555 560-565"), boxes(4, 249.4, "524-529 534-539 550-555 560-565")],
     },
   },
   // Bajaj Allianz: dates and times sit in letter boxes (D D M M Y Y Y Y).
@@ -183,7 +185,13 @@ const OVERRIDES = {
   // ICICI Lombard: names in FIRST / MIDDLE / LAST boxes; dates in DD/MM/YYYY boxes with the slashes printed.
   "icici-lombard": {
     drop: ["hospitalEmail", "hospitalPhone"],
-    add: { address: [Flow(2, [[161.3, 34, 254.1], [54.1, 43, 267.5], [54.1, 21, 281.6]])] },
+    add: {
+      address: [Flow(2, [[161.3, 34, 254.1], [54.1, 43, 267.5], [54.1, 21, 281.6]])],
+      dischargeTime: [
+        { p: 2, x: 521.4, y: 512, w: 50.8, cells: [528.55, 540.45, 553.3, 565], cw: 12.7, by: 515.9, bh: 14.4 },
+        { p: 4, x: 508.9, y: 246.1, w: 50.9, cells: [516.1, 528.05, 540.85, 552.6], cw: 12.7, by: 250, bh: 14.4, wipe: [{ x: 509.8, y: 236.5, w: 12.6, h: 12.6 }, { x: 521.8, y: 236.5, w: 12.5, h: 12.6 }] },
+      ],
+    },
     manual: {
       dob: [boxes(2, 208.2, "251-255 264-268 274-276 281-287 293-299 304-307 313-316 325-328 337-341 348-352"), { p: 4, x: 476.9, y: 234.4, w: 107.1 }],
       admissionDate: [boxes(2, 512.5, "130-134 143-147 154-156 160-166 172-178 184-186 192-195 204-207 216-220 228-231"), boxes(4, 246.7, "120-124 133-137 143-145 150-155 162-168 173-175 181-185 194-197 206-209 217-221")],
@@ -191,6 +199,22 @@ const OVERRIDES = {
     },
   },
   // Star's PDF has no readable text: positions read off the form (points from the top-left; page numbers start at 0).
+  // Edelweiss: the date and time cells of Section B (the hints HH:MM and DD/MM/YYYY are wiped).
+  "edelweiss": {
+    manual: {
+      admissionDate: [{ p: 4, x: 46, y: 297.8, w: 120, wipe: [{ x: 45, y: 290.6, w: 58, h: 9.5 }] }],
+      admissionTime: [{ p: 4, x: 217, y: 285.8, w: 70, wipe: [{ x: 217, y: 278.6, w: 29, h: 9.5 }] }],
+      dischargeDate: [{ p: 4, x: 378, y: 285.8, w: 70, wipe: [{ x: 378, y: 278.6, w: 56, h: 9.5 }] }],
+      dischargeTime: [{ p: 4, x: 486, y: 285.8, w: 79, wipe: [{ x: 486, y: 278.6, w: 29, h: 9.5 }] }],
+    },
+  },
+  // Raheja QBE: "i) Time ____" under the admission time.
+  "raheja-qbe": {
+    drop: ["dischargeTime"],
+    add: { dischargeTime: [{ p: 4, x: 332.1, y: 394.1, w: 41.5 }] },
+  },
+  // Kotak has no boxes to map: the details sheet carries the time, and the form does ask for it.
+  "kotak": { hasDischargeTime: true },
   "star-health": {
     only: true, partB: true, summary: false,
     manual: {
@@ -250,6 +274,7 @@ for (const [file, key] of Object.entries(FILES)) {
   for (const [k, spots] of Object.entries(ov.add ?? {})) { const pgs = new Set(spots.map((q) => q.p)); tpl.fields[k] = [...(tpl.fields[k] ?? []).filter((q) => !pgs.has(q.p)), ...spots]; }
   for (const [k, v] of Object.entries(ov.manualChoices ?? {})) tpl.choices[k] = v;
   if (ov.partB !== undefined) tpl.partB = ov.partB;
+  if (ov.hasDischargeTime) tpl.hasDischargeTime = true;
   if (ov.summary ?? (!tpl.partB || Object.keys(tpl.fields).length < 8)) tpl.summary = true;
   if (!Object.keys(tpl.choices).length) delete tpl.choices;
   fs.writeFileSync(path.join(OUT, `${key}.json`), JSON.stringify(tpl));

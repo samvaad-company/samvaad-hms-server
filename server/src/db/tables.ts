@@ -111,6 +111,11 @@ export const TABLES = {
   pharmacySaleItems: "pharmacy_sale_items",
   bedTransfers: "bed_transfers",
   prescriptionTemplates: "prescription_templates",
+  doctorDiagnoses: "doctor_diagnoses",
+  patientDiagnoses: "patient_diagnoses",
+  savedNotes: "saved_notes",
+  doctorDiseaseMedicines: "doctor_disease_medicines",
+  patientUpdateRequests: "patient_update_requests",
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   loyaltyAdjustments: "loyalty_adjustments",
@@ -121,6 +126,7 @@ export const TABLES = {
   signatureAssets: "signature_assets",
   notifications: "notifications",
   aiTokenUsage: "ai_token_usage",
+  aiFeatureUsage: "ai_feature_usage",
   aiTokenLimits: "ai_token_limits",
   aiTokenGrants: "ai_token_grants",
   teleconsultBookings: "teleconsult_bookings",
@@ -286,6 +292,8 @@ export interface PatientRow extends Row {
   privilege_card_no?: string | null;
   payers?: { type: string; name: string; policyNumber: string; validUntil: string | null }[] | null;
   identity_documents?: { type: string; last4: string; fingerprint: string }[] | null;
+  /** What the doctor or the registration desk noted about the patient: allergies, addictions, remarks, how long. */
+  history_items?: { type: string; text: string; since: string }[] | null;
   covid_details?: { vaccination: string | null; lastDose: string | null; /** Vaccinated, but the exact date of the last dose is not known. */ lastDoseUnknown?: boolean; infectedBefore: boolean } | null;
   created_at: string;
   updated_at: string;
@@ -404,6 +412,8 @@ export interface PrescriptionRow extends Row {
   medicine_count: number;
   prescribed_date: string;
   status: string;
+  /** The language the patient's copy is written in: English, Hindi or Gujarati. */
+  language?: string | null;
   /** The clinical record written with the prescription (complaint, history, examination, advice); absent on older ones. */
   consultation?: Record<string, unknown> | null;
   created_at: string;
@@ -419,6 +429,10 @@ export interface PrescriptionItemRow extends Row {
   frequency: string;
   duration: string;
   instructions: string | null;
+  /** How many to dispense, e.g. "10 tablets". */
+  quantity?: string | null;
+  /** When to take it with meals: "Before Meal", "After Meal", "With Meal", "Empty Stomach" or "". */
+  timing?: string | null;
   created_at: string;
 }
 
@@ -479,6 +493,11 @@ export interface PharmacyDispenseRow extends Row {
   status: string;
   dispensed_by: string;
   dispensed_by_id?: number | null;
+  /** Taken to the patient's bed by a nurse or doctor: the bill is raised as Pending and no payment is taken at the bed. */
+  bedside?: boolean | null;
+  ward?: string | null;
+  bed?: string | null;
+  delivered_by_role?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -784,6 +803,10 @@ export interface IpdAdmissionRow extends Row {
   planned_discharge_date?: string | null;
   /** The day the patient was discharged, YYYY-MM-DD. */
   discharge_date?: string | null;
+  /** The moment the discharge was recorded (ISO), so forms can ask for the time of discharge. */
+  discharged_at?: string | null;
+  /** The combined (full) bill issued automatically when the patient was discharged: CB-00000001. */
+  combined_bill_no?: string | null;
   /** "" | "Doctor's summary" | "Bill cleared" — how far the discharge has got. */
   discharge_stage?: string;
   /** The signed admission consent this admission was made on (one consent covers one admission). */
@@ -928,6 +951,12 @@ export interface HospitalRow extends Row {
   teleconsult_meet_access?: string | null;
   /** The brand colour chosen in Settings (a key from src/lib/theme.ts); teal when unset. */
   theme_color?: string | null;
+  /** The hospital's own letterhead (a page-sized image as a data URL) that half-size prescriptions are written on, and the page margins (mm) kept clear of its printed header and footer. */
+  letterhead_url?: string | null;
+  letterhead_top_mm?: number | null;
+  letterhead_bottom_mm?: number | null;
+  /** A letterhead built from a logo and text (JSON: logo, name, doctor lines, footer lines, colour); used instead of the picture when enabled. */
+  letterhead_design?: string | null;
   updated_at: string;
 }
 
@@ -1539,6 +1568,8 @@ export interface AwarenessReadRow extends Row {
   hospital_id: number;
   patient_id: number;
   event_id: number;
+  /** Patient portal updates feed: the text id of an item that is not an awareness programme ("rx-7", "bill-311"); event_id is 0 for these. */
+  key?: string | null;
   read_at: string;
 }
 
@@ -1602,6 +1633,25 @@ export interface AiTokenUsageRow extends Row {
   output_tokens: number;
   total_tokens: number;
   /** "YYYY-MM": the quota month this usage counts against. */
+  month: string;
+  created_at: string;
+}
+
+/** One Gemini call made by the scribe, prescription review or WhatsApp bot, with its tokens and what it cost in rupees. */
+export interface AiFeatureUsageRow extends Row {
+  id: number;
+  hospital_id: number;
+  /** scribe | rx_review | whatsapp_bot */
+  feature: string;
+  user_id: number | null;
+  user_name: string;
+  /** The patient's number for the WhatsApp bot (last 10 digits), so replies can be limited per number. */
+  ref: string;
+  prompt_tokens: number;
+  output_tokens: number;
+  audio_tokens: number;
+  total_tokens: number;
+  cost_inr: number;
   month: string;
   created_at: string;
 }
@@ -1968,6 +2018,14 @@ export interface DocumentRow extends Row {
   retention_note?: string | null;
   reviewed_by?: string | null;
   reviewed_at?: string | null;
+  /** Patient portal: whether the patient may see this file (staff files are hidden until someone shares them), where it came from, and
+   *  for a patient's own upload whether staff have accepted it. */
+  visible_to_patient?: boolean | null;
+  source?: "hospital" | "patient" | null;
+  review_status?: "pending" | "approved" | "rejected" | null;
+  rejection_reason?: string | null;
+  /** The patient's own note sent with an upload. */
+  upload_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1993,6 +2051,98 @@ export interface ScribeNoteRow extends Row {
  * A doctor's personal "quick fill" prescription template — private to the
  * doctor who created it, not shared across the practice.
  */
+export interface DoctorDiagnosisRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number;
+  name: string;
+  /** ICD-10 code when the doctor picked one, else "". */
+  code: string;
+  /** How many prescriptions have used it, so the ones used most come first. */
+  use_count: number;
+  last_used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A change to their own details that a patient asked for in the patient portal. Nothing is written to the patient's record until front-desk
+ * staff apply it: `previous` and `changes` keep both sides so the staff see exactly what would change.
+ */
+export interface PatientUpdateRequestRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  /** The new values, keyed as the portal sent them (phone, email, address, city, state, pincode, emergencyName, …). */
+  changes: Record<string, unknown>;
+  previous: Record<string, unknown>;
+  status: "pending" | "applied" | "rejected";
+  via: string;
+  decision_note: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * What a doctor prescribed for a disease: one row per doctor, disease and medicine, written every time they issue a prescription. The
+ * dose, pattern, timing and duration are the ones used last, and use_count is how many prescriptions have used it, so the next patient
+ * with the same disease can be offered the doctor's usual medicines.
+ */
+export interface DoctorDiseaseMedicineRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number;
+  /** The disease as written, and its lower-case key without the ICD code (what rows are matched on). */
+  diagnosis: string;
+  diagnosis_key: string;
+  medicine_id: number | null;
+  medicine_name: string;
+  medicine_key: string;
+  dosage: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  instructions: string;
+  use_count: number;
+  last_used_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A remark a doctor keeps to use again (their own list), or advice kept for one patient. */
+export interface SavedNoteRow extends Row {
+  id: number;
+  hospital_id: number;
+  doctor_id: number | null;
+  /** Set for advice kept for a patient; null for a doctor's own remark. */
+  patient_id: number | null;
+  /** "timing" is a doctor's own wording for when to take a medicine ("30 minutes before food"). */
+  kind: "remark" | "advice" | "timing";
+  text: string;
+  use_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A diagnosis a doctor recorded for a patient (on a prescription), so the patient's and the doctor's records both show it. */
+export interface PatientDiagnosisRow extends Row {
+  id: number;
+  hospital_id: number;
+  patient_id: number;
+  doctor_id: number | null;
+  doctor: string;
+  diagnosis_id: number | null;
+  name: string;
+  kind: string;
+  prescription_id: number | null;
+  rx_number: string;
+  recorded_on: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PrescriptionTemplateRow extends Row {
   id: number;
   hospital_id: number;

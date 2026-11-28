@@ -7,7 +7,7 @@ import { tw } from "@/lib/design-system";
 import { useItem, useList } from "@/lib/api/hooks";
 import { api } from "@/lib/api/client";
 import { parseDisplayDate, formatDate } from "@/lib/dates";
-import type { PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO, OpdVitalDTO } from "@/types/api";
+import type { PatientDiagnosisDTO, PatientDTO, PrescriptionDTO, LabTestDTO, RadiologyTestDTO, AppointmentDTO, OpdRecordDTO, OpdVitalDTO } from "@/types/api";
 import { VitalsHistory } from "@/components/opd/VitalsLog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VaccinationsTab } from "@/components/patients/VaccinationsTab";
@@ -500,6 +500,24 @@ function MedicalHistoryTab({ patient }: { patient: PatientDetail }) {
   );
 }
 
+/** Every diagnosis doctors have recorded for this patient on a prescription, newest first. */
+function DiagnosesTab({ patientId }: { patientId: number }) {
+  const { items, loading } = useList<PatientDiagnosisDTO>(`/patients/${patientId}/diagnoses`, { all: true });
+  if (!loading && items.length === 0) return <p className="p-5 text-[13px] font-light text-[color:var(--ink-soft)]">No diagnoses recorded for this patient yet.</p>;
+  return (
+    <div className="divide-y divide-[color:var(--subtle-2)]">
+      {items.map((d) => (
+        <div key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
+          <span className="min-w-[180px] flex-1 text-[14px] text-[color:var(--ink)]">{d.name}</span>
+          <span className={`rounded-full px-2 py-[1px] text-[11px] ${d.kind === "Primary" ? "bg-[color:var(--brand-soft)] text-[color:var(--brand)]" : "bg-[color:var(--subtle)] text-[color:var(--ink-soft)]"}`}>{d.kind}</span>
+          <span className="text-[12px] text-[color:var(--ink-soft)]">{d.doctor || "Doctor not recorded"} · {formatDate(d.recordedOn)}</span>
+          {d.prescriptionId && <Link href={`/prescriptions/${d.prescriptionId}`} className="text-[12px] font-medium text-[color:var(--brand)] hover:underline">{d.rxNumber || "Prescription"}</Link>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function VitalsTab({ patientId }: { patientId: number }) {
   const { items: visits } = useList<OpdRecordDTO>("/opd", { all: true, patient_id: patientId });
   const { items: readings } = useList<OpdVitalDTO>(`/patients/${patientId}/vitals`, { all: true });
@@ -546,6 +564,7 @@ const MAIN_TABS = [
   { id: "history", label: "Medical history" },
   { id: "visits", label: "Visits" },
   { id: "vitals", label: "Vitals" },
+  { id: "diagnoses", label: "Diagnoses" },
 ];
 const MORE_TABS = [
   { id: "lab", label: "Lab reports" },
@@ -678,6 +697,7 @@ export default function PatientDetailPage() {
           {tab === "history"      && <MedicalHistoryTab patient={patient} />}
           {tab === "visits"       && <VisitsTab patient={patient} />}
           {tab === "vitals"       && <VitalsTab patientId={patient.id} />}
+          {tab === "diagnoses"    && <DiagnosesTab patientId={patient.id} />}
           {tab === "lab"          && <LabReportsTab tests={patient.labTests} />}
           {tab === "radiology"    && <RadiologyReportsTab tests={patient.radiologyTests} />}
           {tab === "vaccinations" && <VaccinationsTab patientId={patient.id} />}

@@ -146,7 +146,7 @@ function consultationText(c: Consultation): string[] {
   const out: string[] = [];
   if (c.chiefComplaint?.trim()) out.push(`Chief complaint: ${c.chiefComplaint}`);
   const h = c.history;
-  for (const [k, v] of [["Past history", h?.past], ["Family history", h?.family], ["Personal history", h?.personal], ["Medical history", h?.medical]] as const) if (v?.trim()) out.push(`${k}: ${v}`);
+  for (const [k, v] of [["Past history", h?.past], ["Family history", h?.family], ["Personal history", h?.personal], ["Medication history", h?.medical]] as const) if (v?.trim()) out.push(`${k}: ${v}`);
   const v = c.vitals;
   const bmi = v ? bmiOf(v.weight, v.height) : "";
   const vit = v ? [v.bp && `BP ${v.bp}`, v.pulse && `Pulse ${v.pulse}`, v.temp && `Temp ${v.temp} F`, v.spo2 && `SpO2 ${v.spo2}%`, v.weight && `Weight ${v.weight} kg`, v.height && `Height ${v.height} cm`, bmi && `BMI ${bmi}`].filter(Boolean) : [];

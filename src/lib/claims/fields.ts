@@ -49,6 +49,7 @@ export const CLAIM_FIELDS: Record<string, ClaimFieldSpec> = {
   admissionDate: { label: "Date of admission", group: "stay", type: "date" },
   admissionTime: { label: "Time of admission", group: "stay", type: "time" },
   dischargeDate: { label: "Date of discharge", group: "stay", type: "date" },
+  dischargeTime: { label: "Time of discharge", group: "stay", type: "time" },
   roomType: { label: "Room / ward category", group: "stay", type: "text" },
   admissionType: { label: "Emergency or planned", group: "stay", type: "choice", options: ["Emergency", "Planned"] },
 

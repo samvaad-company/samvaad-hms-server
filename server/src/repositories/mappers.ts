@@ -12,6 +12,10 @@ import type {
   PrescriptionDTO,
   PrescriptionItemDTO,
   PrescriptionTemplateDTO,
+  DoctorDiagnosisDTO,
+  SavedNoteDTO,
+  UsualMedicineDTO,
+  PatientDiagnosisDTO,
   PrescriptionTemplateItemDTO,
   PharmacyItemDTO,
   LabTestDTO,
@@ -150,6 +154,10 @@ import type {
   PharmacySaleItemRow,
   ScribeNoteRow,
   PrescriptionTemplateRow,
+  DoctorDiagnosisRow,
+  SavedNoteRow,
+  DoctorDiseaseMedicineRow,
+  PatientDiagnosisRow,
 } from "@/db/tables";
 import type {
   Gender,
@@ -247,6 +255,7 @@ export function toPatientDTO(r: PatientRow): PatientDTO {
     // Never the fingerprint — just enough to recognise the document.
     identityDocuments: (r.identity_documents ?? []).map((d) => ({ type: d.type, last4: d.last4 })),
     covid: r.covid_details ?? null,
+    history: r.history_items ?? [],
   };
 }
 
@@ -341,6 +350,8 @@ export function toPrescriptionItemDTO(
     frequency: r.frequency,
     duration: r.duration,
     instructions: r.instructions,
+    quantity: r.quantity ?? "",
+    timing: r.timing ?? "",
   };
 }
 
@@ -360,8 +371,32 @@ export function toPrescriptionDTO(
     status: r.status as PrescriptionStatus,
     patientId: r.patient_id,
     doctorId: r.doctor_id,
+    createdAt: r.created_at,
+    language: r.language ?? "English",
     consultation: (r.consultation as PrescriptionDTO["consultation"]) ?? null,
     items: items.map(toPrescriptionItemDTO),
+  };
+}
+
+export function toDoctorDiagnosisDTO(r: DoctorDiagnosisRow): DoctorDiagnosisDTO {
+  return { id: r.id, doctorId: r.doctor_id, name: r.name, code: r.code ?? "", useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at ?? null, createdAt: r.created_at };
+}
+
+export function toUsualMedicineDTO(r: DoctorDiseaseMedicineRow): UsualMedicineDTO {
+  return {
+    id: r.id, diagnosis: r.diagnosis, medicineId: r.medicine_id, medicineName: r.medicine_name, dosage: r.dosage, frequency: r.frequency,
+    timing: r.timing, duration: r.duration, instructions: r.instructions, useCount: r.use_count ?? 0, lastUsedAt: r.last_used_at,
+  };
+}
+
+export function toSavedNoteDTO(r: SavedNoteRow): SavedNoteDTO {
+  return { id: r.id, kind: r.kind, doctorId: r.doctor_id, patientId: r.patient_id, text: r.text, useCount: r.use_count ?? 0, createdAt: r.created_at };
+}
+
+export function toPatientDiagnosisDTO(r: PatientDiagnosisRow): PatientDiagnosisDTO {
+  return {
+    id: r.id, patientId: r.patient_id, doctorId: r.doctor_id, doctor: r.doctor ?? "", diagnosisId: r.diagnosis_id, name: r.name,
+    kind: r.kind === "Secondary" ? "Secondary" : "Primary", prescriptionId: r.prescription_id, rxNumber: r.rx_number ?? "", recordedOn: r.recorded_on,
   };
 }
 
@@ -488,6 +523,7 @@ export function toIpdDTO(r: IpdAdmissionRow): IpdRecordDTO {
     expectedStayDays: r.expected_stay_days ?? null,
     diet: r.diet ?? "",
     dischargeDate: r.discharge_date ?? "",
+    combinedBillNo: r.combined_bill_no ?? "",
   };
 }
 
@@ -1210,6 +1246,10 @@ export function toDocumentDTO(r: DocumentRow): DocumentDTO {
     mimeType: r.mime_type,
     sizeBytes: r.size_bytes,
     uploadedBy: r.uploaded_by,
+    visibleToPatient: r.visible_to_patient === true,
+    source: r.source === "patient" ? "patient" : "hospital",
+    reviewStatus: r.review_status ?? "approved",
+    rejectionReason: r.rejection_reason ?? "",
     createdAt: r.created_at,
     url: `/api/documents/${r.id}/download`,
   };

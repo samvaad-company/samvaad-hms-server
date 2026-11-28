@@ -105,7 +105,7 @@ export async function getDraft(admissionId: number, actor: Session): Promise<Cla
     hospitalName: hospital?.name ?? "", hospitalAddress, hospitalReg: hospital?.reg_number ?? "", hospitalPan: hospital?.pan_number ?? "",
     hospitalPhone: hospital?.phone || hospital?.mobile || "", hospitalEmail: hospital?.email ?? "",
     doctorName: doctor?.name ?? a.doctor ?? "",
-    diagnosis: a.diagnosis ?? "", admissionDate: dmy(a.admission_date), admissionTime: clock(a.created_at), dischargeDate: dmy(discharge),
+    diagnosis: a.diagnosis ?? "", admissionDate: dmy(a.admission_date), admissionTime: clock(a.created_at), dischargeDate: dmy(discharge), dischargeTime: a.status === "Discharged" ? clock(a.discharged_at) : "",
     roomType: [a.ward, a.bed].filter(Boolean).join(" · "), admissionType: a.admission_type === "Emergency" ? "Emergency" : "Planned",
     totalBill: money(total), advancePaid: money(Number(a.deposit_amount ?? 0)),
   };
